@@ -1787,6 +1787,67 @@ export async function downloadAnnualCompetitionCertificate(attemptId: string): P
   return data;
 }
 
+// Point 7 (Shailesh, 2026-09-08): admin per-question attempt review --
+// mirrors GetCompetitionEventAttemptReviewForAdmin's payload verbatim
+// (annual_competition_attempt_service.py). Typed-answer shape throughout
+// (studentAnswer/correctAnswer), matching Point 8's DPS-style attempt UI --
+// not Competition Mock's MCQ-options shape.
+export type AnnualCompetitionAttemptReviewQuestion = {
+  questionId: string;
+  questionNumber: number;
+  displayType: string | null;
+  questionText: string | null;
+  operands: Array<number | string>;
+  operators: string[];
+  studentAnswer: string | null;
+  correctAnswer: string | null;
+  isUnanswered: boolean;
+  isCorrect: boolean;
+};
+
+export type AnnualCompetitionAttemptReviewSection = {
+  sectionNumber: number;
+  sectionTitle: string | null;
+  mode: string | null;
+  status: string;
+  timeLimitSeconds: number | null;
+  startedAt: string | null;
+  submittedAt: string | null;
+  questions: AnnualCompetitionAttemptReviewQuestion[];
+};
+
+export type AnnualCompetitionAttemptReview = {
+  attemptId: string;
+  eventId: string;
+  eventName: string | null;
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  assignedLevelCode: string | null;
+  status: string;
+  startedAt: string | null;
+  submittedAt: string | null;
+  result: {
+    score: number;
+    maxScore: number;
+    percentage: number;
+    accuracyPercentage: number;
+    correctCount: number;
+    wrongCount: number;
+    unansweredCount: number;
+    timeTakenSeconds: number | null;
+    rank: number | null;
+    isReleased: boolean;
+    isVoided: boolean;
+  } | null;
+  sections: AnnualCompetitionAttemptReviewSection[];
+};
+
+export async function getAnnualCompetitionAttemptReview(attemptId: string): Promise<AnnualCompetitionAttemptReview> {
+  const { data } = await api.get<AnnualCompetitionAttemptReview>(`/admin/annual-competition/attempts/${attemptId}/review`);
+  return data;
+}
+
 // ---------------------------------------------------------------------------
 // Annual Competition -- Teacher/Admin Monitoring (Package 7). Types mirror
 // annual_competition_monitoring_service.py's payloads verbatim.

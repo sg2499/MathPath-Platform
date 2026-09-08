@@ -202,6 +202,15 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const [OverrideStudentId, SetOverrideStudentId] = useState("");
   const [OverrideLevelCode, SetOverrideLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
 
+  // --- Point 1 (2026-09-08): inline per-row override on the Assignments
+  // preview table itself. This is a pure UX front-end onto the exact same
+  // overrideAnnualCompetitionAssignment call the Manual Override form below
+  // already uses -- the auto-picker stays the source of truth by default,
+  // this only ever fires when an admin explicitly picks a row's dropdown
+  // and clicks Apply. Keyed by studentId so each row's pending selection is
+  // independent and never clobbers another row's.
+  const [RowOverrideLevelByStudentId, SetRowOverrideLevelByStudentId] = useState<Record<string, string>>({});
+
   // --- Monitoring / Results (Package 7) ---
   const [ResultsLevelFilter, SetResultsLevelFilter] = useState<string>("ALL");
   const [RankLevelCode, SetRankLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
@@ -355,6 +364,25 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     onSuccess: () => {
       SetLastMessage(`Assignment overridden for student ${OverrideStudentId.trim()}.`);
       SetOverrideStudentId("");
+      InvalidatePreview();
+    },
+  });
+
+  // Point 1: same call as OverrideMutation above, just fed from a preview
+  // row's own dropdown instead of the separate text-field form. Tracked as
+  // its own mutation (rather than reusing OverrideMutation) so a save on
+  // one row never shows a pending/disabled state on an unrelated row or on
+  // the Manual Override form.
+  const RowOverrideMutation = useMutation({
+    mutationFn: (Vars: { StudentId: string; LevelCode: string }) =>
+      overrideAnnualCompetitionAssignment(EventId, { studentId: Vars.StudentId, assignedLevelCode: Vars.LevelCode }),
+    onSuccess: (_Result, Vars) => {
+      SetLastMessage(`Assignment overridden for student ${Vars.StudentId}.`);
+      SetRowOverrideLevelByStudentId((Prev) => {
+        const Next = { ...Prev };
+        delete Next[Vars.StudentId];
+        return Next;
+      });
       InvalidatePreview();
     },
   });
@@ -837,7 +865,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 <div className="mt-4"><LoadingState label="Computing preview..." /></div>
               ) : PreviewQuery.data && PreviewQuery.data.rows.length > 0 ? (
                 <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-left text-xs font-bold">
+                  <table className="w-full min-w-[900px] text-left text-xs font-bold">
                     <thead>
                       <tr className="text-slate-500 dark:text-slate-400">
                         <th className="px-2 py-1.5">Student</th>
@@ -845,33 +873,74 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                         <th className="px-2 py-1.5">Computed Level</th>
                         <th className="px-2 py-1.5">Existing</th>
                         <th className="px-2 py-1.5">Status</th>
+                        <th className="px-2 py-1.5">Set Level</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {PreviewQuery.data.rows.map((Row: AnnualCompetitionAssignmentPreviewRow) => (
-                        <tr key={Row.studentId} className="border-t border-[color:var(--mp-role-border)]">
-                          <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                          <td className="px-2 py-2">{Row.currentLevelCode || "--"}</td>
-                          <td className="px-2 py-2">
-                            {Row.computedAssignedLevelCode || "--"}
-                            {Row.requiresNewPaperRegistryEntry && Row.computedAssignedLevelCode && (
-                              <ShieldAlert size={12} className="ml-1.5 inline text-amber-500" aria-label="No paper registry entry yet" />
-                            )}
-                          </td>
-                          <td className="px-2 py-2">{Row.existingAssignedLevelCode || "--"} {Row.existingAssignmentSource === "ADMIN_OVERRIDE" && <span className="text-slate-400">(override)</span>}</td>
-                          <td className="px-2 py-2">
-                            {Row.noRuleMatched ? (
-                              <span className="text-amber-600 dark:text-amber-300">{Row.reason}</span>
-                            ) : Row.wouldOverwriteAdminOverride ? (
-                              <span className="text-slate-400">preserved</span>
-                            ) : Row.wouldChangeOnRun ? (
-                              <span className="text-emerald-600 dark:text-emerald-300">would assign</span>
-                            ) : (
-                              <span className="text-slate-400">no change</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {PreviewQuery.data.rows.map((Row: AnnualCompetitionAssignmentPreviewRow) => {
+                        const RowPendingLevel =
+                          RowOverrideLevelByStudentId[Row.studentId] ??
+                          Row.existingAssignedLevelCode ??
+                          Row.computedAssignedLevelCode ??
+                          ANNUAL_COMPETITION_LEVEL_CODES[0];
+                        const RowIsSaving = RowOverrideMutation.isPending && RowOverrideMutation.variables?.StudentId === Row.studentId;
+                        return (
+                          <tr key={Row.studentId} className="border-t border-[color:var(--mp-role-border)]">
+                            <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                            <td className="px-2 py-2">{Row.currentLevelCode || "--"}</td>
+                            <td className="px-2 py-2">
+                              {Row.computedAssignedLevelCode || "--"}
+                              {Row.requiresNewPaperRegistryEntry && Row.computedAssignedLevelCode && (
+                                <ShieldAlert size={12} className="ml-1.5 inline text-amber-500" aria-label="No paper registry entry yet" />
+                              )}
+                            </td>
+                            <td className="px-2 py-2">{Row.existingAssignedLevelCode || "--"} {Row.existingAssignmentSource === "ADMIN_OVERRIDE" && <span className="text-slate-400">(override)</span>}</td>
+                            <td className="px-2 py-2">
+                              {Row.noRuleMatched ? (
+                                <span className="text-amber-600 dark:text-amber-300">{Row.reason}</span>
+                              ) : Row.wouldOverwriteAdminOverride ? (
+                                <span className="text-slate-400">preserved</span>
+                              ) : Row.wouldChangeOnRun ? (
+                                <span className="text-emerald-600 dark:text-emerald-300">would assign</span>
+                              ) : (
+                                <span className="text-slate-400">no change</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-2">
+                              {/* Deliberately independent of the auto-picker above -- this
+                                  never writes anything until Apply is clicked, and the
+                                  auto-picker/Run Assignment Engine flow is completely
+                                  unaffected by this control existing. Only for the
+                                  "unavoidable circumstances" escape hatch (Shailesh,
+                                  2026-09-08 point 1) -- the override option stays exactly
+                                  as it was otherwise. */}
+                              <div className="flex items-center gap-1.5">
+                                <select
+                                  value={RowPendingLevel}
+                                  onChange={(EventValue) =>
+                                    SetRowOverrideLevelByStudentId((Prev) => ({ ...Prev, [Row.studentId]: EventValue.target.value }))
+                                  }
+                                  className="math-input !py-1 !text-xs"
+                                  aria-label={`Set level for ${Row.studentName || Row.studentCode || Row.studentId}`}
+                                >
+                                  {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                                    <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  disabled={RowIsSaving}
+                                  onClick={() => RowOverrideMutation.mutate({ StudentId: Row.studentId, LevelCode: RowPendingLevel })}
+                                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[color:var(--mp-role-border)] bg-white px-2.5 py-1 text-[11px] font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950/60"
+                                >
+                                  <UserCog size={11} />
+                                  {RowIsSaving ? "..." : "Apply"}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1070,7 +1139,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 <div className="mt-5"><LoadingState label="Loading results..." /></div>
               ) : ResultsQuery.data && ResultsQuery.data.rows.length > 0 ? (
                 <div className="mt-5 overflow-x-auto">
-                  <table className="w-full min-w-[820px] text-left text-xs font-bold">
+                  <table className="w-full min-w-[940px] text-left text-xs font-bold">
                     <thead>
                       <tr className="text-slate-500 dark:text-slate-400">
                         <th className="px-2 py-1.5">Rank</th>
@@ -1079,6 +1148,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                         <th className="px-2 py-1.5">Accuracy</th>
                         <th className="px-2 py-1.5">Score</th>
                         <th className="px-2 py-1.5">Time Taken</th>
+                        <th className="px-2 py-1.5">Attempt</th>
                         <th className="px-2 py-1.5">Released</th>
                         <th className="px-2 py-1.5">Certificate</th>
                       </tr>
@@ -1092,6 +1162,15 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                           <td className="px-2 py-2">{Row.accuracyPercentage}%</td>
                           <td className="px-2 py-2">{Row.score}/{Row.maxScore}</td>
                           <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
+                          <td className="px-2 py-2">
+                            <Link
+                              href={`/admin/competition/annual-result/${Row.attemptId}`}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+                            >
+                              <ClipboardList size={12} />
+                              View Attempt
+                            </Link>
+                          </td>
                           <td className="px-2 py-2">
                             {Row.isReleased ? (
                               <span className="text-emerald-600 dark:text-emerald-300">Released</span>

@@ -4,8 +4,8 @@ import { AppShell } from "@/components/common/AppShell";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
-import { OptionButton } from "@/components/student/OptionButton";
+import { QuestionCard } from "@/components/student/QuestionCard";
+import type { AnswerInputBoxHandle } from "@/components/student/AnswerInputBox";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
 import { TestTimer } from "@/components/student/TestTimer";
 import { useAnnualCompetitionHeartbeat } from "@/hooks/useAnnualCompetitionHeartbeat";
@@ -22,7 +22,7 @@ import {
   type AnnualCompetitionAttempt,
 } from "@/lib/api/student";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Award, CheckCircle2, ClipboardCheck, Gauge, Layers3, ShieldAlert, Trophy } from "lucide-react";
+import { Award, ClipboardCheck, Gauge, Layers3, ShieldAlert, Trophy } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -57,6 +57,22 @@ function AnnualCompetitionAttemptContent() {
   const [saveError, setSaveError] = useState<unknown>(null);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [submittingSection, setSubmittingSection] = useState(false);
+  // Point 8 (Shailesh, 2026-09-08): mirrors the DPS attempt page's own
+  // isFinalizingSubmit exactly -- the window where a section-submit is
+  // flushing and awaiting every pending typed-answer save before the
+  // submit call itself is made, so a correct, already-typed answer can
+  // never lose a race against Submit firing before its debounced save
+  // lands (see AnswerInputBox's own docstring and the DPS attempt page's
+  // flushAndAwaitAllPendingSaves() for the confirmed 2026-09-04 bug this
+  // closes). The backend's matching half of this guarantee is
+  // _LockAttemptForUpdate in annual_competition_attempt_service.py.
+  const [isFinalizingSubmit, setIsFinalizingSubmit] = useState(false);
+  const answerInputRef = useRef<AnswerInputBoxHandle>(null);
+  // Every currently-in-flight saveAnnualCompetitionAnswer() call, keyed by
+  // its own promise -- each entry removes itself once settled.
+  // flushAndAwaitAllPendingSaves below awaits this whole set, exactly
+  // mirroring the DPS attempt page's own pendingSavesRef.
+  const pendingSavesRef = useRef<Set<Promise<unknown>>>(new Set());
 
   const attemptQuery = useQuery({
     queryKey: ["annual-competition-attempt", attemptId],
@@ -170,14 +186,26 @@ function AnnualCompetitionAttemptContent() {
     handleLocalTimeUp
   );
 
-  async function handleSelect(questionId: string, selectedOptionId: string) {
-    if (!liveAttempt || !sessionToken || liveAttempt.status !== "IN_PROGRESS") return;
-    const questions = liveAttempt.activeSectionQuestions || [];
-    const selectedQuestionIndex = questions.findIndex((question) => question.questionId === questionId);
-    setLocalAnswers((prev) => ({ ...prev, [questionId]: selectedOptionId }));
-    if (selectedQuestionIndex >= 0 && selectedQuestionIndex < questions.length - 1) {
-      setCurrentIndex(selectedQuestionIndex + 1);
-    }
+  const questions = liveAttempt?.activeSectionQuestions || [];
+  const currentQuestion = questions[currentIndex];
+
+  // Point 8 (2026-09-08): typed free-text answers, matching DPS -- see
+  // DPS's own attempt page for the identical pattern this mirrors.
+  // savedAnswers is keyed by questionId -> the typed text (server-saved
+  // value merged with anything typed locally this session but not yet
+  // round-tripped).
+  const savedAnswers: Record<string, string> = {};
+  questions.forEach((question) => {
+    if (question.savedAnswerText) savedAnswers[question.questionId] = question.savedAnswerText;
+  });
+  Object.assign(savedAnswers, localAnswers);
+  const answeredNumbers = questions
+    .filter((question) => (savedAnswers[question.questionId] || "").trim())
+    .map((question) => question.questionNumber);
+
+  async function persistAnswer(questionId: string, answerText: string) {
+    if (!liveAttempt || !sessionToken || liveAttempt.status !== "IN_PROGRESS" || remainingSeconds <= 0) return;
+    setLocalAnswers((prev) => ({ ...prev, [questionId]: answerText }));
     setSavingQuestionId(questionId);
     setSaveError(null);
     try {
@@ -185,7 +213,7 @@ function AnnualCompetitionAttemptContent() {
         sessionToken,
         sectionNumber: liveAttempt.currentSectionNumber,
         questionId,
-        selectedOptionId,
+        answerText,
       });
       setLiveAttempt((prev) => (prev ? { ...prev, ...updated } : updated));
       if (updated.status !== "IN_PROGRESS" || updated.currentSectionNumber !== liveAttempt.currentSectionNumber) {
@@ -205,10 +233,40 @@ function AnnualCompetitionAttemptContent() {
     }
   }
 
+  // Fired on a shorter pause while typing -- just persists so nothing is
+  // ever lost, without moving the student anywhere. Tracked in
+  // pendingSavesRef (rather than plain fire-and-forget) so
+  // flushAndAwaitAllPendingSaves can guarantee Submit never fires while
+  // this request is still on the wire -- see isFinalizingSubmit's own
+  // comment above.
+  function handleSaveAnswer(questionId: string, answerText: string) {
+    const savePromise = persistAnswer(questionId, answerText);
+    pendingSavesRef.current.add(savePromise);
+    savePromise.finally(() => {
+      pendingSavesRef.current.delete(savePromise);
+    });
+  }
+
+  // Forces whatever's currently sitting in the visible question's 450ms
+  // debounce window to save right now, then waits for that request -- and
+  // any other still-in-flight save from a question the student already
+  // moved past -- to actually be acknowledged by the server. Submit awaits
+  // this before firing, so it can never race ahead of an answer the
+  // student already finished typing. Exactly mirrors the DPS attempt
+  // page's own flushAndAwaitAllPendingSaves().
+  const flushAndAwaitAllPendingSaves = useCallback(async () => {
+    answerInputRef.current?.flushPendingSave();
+    while (pendingSavesRef.current.size > 0) {
+      await Promise.allSettled(Array.from(pendingSavesRef.current));
+    }
+  }, []);
+
   async function handleSubmitSection() {
     if (!liveAttempt || !sessionToken) return;
     setSubmittingSection(true);
+    setIsFinalizingSubmit(true);
     try {
+      await flushAndAwaitAllPendingSaves();
       const updated = await submitAnnualCompetitionSection(attemptId, {
         sessionToken,
         sectionNumber: liveAttempt.currentSectionNumber,
@@ -233,6 +291,7 @@ function AnnualCompetitionAttemptContent() {
       }
     } finally {
       setSubmittingSection(false);
+      setIsFinalizingSubmit(false);
     }
   }
 
@@ -268,31 +327,39 @@ function AnnualCompetitionAttemptContent() {
       <AppShell title="Annual Competition">
         <div className="math-card p-6">
           <div className="math-block-header mb-2"><Trophy size={14} /> Annual Competition</div>
-          <h1 className="text-2xl font-black text-slate-950 dark:text-white">Competition Submitted</h1>
+          <h1 className="text-2xl font-black text-slate-950 dark:text-white">Attempt Complete</h1>
           {result ? (
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="math-card p-3">
-                <div className="text-xs text-slate-500 dark:text-slate-400">Accuracy</div>
-                <div className="text-xl font-black text-slate-950 dark:text-white">{result.accuracyPercentage}%</div>
-              </div>
-              <div className="math-card p-3">
-                <div className="text-xs text-slate-500 dark:text-slate-400">Correct</div>
-                <div className="text-xl font-black text-slate-950 dark:text-white">{result.correctCount}</div>
-              </div>
-              <div className="math-card p-3">
-                <div className="text-xs text-slate-500 dark:text-slate-400">Time Taken</div>
-                <div className="text-xl font-black text-slate-950 dark:text-white">{Math.round((result.timeTakenSeconds || 0) / 60)}m</div>
-              </div>
-              {result.rank ? (
+            <>
+              <p className="math-subtitle max-w-none">
+                Your Annual Competition attempt has been scored. Your official rank and certificate will be released once
+                every student at your level has completed their slot.
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="math-card p-3">
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Rank</div>
-                  <div className="text-xl font-black text-slate-950 dark:text-white">#{result.rank}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Accuracy</div>
+                  <div className="text-xl font-black text-slate-950 dark:text-white">{result.accuracyPercentage}%</div>
                 </div>
-              ) : null}
-            </div>
+                <div className="math-card p-3">
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Correct</div>
+                  <div className="text-xl font-black text-slate-950 dark:text-white">{result.correctCount}</div>
+                </div>
+                <div className="math-card p-3">
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Time Taken</div>
+                  <div className="text-xl font-black text-slate-950 dark:text-white">{Math.round((result.timeTakenSeconds || 0) / 60)}m</div>
+                </div>
+                {result.rank ? (
+                  <div className="math-card p-3">
+                    <div className="text-xs text-slate-500 dark:text-slate-400">Rank</div>
+                    <div className="text-xl font-black text-slate-950 dark:text-white">#{result.rank}</div>
+                  </div>
+                ) : null}
+              </div>
+            </>
           ) : (
             <p className="math-subtitle max-w-none">
-              Your competition attempt has been submitted. Results are released separately once available.
+              Your Annual Competition attempt has been submitted and is now being scored. Ranked results and certificates
+              are released together once every student at your level has completed their slot -- check back after the
+              competition window closes.
             </p>
           )}
           <div className="mt-5 flex flex-wrap gap-3">
@@ -343,9 +410,6 @@ function AnnualCompetitionAttemptContent() {
     );
   }
 
-  const questions = liveAttempt.activeSectionQuestions || [];
-  const currentQuestion = questions[currentIndex];
-
   if (!sessionToken || !currentQuestion) {
     return (
       <AppShell title="Annual Competition">
@@ -354,107 +418,140 @@ function AnnualCompetitionAttemptContent() {
     );
   }
 
-  const selectedAnswers: Record<string, string> = {};
-  questions.forEach((question) => {
-    if (question.savedOptionId) selectedAnswers[question.questionId] = question.savedOptionId;
-  });
-  Object.assign(selectedAnswers, localAnswers);
-  const answeredNumbers = questions.filter((question) => selectedAnswers[question.questionId]).map((question) => question.questionNumber);
   const totalSections = liveAttempt.sections.length;
+  // Point 5 fix (2026-09-08): now sourced from the backend (see
+  // AnnualCompetitionSectionState's own comment) instead of being entirely
+  // absent -- students previously had no way to know a section's actual
+  // name or ABACUS/VISUAL method, only its bare number.
+  const sectionTitle = activeSectionState?.sectionTitle || null;
+  const sectionMode = activeSectionState?.mode || null;
+  const sectionHeading = sectionTitle
+    ? `Section ${liveAttempt.currentSectionNumber}: ${sectionTitle}`
+    : `Section ${liveAttempt.currentSectionNumber}`;
 
   return (
     <AppShell title="Annual Competition">
-      <section className="math-slide-up math-card flex min-w-0 flex-col gap-4 p-4 sm:p-5 xl:min-h-[calc(100svh-11rem)]">
-        <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-gradient-to-br from-white via-orange-50 to-amber-100 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:p-6">
-          <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-amber-300/25 blur-3xl" />
-          <div className="relative z-10">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <p className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
-                Question {currentQuestion.questionNumber} Of {questions.length}
+      {/* Floating prev/next arrows: normal in-flow flex siblings of the
+          card (not absolutely positioned), same fix already proven on the
+          DPS attempt page (2026-09-02) for exactly this kind of screen --
+          see that page's own comment for why an absolutely-positioned
+          version reliably got clipped on real screen widths. */}
+      <div className="flex items-stretch gap-2 sm:gap-3">
+        <button
+          onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
+          disabled={currentIndex === 0}
+          aria-label="Previous question"
+          className="hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+
+        <section className="math-slide-up math-card flex min-w-0 flex-1 flex-col gap-4 p-4 sm:p-5 xl:min-h-[calc(100svh-11rem)]">
+          <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-gradient-to-br from-white via-orange-50 to-amber-100 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:p-6">
+            <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-amber-300/25 blur-3xl" />
+            <div className="relative z-10">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <p className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
+                  Question {currentQuestion.questionNumber} Of {questions.length}
+                </p>
+                <p className="inline-flex rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200">
+                  Section {liveAttempt.currentSectionNumber} Of {totalSections}
+                </p>
+                {sectionMode ? (
+                  <p className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
+                    {sectionMode}
+                  </p>
+                ) : null}
+              </div>
+              <h1 className="mt-2 w-full text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
+                Annual Competition
+              </h1>
+              <p className="math-subtitle !mt-3 max-w-3xl">
+                Stay connected -- your timer only pauses briefly on a genuine disconnect. Sections lock sequentially and cannot be revisited.
               </p>
-              <p className="inline-flex rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200">
-                Section {liveAttempt.currentSectionNumber} Of {totalSections}
-              </p>
-            </div>
-            <h1 className="mt-2 max-w-5xl text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
-              Annual Competition
-            </h1>
-            <p className="math-subtitle !mt-3 max-w-3xl">
-              Stay connected -- your timer only pauses briefly on a genuine disconnect. Sections lock sequentially and cannot be revisited.
-            </p>
-          </div>
-        </div>
-
-        <div className="sticky top-[80px] sm:top-[104px] 2xl:top-[144px] z-[90] grid gap-3 rounded-3xl bg-slate-50 p-2 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard icon={<ClipboardCheck size={16} />} label="ANSWERED" value={answeredNumbers.length} />
-          <StatCard icon={<Layers3 size={16} />} label="REMAINING" value={questions.length - answeredNumbers.length} />
-          <StatCard icon={<Gauge size={16} />} label="CURRENT" value={`Q${currentQuestion.questionNumber}`} />
-          <TimerMetricCard remainingSeconds={remainingSeconds} />
-        </div>
-
-        <div className="grid flex-1 gap-4 xl:items-stretch xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]">
-          <div className="math-card flex flex-col min-h-[450px] sm:min-h-[500px] border border-slate-200/80 bg-slate-50/75 p-4 shadow-none dark:border-slate-800 dark:bg-slate-900/55">
-            <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-slate-200/80 pb-3 dark:border-slate-800">
-              <div>
-                <div className="math-block-header !mb-0"><Layers3 size={14} /> Section {liveAttempt.currentSectionNumber}</div>
-                <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Question {currentQuestion.questionNumber}</h2>
-              </div>
-              <div className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${savingQuestionId === currentQuestion.questionId ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200" : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"}`}>
-                {savingQuestionId === currentQuestion.questionId ? "Saving..." : "Auto-saved"}
-              </div>
-            </div>
-            <div className="flex flex-1 items-center justify-center px-2 py-4 xl:min-h-0">
-              <div className="flex w-full h-full min-h-[300px] items-center justify-center rounded-[28px] bg-white/92 p-4 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/80 dark:ring-slate-700">
-                <MathQuestionDisplay
-                  operands={currentQuestion.operands}
-                  operators={currentQuestion.operators}
-                  displayType={currentQuestion.displayType}
-                  questionText={currentQuestion.questionText}
-                />
-              </div>
             </div>
           </div>
 
-          <div className="math-card flex flex-col min-h-[450px] sm:min-h-[500px] border border-slate-200/80 bg-white/88 p-4 shadow-none dark:border-slate-800 dark:bg-slate-950/60">
-            <div className="shrink-0 border-b border-slate-200/80 pb-3 dark:border-slate-800">
-              <div className="math-block-header mb-2"><CheckCircle2 size={14} /> Select Answer</div>
-              <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Choose the correct option</h2>
-            </div>
-            <div className="grid flex-1 gap-3 overflow-y-auto content-center py-4 sm:grid-cols-2 xl:min-h-0">
-              {currentQuestion.options.map((option) => (
-                <OptionButton
-                  key={option.optionId}
-                  option={option}
-                  selected={selectedAnswers[currentQuestion.questionId] === option.optionId}
-                  disabled={Boolean(savingQuestionId) || remainingSeconds <= 0}
-                  onClick={() => handleSelect(currentQuestion.questionId, option.optionId)}
-                />
-              ))}
-            </div>
+          <div className="sticky top-[80px] sm:top-[104px] 2xl:top-[144px] z-[90] grid gap-3 rounded-3xl bg-slate-50 p-2 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard icon={<ClipboardCheck size={16} />} label="ANSWERED" value={answeredNumbers.length} />
+            <StatCard icon={<Layers3 size={16} />} label="REMAINING" value={questions.length - answeredNumbers.length} />
+            <StatCard icon={<Gauge size={16} />} label="CURRENT" value={`Q${currentQuestion.questionNumber}`} />
+            <TimerMetricCard remainingSeconds={remainingSeconds} />
           </div>
-        </div>
 
-        {saveError ? <ErrorState message={apiErrorMessage(saveError)} /> : null}
+          <div>
+            <div className="math-block-header !mb-2"><Layers3 size={14} /> {sectionHeading}</div>
+            <QuestionCard
+              key={currentQuestion.questionId}
+              question={currentQuestion}
+              answerInputRef={answerInputRef}
+              savedAnswerText={savedAnswers[currentQuestion.questionId]}
+              disabled={
+                isFinalizingSubmit ||
+                submittingSection ||
+                Boolean(savingQuestionId) ||
+                remainingSeconds <= 0
+              }
+              saving={savingQuestionId === currentQuestion.questionId}
+              compact
+              onSave={(answerText) => handleSaveAnswer(currentQuestion.questionId, answerText)}
+            />
+          </div>
 
-        <div className="rounded-[24px] border border-slate-200 bg-white/92 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/85">
-          <QuestionNavigator
-            totalQuestions={questions.length}
-            currentQuestionNumber={currentQuestion.questionNumber}
-            answeredQuestionNumbers={answeredNumbers}
-            onSelectQuestion={(number) => setCurrentIndex(number - 1)}
-          />
+          {saveError ? <ErrorState message={apiErrorMessage(saveError)} /> : null}
 
-          <div className="mt-4 flex justify-center">
+          <div className="rounded-[24px] border border-slate-200 bg-white/92 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/85">
+            <QuestionNavigator
+              totalQuestions={questions.length}
+              currentQuestionNumber={currentQuestion.questionNumber}
+              answeredQuestionNumbers={answeredNumbers}
+              onSelectQuestion={(number) => setCurrentIndex(number - 1)}
+            />
+
+            {/* The floating side arrows above are hidden below md -- same
+                mobile fallback the DPS attempt page uses for the identical
+                reason (no room for their off-card offset on narrow
+                screens). */}
+            <div className="mt-3 flex gap-3 md:hidden">
+              <button
+                className="math-button-secondary flex-1"
+                disabled={currentIndex === 0}
+                onClick={() => setCurrentIndex((v) => Math.max(0, v - 1))}
+              >
+                Previous
+              </button>
+              <button
+                className="math-button-secondary flex-1"
+                disabled={currentIndex >= questions.length - 1}
+                onClick={() => setCurrentIndex((v) => Math.min(questions.length - 1, v + 1))}
+              >
+                Next
+              </button>
+            </div>
+
             <button
-              className="math-button-primary w-full max-w-md py-3 disabled:cursor-not-allowed disabled:opacity-60"
+              className="math-button-primary mt-4 w-full py-3 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => setShowSubmitConfirm(true)}
               disabled={submittingSection}
             >
-              {liveAttempt.currentSectionNumber >= totalSections ? "Submit Final Section" : "Submit Section & Continue"}
+              {submittingSection
+                ? "Submitting..."
+                : liveAttempt.currentSectionNumber >= totalSections
+                  ? "Submit Final Section"
+                  : "Submit Section & Continue"}
             </button>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <button
+          onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
+          disabled={currentIndex >= questions.length - 1}
+          aria-label="Next question"
+          className="hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
 
       <ConfirmDialog
         open={showSubmitConfirm}

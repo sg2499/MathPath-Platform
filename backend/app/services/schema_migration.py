@@ -1201,6 +1201,7 @@ def ensure_annual_competition_tables() -> None:
                     attempt_id VARCHAR NOT NULL,
                     mock_question_id VARCHAR NOT NULL,
                     selected_option_id VARCHAR,
+                    selected_value TEXT,
                     is_correct BOOLEAN,
                     answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1294,6 +1295,28 @@ def ensure_annual_competition_go_live_columns() -> None:
             if "voided_by_user_id" not in existing:
                 connection.execute(text("ALTER TABLE competition_event_results ADD COLUMN voided_by_user_id VARCHAR"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_results_voided_by_user_id ON competition_event_results (voided_by_user_id)"))
+
+
+def ensure_annual_competition_answer_text_column() -> None:
+    """Self-heal safety net for Package 5's new typed-answer column -- see
+    matching Alembic migration a1c7e4f92b6d_add_annual_competition_answer_
+    selected_value.py.
+
+    Point 8 (Shailesh, 2026-09-08): the Annual Competition attempt screen
+    switched from MCQ picks to a typed answer box, matching DPS. Same
+    additive-only, safe-to-run-on-every-startup convention as every other
+    ensure_*_column() function in this file -- see
+    ensure_annual_competition_go_live_columns()'s own docstring for why this
+    is needed at all (CREATE TABLE IF NOT EXISTS never adds a column to a
+    table that already exists)."""
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+
+    if "competition_event_attempt_answers" in tables:
+        existing = {column["name"] for column in inspector.get_columns("competition_event_attempt_answers")}
+        with engine.begin() as connection:
+            if "selected_value" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_attempt_answers ADD COLUMN selected_value TEXT"))
 
 
 def ensure_mock_notifications_fixed() -> None:

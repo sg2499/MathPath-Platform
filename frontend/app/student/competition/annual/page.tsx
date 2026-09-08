@@ -34,15 +34,22 @@ function StatusChip({ assignment }: { assignment: AnnualCompetitionAssignmentFor
   }
 }
 
-// A slot that hasn't opened yet gates *starting* the attempt (server-side,
-// see _CheckSlotGate) -- this is a purely informational, client-side mirror
-// of that same check, so "Start" can be disabled with a clear reason instead
-// of the student hitting a 403 after clicking.
-function SlotNotYetOpen(assignment: AnnualCompetitionAssignmentForStudent, now: Date) {
+// A slot that hasn't opened yet gates *starting* the attempt itself
+// (server-side, see _CheckSlotGate) -- but reading the instructions is
+// allowed earlier than that on purpose (Shailesh, 2026-09-08 point 3): a
+// student should be able to review the instructions screen 10 minutes
+// before their slot begins, so they walk in already knowing the format.
+// The Start Competition button on that instructions screen still enforces
+// the real, exact slot-start gate (see the instructions page) -- this is
+// only the "can they open the instructions screen at all" check.
+const INSTRUCTIONS_VISIBLE_MINUTES_BEFORE_SLOT = 10;
+
+function InstructionsNotYetVisible(assignment: AnnualCompetitionAssignmentForStudent, now: Date) {
   if (!assignment.slot?.scheduledStartAt) return false;
   const start = new Date(assignment.slot.scheduledStartAt);
   if (Number.isNaN(start.getTime())) return false;
-  return now < start;
+  const visibleFrom = new Date(start.getTime() - INSTRUCTIONS_VISIBLE_MINUTES_BEFORE_SLOT * 60 * 1000);
+  return now < visibleFrom;
 }
 
 function AssignmentCard({
@@ -60,7 +67,7 @@ function AssignmentCard({
   const notStarted = assignment.latestAttemptStatus === "NOT_STARTED";
   const inProgress = assignment.latestAttemptStatus === "IN_PROGRESS";
   const completed = assignment.latestAttemptStatus === "SUBMITTED" || assignment.latestAttemptStatus === "FINALIZED";
-  const slotGated = notStarted && SlotNotYetOpen(assignment, now);
+  const instructionsGated = notStarted && InstructionsNotYetVisible(assignment, now);
 
   return (
     <div className="math-card p-6">
@@ -94,12 +101,12 @@ function AssignmentCard({
           {notStarted ? (
             <button
               className="math-role-action-button h-10 px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={starting || slotGated}
-              title={slotGated ? `Opens ${FormatDateTime(assignment.slot?.scheduledStartAt)}` : undefined}
+              disabled={starting || instructionsGated}
+              title={instructionsGated ? `Instructions open ${FormatDateTime(assignment.slot?.scheduledStartAt)}` : undefined}
               onClick={onStart}
             >
               <PlayCircle size={16} />
-              {slotGated ? "Not Open Yet" : starting ? "Starting..." : "View Instructions"}
+              {instructionsGated ? "Not Open Yet" : starting ? "Starting..." : "View Instructions"}
             </button>
           ) : inProgress ? (
             <button
@@ -160,10 +167,11 @@ function AnnualCompetitionContent() {
     <AppShell title="Annual Competition">
       <section className="space-y-6">
         <div className="math-card p-6">
-          <div className="math-block-header mb-2"><Trophy size={14} /> The Real Thing</div>
+          <div className="math-block-header mb-2"><Trophy size={14} /> MathPath Annual Competition</div>
           <h1 className="math-title">Annual Competition</h1>
           <p className="math-subtitle max-w-none">
-            The official, once-a-year MathPath competition -- separate from your regular Competition Mock practice.
+            MathPath's official, once-a-year competition -- a single scored attempt at your assigned level, held at a
+            fixed date and time. It is scored and ranked independently of your regular Competition Mock practice.
           </p>
         </div>
 

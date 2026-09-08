@@ -669,6 +669,17 @@ class CompetitionEventAttemptAnswer(Base):
     attempt_id = Column(String, ForeignKey("competition_event_attempts.id", ondelete="CASCADE"), nullable=False, index=True)
     mock_question_id = Column(String, ForeignKey("competition_mock_questions.id", ondelete="CASCADE"), nullable=False, index=True)
     selected_option_id = Column(String, ForeignKey("competition_mock_question_options.id"), nullable=True, index=True)
+    # Point 8 (Shailesh, 2026-09-08): the Annual Competition attempt screen
+    # now matches DPS's typed-answer-box layout instead of MCQ picks, so
+    # grading compares this typed value against CompetitionMockQuestion.
+    # correct_answer via the same answers_match() DPS already uses --
+    # selected_option_id above is deliberately left in place (nullable,
+    # never written by the new save path) rather than dropped, since the
+    # underlying question bank still generates MCQ options for Competition
+    # Mock Practice's own (unchanged) MCQ flow. Named selected_value to
+    # match competition_mock_attempt_answers.selected_value's existing
+    # naming convention, not a new one.
+    selected_value = Column(Text, nullable=True)
     is_correct = Column(Boolean, nullable=True)
     answered_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

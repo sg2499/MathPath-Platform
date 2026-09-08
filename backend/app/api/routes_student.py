@@ -129,7 +129,11 @@ class SaveAnnualCompetitionAnswerRequest(BaseModel):
     sessionToken: str
     sectionNumber: int
     questionId: str
-    selectedOptionId: str
+    # Point 8 (Shailesh, 2026-09-08): typed free-text answer, matching DPS's
+    # SaveAnswerRequest.answerText exactly (same default-"" reasoning --
+    # clearing the box and letting auto-save fire is a valid, unanswered
+    # save, not a 422).
+    answerText: str = ""
 
 
 def active_reattempt_permission_for_student(db: Session, assignment_id: str, student_id: str):
@@ -366,7 +370,7 @@ def student_save_annual_competition_answer(
     attempt_id: str, payload: SaveAnnualCompetitionAnswerRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
 ):
     return SaveCompetitionEventAnswer(
-        db, student, attempt_id, payload.sessionToken, payload.sectionNumber, payload.questionId, payload.selectedOptionId
+        db, student, attempt_id, payload.sessionToken, payload.sectionNumber, payload.questionId, payload.answerText
     )
 
 

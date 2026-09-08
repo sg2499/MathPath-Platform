@@ -137,7 +137,13 @@ def _RawMetricsForAttempt(db: Session, AttemptRecord: CompetitionEventAttempt) -
         QuestionMarks = float(QuestionRecord.marks or 1)
         MaxScore += QuestionMarks
         AnswerRecord = AnswersByQuestionId.get(QuestionRecord.id)
-        if not AnswerRecord or not AnswerRecord.selected_option_id:
+        # Point 8 (Shailesh, 2026-09-08): typed answers (selected_value),
+        # not MCQ picks (selected_option_id, kept only for the option FK's
+        # own nullability -- never written by the new save path). A blank/
+        # whitespace-only typed value is unanswered, same as a null pick
+        # used to be -- SaveCompetitionEventAnswer already enforces this
+        # exact rule when it sets is_correct=None for an empty answer.
+        if not AnswerRecord or not (AnswerRecord.selected_value or "").strip():
             UnansweredCount += 1
             continue
         if AnswerRecord.is_correct:
