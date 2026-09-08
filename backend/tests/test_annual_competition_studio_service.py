@@ -267,6 +267,151 @@ def test_known_slot_duration_conflict_is_flagged_im4_mm2():
 
 
 # ---------------------------------------------------------------------------
+# Slot edit/delete (2026-09-08): the Studio UI previously had no edit/delete
+# controls on a created slot at all, even though UpdateCompetitionEventSlot
+# (this function) and its PATCH /admin/annual-competition/slots/{slot_id}
+# route already existed and already supported every field including
+# isActive -- confirmed via full-repo grep that nothing had ever called this
+# function before these tests. "Delete" in the new UI is this same
+# isActive=False soft-delete, matching the Assignment.is_active ("Archive")
+# convention already used elsewhere in this schema, not a hard DELETE.
+# ---------------------------------------------------------------------------
+
+def test_update_slot_edits_fields_in_place():
+    db = _session()
+    _event(db)
+    db.commit()
+    slot = studio.CreateCompetitionEventSlot(
+        db,
+        EventId="event-1",
+        Mode="OFFLINE",
+        SlotLabel="Original Label",
+        ScheduledStartAt=datetime(2026, 10, 11, 12, 0, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 12, 30, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["YLM-L1"],
+    )
+
+    updated = studio.UpdateCompetitionEventSlot(
+        db,
+        SlotId=slot["slotId"],
+        Mode="ONLINE_INDIA",
+        SlotLabel="Corrected Label",
+        ScheduledStartAt=datetime(2026, 10, 11, 13, 0, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 13, 35, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["IM-L4"],
+    )
+
+    assert updated["mode"] == "ONLINE_INDIA"
+    assert updated["slotLabel"] == "Corrected Label"
+    assert updated["applicableLevelCodes"] == ["IM-L4"]
+    assert updated["durationMinutes"] == 35
+    assert updated["isActive"] is True  # untouched by a field-only edit
+
+    # Re-fetch via the list to confirm the edit actually persisted, not just
+    # returned in the response payload.
+    [refetched] = studio.ListCompetitionEventSlots(db, "event-1")
+    assert refetched["mode"] == "ONLINE_INDIA"
+    # startswith, not ==: SQLite (this test's in-memory DB) drops tzinfo on a
+    # DateTime(timezone=True) round-trip, so the naive read-back's isoformat()
+    # has no "+00:00" suffix even though it was written as aware UTC --
+    # Postgres (production) preserves it. Matches the same, already-documented
+    # hazard in test_teacher_schedule_per_student_regression.py.
+    assert refetched["scheduledStartAt"].startswith("2026-10-11T13:00:00")
+
+
+def test_update_slot_rejects_invalid_window():
+    db = _session()
+    _event(db)
+    db.commit()
+    slot = studio.CreateCompetitionEventSlot(
+        db,
+        EventId="event-1",
+        Mode="OFFLINE",
+        ScheduledStartAt=datetime(2026, 10, 11, 12, 0, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 12, 30, tzinfo=timezone.utc),
+        ApplicableLevelCodes=[],
+    )
+    with pytest.raises(HTTPException):
+        studio.UpdateCompetitionEventSlot(
+            db,
+            SlotId=slot["slotId"],
+            ScheduledStartAt=datetime(2026, 10, 11, 14, 0, tzinfo=timezone.utc),
+            ScheduledEndAt=datetime(2026, 10, 11, 13, 0, tzinfo=timezone.utc),  # end before start
+        )
+
+
+def test_update_slot_unknown_id_is_a_clean_404():
+    db = _session()
+    with pytest.raises(HTTPException):
+        studio.UpdateCompetitionEventSlot(db, SlotId="no-such-slot", Mode="OFFLINE")
+
+
+def test_deleting_slot_via_update_removes_it_from_the_list():
+    db = _session()
+    _event(db)
+    db.commit()
+    slot = studio.CreateCompetitionEventSlot(
+        db,
+        EventId="event-1",
+        Mode="OFFLINE",
+        ScheduledStartAt=datetime(2026, 10, 11, 12, 0, tzinfo=timezone.utc),
+        ScheduledEndAt=datetime(2026, 10, 11, 12, 30, tzinfo=timezone.utc),
+        ApplicableLevelCodes=["YLM-L1"],
+    )
+    assert len(studio.ListCompetitionEventSlots(db, "event-1")) == 1
+
+    deleted = studio.UpdateCompetitionEventSlot(db, SlotId=slot["slotId"], IsActive=False)
+    assert deleted["isActive"] is False
+    assert studio.ListCompetitionEventSlots(db, "event-1") == []
+
+
+def test_deleted_slot_still_gates_an_assignment_that_already_references_it():
+    """The new Delete control is a soft delete specifically so a student who
+    already has an assignment pointing at this slot_id isn't silently
+    orphaned -- confirms _CheckSlotGate (annual_competition_attempt_service.py)
+    still finds the slot and still enforces its scheduled_start_at after the
+    slot has been deleted from the admin's own list."""
+    from app.services.annual_competition_attempt_service import _CheckSlotGate
+
+    db = _session()
+    _event(db)
+    admin = _admin(db)
+    module, level = _module_and_level(db, "YLM", "YLM-L1", "Young Learners Module Level 1")
+    user = User(id="user-student", full_name="Student", email="student@example.test", password_hash="x", role="STUDENT", is_active=True)
+    db.add(user)
+    db.flush()
+    student = Student(id="student-1", user_id=user.id, student_code="MP-ST-DELSLOT", current_level_id=level.id, is_active=True)
+    db.add(student)
+    db.commit()
+
+    future_start = datetime.now(timezone.utc) + timedelta(hours=2)
+    slot = studio.CreateCompetitionEventSlot(
+        db,
+        EventId="event-1",
+        Mode="OFFLINE",
+        ScheduledStartAt=future_start,
+        ScheduledEndAt=future_start + timedelta(minutes=30),
+        ApplicableLevelCodes=["YLM-L1"],
+    )
+    assignment = CompetitionEventAssignment(
+        id="assignment-1", event_id="event-1", student_id=student.id, assigned_level_code="YLM-L1", slot_id=slot["slotId"]
+    )
+    db.add(assignment)
+    db.commit()
+
+    studio.UpdateCompetitionEventSlot(db, SlotId=slot["slotId"], IsActive=False)
+
+    # The slot is gone from the admin's list...
+    assert studio.ListCompetitionEventSlots(db, "event-1") == []
+    # ...but the assignment's gate still works exactly as before: the slot
+    # hasn't opened yet, so this must still raise, not silently pass through
+    # as if the assignment were now unscheduled.
+    with pytest.raises(HTTPException) as exc_info:
+        _CheckSlotGate(db, assignment, datetime.now(timezone.utc))
+    assert exc_info.value.detail["code"] == "COMPETITION_SLOT_NOT_OPEN_YET"
+
+
+# ---------------------------------------------------------------------------
 # Level papers: link, status lifecycle, lock guard
 # ---------------------------------------------------------------------------
 

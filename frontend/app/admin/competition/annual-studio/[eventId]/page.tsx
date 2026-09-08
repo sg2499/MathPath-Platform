@@ -24,10 +24,12 @@ import {
   runAnnualCompetitionAssignments,
   updateAnnualCompetitionEvent,
   updateAnnualCompetitionSectionTimer,
+  updateAnnualCompetitionSlot,
   type AnnualCompetitionAssignmentPreviewRow,
   type AnnualCompetitionLevelPaper,
   type AnnualCompetitionLiveMonitoringRow,
   type AnnualCompetitionResultRow,
+  type AnnualCompetitionSlot,
 } from "@/lib/api/admin";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -41,12 +43,15 @@ import {
   Link2,
   Lock,
   Medal,
+  Pencil,
   PlusCircle,
   RefreshCcw,
   ShieldAlert,
   Sparkles,
+  Trash2,
   Trophy,
   UserCog,
+  X,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -176,6 +181,20 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const [SlotEnd, SetSlotEnd] = useState("");
   const [SlotLevelCodes, SetSlotLevelCodes] = useState<string[]>([]);
 
+  // --- Slot edit form state -- a slot's own row switches into this inline
+  // form when EditingSlotId matches it; the Create form above is untouched.
+  // Delete is the same soft-delete-via-isActive:false pattern this schema
+  // already uses for Assignment.is_active ("Archive"), not a hard DELETE --
+  // ListCompetitionEventSlots already filters is_active == True, so an
+  // edited-out slot just stops appearing here without needing a new
+  // backend endpoint (UpdateCompetitionEventSlot already accepts isActive).
+  const [EditingSlotId, SetEditingSlotId] = useState<string | null>(null);
+  const [EditSlotMode, SetEditSlotMode] = useState("OFFLINE");
+  const [EditSlotLabel, SetEditSlotLabel] = useState("");
+  const [EditSlotStart, SetEditSlotStart] = useState("");
+  const [EditSlotEnd, SetEditSlotEnd] = useState("");
+  const [EditSlotLevelCodes, SetEditSlotLevelCodes] = useState<string[]>([]);
+
   // --- Link-existing-paper form state, keyed by level code ---
   const [LinkMockExamIdByLevel, SetLinkMockExamIdByLevel] = useState<Record<string, string>>({});
 
@@ -254,6 +273,48 @@ export default function AdminAnnualCompetitionEventDetailPage() {
       SetSlotStart("");
       SetSlotEnd("");
       SetSlotLevelCodes([]);
+      InvalidateOverview();
+    },
+  });
+
+  const StartEditingSlot = (SlotItem: AnnualCompetitionSlot) => {
+    SetEditingSlotId(SlotItem.slotId);
+    SetEditSlotMode(SlotItem.mode);
+    SetEditSlotLabel(SlotItem.slotLabel || "");
+    SetEditSlotStart(ToLocalInputValue(SlotItem.scheduledStartAt));
+    SetEditSlotEnd(ToLocalInputValue(SlotItem.scheduledEndAt));
+    SetEditSlotLevelCodes(SlotItem.applicableLevelCodes);
+  };
+
+  const CancelEditingSlot = () => SetEditingSlotId(null);
+
+  const UpdateSlotMutation = useMutation({
+    mutationFn: (SlotId: string) =>
+      updateAnnualCompetitionSlot(SlotId, {
+        mode: EditSlotMode,
+        slotLabel: EditSlotLabel.trim() || null,
+        scheduledStartAt: new Date(EditSlotStart).toISOString(),
+        scheduledEndAt: new Date(EditSlotEnd).toISOString(),
+        applicableLevelCodes: EditSlotLevelCodes,
+      }),
+    onSuccess: () => {
+      SetLastMessage("Slot updated.");
+      SetEditingSlotId(null);
+      InvalidateOverview();
+    },
+  });
+
+  // Soft delete (isActive: false), matching the Assignment "Archive" pattern
+  // used elsewhere in this admin panel -- a slot already referenced by an
+  // assignment (slot_id) keeps working for that assignment (the attempt-gate
+  // check reads the slot by id regardless of isActive), it just stops
+  // showing up here and can no longer be picked for new assignments/slots
+  // lists. Confirmed before deleting, same as this page's other
+  // consequential actions (Release Results, Reconciliation Sweep).
+  const DeleteSlotMutation = useMutation({
+    mutationFn: (SlotId: string) => updateAnnualCompetitionSlot(SlotId, { isActive: false }),
+    onSuccess: () => {
+      SetLastMessage("Slot deleted.");
       InvalidateOverview();
     },
   });
@@ -527,26 +588,124 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 </div>
               ) : (
                 <div className="mt-5 grid gap-3">
-                  {Overview.slots.map((SlotItem) => (
-                    <div key={SlotItem.slotId} className="rounded-2xl border border-[color:var(--mp-role-border)] bg-white p-4 dark:bg-slate-950/40">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-black text-slate-950 dark:text-white">
-                          {SlotItem.slotLabel || SlotItem.mode} <span className="text-xs font-bold text-slate-500 dark:text-slate-400">({SlotItem.mode})</span>
+                  {Overview.slots.map((SlotItem) =>
+                    EditingSlotId === SlotItem.slotId ? (
+                      <div key={SlotItem.slotId} className="rounded-2xl border border-[color:var(--mp-role-border-strong)] bg-white p-4 dark:bg-slate-950/40">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                            Mode
+                            <select value={EditSlotMode} onChange={(EventValue) => SetEditSlotMode(EventValue.target.value)} className="math-input">
+                              <option value="OFFLINE">Offline</option>
+                              <option value="ONLINE_INDIA">Online (India)</option>
+                              <option value="ONLINE_INTL">Online (International)</option>
+                            </select>
+                          </label>
+                          <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                            Slot Label (optional)
+                            <input value={EditSlotLabel} onChange={(EventValue) => SetEditSlotLabel(EventValue.target.value)} placeholder="Example: 2:00-2:30 PM" className="math-input" />
+                          </label>
+                          <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                            Start
+                            <input type="datetime-local" value={EditSlotStart} onChange={(EventValue) => SetEditSlotStart(EventValue.target.value)} className="math-input" />
+                          </label>
+                          <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                            End
+                            <input type="datetime-local" value={EditSlotEnd} onChange={(EventValue) => SetEditSlotEnd(EventValue.target.value)} className="math-input" />
+                          </label>
+                        </div>
+                        <div className="mt-4">
+                          <p className="text-sm font-black text-slate-700 dark:text-slate-200">Applicable Levels</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => {
+                              const IsChecked = EditSlotLevelCodes.includes(LevelCode);
+                              return (
+                                <button
+                                  key={LevelCode}
+                                  type="button"
+                                  onClick={() =>
+                                    SetEditSlotLevelCodes((Prev) => (Prev.includes(LevelCode) ? Prev.filter((Code) => Code !== LevelCode) : [...Prev, LevelCode]))
+                                  }
+                                  className={`rounded-full border px-3 py-1 text-xs font-black transition ${
+                                    IsChecked
+                                      ? "border-[color:var(--mp-role-border-strong)] bg-[image:var(--mp-role-action-bg)] text-white"
+                                      : "border-[color:var(--mp-role-border)] bg-white text-slate-600 dark:bg-slate-950/40 dark:text-slate-300"
+                                  }`}
+                                >
+                                  {LevelCode}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        {UpdateSlotMutation.isError && (
+                          <p className="mt-3 text-xs font-bold text-rose-600 dark:text-rose-300">{apiErrorMessage(UpdateSlotMutation.error)}</p>
+                        )}
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            disabled={!EditSlotStart || !EditSlotEnd || UpdateSlotMutation.isPending}
+                            onClick={() => UpdateSlotMutation.mutate(SlotItem.slotId)}
+                            className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <CheckCircle2 size={16} />
+                            {UpdateSlotMutation.isPending ? "Saving..." : "Save Changes"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={CancelEditingSlot}
+                            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-5 py-2.5 text-sm font-black text-slate-600 transition hover:-translate-y-px dark:bg-slate-950/40 dark:text-slate-300"
+                          >
+                            <X size={16} />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={SlotItem.slotId} className="rounded-2xl border border-[color:var(--mp-role-border)] bg-white p-4 dark:bg-slate-950/40">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-black text-slate-950 dark:text-white">
+                            {SlotItem.slotLabel || SlotItem.mode} <span className="text-xs font-bold text-slate-500 dark:text-slate-400">({SlotItem.mode})</span>
+                          </p>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{SlotItem.durationMinutes} min</span>
+                            <button
+                              type="button"
+                              title="Edit slot"
+                              aria-label="Edit slot"
+                              onClick={() => StartEditingSlot(SlotItem)}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--mp-role-border)] text-slate-500 transition hover:-translate-y-px hover:border-[color:var(--mp-role-border-strong)] hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              title="Delete slot"
+                              aria-label="Delete slot"
+                              disabled={DeleteSlotMutation.isPending}
+                              onClick={() => {
+                                if (window.confirm(`Delete the slot "${SlotItem.slotLabel || SlotItem.mode}"? Students not yet assigned through it will no longer see it. This can't be undone from here.`)) {
+                                  DeleteSlotMutation.mutate(SlotItem.slotId);
+                                }
+                              }}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-300 text-rose-600 transition hover:-translate-y-px hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-700/70 dark:text-rose-300"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+                          {FormatDateTime(SlotItem.scheduledStartAt)} &rarr; {FormatDateTime(SlotItem.scheduledEndAt)}
                         </p>
-                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{SlotItem.durationMinutes} min</span>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {SlotItem.applicableLevelCodes.map((LevelCode) => (
+                            <span key={LevelCode} className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                              {LevelCode}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                      <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                        {FormatDateTime(SlotItem.scheduledStartAt)} &rarr; {FormatDateTime(SlotItem.scheduledEndAt)}
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {SlotItem.applicableLevelCodes.map((LevelCode) => (
-                          <span key={LevelCode} className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                            {LevelCode}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               )}
             </div>
