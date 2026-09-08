@@ -9,11 +9,13 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
   createAnnualCompetitionEvent,
+  deleteAnnualCompetitionEvent,
   listAnnualCompetitionEvents,
+  updateAnnualCompetitionEvent,
   type AnnualCompetitionEvent,
 } from "@/lib/api/admin";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, PlusCircle, Trophy } from "lucide-react";
+import { CalendarClock, CheckCircle2, PlusCircle, Pencil, Trash2, Trophy, X } from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
 
@@ -47,6 +49,18 @@ function FormatEventDate(Value: string | null) {
   } catch {
     return Value;
   }
+}
+
+// Mirrors the identically-named helper on the per-event detail page
+// ([eventId]/page.tsx) -- converts an ISO string into the value a
+// datetime-local input expects, so the edit form can be pre-filled with
+// the event's current dates.
+function ToLocalInputValue(IsoValue: string | null): string {
+  if (!IsoValue) return "";
+  const D = new Date(IsoValue);
+  if (Number.isNaN(D.getTime())) return "";
+  const Pad = (N: number) => String(N).padStart(2, "0");
+  return `${D.getFullYear()}-${Pad(D.getMonth() + 1)}-${Pad(D.getDate())}T${Pad(D.getHours())}:${Pad(D.getMinutes())}`;
 }
 
 export default function AdminAnnualCompetitionStudioPage() {
@@ -84,6 +98,57 @@ export default function AdminAnnualCompetitionStudioPage() {
 
   const CanCreate = EventName.trim().length > 0 && Boolean(CompetitionDateInput);
 
+  // --- Event edit form state -- an event's own row switches into this
+  // inline form when EditingEventId matches it; the Create form above is
+  // untouched. Deliberately scoped to Name/Competition Date/Results Release
+  // Date only (what Shailesh asked for -- "edit the dates and everything
+  // else related to an event") and not Status: the per-event detail page
+  // already has dedicated DRAFT/SCHEDULED/LIVE/COMPLETED buttons for that,
+  // so duplicating a status control here would just be a second place for
+  // it to go stale against.
+  const [EditingEventId, SetEditingEventId] = useState<string | null>(null);
+  const [EditEventName, SetEditEventName] = useState("");
+  const [EditCompetitionDateInput, SetEditCompetitionDateInput] = useState("");
+  const [EditResultsReleaseInput, SetEditResultsReleaseInput] = useState("");
+
+  const StartEditingEvent = (EventItem: AnnualCompetitionEvent) => {
+    SetEditingEventId(EventItem.eventId);
+    SetEditEventName(EventItem.name);
+    SetEditCompetitionDateInput(ToLocalInputValue(EventItem.competitionDate));
+    SetEditResultsReleaseInput(ToLocalInputValue(EventItem.resultsReleaseAt));
+  };
+
+  const CancelEditingEvent = () => SetEditingEventId(null);
+
+  const UpdateEventMutation = useMutation({
+    mutationFn: (EventId: string) =>
+      updateAnnualCompetitionEvent(EventId, {
+        name: EditEventName.trim(),
+        competitionDate: new Date(EditCompetitionDateInput).toISOString(),
+        ...(EditResultsReleaseInput
+          ? { resultsReleaseAt: new Date(EditResultsReleaseInput).toISOString() }
+          : { clearResultsReleaseAt: true }),
+      }),
+    onSuccess: (Updated) => {
+      SetLastMessage(`"${Updated.name}" updated.`);
+      SetEditingEventId(null);
+      QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "events"] });
+    },
+  });
+
+  // Hard delete (CompetitionEvent has no isActive flag to soft-delete with,
+  // unlike slots) -- the backend rejects this once the event has a real
+  // attempt or a locked results-release date, so this is only ever
+  // reachable for a still-rough-draft event. Confirmed before deleting,
+  // same as this page's other consequential actions.
+  const DeleteEventMutation = useMutation({
+    mutationFn: (EventId: string) => deleteAnnualCompetitionEvent(EventId),
+    onSuccess: () => {
+      SetLastMessage("Event deleted.");
+      QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "events"] });
+    },
+  });
+
   if (!Ready) return null;
   if (EventsQuery.isLoading) {
     return (
@@ -106,8 +171,8 @@ export default function AdminAnnualCompetitionStudioPage() {
           </p>
         </div>
 
-        {(EventsQuery.error || CreateMutation.error) && (
-          <ErrorState message={apiErrorMessage(EventsQuery.error || CreateMutation.error)} />
+        {(EventsQuery.error || CreateMutation.error || DeleteEventMutation.error) && (
+          <ErrorState message={apiErrorMessage(EventsQuery.error || CreateMutation.error || DeleteEventMutation.error)} />
         )}
 
         {LastMessage && (
@@ -176,21 +241,105 @@ export default function AdminAnnualCompetitionStudioPage() {
             </div>
           ) : (
             <div className="mt-5 grid gap-3">
-              {Events.map((EventItem: AnnualCompetitionEvent) => (
-                <Link
-                  key={EventItem.eventId}
-                  href={`/admin/competition/annual-studio/${EventItem.eventId}`}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-5 py-4 shadow-sm transition hover:-translate-y-px hover:shadow-md dark:bg-slate-950/40"
-                >
-                  <div>
-                    <p className="text-base font-black text-slate-950 dark:text-white">{EventItem.name}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                      {FormatEventDate(EventItem.competitionDate)}
-                    </p>
+              {Events.map((EventItem: AnnualCompetitionEvent) =>
+                EditingEventId === EventItem.eventId ? (
+                  <div key={EventItem.eventId} className="rounded-2xl border border-[color:var(--mp-role-border-strong)] bg-white p-4 dark:bg-slate-950/40">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200 sm:col-span-2">
+                        Event Name
+                        <input value={EditEventName} onChange={(EventValue) => SetEditEventName(EventValue.target.value)} className="math-input" />
+                      </label>
+                      <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                        Competition Date &amp; Time
+                        <input
+                          type="datetime-local"
+                          value={EditCompetitionDateInput}
+                          onChange={(EventValue) => SetEditCompetitionDateInput(EventValue.target.value)}
+                          className="math-input"
+                        />
+                      </label>
+                      <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                        Results Release Date &amp; Time (optional)
+                        <input
+                          type="datetime-local"
+                          value={EditResultsReleaseInput}
+                          onChange={(EventValue) => SetEditResultsReleaseInput(EventValue.target.value)}
+                          className="math-input"
+                        />
+                        <span className="block text-xs font-bold text-slate-400 dark:text-slate-500">Leave blank to keep it unset.</span>
+                      </label>
+                    </div>
+                    {UpdateEventMutation.isError && (
+                      <p className="mt-3 text-xs font-bold text-rose-600 dark:text-rose-300">{apiErrorMessage(UpdateEventMutation.error)}</p>
+                    )}
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        disabled={!EditEventName.trim() || !EditCompetitionDateInput || UpdateEventMutation.isPending}
+                        onClick={() => UpdateEventMutation.mutate(EventItem.eventId)}
+                        className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <CheckCircle2 size={16} />
+                        {UpdateEventMutation.isPending ? "Saving..." : "Save Changes"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={CancelEditingEvent}
+                        className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-5 py-2.5 text-sm font-black text-slate-600 transition hover:-translate-y-px dark:bg-slate-950/40 dark:text-slate-300"
+                      >
+                        <X size={16} />
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                  <StatusChip status={EventItem.status} />
-                </Link>
-              ))}
+                ) : (
+                  <div
+                    key={EventItem.eventId}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-5 py-4 shadow-sm transition hover:-translate-y-px hover:shadow-md dark:bg-slate-950/40"
+                  >
+                    <Link href={`/admin/competition/annual-studio/${EventItem.eventId}`} className="min-w-0 flex-1">
+                      <p className="text-base font-black text-slate-950 dark:text-white">{EventItem.name}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+                        {FormatEventDate(EventItem.competitionDate)}
+                      </p>
+                    </Link>
+                    <div className="flex items-center gap-3">
+                      <StatusChip status={EventItem.status} />
+                      <button
+                        type="button"
+                        title="Edit event"
+                        aria-label="Edit event"
+                        onClick={(ClickEvent) => {
+                          ClickEvent.preventDefault();
+                          StartEditingEvent(EventItem);
+                        }}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--mp-role-border)] text-slate-500 transition hover:-translate-y-px hover:border-[color:var(--mp-role-border-strong)] hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        title="Delete event"
+                        aria-label="Delete event"
+                        disabled={DeleteEventMutation.isPending}
+                        onClick={(ClickEvent) => {
+                          ClickEvent.preventDefault();
+                          if (
+                            window.confirm(
+                              `Delete "${EventItem.name}"? This removes the event and all of its slots, papers, and assignments. It can only be deleted while no student has a real attempt yet and results haven't been released. This can't be undone.`
+                            )
+                          ) {
+                            DeleteEventMutation.mutate(EventItem.eventId);
+                          }
+                        }}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-300 text-rose-600 transition hover:-translate-y-px hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-700/70 dark:text-rose-300"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                )
+              )}
             </div>
           )}
         </div>

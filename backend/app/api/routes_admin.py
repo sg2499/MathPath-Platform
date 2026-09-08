@@ -101,6 +101,7 @@ from app.services.annual_competition_assignment_service import (
 from app.services.annual_competition_studio_service import (
     CreateCompetitionEvent as CreateAnnualCompetitionEvent,
     UpdateCompetitionEvent as UpdateAnnualCompetitionEvent,
+    DeleteCompetitionEvent as DeleteAnnualCompetitionEvent,
     GetCompetitionEvent as GetAnnualCompetitionEvent,
     ListCompetitionEvents as ListAnnualCompetitionEvents,
     GetCompetitionEventStudioOverview,
@@ -5917,6 +5918,11 @@ def admin_update_annual_competition_event(
         CompetitionDate=payload.competitionDate,
         ResultsReleaseAt=ResultsReleaseAtValue,
     )
+
+
+@router.delete("/annual-competition/events/{event_id}")
+def admin_delete_annual_competition_event(event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return DeleteAnnualCompetitionEvent(db, EventId=event_id)
 
 
 # Package 10 (go-live rollback plan) emergency stop. See

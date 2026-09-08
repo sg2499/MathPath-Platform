@@ -1636,6 +1636,11 @@ export async function updateAnnualCompetitionEvent(
   return data;
 }
 
+export async function deleteAnnualCompetitionEvent(eventId: string): Promise<{ eventId: string; deleted: boolean }> {
+  const { data } = await api.delete<{ eventId: string; deleted: boolean }>(`/admin/annual-competition/events/${eventId}`);
+  return data;
+}
+
 export async function getAnnualCompetitionEventOverview(eventId: string): Promise<AnnualCompetitionEventOverview> {
   const { data } = await api.get<AnnualCompetitionEventOverview>(`/admin/annual-competition/events/${eventId}/overview`);
   return data;
