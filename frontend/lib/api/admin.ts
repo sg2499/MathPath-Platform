@@ -1787,6 +1787,46 @@ export async function downloadAnnualCompetitionCertificate(attemptId: string): P
   return data;
 }
 
+// Point 10 (Shailesh, 2026-09-08): refreshes already-finalized results
+// under the current scoring formula -- see RecomputeAnnualCompetitionResults's
+// own docstring (annual_competition_scoring_service.py). Never touches
+// release/rank state.
+export async function recomputeAnnualCompetitionResults(
+  eventId: string,
+  competitionLevelCode?: string | null
+): Promise<{ eventId: string; competitionLevelCode: string | null; recomputedCount: number }> {
+  const { data } = await api.post(`/admin/annual-competition/events/${eventId}/results/recompute`, {
+    competitionLevelCode: competitionLevelCode || null,
+  });
+  return data;
+}
+
+// REQUIREMENTS.md item 6 -- the admin-only "technical issue" single-retake
+// override (GrantAnnualCompetitionAttemptRetry). Was API-only until this
+// Results-page button (Point 10).
+export type AnnualCompetitionRetryGrant = {
+  grantId: string;
+  eventId: string;
+  assignmentId: string;
+  studentId: string;
+  grantedByUserId: string | null;
+  reason: string;
+  status: string;
+  grantedAt: string | null;
+  usedAt: string | null;
+  usedAttemptId: string | null;
+};
+
+export async function grantAnnualCompetitionAttemptRetry(attemptId: string, reason: string): Promise<AnnualCompetitionRetryGrant> {
+  const { data } = await api.post(`/admin/annual-competition/attempts/retry-grants`, { attemptId, reason });
+  return data;
+}
+
+export async function listAnnualCompetitionAttemptRetryGrants(eventId: string): Promise<{ grants: AnnualCompetitionRetryGrant[] }> {
+  const { data } = await api.get(`/admin/annual-competition/events/${eventId}/attempts/retry-grants`);
+  return data;
+}
+
 // Point 7 (Shailesh, 2026-09-08): admin per-question attempt review --
 // mirrors GetCompetitionEventAttemptReviewForAdmin's payload verbatim
 // (annual_competition_attempt_service.py). Typed-answer shape throughout

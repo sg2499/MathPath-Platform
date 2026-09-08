@@ -130,6 +130,7 @@ from app.services.annual_competition_scoring_service import (
     ReleaseCompetitionEventResults,
     VoidCompetitionEventResult,
     UnvoidCompetitionEventResult,
+    RecomputeAnnualCompetitionResults,
 )
 
 from app.services.annual_competition_certificate_service import (
@@ -224,6 +225,9 @@ class AnnualCompetitionRankResultsRequest(BaseModel):
     competitionLevelCode: str
 
 class AnnualCompetitionReleaseResultsRequest(BaseModel):
+    competitionLevelCode: str | None = None
+
+class AnnualCompetitionRecomputeResultsRequest(BaseModel):
     competitionLevelCode: str | None = None
 
 class AnnualCompetitionSuspendEventRequest(BaseModel):
@@ -6099,6 +6103,19 @@ def admin_release_annual_competition_results(
     event_id: str, payload: AnnualCompetitionReleaseResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
 ):
     return ReleaseCompetitionEventResults(db, EventId=event_id, CompetitionLevelCode=payload.competitionLevelCode, ReleasedBy=user)
+
+
+# Point 10 (Shailesh, 2026-09-08): refreshes already-finalized results
+# under the current scoring formula -- see RecomputeAnnualCompetitionResults's
+# own docstring. Never touches is_released/rank/certificate state, so it's
+# safe to run as often as needed (e.g. right after this fix ships, to
+# correct every result computed before it, and again later once real
+# per-level question counts replace today's test papers).
+@router.post("/annual-competition/events/{event_id}/results/recompute")
+def admin_recompute_annual_competition_results(
+    event_id: str, payload: AnnualCompetitionRecomputeResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return RecomputeAnnualCompetitionResults(db, EventId=event_id, CompetitionLevelCode=payload.competitionLevelCode)
 
 
 # Package 10 (go-live rollback plan): correct/void a single attempt's

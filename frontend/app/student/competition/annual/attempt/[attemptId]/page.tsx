@@ -466,7 +466,7 @@ function AnnualCompetitionAttemptContent() {
               <h1 className="mt-2 w-full text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
                 Annual Competition
               </h1>
-              <p className="math-subtitle !mt-3 max-w-3xl">
+              <p className="math-subtitle !mt-3 w-full">
                 Stay connected -- your timer only pauses briefly on a genuine disconnect. Sections lock sequentially and cannot be revisited.
               </p>
             </div>
