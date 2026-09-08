@@ -14,11 +14,14 @@ import {
   generateAnnualCompetitionLevelPaper,
   getAnnualCompetitionEventOverview,
   getAnnualCompetitionLiveMonitoring,
+  grantAnnualCompetitionAttemptRetry,
   linkAnnualCompetitionLevelPaper,
+  listAnnualCompetitionAttemptRetryGrants,
   listAnnualCompetitionResults,
   overrideAnnualCompetitionAssignment,
   previewAnnualCompetitionAssignments,
   rankAnnualCompetitionResults,
+  recomputeAnnualCompetitionResults,
   reconcileAnnualCompetitionAttempts,
   releaseAnnualCompetitionResults,
   runAnnualCompetitionAssignments,
@@ -46,6 +49,8 @@ import {
   Pencil,
   PlusCircle,
   RefreshCcw,
+  RotateCcw,
+  Search,
   ShieldAlert,
   Sparkles,
   Trash2,
@@ -211,6 +216,20 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   // independent and never clobbers another row's.
   const [RowOverrideLevelByStudentId, SetRowOverrideLevelByStudentId] = useState<Record<string, string>>({});
 
+  // --- Points 2 & 3 (Shailesh, 2026-09-08): search/filter the Assignments
+  // preview table, and select a subset of students to run the assignment
+  // engine against. Search/module/level are pure client-side filters over
+  // the already-fetched preview rows (same approach as Practice Control's
+  // Assignments search) -- no extra round trip per keystroke. Selection is
+  // deliberately NOT persisted anywhere (Shailesh: "let's have the option
+  // to select each time" -- this same screen doubles as a dry run for
+  // practice exams, so a fresh, explicit selection every run is the right
+  // default, not a permanent enrollment flag).
+  const [AssignmentSearchText, SetAssignmentSearchText] = useState("");
+  const [AssignmentModuleFilter, SetAssignmentModuleFilter] = useState<string>("ALL");
+  const [AssignmentLevelFilter, SetAssignmentLevelFilter] = useState<string>("ALL");
+  const [SelectedStudentIdsForRun, SetSelectedStudentIdsForRun] = useState<Set<string>>(new Set());
+
   // --- Monitoring / Results (Package 7) ---
   const [ResultsLevelFilter, SetResultsLevelFilter] = useState<string>("ALL");
   const [RankLevelCode, SetRankLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
@@ -351,8 +370,14 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     onSuccess: () => InvalidateOverview(),
   });
 
+  // Point 3: when any students are selected in the preview table, the run
+  // is scoped to exactly those (matches PreviewAnnualCompetitionAssignments/
+  // RunAnnualCompetitionAssignmentEngine's already-existing studentIds
+  // filter on the backend) -- otherwise unchanged "run for everyone
+  // considered" behaviour.
   const RunEngineMutation = useMutation({
-    mutationFn: () => runAnnualCompetitionAssignments(EventId),
+    mutationFn: () =>
+      runAnnualCompetitionAssignments(EventId, SelectedStudentIdsForRun.size > 0 ? Array.from(SelectedStudentIdsForRun) : undefined),
     onSuccess: (Result) => {
       SetLastMessage(`Assignment engine run: ${Result.created} created, ${Result.updated} updated, ${Result.skippedAdminOverrides} admin overrides preserved, ${Result.noRuleMatched} not matched.`);
       InvalidatePreview();
@@ -425,6 +450,40 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     onSettled: () => SetDownloadingAttemptId(null),
   });
 
+  // Point 10 (Shailesh, 2026-09-08): refreshes already-finalized results
+  // under the (now-fixed) scoring formula -- see RecomputeAnnualCompetitionResults's
+  // own docstring. Never touches release/rank.
+  const RecomputeResultsMutation = useMutation({
+    mutationFn: () => recomputeAnnualCompetitionResults(EventId, ResultsLevelFilter === "ALL" ? undefined : ResultsLevelFilter),
+    onSuccess: (Result) => {
+      SetLastMessage(`Recomputed ${Result.recomputedCount} result${Result.recomputedCount === 1 ? "" : "s"}${Result.competitionLevelCode ? ` for ${Result.competitionLevelCode}` : " across every level"}.`);
+      InvalidateResults();
+    },
+  });
+
+  // Point 10: which students already have an unused retry grant pending,
+  // so the Results-table button can reflect that instead of letting an
+  // admin fire a second grant into the "one already exists" 409 -- fetched
+  // alongside Results, keyed by studentId (an assignment/student pairing
+  // is unique per event, so studentId is an unambiguous match here even
+  // though the grant itself is keyed on assignmentId).
+  const RetryGrantsQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "retry-grants", EventId],
+    queryFn: () => listAnnualCompetitionAttemptRetryGrants(EventId),
+    enabled: Ready && Boolean(EventId) && ActiveTab === "RESULTS",
+  });
+  const PendingRetryGrantStudentIds = new Set(
+    (RetryGrantsQuery.data?.grants || []).filter((Grant) => Grant.status === "APPROVED").map((Grant) => Grant.studentId)
+  );
+
+  const RetryMutation = useMutation({
+    mutationFn: ({ Row, Reason }: { Row: AnnualCompetitionResultRow; Reason: string }) => grantAnnualCompetitionAttemptRetry(Row.attemptId, Reason),
+    onSuccess: (_Result, { Row }) => {
+      SetLastMessage(`Retry granted for ${Row.studentName || Row.studentCode || Row.studentId} -- they can start a fresh attempt on the same paper next time they log in.`);
+      QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "retry-grants", EventId] });
+    },
+  });
+
   if (!Ready) return null;
   if (OverviewQuery.isLoading) {
     return (
@@ -457,12 +516,57 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     ReconcileMutation.error ||
     RankResultsMutation.error ||
     ReleaseResultsForLevelMutation.error ||
-    CertificateMutation.error;
+    CertificateMutation.error ||
+    RecomputeResultsMutation.error ||
+    RetryMutation.error;
+
+  // Points 2 & 3: derived, client-side view of the preview table --
+  // search text + module/level dropdowns narrow which rows are VISIBLE;
+  // selection (for the Run scope) is independent of the current filter so
+  // switching filters never silently drops an earlier selection.
+  const AssignmentRows = PreviewQuery.data?.rows || [];
+  const AssignmentModuleOptions = Array.from(
+    new Set(AssignmentRows.map((Row) => Row.currentModuleCode).filter((Value): Value is string => Boolean(Value)))
+  ).sort();
+  const AssignmentLevelOptions = Array.from(
+    new Set(AssignmentRows.map((Row) => Row.currentLevelCode).filter((Value): Value is string => Boolean(Value)))
+  ).sort();
+  const AssignmentSearchLower = AssignmentSearchText.trim().toLowerCase();
+  const FilteredAssignmentRows = AssignmentRows.filter((Row) => {
+    if (AssignmentModuleFilter !== "ALL" && Row.currentModuleCode !== AssignmentModuleFilter) return false;
+    if (AssignmentLevelFilter !== "ALL" && Row.currentLevelCode !== AssignmentLevelFilter) return false;
+    if (AssignmentSearchLower) {
+      const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
+      if (!Haystack.includes(AssignmentSearchLower)) return false;
+    }
+    return true;
+  });
+  const AllFilteredAssignmentRowsSelected =
+    FilteredAssignmentRows.length > 0 && FilteredAssignmentRows.every((Row) => SelectedStudentIdsForRun.has(Row.studentId));
+  const ToggleSelectAllFilteredAssignmentRows = () => {
+    SetSelectedStudentIdsForRun((Prev) => {
+      const Next = new Set(Prev);
+      if (AllFilteredAssignmentRowsSelected) {
+        FilteredAssignmentRows.forEach((Row) => Next.delete(Row.studentId));
+      } else {
+        FilteredAssignmentRows.forEach((Row) => Next.add(Row.studentId));
+      }
+      return Next;
+    });
+  };
+  const ToggleOneAssignmentRowSelected = (StudentId: string) => {
+    SetSelectedStudentIdsForRun((Prev) => {
+      const Next = new Set(Prev);
+      if (Next.has(StudentId)) Next.delete(StudentId);
+      else Next.add(StudentId);
+      return Next;
+    });
+  };
 
   return (
     <AppShell title="Annual Competition Studio">
       <section className="space-y-6">
-        <Link href="/admin/competition/annual-studio" className="inline-flex items-center gap-2 text-xs font-black text-[color:var(--mp-role-primary)]">
+        <Link href="/admin/competition/annual-studio" className="math-button-secondary inline-flex items-center gap-2 px-4 py-2 text-xs">
           <ArrowLeft size={14} />
           Back to Annual Competition Studio
         </Link>
@@ -848,8 +952,22 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-4 py-2 text-xs font-black text-white shadow-sm transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <CheckCircle2 size={14} />
-                  {RunEngineMutation.isPending ? "Running..." : "Run Assignment Engine"}
+                  {RunEngineMutation.isPending
+                    ? "Running..."
+                    : SelectedStudentIdsForRun.size > 0
+                      ? `Run For ${SelectedStudentIdsForRun.size} Selected`
+                      : "Run Assignment Engine (All Students)"}
                 </button>
+                {SelectedStudentIdsForRun.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => SetSelectedStudentIdsForRun(new Set())}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-2 text-xs font-black text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
+                  >
+                    <X size={12} />
+                    Deselect All ({SelectedStudentIdsForRun.size})
+                  </button>
+                )}
               </div>
 
               {PreviewQuery.data && (
@@ -858,16 +976,85 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   <span className="text-emerald-600 dark:text-emerald-300">{PreviewQuery.data.wouldAssignCount} would assign</span>
                   <span className="text-amber-600 dark:text-amber-300">{PreviewQuery.data.noRuleMatchedCount} no rule matched</span>
                   <span className="text-slate-500">{PreviewQuery.data.adminOverridePreservedCount} overrides preserved</span>
+                  {SelectedStudentIdsForRun.size > 0 && (
+                    <span className="text-[color:var(--mp-role-primary)]">{SelectedStudentIdsForRun.size} selected for next run</span>
+                  )}
+                </div>
+              )}
+
+              {/* Points 2 & 3: search + module/level filters to find a student in a
+                  150+ roster without scrolling, plus per-row checkboxes so the
+                  engine can be run against only the students enrolled for this
+                  event (e.g. a practice-exam dry run) instead of everyone. */}
+              {AssignmentRows.length > 0 && (
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={AssignmentSearchText}
+                      onChange={(EventValue) => SetAssignmentSearchText(EventValue.target.value)}
+                      placeholder="Search by name or student code..."
+                      className="math-input !py-2 !pl-9 !text-xs w-64"
+                    />
+                  </div>
+                  <select
+                    value={AssignmentModuleFilter}
+                    onChange={(EventValue) => SetAssignmentModuleFilter(EventValue.target.value)}
+                    className="math-input !py-2 !text-xs w-auto"
+                    aria-label="Filter by module"
+                  >
+                    <option value="ALL">All Modules</option>
+                    {AssignmentModuleOptions.map((ModuleCode) => (
+                      <option key={ModuleCode} value={ModuleCode}>{ModuleCode}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={AssignmentLevelFilter}
+                    onChange={(EventValue) => SetAssignmentLevelFilter(EventValue.target.value)}
+                    className="math-input !py-2 !text-xs w-auto"
+                    aria-label="Filter by level"
+                  >
+                    <option value="ALL">All Levels</option>
+                    {AssignmentLevelOptions.map((LevelCode) => (
+                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                    ))}
+                  </select>
+                  {(AssignmentSearchText || AssignmentModuleFilter !== "ALL" || AssignmentLevelFilter !== "ALL") && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        SetAssignmentSearchText("");
+                        SetAssignmentModuleFilter("ALL");
+                        SetAssignmentLevelFilter("ALL");
+                      }}
+                      className="inline-flex items-center gap-1 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-2 text-xs font-black text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
+                    >
+                      <X size={12} />
+                      Clear Filters
+                    </button>
+                  )}
+                  <span className="text-xs font-bold text-slate-400">
+                    {FilteredAssignmentRows.length} of {AssignmentRows.length} shown
+                  </span>
                 </div>
               )}
 
               {PreviewQuery.isLoading ? (
                 <div className="mt-4"><LoadingState label="Computing preview..." /></div>
-              ) : PreviewQuery.data && PreviewQuery.data.rows.length > 0 ? (
+              ) : PreviewQuery.data && FilteredAssignmentRows.length > 0 ? (
                 <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[900px] text-left text-xs font-bold">
+                  <table className="w-full min-w-[980px] text-left text-xs font-bold">
                     <thead>
                       <tr className="text-slate-500 dark:text-slate-400">
+                        <th className="px-2 py-1.5">
+                          <input
+                            type="checkbox"
+                            checked={AllFilteredAssignmentRowsSelected}
+                            onChange={ToggleSelectAllFilteredAssignmentRows}
+                            aria-label="Select all shown students"
+                            className="h-3.5 w-3.5"
+                          />
+                        </th>
                         <th className="px-2 py-1.5">Student</th>
                         <th className="px-2 py-1.5">Current Level</th>
                         <th className="px-2 py-1.5">Computed Level</th>
@@ -877,7 +1064,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {PreviewQuery.data.rows.map((Row: AnnualCompetitionAssignmentPreviewRow) => {
+                      {FilteredAssignmentRows.map((Row: AnnualCompetitionAssignmentPreviewRow) => {
                         const RowPendingLevel =
                           RowOverrideLevelByStudentId[Row.studentId] ??
                           Row.existingAssignedLevelCode ??
@@ -886,6 +1073,15 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                         const RowIsSaving = RowOverrideMutation.isPending && RowOverrideMutation.variables?.StudentId === Row.studentId;
                         return (
                           <tr key={Row.studentId} className="border-t border-[color:var(--mp-role-border)]">
+                            <td className="px-2 py-2">
+                              <input
+                                type="checkbox"
+                                checked={SelectedStudentIdsForRun.has(Row.studentId)}
+                                onChange={() => ToggleOneAssignmentRowSelected(Row.studentId)}
+                                aria-label={`Select ${Row.studentName || Row.studentCode || Row.studentId} for next run`}
+                                className="h-3.5 w-3.5"
+                              />
+                            </td>
                             <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
                             <td className="px-2 py-2">{Row.currentLevelCode || "--"}</td>
                             <td className="px-2 py-2">
@@ -946,7 +1142,14 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 </div>
               ) : (
                 <div className="mt-4">
-                  <EmptyState title="No students considered yet" description="Refresh the preview once students exist and current levels are set." />
+                  <EmptyState
+                    title={AssignmentRows.length > 0 ? "No students match these filters" : "No students considered yet"}
+                    description={
+                      AssignmentRows.length > 0
+                        ? "Try clearing the search text or the module/level filter above."
+                        : "Refresh the preview once students exist and current levels are set."
+                    }
+                  />
                 </div>
               )}
             </div>
@@ -1133,13 +1336,44 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   <Lock size={13} />
                   Release All Levels
                 </button>
+                <button
+                  type="button"
+                  disabled={RecomputeResultsMutation.isPending}
+                  title="Refreshes already-computed scores under the current scoring rules -- never touches release status or rank."
+                  onClick={() => {
+                    const Scope = ResultsLevelFilter === "ALL" ? "every level of this event" : ResultsLevelFilter;
+                    if (window.confirm(`Recompute results for ${Scope}? This refreshes scores/marks under the current scoring rules -- release status and rank are never touched.`)) {
+                      RecomputeResultsMutation.mutate();
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950/60"
+                >
+                  <RefreshCcw size={14} />
+                  {RecomputeResultsMutation.isPending ? "Recomputing..." : `Recompute ${ResultsLevelFilter === "ALL" ? "All Levels" : ResultsLevelFilter}`}
+                </button>
               </div>
 
               {ResultsQuery.isLoading ? (
                 <div className="mt-5"><LoadingState label="Loading results..." /></div>
               ) : ResultsQuery.data && ResultsQuery.data.rows.length > 0 ? (
                 <div className="mt-5 overflow-x-auto">
-                  <table className="w-full min-w-[940px] text-left text-xs font-bold">
+                  {/* Point 10 (Shailesh, 2026-09-08): fixed layout + an explicit
+                      colgroup, not the browser's default auto-sizing, so every
+                      header lines up with its column's cell content -- including
+                      the pill buttons -- instead of drifting per row. */}
+                  <table className="w-full min-w-[1060px] table-fixed text-left text-xs font-bold">
+                    <colgroup>
+                      <col className="w-[7%]" />
+                      <col className="w-[15%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[11%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[11%]" />
+                      <col className="w-[10%]" />
+                    </colgroup>
                     <thead>
                       <tr className="text-slate-500 dark:text-slate-400">
                         <th className="px-2 py-1.5">Rank</th>
@@ -1151,46 +1385,74 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                         <th className="px-2 py-1.5">Attempt</th>
                         <th className="px-2 py-1.5">Released</th>
                         <th className="px-2 py-1.5">Certificate</th>
+                        <th className="px-2 py-1.5">Retry</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {ResultsQuery.data.rows.map((Row: AnnualCompetitionResultRow) => (
-                        <tr key={Row.resultId} className="border-t border-[color:var(--mp-role-border)]">
-                          <td className="px-2 py-2"><RankBadge Rank={Row.rank} /></td>
-                          <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                          <td className="px-2 py-2">{Row.competitionLevelCode}</td>
-                          <td className="px-2 py-2">{Row.accuracyPercentage}%</td>
-                          <td className="px-2 py-2">{Row.score}/{Row.maxScore}</td>
-                          <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
-                          <td className="px-2 py-2">
-                            <Link
-                              href={`/admin/competition/annual-result/${Row.attemptId}`}
-                              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
-                            >
-                              <ClipboardList size={12} />
-                              View Attempt
-                            </Link>
-                          </td>
-                          <td className="px-2 py-2">
-                            {Row.isReleased ? (
-                              <span className="text-emerald-600 dark:text-emerald-300">Released</span>
-                            ) : (
-                              <span className="text-slate-400">Not released</span>
-                            )}
-                          </td>
-                          <td className="px-2 py-2">
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950/60"
-                              onClick={() => CertificateMutation.mutate(Row)}
-                              disabled={DownloadingAttemptId === Row.attemptId}
-                            >
-                              <Award size={12} />
-                              {DownloadingAttemptId === Row.attemptId ? "..." : "Download"}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {ResultsQuery.data.rows.map((Row: AnnualCompetitionResultRow) => {
+                        const HasPendingRetryGrant = PendingRetryGrantStudentIds.has(Row.studentId);
+                        const IsGrantingThisRow = RetryMutation.isPending && RetryMutation.variables?.Row.attemptId === Row.attemptId;
+                        return (
+                          <tr key={Row.resultId} className="border-t border-[color:var(--mp-role-border)]">
+                            <td className="px-2 py-2 truncate"><RankBadge Rank={Row.rank} /></td>
+                            <td className="px-2 py-2 truncate text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                            <td className="px-2 py-2 truncate">{Row.competitionLevelCode}</td>
+                            <td className="px-2 py-2 truncate">{Row.accuracyPercentage}%</td>
+                            <td className="px-2 py-2 truncate">{Row.score}/{Row.maxScore}</td>
+                            <td className="px-2 py-2 truncate">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
+                            <td className="px-2 py-2">
+                              <Link
+                                href={`/admin/competition/annual-result/${Row.attemptId}`}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+                              >
+                                <ClipboardList size={12} />
+                                View
+                              </Link>
+                            </td>
+                            <td className="px-2 py-2 truncate">
+                              {Row.isReleased ? (
+                                <span className="text-emerald-600 dark:text-emerald-300">Released</span>
+                              ) : (
+                                <span className="text-slate-400">Not released</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-2">
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950/60"
+                                onClick={() => CertificateMutation.mutate(Row)}
+                                disabled={DownloadingAttemptId === Row.attemptId}
+                              >
+                                <Award size={12} />
+                                {DownloadingAttemptId === Row.attemptId ? "..." : "Download"}
+                              </button>
+                            </td>
+                            <td className="px-2 py-2">
+                              <button
+                                type="button"
+                                title={
+                                  HasPendingRetryGrant
+                                    ? "An unused retry grant already exists for this student -- they'll get a fresh attempt on the same paper next time they log in."
+                                    : "Grant this student one fresh attempt on the same paper (REQUIREMENTS.md item 6 -- genuine technical-issue retakes, also usable for re-testing)."
+                                }
+                                className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950/60"
+                                onClick={() => {
+                                  const Reason = window.prompt(
+                                    `Reason for granting ${Row.studentName || Row.studentCode || Row.studentId} a retry on ${Row.competitionLevelCode}? (required)`
+                                  );
+                                  if (Reason && Reason.trim()) {
+                                    RetryMutation.mutate({ Row, Reason: Reason.trim() });
+                                  }
+                                }}
+                                disabled={HasPendingRetryGrant || IsGrantingThisRow}
+                              >
+                                <RotateCcw size={12} />
+                                {HasPendingRetryGrant ? "Granted" : IsGrantingThisRow ? "..." : "Retry"}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

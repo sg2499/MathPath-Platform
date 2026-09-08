@@ -86,6 +86,7 @@ from app.models import (
     CompetitionEventLevelPaper,
     CompetitionEventResult,
     CompetitionMockQuestion,
+    CompetitionMockQuestionOption,
     Student,
     User,
 )
@@ -134,21 +135,50 @@ def _RawMetricsForAttempt(db: Session, AttemptRecord: CompetitionEventAttempt) -
     MaxScore = 0.0
 
     for QuestionRecord in QuestionRecords:
-        QuestionMarks = float(QuestionRecord.marks or 1)
-        MaxScore += QuestionMarks
+        # Point 10 fix (Shailesh, 2026-09-08): 1 mark per question, out of
+        # the paper's real question count -- never QuestionRecord.marks,
+        # which reflects the reused Competition Mock generation engine's
+        # admin-chosen "total marks" weighting (defaults to 100 regardless
+        # of question count). That weighting is what produced the wrong
+        # "28/100"-style scores Shailesh flagged: the client's own answer
+        # ("1 mark per correct response") means score must equal the
+        # correct count and max score must equal the question count,
+        # always -- this is naturally future-proof once real per-level
+        # question counts are confirmed and papers regenerated, since
+        # MaxScore is just however many questions this specific paper has.
+        MaxScore += 1.0
         AnswerRecord = AnswersByQuestionId.get(QuestionRecord.id)
-        # Point 8 (Shailesh, 2026-09-08): typed answers (selected_value),
-        # not MCQ picks (selected_option_id, kept only for the option FK's
-        # own nullability -- never written by the new save path). A blank/
-        # whitespace-only typed value is unanswered, same as a null pick
-        # used to be -- SaveCompetitionEventAnswer already enforces this
-        # exact rule when it sets is_correct=None for an empty answer.
-        if not AnswerRecord or not (AnswerRecord.selected_value or "").strip():
+        StudentAnswerText = (AnswerRecord.selected_value or "").strip() if AnswerRecord else ""
+
+        # Same legacy-answer fallback already applied to the admin review
+        # screen's own per-question display (_AttemptReviewSectionPayload
+        # in annual_competition_attempt_service.py) -- an attempt answered
+        # before the typed-answer switch has selected_option_id set and
+        # selected_value NULL forever (no backfill; see
+        # ensure_annual_competition_answer_text_column's own docstring).
+        # Without this fallback here too, a legacy attempt's stored SCORE
+        # (not just its review display) undercounts every question it
+        # actually answered as unanswered -- exactly the "22 unanswered"
+        # discrepancy Shailesh reported between the review screen (already
+        # fixed) and the result summary (this function, not yet fixed
+        # until now). The option's own is_correct flag is the ground
+        # truth for these, exactly as the review screen already
+        # established -- never a fresh answers_match() re-check.
+        LegacyOptionIsCorrect: bool | None = None
+        if not StudentAnswerText and AnswerRecord and AnswerRecord.selected_option_id:
+            OptionRecord = db.get(CompetitionMockQuestionOption, AnswerRecord.selected_option_id)
+            if OptionRecord:
+                StudentAnswerText = (OptionRecord.option_value or "").strip()
+                LegacyOptionIsCorrect = bool(OptionRecord.is_correct)
+
+        if not StudentAnswerText:
             UnansweredCount += 1
             continue
-        if AnswerRecord.is_correct:
+
+        IsCorrect = LegacyOptionIsCorrect if LegacyOptionIsCorrect is not None else bool(AnswerRecord.is_correct)
+        if IsCorrect:
             CorrectCount += 1
-            Score += QuestionMarks
+            Score += 1.0
         else:
             WrongCount += 1
 
@@ -222,6 +252,45 @@ def ComputeAndFinalizeCompetitionEventResult(db: Session, AttemptRecord: Competi
 
     db.flush()
     return ResultRecord
+
+
+def RecomputeAnnualCompetitionResults(db: Session, *, EventId: str, CompetitionLevelCode: str | None = None) -> dict[str, Any]:
+    """Admin action (Point 10, Shailesh, 2026-09-08): refreshes already-
+    finalized results under whatever the current scoring formula is.
+    Exists because CompetitionEventResult is computed once and frozen at
+    finalize time -- the marks-weighting and legacy-answer fixes landed
+    alongside this function only affect attempts finalized AFTER the fix
+    ships, unless something re-runs the computation for attempts already
+    finalized under the old, wrong formula. Safe and idempotent: reuses
+    ComputeAndFinalizeCompetitionEventResult per attempt, which (see this
+    module's own docstring) never touches is_released/released_at/rank --
+    only raw metrics are recomputed, so a result already shown to anyone
+    is never silently un-released or un-ranked as a side effect. Voided
+    results are skipped entirely, matching _RankResultsForLevel's own
+    "never touch a voided row" rule.
+    """
+    EventRecord = db.get(CompetitionEvent, EventId)
+    if not EventRecord:
+        api_error(404, "COMPETITION_EVENT_NOT_FOUND", "Annual Competition event not found.")
+
+    Query = db.query(CompetitionEventResult).filter(
+        CompetitionEventResult.event_id == EventId,
+        CompetitionEventResult.is_voided == False,  # noqa: E712
+    )
+    if CompetitionLevelCode:
+        Query = Query.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
+    ResultRecords = Query.all()
+
+    RecomputedCount = 0
+    for ResultRecord in ResultRecords:
+        AttemptRecord = db.get(CompetitionEventAttempt, ResultRecord.attempt_id)
+        if not AttemptRecord:
+            continue
+        ComputeAndFinalizeCompetitionEventResult(db, AttemptRecord)
+        RecomputedCount += 1
+
+    db.commit()
+    return {"eventId": EventId, "competitionLevelCode": CompetitionLevelCode, "recomputedCount": RecomputedCount}
 
 
 def _FirstMistakeQuestionNumberForAttempt(db: Session, AttemptId: str) -> int | None:

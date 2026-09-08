@@ -95,7 +95,7 @@ function AnnualCompetitionInstructionsContent() {
               <h1 className="mt-2 w-full text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
                 {Query.data.eventName}
               </h1>
-              <p className="math-subtitle !mt-2 max-w-3xl">
+              <p className="math-subtitle !mt-2 w-full">
                 Read every section carefully before you begin. Sections run one at a time, in order, and cannot be revisited once submitted -- so make sure you're ready before you start.
               </p>
             </div>
@@ -139,7 +139,7 @@ function AnnualCompetitionInstructionsContent() {
                   <ShieldCheck size={17} />
                   <p className="font-black">Before You Begin</p>
                 </div>
-                <ul className="mt-3 grid gap-2.5 text-sm font-semibold leading-6 text-blue-900/90 dark:text-blue-100 sm:grid-cols-2">
+                <ul className="mt-3 grid gap-2.5 text-sm font-semibold leading-6 text-blue-900/90 dark:text-blue-100">
                   {Query.data.instructions.map((Item) => (
                     <li key={Item} className="flex min-w-0 items-start gap-2">
                       <span className="shrink-0">•</span>

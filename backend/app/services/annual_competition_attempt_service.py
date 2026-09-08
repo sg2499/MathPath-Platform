@@ -155,6 +155,7 @@ from app.models import (
     CompetitionEventSlot,
     CompetitionMockExam,
     CompetitionMockQuestion,
+    CompetitionMockQuestionOption,
     Student,
     User,
 )
@@ -1167,6 +1168,42 @@ def _AttemptReviewSectionPayload(
     for LocalQuestionNumber, QuestionRecord in enumerate(QuestionRecords, start=1):
         AnswerRecord = AnswersByQuestionId.get(QuestionRecord.id)
         StudentAnswerText = (AnswerRecord.selected_value or "").strip() if AnswerRecord else ""
+
+        # Point 9 fix (Shailesh, 2026-09-08): an attempt answered before
+        # today's Point 8 switch to typed answers saved into the OLD
+        # selected_option_id column -- selected_value was never backfilled
+        # for it (ensure_annual_competition_answer_text_column only ever
+        # ADDs the column, never migrates old rows -- see that function's
+        # own docstring). Without this fallback every pre-migration
+        # attempt reviews as "Not Answered" on every single question even
+        # though it was genuinely answered and correctly scored at the
+        # time (the stored CompetitionEventResult is untouched by any of
+        # this -- it was computed once, at that attempt's own finalize
+        # time, under the code that existed then). This is a legacy-data
+        # display fix only; a brand new typed-answer attempt always has
+        # selected_value populated and never touches this branch.
+        LegacyOptionIsCorrect: bool | None = None
+        if not StudentAnswerText and AnswerRecord and AnswerRecord.selected_option_id:
+            OptionRecord = db.get(CompetitionMockQuestionOption, AnswerRecord.selected_option_id)
+            if OptionRecord:
+                StudentAnswerText = (OptionRecord.option_value or "").strip()
+                # The option's own is_correct flag -- set once, when the
+                # paper was built -- is the ground truth for an MCQ pick,
+                # not a fresh text comparison against correct_answer: an
+                # option's display value need not be byte-identical to
+                # correct_answer to have been the legitimately-correct
+                # pick, so re-running answers_match here could manufacture
+                # a false "wrong" on data that was graded correctly at the
+                # time. This mirrors exactly what determined the score
+                # already sitting in CompetitionEventResult for this
+                # attempt -- the review must never disagree with it.
+                LegacyOptionIsCorrect = bool(OptionRecord.is_correct)
+
+        IsCorrect = (
+            LegacyOptionIsCorrect
+            if LegacyOptionIsCorrect is not None
+            else (answers_match(QuestionRecord.correct_answer, StudentAnswerText) if StudentAnswerText else False)
+        )
         Questions.append(
             {
                 "questionId": QuestionRecord.id,
@@ -1179,13 +1216,13 @@ def _AttemptReviewSectionPayload(
                 "correctAnswer": QuestionRecord.correct_answer,
                 "isUnanswered": not bool(StudentAnswerText),
                 # Re-derived via the same authoritative comparison used at
-                # save time (answers_match), rather than trusting the
-                # persisted is_correct verbatim -- belt-and-braces for
-                # exactly the correctness guarantee Shailesh called out as
-                # non-negotiable: this review screen must never itself
-                # disagree with what the student was actually scored on,
-                # and re-deriving it here catches drift if it ever occurs.
-                "isCorrect": answers_match(QuestionRecord.correct_answer, StudentAnswerText) if StudentAnswerText else False,
+                # save time (answers_match) for typed answers, with a
+                # legacy-option fallback above for pre-migration rows --
+                # belt-and-braces for exactly the correctness guarantee
+                # Shailesh called out as non-negotiable: this review screen
+                # must never itself disagree with what the student was
+                # actually scored on.
+                "isCorrect": IsCorrect,
             }
         )
     return {

@@ -21,10 +21,12 @@ from app.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
     CompetitionEventAttempt,
+    CompetitionEventAttemptAnswer,
     CompetitionEventLevelPaper,
     CompetitionEventSectionTimer,
     CompetitionMockExam,
     CompetitionMockQuestion,
+    CompetitionMockQuestionOption,
     Level,
     Module,
     Student,
@@ -257,4 +259,135 @@ def test_review_correctness_is_tolerant_like_the_live_save_path():
     q1 = review["sections"][0]["questions"][0]
     assert q1["studentAnswer"] == "04"
     assert q1["correctAnswer"] == "4"
+    assert q1["isCorrect"] is True
+
+
+# ---------------------------------------------------------------------------
+# Point 9 (Shailesh, 2026-09-08): legacy MCQ-era answers must still review
+# correctly -- an attempt answered before the typed-answer switch has
+# selected_option_id set and selected_value NULL forever (no backfill; see
+# ensure_annual_competition_answer_text_column's own docstring). Without a
+# fallback, GetCompetitionEventAttemptReviewForAdmin would show every such
+# question as "Not Answered" even though it was genuinely answered and
+# already correctly scored -- exactly the bug Shailesh reported from a real
+# attempt on the live server.
+# ---------------------------------------------------------------------------
+
+def _legacy_option_answer(db, attempt_id, question_id, option_id, is_correct, answer_id=None):
+    """Directly inserts a CompetitionEventAttemptAnswer the way the OLD
+    MCQ save path used to -- selected_option_id populated, selected_value
+    left NULL -- bypassing SaveCompetitionEventAnswer (which only ever
+    writes the new typed-answer shape now) so this test fixture accurately
+    represents real pre-migration data rather than something the current
+    code could itself produce."""
+    answer = CompetitionEventAttemptAnswer(
+        id=answer_id or f"answer-{question_id}",
+        attempt_id=attempt_id,
+        mock_question_id=question_id,
+        selected_option_id=option_id,
+        selected_value=None,
+        is_correct=is_correct,
+    )
+    db.add(answer)
+    db.flush()
+    return answer
+
+
+def test_review_falls_back_to_legacy_option_when_selected_value_is_null():
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[2])
+    db.commit()
+
+    correct_option = CompetitionMockQuestionOption(
+        id="opt-1-1-correct", mock_question_id="q-1-1", option_label="A", option_value="4", is_correct=True, display_order=1,
+    )
+    wrong_option = CompetitionMockQuestionOption(
+        id="opt-1-2-wrong", mock_question_id="q-1-2", option_label="B", option_value="7", is_correct=False, display_order=1,
+    )
+    db.add(correct_option)
+    db.add(wrong_option)
+    db.flush()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id = started["attemptId"]
+    _legacy_option_answer(db, attempt_id, "q-1-1", correct_option.id, is_correct=True)
+    _legacy_option_answer(db, attempt_id, "q-1-2", wrong_option.id, is_correct=False, answer_id="answer-q-1-2")
+    db.commit()
+
+    review = attempt_engine.GetCompetitionEventAttemptReviewForAdmin(db, AttemptId=attempt_id)
+    section = review["sections"][0]
+
+    q1 = next(q for q in section["questions"] if q["questionId"] == "q-1-1")
+    assert q1["studentAnswer"] == "4"
+    assert q1["isUnanswered"] is False
+    assert q1["isCorrect"] is True
+
+    q2 = next(q for q in section["questions"] if q["questionId"] == "q-1-2")
+    assert q2["studentAnswer"] == "7"
+    assert q2["isUnanswered"] is False
+    assert q2["isCorrect"] is False
+
+
+def test_review_legacy_fallback_trusts_the_options_own_is_correct_flag_not_a_text_rematch():
+    """The option's is_correct flag is the ground truth for an MCQ pick --
+    this must be honoured even if the option's display text would NOT
+    textually match correct_answer via answers_match, since that's exactly
+    the scenario a naive "just re-run answers_match on the option value"
+    fallback would silently mis-grade on the review screen."""
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+
+    # correct_answer on q-1-1 is "4" (see _question()'s default), but the
+    # option marked correct here deliberately has a differently-formatted
+    # display value ("Four") that answers_match would NOT consider equal
+    # to "4" -- is_correct=True on the option must still win.
+    option = CompetitionMockQuestionOption(
+        id="opt-1-1-worded", mock_question_id="q-1-1", option_label="A", option_value="Four", is_correct=True, display_order=1,
+    )
+    db.add(option)
+    db.flush()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id = started["attemptId"]
+    _legacy_option_answer(db, attempt_id, "q-1-1", option.id, is_correct=True)
+    db.commit()
+
+    review = attempt_engine.GetCompetitionEventAttemptReviewForAdmin(db, AttemptId=attempt_id)
+    q1 = review["sections"][0]["questions"][0]
+    assert q1["studentAnswer"] == "Four"
+    assert q1["isCorrect"] is True
+
+
+def test_review_prefers_selected_value_over_legacy_option_when_both_somehow_present():
+    """Belt-and-braces: if a row ever has BOTH selected_value and a stale
+    selected_option_id (e.g. a very old row touched by both code paths),
+    the new typed-answer value must win -- selected_option_id is kept only
+    for legacy display, never treated as authoritative once a real typed
+    answer exists."""
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+
+    option = CompetitionMockQuestionOption(
+        id="opt-1-1-stale", mock_question_id="q-1-1", option_label="B", option_value="5", is_correct=False, display_order=1,
+    )
+    db.add(option)
+    db.flush()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id = started["attemptId"]
+    answer = CompetitionEventAttemptAnswer(
+        id="answer-mixed", attempt_id=attempt_id, mock_question_id="q-1-1",
+        selected_option_id=option.id, selected_value="4", is_correct=True,
+    )
+    db.add(answer)
+    db.commit()
+
+    review = attempt_engine.GetCompetitionEventAttemptReviewForAdmin(db, AttemptId=attempt_id)
+    q1 = review["sections"][0]["questions"][0]
+    assert q1["studentAnswer"] == "4"
     assert q1["isCorrect"] is True

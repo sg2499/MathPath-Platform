@@ -26,6 +26,7 @@ from app.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
     CompetitionEventAttempt,
+    CompetitionEventAttemptAnswer,
     CompetitionEventAttemptSectionState,
     CompetitionEventLevelPaper,
     CompetitionEventResult,
@@ -237,6 +238,80 @@ def test_finalize_counts_unanswered_as_zero_marks_not_wrong():
     assert result.score == 1
     assert result.max_score == 3
     assert round(result.accuracy_percentage, 2) == round((1 / 3) * 100, 2)
+
+
+def test_finalize_score_is_count_based_not_marks_weighted():
+    """Point 10 (Shailesh, 2026-09-08): "it should always show the marks
+    out of the total number of questions for that paper" -- score/maxScore
+    must be 1 point per question regardless of QuestionRecord.marks, which
+    reflects the reused Competition Mock generation engine's admin-chosen
+    "total marks" weighting (defaults to 100 irrespective of question
+    count). Every question here is deliberately worth 5 marks each (as a
+    marks-weighted paper would produce) to prove the weighting is ignored."""
+    db = _session()
+    event = _event(db)
+    student = _student(db, "s1")
+    m, l = _module_and_level(db)
+    exam = _mock_exam(db, l.id, m.id)
+    _question_with_options(db, exam.id, 1, 1, marks=5, qid="q-1-1")
+    _question_with_options(db, exam.id, 1, 2, marks=5, qid="q-1-2")
+    _assignment(db, event.id, student.id, "PM-L2")
+    _level_paper_with_timers(db, event.id, "PM-L2", exam.id, [600])
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "q-1-1", correct=True)
+    _answer(db, student, attempt_id, token, 1, "q-1-2", correct=False)
+
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    # NOT 5/10 (marks-weighted) -- 1/2 (count-based, 1 mark per question).
+    assert result.score == 1
+    assert result.max_score == 2
+    assert result.percentage == 50.0
+
+
+def test_finalize_falls_back_to_legacy_option_when_selected_value_is_null():
+    """Mirrors the identical fix already applied to the admin review
+    screen's per-question display -- an attempt answered before the
+    typed-answer switch has selected_option_id set and selected_value
+    NULL forever. Without this fallback here too, the stored SCORE (not
+    just the review display) undercounts every question the student
+    actually answered as unanswered -- the exact "22 unanswered" gap
+    Shailesh reported between the (already-fixed) review screen and the
+    (not-yet-fixed) result summary."""
+    db = _session()
+    event = _event(db)
+    student = _student(db, "s1")
+    m, l = _module_and_level(db)
+    exam = _mock_exam(db, l.id, m.id)
+    _, correct_option, wrong_option = _question_with_options(db, exam.id, 1, 1, qid="q-1-1")
+    _question_with_options(db, exam.id, 1, 2, qid="q-1-2")
+    _assignment(db, event.id, student.id, "PM-L2")
+    _level_paper_with_timers(db, event.id, "PM-L2", exam.id, [600])
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    # q-1-1 answered the OLD (pre-typed-answer) way: selected_option_id
+    # set, selected_value left NULL -- bypasses SaveCompetitionEventAnswer
+    # entirely, same as real legacy data on the live server.
+    db.add(CompetitionEventAttemptAnswer(
+        id="answer-q-1-1", attempt_id=attempt_id, mock_question_id="q-1-1",
+        selected_option_id=correct_option.id, selected_value=None, is_correct=True,
+    ))
+    # q-1-2 left genuinely unanswered.
+    db.commit()
+
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    assert result.correct_count == 1
+    assert result.unanswered_count == 1
+    assert result.score == 1
+    assert result.max_score == 2
 
 
 def test_finalize_time_taken_excludes_pause_and_sums_per_section():
@@ -592,6 +667,107 @@ def test_recompute_never_flips_an_already_released_result_back():
     assert result_after.is_released is True
     assert result_after.released_at == released_at_before
     assert result_after.rank == rank_before
+
+
+# ---------------------------------------------------------------------------
+# Admin "Recompute Results" action (Point 10, Shailesh, 2026-09-08) --
+# refreshes already-finalized results (e.g. after a scoring-formula fix
+# like the marks-weighting/legacy-answer ones above) without disturbing
+# release/rank state. See RecomputeAnnualCompetitionResults's own
+# docstring.
+# ---------------------------------------------------------------------------
+
+def test_recompute_action_refreshes_every_finalized_result_for_the_event():
+    db = _session()
+    event = _event(db)
+    student_a = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[2])
+    student_b = _setup_student_with_questions(db, "s2", event.id, section_seconds=(600,), questions_per_section=[2])
+    db.commit()
+    attempt_a = _submit_full_attempt(db, student_a, event.id, {"q-1-1": True, "q-1-2": False})
+    attempt_b = _submit_full_attempt(db, student_b, event.id, {"q-1-1": True, "q-1-2": True})
+
+    # Simulate results computed under a stale/wrong formula (e.g. before
+    # today's marks-weighting fix), same as real pre-existing data would
+    # look like on the live server.
+    db.query(CompetitionEventResult).filter_by(attempt_id=attempt_a).update({"score": 999, "max_score": 999})
+    db.query(CompetitionEventResult).filter_by(attempt_id=attempt_b).update({"score": 999, "max_score": 999})
+    db.commit()
+
+    outcome = scoring.RecomputeAnnualCompetitionResults(db, EventId=event.id)
+    assert outcome["recomputedCount"] == 2
+
+    result_a = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_a).one()
+    result_b = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_b).one()
+    assert result_a.score == 1 and result_a.max_score == 2
+    assert result_b.score == 2 and result_b.max_score == 2
+
+
+def test_recompute_action_scoped_to_one_level_leaves_another_untouched():
+    db = _session()
+    event = _event(db)
+    student_pm = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1], level_code="PM-L2")
+    student_im = _setup_student_with_questions(db, "s2", event.id, section_seconds=(600,), questions_per_section=[1], level_code="IM-L1", qid_prefix="im")
+    db.commit()
+    attempt_pm = _submit_full_attempt(db, student_pm, event.id, {"q-1-1": True})
+    attempt_im = _submit_full_attempt(db, student_im, event.id, {"im-q-1-1": True})
+
+    db.query(CompetitionEventResult).filter_by(attempt_id=attempt_pm).update({"score": 999})
+    db.query(CompetitionEventResult).filter_by(attempt_id=attempt_im).update({"score": 999})
+    db.commit()
+
+    outcome = scoring.RecomputeAnnualCompetitionResults(db, EventId=event.id, CompetitionLevelCode="PM-L2")
+    assert outcome["recomputedCount"] == 1
+
+    result_pm = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_pm).one()
+    result_im = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_im).one()
+    assert result_pm.score == 1  # refreshed
+    assert result_im.score == 999  # untouched -- different level, not in scope
+
+
+def test_recompute_action_never_flips_an_already_released_result_back():
+    db = _session()
+    event = _event(db)
+    admin = _admin(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+    attempt_id = _submit_full_attempt(db, student, event.id, {"q-1-1": True})
+    scoring.ReleaseCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode="PM-L2", ReleasedBy=admin)
+
+    result_before = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    released_at_before = result_before.released_at
+    rank_before = result_before.rank
+
+    scoring.RecomputeAnnualCompetitionResults(db, EventId=event.id)
+
+    result_after = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    assert result_after.is_released is True
+    assert result_after.released_at == released_at_before
+    assert result_after.rank == rank_before
+
+
+def test_recompute_action_skips_voided_results():
+    db = _session()
+    event = _event(db)
+    admin = _admin(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+    attempt_id = _submit_full_attempt(db, student, event.id, {"q-1-1": True})
+    scoring.VoidCompetitionEventResult(db, AttemptId=attempt_id, Reason="Wrong paper linked.", VoidedBy=admin)
+    db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).update({"score": 999})
+    db.commit()
+
+    outcome = scoring.RecomputeAnnualCompetitionResults(db, EventId=event.id)
+    assert outcome["recomputedCount"] == 0
+
+    result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    assert result.score == 999  # untouched -- voided results are never recomputed
+
+
+def test_recompute_action_unknown_event_raises_404():
+    db = _session()
+    with pytest.raises(HTTPException) as exc_info:
+        scoring.RecomputeAnnualCompetitionResults(db, EventId="does-not-exist")
+    assert exc_info.value.status_code == 404
 
 
 # ---------------------------------------------------------------------------
