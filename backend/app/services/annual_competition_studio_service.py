@@ -51,6 +51,7 @@ from app.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
     CompetitionEventAttempt,
+    CompetitionEventAttemptRetryGrant,
     CompetitionEventLevelPaper,
     CompetitionEventSectionTimer,
     CompetitionEventSlot,
@@ -264,6 +265,59 @@ def LiftCompetitionEventSuspension(db: Session, *, EventId: str) -> dict[str, An
     db.commit()
     db.refresh(EventRecord)
     return _EventPayload(EventRecord)
+
+
+def DeleteCompetitionEvent(db: Session, *, EventId: str) -> dict[str, Any]:
+    """2026-09-08: the Studio's event list had a "ZZ-TEST-DELETE-ME"-named
+    rehearsal event sitting in it with no way to actually delete it --
+    Shailesh's own throwaway naming convention was the tell that this gap
+    was real, not hypothetical. Hard delete, not the isActive-style soft
+    delete UpdateCompetitionEventSlot uses for slots -- CompetitionEvent has
+    no such flag (only the DRAFT/SCHEDULED/LIVE/COMPLETED status column,
+    which already carries its own separate meaning), and a genuinely
+    throwaway test event should actually go away, not linger hidden.
+
+    Mirrors DeleteCompetitionMockExam's existing guard precedent exactly
+    (competition_mock_generation_service.py, "reject once a real attempt
+    exists or once results are release-locked"), applied here to the event
+    itself rather than one linked exam: once ANY CompetitionEventAttempt row
+    exists (a student actually started, not just got assigned) or
+    results_release_at is set (every linked level paper is already locked),
+    this event is no longer a rough draft and can no longer be deleted --
+    only an assignment-only, attempt-free, not-yet-release-locked event
+    (exactly the ZZ-TEST-DELETE-ME / Test-1 state) is eligible.
+
+    Deletes children explicitly, in dependency order, rather than relying on
+    each table's own ondelete=CASCADE firing correctly -- SQLite (this
+    suite's test DB) does not enforce foreign keys unless a connection
+    explicitly turns PRAGMA foreign_keys on, so a correctness bug here could
+    pass its own tests for the wrong reason if left to implicit DB cascade.
+    Safe to do explicitly precisely because the guard above already
+    guarantees zero attempts (and therefore zero results and zero retry
+    grants, both of which only ever exist once an attempt does) by the time
+    this point is reached -- only slots, level papers (+ their section
+    timers), and assignments can still be present.
+    """
+    EventRecord = _GetEventOr404(db, EventId)
+
+    HasRealAttempt = db.query(CompetitionEventAttempt).filter(CompetitionEventAttempt.event_id == EventId).first() is not None
+    if HasRealAttempt or EventRecord.results_release_at is not None:
+        api_error(
+            409,
+            "COMPETITION_EVENT_LOCKED",
+            "This event has at least one real attempt or a locked results date, and can no longer be deleted.",
+        )
+
+    LevelPaperIds = [Row.id for Row in db.query(CompetitionEventLevelPaper.id).filter(CompetitionEventLevelPaper.event_id == EventId).all()]
+    if LevelPaperIds:
+        db.query(CompetitionEventSectionTimer).filter(CompetitionEventSectionTimer.level_paper_id.in_(LevelPaperIds)).delete(synchronize_session=False)
+    db.query(CompetitionEventLevelPaper).filter(CompetitionEventLevelPaper.event_id == EventId).delete(synchronize_session=False)
+    db.query(CompetitionEventAttemptRetryGrant).filter(CompetitionEventAttemptRetryGrant.event_id == EventId).delete(synchronize_session=False)
+    db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.event_id == EventId).delete(synchronize_session=False)
+    db.query(CompetitionEventSlot).filter(CompetitionEventSlot.event_id == EventId).delete(synchronize_session=False)
+    db.delete(EventRecord)
+    db.commit()
+    return {"eventId": EventId, "deleted": True}
 
 
 def GetCompetitionEvent(db: Session, EventId: str) -> dict[str, Any]:
