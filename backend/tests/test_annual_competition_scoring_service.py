@@ -314,6 +314,101 @@ def test_finalize_falls_back_to_legacy_option_when_selected_value_is_null():
     assert result.max_score == 2
 
 
+def test_finalize_excludes_questions_from_sections_the_attempt_never_included():
+    """Root-cause fix (Shailesh, 2026-09-09): the live "22 unanswered
+    despite everything answered" bug. The paper's underlying mock exam can
+    contain MORE sections than the level's CompetitionEventSectionTimer
+    table defines -- e.g. IM-L4's generic Competition Mock registry has 8
+    sections, but the client-confirmed real-event section-timer table
+    (DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE) only defines the first 5, so a
+    student's attempt (_BuildFreshAttempt seeds exactly one section-state
+    per section-timer row) never activates, shows, or accepts answers for
+    the extra sections. Scoring must never count those extra sections'
+    questions toward MaxScore/TotalQuestions/UnansweredCount -- doing so
+    is exactly what produced the wrong "X/52"-style denominator and the
+    phantom unanswered count on live Test-1 data. Simulated here with a
+    2-question timed section 1 and a 3-question section 2 that has NO
+    timer at all (standing in for IM-L4's untimed sections 6-8)."""
+    db = _session()
+    event = _event(db)
+    student = _student(db, "s1")
+    m, l = _module_and_level(db)
+    exam = _mock_exam(db, l.id, m.id)
+    # question_number is unique per mock_exam_id (not per section), so
+    # section 2's questions use 11+ the same way _setup_student_with_
+    # questions's own helper spaces sections apart, to avoid colliding with
+    # section 1's 1-2.
+    _question_with_options(db, exam.id, 1, 1, qid="q-1-1")
+    _question_with_options(db, exam.id, 1, 2, qid="q-1-2")
+    # Section 2 questions exist in the underlying paper (the generic engine
+    # generated them) but section 2 has no CompetitionEventSectionTimer --
+    # this student's attempt will never include it.
+    _question_with_options(db, exam.id, 2, 11, qid="q-2-1")
+    _question_with_options(db, exam.id, 2, 12, qid="q-2-2")
+    _question_with_options(db, exam.id, 2, 13, qid="q-2-3")
+    _assignment(db, event.id, student.id, "PM-L2")
+    _level_paper_with_timers(db, event.id, "PM-L2", exam.id, [600])  # only section 1 gets a timer
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "q-1-1", correct=True)
+    _answer(db, student, attempt_id, token, 1, "q-1-2", correct=False)
+
+    # Only section 1 exists on this attempt, so submitting it finalizes the
+    # whole attempt (mirrors every other single-section fixture above).
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    assert result.correct_count == 1
+    assert result.wrong_count == 1
+    # NOT 3 -- section 2's questions were never part of this attempt.
+    assert result.unanswered_count == 0
+    assert result.score == 1
+    # NOT 5 -- max_score must equal only the questions this attempt covered.
+    assert result.max_score == 2
+    assert result.percentage == 50.0
+    assert result.accuracy_percentage == 50.0
+
+
+def test_recompute_still_excludes_untimed_sections_after_a_fix_deploys():
+    """Same scenario as above, but proving the Recompute Results admin
+    action (already shipped) picks up this fix retroactively for an
+    attempt that was scored wrong under the old, unscoped query -- an
+    admin re-running Recompute on live Test-1-style data must not need a
+    data migration to get the right numbers, just this code fix."""
+    db = _session()
+    event = _event(db)
+    student = _student(db, "s1")
+    m, l = _module_and_level(db)
+    exam = _mock_exam(db, l.id, m.id)
+    _question_with_options(db, exam.id, 1, 1, qid="q-1-1")
+    _question_with_options(db, exam.id, 2, 11, qid="q-2-1")
+    _assignment(db, event.id, student.id, "PM-L2")
+    _level_paper_with_timers(db, event.id, "PM-L2", exam.id, [600])
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "q-1-1", correct=True)
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    # Simulate a result that was frozen under the OLD, unscoped scoring
+    # (as if computed before this fix existed) to prove Recompute corrects
+    # it, not just a freshly-finalized attempt.
+    stale_result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    stale_result.max_score = 2
+    stale_result.unanswered_count = 1
+    db.commit()
+
+    scoring.RecomputeAnnualCompetitionResults(db, EventId=event.id)
+
+    fixed_result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    assert fixed_result.max_score == 1
+    assert fixed_result.unanswered_count == 0
+    assert fixed_result.correct_count == 1
+
+
 def test_finalize_time_taken_excludes_pause_and_sums_per_section():
     db = _session()
     event = _event(db)

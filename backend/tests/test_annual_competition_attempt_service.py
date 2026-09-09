@@ -583,6 +583,80 @@ def test_granted_retry_lets_start_create_a_second_attempt():
     assert grants[0]["usedAttemptId"] == second["attemptId"]
 
 
+def test_list_assignments_hides_retry_grant_before_it_is_granted():
+    """Baseline for the two tests below: hasActiveRetryGrant is false for a
+    freshly-submitted attempt with no grant at all."""
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,))
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+    engine.SubmitCompetitionEventSection(db, student, started["attemptId"], started["sessionToken"], 1)
+
+    assignments = engine.ListMyAnnualCompetitionAssignments(db, student)["assignments"]
+    assert assignments[0]["latestAttemptStatus"] == "FINALIZED"
+    assert assignments[0]["hasActiveRetryGrant"] is False
+
+
+def test_list_assignments_surfaces_retry_grant_on_the_student_portal():
+    """Root-cause fix (Shailesh, 2026-09-09): "granting retry does not
+    reflect the retry attempt on the student portal in the annual
+    competition tab." Before this fix, _AssignmentWithAttemptPayload had no
+    way to express "a retry exists" -- latestAttemptStatus stayed FINALIZED
+    forever, which the frontend rendered as a dead-end "Submitted" card
+    with no button. Granting a retry must flip hasActiveRetryGrant to true
+    for that assignment WITHOUT changing latestAttemptStatus itself (the
+    old attempt really is still finalized -- only the grant is new)."""
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,))
+    first = engine.StartCompetitionEventAttempt(db, student, event.id)
+    engine.SubmitCompetitionEventSection(db, student, first["attemptId"], first["sessionToken"], 1)
+    admin = _admin_user(db)
+
+    engine.GrantAnnualCompetitionAttemptRetry(
+        db, AttemptId=first["attemptId"], GrantedBy=admin, Reason="Laptop died during the exam window."
+    )
+
+    assignments = engine.ListMyAnnualCompetitionAssignments(db, student)["assignments"]
+    assert assignments[0]["latestAttemptStatus"] == "FINALIZED"
+    assert assignments[0]["hasActiveRetryGrant"] is True
+
+    # Once the grant is actually used (the retry attempt starts), it must
+    # stop showing as an available grant -- otherwise the student would
+    # see "Retry Granted" indefinitely even while already mid-retry.
+    engine.StartCompetitionEventAttempt(db, student, event.id)
+    assignments_after_start = engine.ListMyAnnualCompetitionAssignments(db, student)["assignments"]
+    assert assignments_after_start[0]["latestAttemptStatus"] == "IN_PROGRESS"
+    assert assignments_after_start[0]["hasActiveRetryGrant"] is False
+
+
+def test_instructions_reflect_retry_grant_with_accurate_copy():
+    """Same root cause, the instructions screen's half: once a retry is
+    reachable again, its static "you get one attempt" copy would be
+    actively wrong for a retry-granted student -- isRetry must be true and
+    the instructions list must say so instead."""
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,))
+    first = engine.StartCompetitionEventAttempt(db, student, event.id)
+    engine.SubmitCompetitionEventSection(db, student, first["attemptId"], first["sessionToken"], 1)
+    admin = _admin_user(db)
+    engine.GrantAnnualCompetitionAttemptRetry(
+        db, AttemptId=first["attemptId"], GrantedBy=admin, Reason="Laptop died during the exam window."
+    )
+
+    instructions = engine.GetCompetitionEventInstructions(db, student, event.id)
+    assert instructions["isRetry"] is True
+    assert any("retry" in line.lower() for line in instructions["instructions"])
+    assert not any(line == "You get one attempt at this competition." for line in instructions["instructions"])
+
+
+def test_instructions_show_default_copy_with_no_retry_grant():
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,))
+
+    instructions = engine.GetCompetitionEventInstructions(db, student, event.id)
+    assert instructions["isRetry"] is False
+    assert "You get one attempt at this competition." in instructions["instructions"]
+
+
 def test_granted_retry_is_consumed_and_not_reusable_for_a_third_attempt():
     db = _session()
     student, event = _full_setup(db, section_seconds=(600,))
