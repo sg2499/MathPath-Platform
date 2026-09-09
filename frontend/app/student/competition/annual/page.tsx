@@ -23,6 +23,15 @@ function FormatDateTime(value?: string | null) {
 }
 
 function StatusChip({ assignment }: { assignment: AnnualCompetitionAssignmentForStudent }) {
+  // Root-cause fix (Shailesh, 2026-09-09): a Grant Retry on the admin side
+  // never changes latestAttemptStatus (it's a separate, additive grant
+  // against the assignment -- see hasActiveRetryGrant's own comment), so
+  // this has to be checked before the terminal-status branches below, not
+  // folded into them, or a retry-granted student keeps seeing a plain
+  // "Submitted" chip with nothing telling them anything changed.
+  if (assignment.hasActiveRetryGrant) {
+    return <Chip tone="amber">Retry Granted</Chip>;
+  }
   switch (assignment.latestAttemptStatus) {
     case "SUBMITTED":
     case "FINALIZED":
@@ -66,8 +75,16 @@ function AssignmentCard({
   const now = new Date();
   const notStarted = assignment.latestAttemptStatus === "NOT_STARTED";
   const inProgress = assignment.latestAttemptStatus === "IN_PROGRESS";
-  const completed = assignment.latestAttemptStatus === "SUBMITTED" || assignment.latestAttemptStatus === "FINALIZED";
-  const instructionsGated = notStarted && InstructionsNotYetVisible(assignment, now);
+  // Root-cause fix (Shailesh, 2026-09-09): hasActiveRetryGrant only ever
+  // co-occurs with a terminal latestAttemptStatus (GrantAnnualCompetitionAttemptRetry
+  // requires the attempt it's granted against to already be terminal), so
+  // this branch has to be checked and excluded from `completed` below, or
+  // a retry-granted student keeps landing on the dead-end "Submitted" card
+  // this whole fix exists to get them past.
+  const retryAvailable = assignment.hasActiveRetryGrant;
+  const completed =
+    !retryAvailable && (assignment.latestAttemptStatus === "SUBMITTED" || assignment.latestAttemptStatus === "FINALIZED");
+  const instructionsGated = (notStarted || retryAvailable) && InstructionsNotYetVisible(assignment, now);
 
   return (
     <div className="math-card p-6">
@@ -116,6 +133,16 @@ function AssignmentCard({
             >
               <PlayCircle size={16} />
               {starting ? "Resuming..." : "Resume Competition"}
+            </button>
+          ) : retryAvailable ? (
+            <button
+              className="math-role-action-button h-10 px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={starting || instructionsGated}
+              title={instructionsGated ? `Instructions open ${FormatDateTime(assignment.slot?.scheduledStartAt)}` : undefined}
+              onClick={onStart}
+            >
+              <PlayCircle size={16} />
+              {instructionsGated ? "Not Open Yet" : starting ? "Starting..." : "Start Retry"}
             </button>
           ) : completed ? (
             <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/70 px-4 py-2.5 text-xs font-black text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/20 dark:text-emerald-200">

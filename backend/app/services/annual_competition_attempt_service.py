@@ -909,6 +909,19 @@ def _AssignmentWithAttemptPayload(db: Session, AssignmentRecord: CompetitionEven
         # own "status" derivation, just against this table's own status set
         # (NOT_STARTED -> IN_PROGRESS -> SUBMITTED -> FINALIZED).
         "latestAttemptStatus": LatestAttempt.status if LatestAttempt else "NOT_STARTED",
+        # Root-cause fix (Shailesh, 2026-09-09): a terminal latestAttemptStatus
+        # above (SUBMITTED/FINALIZED) used to be a dead end for the student
+        # even after an admin granted them a retry via
+        # GrantAnnualCompetitionAttemptRetry -- that action only ever writes
+        # a CompetitionEventAttemptRetryGrant row, it never touches the old
+        # attempt's own status, and this payload (the one thing the
+        # student-facing tab reads to decide what to show) had no way to
+        # surface that a grant exists. StartCompetitionEventAttempt already
+        # honours an active grant correctly once called (see its own
+        # _ActiveRetryGrant check) -- the student just had no button left to
+        # trigger it. Surfacing the same _ActiveRetryGrant check here closes
+        # that gap without changing latestAttemptStatus's own meaning.
+        "hasActiveRetryGrant": _ActiveRetryGrant(db, AssignmentRecord.id) is not None,
     }
 
 
@@ -1005,6 +1018,22 @@ def GetCompetitionEventInstructions(db: Session, StudentRecord: Student, EventId
         for Timer in SectionTimers
     ]
 
+    # Root-cause fix (Shailesh, 2026-09-09): this screen is now reachable
+    # for a retry-granted student too (see _AssignmentWithAttemptPayload's
+    # hasActiveRetryGrant + the frontend's "Start Retry" action), so the
+    # static "You get one attempt at this competition" line below would be
+    # actively wrong for them -- they're here precisely because they were
+    # granted a second one. IsRetry mirrors the exact same
+    # _ActiveRetryGrant check StartCompetitionEventAttempt itself uses, so
+    # this screen's copy always agrees with what clicking Start is about to
+    # do.
+    IsRetry = _ActiveRetryGrant(db, AssignmentRecord.id) is not None
+    AttemptCountLine = (
+        "You have been granted a retry for this competition -- this attempt replaces your previous one."
+        if IsRetry
+        else "You get one attempt at this competition."
+    )
+
     return {
         "eventId": EventRecord.id,
         "eventName": EventRecord.name,
@@ -1013,11 +1042,12 @@ def GetCompetitionEventInstructions(db: Session, StudentRecord: Student, EventId
         "slot": _SlotPayload(SlotRecord),
         "totalDurationSeconds": sum(Timer.time_limit_seconds for Timer in SectionTimers),
         "sections": SectionsPayload,
+        "isRetry": IsRetry,
         "instructions": [
             "This competition is split into timed sections, shown one at a time.",
             "Each section has its own time limit -- once it ends (or you submit it), you move to the next section and cannot go back.",
             "Stay connected while a section is active -- your timer only pauses briefly on a genuine disconnect, it does not stop just because you look away.",
-            "You get one attempt at this competition.",
+            AttemptCountLine,
             "Click Start below when you are ready to begin.",
         ],
     }

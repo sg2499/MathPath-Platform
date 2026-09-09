@@ -537,6 +537,11 @@ export type AnnualCompetitionAssignmentForStudent = {
   latestAttemptId: string | null;
   // NOT_STARTED | IN_PROGRESS | SUBMITTED | FINALIZED
   latestAttemptStatus: string;
+  // True when an admin has granted this assignment a retry (Grant Retry on
+  // the Results tab) that hasn't been used yet -- stays true even while
+  // latestAttemptStatus is still SUBMITTED/FINALIZED from the prior
+  // attempt, since that's exactly the case this field exists to unblock.
+  hasActiveRetryGrant: boolean;
 };
 
 export async function getMyAnnualCompetitionAssignments(): Promise<AnnualCompetitionAssignmentForStudent[]> {
@@ -561,6 +566,7 @@ export type AnnualCompetitionInstructions = {
   slot: AnnualCompetitionSlotInfo | null;
   totalDurationSeconds: number;
   sections: AnnualCompetitionInstructionsSection[];
+  isRetry: boolean;
   instructions: string[];
 };
 
