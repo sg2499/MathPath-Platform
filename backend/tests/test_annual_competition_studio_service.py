@@ -3,20 +3,27 @@
 Covers event/slot CRUD and validation, the level-paper link/status/lock
 lifecycle, the slot-vs-section-timer duration conflict check (REQUIREMENTS.md
 item 7), the manual assignment override path, and that
-DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE's minutes sum to exactly what
-REQUIREMENTS.md documents for every level.
+DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE's minutes sum to exactly what the
+client gist documents for every level (2026-09-10: DEFAULT_SECTION_TIMERS_BY_
+LEVEL_CODE is now derived directly from ANNUAL_COMPETITION_LEVEL_REGISTRY --
+see that constant's comment in annual_competition_studio_service.py).
 
-Note on scope: GenerateAndLinkCompetitionEventLevelPaper's happy path calls
-the existing, separately-and-already-well-tested GenerateCompetitionMockDraft
-(competition_mock_generation_service.py), which needs a full realistic
-curriculum seed (lessons/DPS/question config) to run end to end -- that
-generation logic itself is not this package's code and is not re-tested
-here. What IS this package's code -- level-code validation, the "no
-curriculum Level for this code yet" error (MM-L2), default section-timer
-seeding, status transitions, and the immutability guard -- is exercised
-directly via LinkExistingCompetitionEventLevelPaper, which shares every one
-of those code paths with the generate path except the actual generation
-call.
+Note on scope: GenerateAndLinkCompetitionEventLevelPaper's happy path now
+calls the dedicated Annual Competition question-generation engine
+(GenerateAnnualCompetitionLevelPaper, annual_competition_paper_generation_
+service.py) rather than the practice-mock engine -- that engine's own
+correctness (question counts, concept diversity, dedup) is covered by
+test_annual_competition_paper_generation_service.py, not re-tested here.
+Unlike the old practice-mock engine, the new one does not require a fully
+seeded curriculum (lessons/DPS rows) to run -- it drives each module's own
+low-level generator directly -- so this file's lightweight Level/Module
+stubs are enough to exercise the real generate path directly, not only via
+LinkExistingCompetitionEventLevelPaper. What IS this package's own code --
+level-code validation, the MM-L2-has-no-curriculum-Level fallback, default
+section-timer seeding, status transitions, and the immutability guard -- is
+exercised both via the real generate path and via
+LinkExistingCompetitionEventLevelPaper, which shares every one of those code
+paths with the generate path except the actual generation call.
 
 Package 9 (Full Rehearsal + Regression) added the "Reuse guard:
 DeleteCompetitionMockExam itself" section at the bottom of this file. Every
@@ -336,10 +343,11 @@ def test_create_slot_rejects_bm_l1_as_applicable_level():
         )
 
 
-def test_known_slot_duration_conflict_is_flagged_im4_mm2():
-    """REQUIREMENTS.md item 7: the published 2:00-2:30 PM slot (30 min) is
-    too short for IM-4 (35 min) and MM-2 (40 min). This must show up as a
-    computed conflict, not just a comment somewhere."""
+def test_known_slot_duration_conflict_is_flagged_mm1_mm2():
+    """Gist-correct totals (2026-09-10, superseding the older doc2-derived
+    figures): a 30-minute slot fits IM-4 (30 min, exactly) but is too short
+    for MM-1 and MM-2 (35 min each). This must show up as a computed
+    conflict, not just a comment somewhere."""
     db = _session()
     _event(db)
     db.commit()
@@ -354,9 +362,9 @@ def test_known_slot_duration_conflict_is_flagged_im4_mm2():
     )
     conflicts = studio.SlotsWithInsufficientDuration(db, "event-1")
     conflicted_levels = {c["levelCode"] for c in conflicts}
-    assert "IM-L4" in conflicted_levels  # needs 35 min, slot is 30
-    assert "MM-L2" in conflicted_levels  # needs 40 min, slot is 30
-    assert "MM-L1" not in conflicted_levels  # needs exactly 30 min -- fits
+    assert "MM-L1" in conflicted_levels  # needs 35 min, slot is 30
+    assert "MM-L2" in conflicted_levels  # needs 35 min, slot is 30
+    assert "IM-L4" not in conflicted_levels  # needs exactly 30 min -- fits
 
 
 # ---------------------------------------------------------------------------
@@ -520,8 +528,8 @@ def test_link_existing_paper_seeds_default_timers_and_marks_ready():
     )
     assert result["status"] == "READY"
     assert result["mockExamId"] == exam.id
-    assert len(result["sectionTimers"]) == 2  # Abacus 15 + Visual 15
-    assert result["totalSectionSeconds"] == 30 * 60
+    assert len(result["sectionTimers"]) == 2  # Abacus 5 + Visual 5
+    assert result["totalSectionSeconds"] == 10 * 60
 
 
 def test_link_rejects_mismatched_level():
@@ -537,10 +545,32 @@ def test_link_rejects_mismatched_level():
         )
 
 
-def test_generate_for_mm_l2_fails_cleanly_no_curriculum_level():
-    """MM-L2 has no seeded Level row on this platform yet (Package 2
-    finding) -- generation must fail with a clear, specific error, not a
-    stack trace or a silent wrong-level fallback."""
+def test_generate_for_mm_l2_succeeds_via_mm_l1_curriculum_fallback():
+    """MM-L2 still has no curriculum Level row of its own on this platform
+    (Package 2 finding #4, still open) -- but it is a real Annual Competition
+    target (students who complete the MM module fully are eligible for it,
+    per the client gist), so generation must succeed, not fail. It resolves
+    Module/Level linkage through the real MM-L1 Level row while generating
+    MM-L2's own gist-specified content (see GenerateAnnualCompetitionLevelPaper's
+    CompetitionLevelCode docstring)."""
+    db = _session()
+    admin = _admin(db)
+    _module_and_level(db, "MM", "MM-L1", "Master Module Level 1")
+    _event(db)
+    db.commit()
+
+    result = studio.GenerateAndLinkCompetitionEventLevelPaper(
+        db, EventId="event-1", CompetitionLevelCode="MM-L2", CreatedBy=admin
+    )
+    assert result["status"] == "READY"
+    assert result["competitionLevelCode"] == "MM-L2"
+    assert result["mockExamId"] is not None
+
+
+def test_generate_for_mm_l2_fails_cleanly_when_mm_l1_also_missing():
+    """If the MM module hasn't been seeded at all (no MM-L1 Level row
+    either), MM-L2 generation must still fail with a clear, specific error,
+    not a stack trace or a silent wrong-level fallback."""
     db = _session()
     admin = _admin(db)
     _event(db)
@@ -855,21 +885,25 @@ def test_manual_override_still_honors_an_explicit_slot_id_when_given():
 
 
 # ---------------------------------------------------------------------------
-# Default section timers -- self-consistency against REQUIREMENTS.md totals
+# Default section timers -- self-consistency against the client gist's totals
+# (2026-09-10: gist confirmed authoritative over the older doc2-derived
+# figures -- see this file's module docstring and
+# annual_competition_studio_service.py's DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE
+# comment)
 # ---------------------------------------------------------------------------
 
 EXPECTED_TOTAL_MINUTES = {
-    "YLM-L1": 20,
-    "PM-L1": 20,
-    "PM-L2": 30,
-    "PM-L3": 30,
-    "PM-L4": 30,
-    "IM-L1": 30,
-    "IM-L2": 30,
-    "IM-L3": 30,
-    "IM-L4": 35,
-    "MM-L1": 30,
-    "MM-L2": 40,
+    "YLM-L1": 10,
+    "PM-L1": 10,
+    "PM-L2": 10,
+    "PM-L3": 20,
+    "PM-L4": 20,
+    "IM-L1": 20,
+    "IM-L2": 20,
+    "IM-L3": 25,
+    "IM-L4": 30,
+    "MM-L1": 35,
+    "MM-L2": 35,
 }
 
 
