@@ -544,7 +544,29 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
     if BorrowingMode == "NEGATIVE_ONLY":
         return _BuildBorrowingAddLess(Config, Rng, QuestionNumber, True)
     if BorrowingMode == "MIXED_POSITIVE_NEGATIVE":
-        return _BuildBorrowingAddLess(Config, Rng, QuestionNumber, QuestionNumber % 2 == 1)
+        # 2026-09-09 fix (Shailesh, confirmed): this used to key off
+        # QuestionNumber % 2 == 1, which is deterministic PER-CALL parity,
+        # not a genuine per-question coin flip. That's harmless for a caller
+        # that consumes an entire 1..N batch in sequence (every DPS/
+        # assessment caller) -- alternating parity still nets out to roughly
+        # half negative, half positive across the batch. It silently breaks
+        # for the Competition Mock collector
+        # (_CollectMmCompetitionSectionLockedQuestions/
+        # _MmCompetitionOrderedCandidates in competition_mock_generation_
+        # service.py), which generates each batch at
+        # MM_COMPETITION_BATCH_SIZE=5 (odd) and always accepts starting from
+        # the reversed (challenge) end -- i.e. almost always
+        # QuestionNumber==5 (odd) for every accepted question, every batch.
+        # Live-generated a full "4D 4R Add/Less with Borrowing... positive
+        # and negative final answers" section end-to-end while investigating
+        # the Annual Competition rebuild and found all 50 final answers
+        # negative, zero positive -- confirmed empirically, not just in
+        # theory. Rng is freshly seeded per question by every caller (see
+        # generator.py's per-SectionQuestionNumber Rng construction), so a
+        # real per-question coin flip here is both genuinely random per
+        # question AND immune to whatever order/subset of a batch a caller
+        # happens to consume.
+        return _BuildBorrowingAddLess(Config, Rng, QuestionNumber, Rng.random() < 0.5)
 
     Stage = DifficultyStage(QuestionNumber - 1)
     Places = _AddLessDecimalPlaces(Config, Stage)

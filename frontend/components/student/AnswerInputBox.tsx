@@ -18,10 +18,22 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 // the decimal point of "61.02") looked identical to a student who was
 // actually done, and got advanced before finishing. There is no reliable
 // client-side fix for that without leaking answer shape to the client, so
-// navigation between questions is now entirely manual -- the arrow
+// navigation between questions is entirely manual by default -- the arrow
 // buttons and question navigator in
 // app/student/attempt/[attemptId]/page.tsx are the only way to move
-// between questions.
+// between questions there.
+//
+// 2026-09-10 (Shailesh, Annual Competition only): Enter-to-advance is back,
+// but as a DIFFERENT, deliberately narrower mechanism than the one removed
+// above -- it does not guess anything. It fires only on an explicit Enter
+// keypress, which is the student's own conscious "I'm done with this one"
+// signal, not an inferred one, so the decimal-mid-entry failure mode above
+// does not apply here. It's opt-in per caller via the optional
+// onEnterAdvance prop, left undefined everywhere except the Annual
+// Competition attempt screen (app/student/competition/annual/attempt/
+// [attemptId]/page.tsx) -- every other caller of this box (plain DPS
+// practice, etc.) is untouched: Enter there still only force-saves, exactly
+// as before.
 const SAVE_DEBOUNCE_MS = 450;
 
 // Imperative escape hatch for the attempt page's submit/auto-submit flow
@@ -40,7 +52,13 @@ export const AnswerInputBox = forwardRef<AnswerInputBoxHandle, {
   initialValue?: string | null;
   disabled: boolean;
   onSave: (text: string) => void;
-}>(function AnswerInputBox({ initialValue, disabled, onSave }, ref) {
+  // Annual Competition only (see file-level comment above) -- when
+  // provided, pressing Enter saves (same as always) and then advances to
+  // the next question, exactly as if the student had clicked the "next"
+  // arrow. Left undefined everywhere else, so every other caller's Enter
+  // behavior is unchanged.
+  onEnterAdvance?: () => void;
+}>(function AnswerInputBox({ initialValue, disabled, onSave, onEnterAdvance }, ref) {
   const [value, setValue] = useState(initialValue || "");
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -109,13 +127,18 @@ export const AnswerInputBox = forwardRef<AnswerInputBoxHandle, {
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter") return;
-    // Enter used to instantly advance to the next question -- it no longer
-    // does (see the file-level comment above). It still saves immediately
-    // (same as a blur would); preventDefault just guards against a stray
-    // native form-submit if this input is ever wrapped in a <form> later.
+    // Enter always saves immediately (same as a blur would); preventDefault
+    // just guards against a stray native form-submit if this input is ever
+    // wrapped in a <form> later.
     event.preventDefault();
     clearSaveTimer();
     flushSave(value);
+    // Annual Competition only (see file-level comment above) -- unconditional
+    // on the keypress itself, regardless of what flushSave decided about
+    // saving (e.g. an already-saved or empty box still advances): the
+    // student pressing Enter is the entire signal, nothing about the text
+    // is inspected or guessed at.
+    onEnterAdvance?.();
   }
 
   function handleBlur() {
@@ -144,6 +167,18 @@ export const AnswerInputBox = forwardRef<AnswerInputBoxHandle, {
         aria-label="Your answer"
         className="w-full max-w-[220px] rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-center text-2xl font-black tracking-wide text-slate-950 shadow-inner outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:border-orange-400 dark:focus:ring-orange-900/40"
       />
+      {onEnterAdvance ? (
+        <p
+          title="Press Enter to save your answer and jump straight to the next question."
+          className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500"
+        >
+          Press
+          <kbd className="rounded-md border border-slate-300 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] font-black normal-case text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            Enter ↵
+          </kbd>
+          for next question
+        </p>
+      ) : null}
     </div>
   );
 });

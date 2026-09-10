@@ -2,11 +2,13 @@
 
 Everything an admin needs to stand up one CompetitionEvent end to end,
 before any student ever sees it: create the event, define/edit its time
-slots, generate or link each competition level's official paper (reusing
-the existing, already-shipped Competition Mock generation engine), set
-that paper's per-section timers, and run/review the Package 2 assignment
-engine. See .mathpath/packages/pkg-03-admin-studio.md for the checklist
-this was built against.
+slots, generate or link each competition level's official paper (via the
+dedicated Annual Competition question-generation engine -- see
+annual_competition_paper_registry.py / annual_competition_paper_generation_
+service.py -- not the practice Competition Mock engine), set that paper's
+per-section timers, and run/review the Package 2 assignment engine. See
+.mathpath/packages/pkg-03-admin-studio.md for the checklist this was built
+against.
 
 ## Which level codes this studio ever generates a paper for
 
@@ -19,23 +21,30 @@ BM-L1" itself, so there is no official BM-L1 paper to generate here.
 _ValidateCompetitionLevelCode() below rejects it explicitly rather than
 silently accepting a code that can never be assigned to anyone.
 
-## Default section timers -- REQUIREMENTS.md Section 3.4, transcribed
-## verbatim, not re-derived
+MM-L2 is a real target (students who complete the MM module fully are
+eligible for it) but still has no curriculum Level row of its own -- the
+Master Module only ever seeds one Level, "MM-L1" (pkg-02-assignment-engine.md
+finding #4, still open). GenerateAndLinkCompetitionEventLevelPaper below
+resolves MM-L2's curriculum/Module linkage through the real MM-L1 Level row
+while generating MM-L2's own gist-specified content, via
+GenerateAnnualCompetitionLevelPaper's CompetitionLevelCode override -- see
+that function's docstring. This is a wiring detail scoped entirely to paper
+generation; it does not create an "MM-L2" curriculum Level anywhere.
 
-DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE below is the client's own
-level-by-level section table (minutes converted to seconds), keyed on the
-same real level codes as Package 2's mapping table. This is intentionally
-NOT sourced from the internal dev spec's "Level 1..8 / MM1/MM2" table --
-REQUIREMENTS.md already flags those two tables as not numerically
-equivalent (e.g. dev-spec "Level 4" = 20 min across 3 sections vs. the
-client's real PL-4 = 30 min across 3 sections). Only the real-event table
-is used here. Every row's minutes sum to that level's documented total --
-checked by test_annual_competition_studio_service.py, not just eyeballed.
+## Default section timers -- derived from the Annual Competition paper
+## registry (the client gist), not hand-transcribed
 
-MM-L2 is included here even though no Level/registry entry exists for it
-yet (see Package 2's findings) -- so the moment Package "add MM-L2 to the
-registry" work happens, this studio already has the right section-timer
-default ready and does not need to be revisited.
+DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE below is computed directly from
+ANNUAL_COMPETITION_LEVEL_REGISTRY (annual_competition_paper_registry.py),
+which is itself transcribed verbatim from the client gist
+(MathPath_Competition_Section_Scoring_Developer_Gist.docx, v1.0, 8 Sep 2026)
+-- confirmed authoritative over the older internal-dev-spec/doc2-derived
+table this file used to hand-transcribe (Shailesh, 2026-09-10: "the gist is
+correct"). Deriving this table from the registry, rather than retyping it a
+second time, means the persisted CompetitionEventSectionTimer rows can never
+silently drift from the sections the generator actually produces. Every
+row's minutes sum to that level's documented gist total -- checked by
+test_annual_competition_studio_service.py, not just eyeballed.
 """
 
 from __future__ import annotations
@@ -61,7 +70,8 @@ from app.models import (
     Student,
     User,
 )
-from app.services.competition_mock_generation_service import GenerateCompetitionMockDraft, CompetitionMockExamPayload
+from app.services.annual_competition_paper_generation_service import GenerateAnnualCompetitionLevelPaper
+from app.services.annual_competition_paper_registry import ANNUAL_COMPETITION_LEVEL_REGISTRY
 
 # Level codes a student can actually be assigned to (Package 2). BM-L1 is
 # a current-position-only code and is never a valid target here.
@@ -72,61 +82,24 @@ VALID_COMPETITION_LEVEL_CODES = {
     "MM-L1", "MM-L2",
 }
 
+# MM-L2 has no curriculum Level row of its own -- generating its paper
+# resolves Module/Level linkage through this real Level's row instead (see
+# GenerateAnnualCompetitionLevelPaper's CompetitionLevelCode docstring).
+_CURRICULUM_LOOKUP_LEVEL_CODE_OVERRIDES: dict[str, str] = {"MM-L2": "MM-L1"}
+
 # competition_level_code -> [(section_number, section_title, mode, time_limit_seconds), ...]
+# Derived from ANNUAL_COMPETITION_LEVEL_REGISTRY -- see module docstring.
 DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE: dict[str, list[tuple[int, str, str, int]]] = {
-    "YLM-L1": [(1, "Direct Sums", "MIXED", 20 * 60)],
-    "PM-L1": [(1, "Direct Sums", "MIXED", 20 * 60)],
-    "PM-L2": [(1, "Abacus", "ABACUS", 15 * 60), (2, "Visual", "VISUAL", 15 * 60)],
-    "PM-L3": [
-        (1, "Abacus", "ABACUS", 10 * 60),
-        (2, "Visual", "VISUAL", 10 * 60),
-        (3, "Multiplication", "MULTIPLICATION", 10 * 60),
-    ],
-    "PM-L4": [
-        (1, "Abacus", "ABACUS", 10 * 60),
-        (2, "Visual", "VISUAL", 10 * 60),
-        (3, "Mixed Multiplication/Division", "MIXED_MULT_DIV", 10 * 60),
-    ],
-    "IM-L1": [
-        (1, "Abacus", "ABACUS", 10 * 60),
-        (2, "Visual", "VISUAL", 10 * 60),
-        (3, "Multiplication/Division", "MULT_DIV", 10 * 60),
-    ],
-    "IM-L2": [
-        (1, "Abacus", "ABACUS", 10 * 60),
-        (2, "Visual", "VISUAL", 10 * 60),
-        (3, "Multiplication/Division", "MULT_DIV", 10 * 60),
-    ],
-    "IM-L3": [
-        (1, "Abacus", "ABACUS", 8 * 60),
-        (2, "Visual", "VISUAL", 8 * 60),
-        (3, "Multiplication", "MULTIPLICATION", 7 * 60),
-        (4, "Division", "DIVISION", 7 * 60),
-    ],
-    "IM-L4": [
-        (1, "Abacus", "ABACUS", 8 * 60),
-        (2, "Visual", "VISUAL", 8 * 60),
-        (3, "Multiplication", "MULTIPLICATION", 7 * 60),
-        (4, "Division", "DIVISION", 7 * 60),
-        (5, "Squares", "SQUARES", 5 * 60),
-    ],
-    "MM-L1": [
-        (1, "Abacus", "ABACUS", 5 * 60),
-        (2, "Visual", "VISUAL", 5 * 60),
-        (3, "Multiplication", "MULTIPLICATION", 5 * 60),
-        (4, "Division", "DIVISION", 5 * 60),
-        (5, "Squares", "SQUARES", 5 * 60),
-        (6, "Percentage", "PERCENTAGE", 5 * 60),
-    ],
-    "MM-L2": [
-        (1, "Abacus", "ABACUS", 5 * 60),
-        (2, "Visual", "VISUAL", 5 * 60),
-        (3, "Multiplication", "MULTIPLICATION", 5 * 60),
-        (4, "Division", "DIVISION", 5 * 60),
-        (5, "Squares & Cubes", "SQUARES_CUBES", 5 * 60),
-        (6, "Percentage", "PERCENTAGE", 5 * 60),
-        (7, "Square/Cube Roots", "SQUARE_CUBE_ROOTS", 10 * 60),
-    ],
+    LevelCode: [
+        (
+            int(Section["number"]),
+            str(Section["title"]),
+            str(Section.get("mode") or "MIXED"),
+            int(Section["timeLimitSeconds"]),
+        )
+        for Section in LevelConfig["sections"]
+    ]
+    for LevelCode, LevelConfig in ANNUAL_COMPETITION_LEVEL_REGISTRY.items()
 }
 
 
@@ -647,8 +620,9 @@ def GenerateAndLinkCompetitionEventLevelPaper(
     if _IsLevelPaperLocked(db, LevelPaperRecord):
         api_error(409, "COMPETITION_LEVEL_PAPER_LOCKED", "This level's official paper is locked and cannot be regenerated.")
 
+    CurriculumLookupLevelCode = _CURRICULUM_LOOKUP_LEVEL_CODE_OVERRIDES.get(CompetitionLevelCode, CompetitionLevelCode)
     LevelRecord = (
-        db.query(Level).filter(Level.level_code == CompetitionLevelCode, Level.is_active == True).first()
+        db.query(Level).filter(Level.level_code == CurriculumLookupLevelCode, Level.is_active == True).first()
     )
     if not LevelRecord:
         api_error(
@@ -659,17 +633,14 @@ def GenerateAndLinkCompetitionEventLevelPaper(
             "existing mock exam instead, or add the curriculum/registry content first.",
         )
 
-    Defaults = DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE.get(CompetitionLevelCode, [])
-    DurationSeconds = sum(TimeLimitSeconds for _n, _t, _m, TimeLimitSeconds in Defaults) or None
-
-    ExamPayload = GenerateCompetitionMockDraft(
+    ExamPayload = GenerateAnnualCompetitionLevelPaper(
         db,
         LevelId=LevelRecord.id,
         CreatedBy=CreatedBy,
         Title=f"Annual Competition -- {CompetitionLevelCode} Official Paper",
         MockCode=f"ANNUAL-{EventId[:8]}-{CompetitionLevelCode}",
-        DurationSeconds=DurationSeconds,
         CompetitionScope="ANNUAL_COMPETITION",
+        CompetitionLevelCode=CompetitionLevelCode,
     )
     LevelPaperRecord.mock_exam_id = ExamPayload["mockExamId"]
     db.flush()

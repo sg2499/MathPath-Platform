@@ -97,11 +97,47 @@ def _AddLessRowPlan(Config: IMConfig) -> tuple[int, int, int]:
     return 5, 100, 999
 
 
+def _AddLessRowMagnitudePlan(Config: IMConfig) -> list[tuple[int, int]]:
+    """Return one (min, max) magnitude pair per row, in row order.
+
+    2026-09 addition (Annual Competition paper generator): a small number of
+    Add/Less questions genuinely mix row digit-widths within a SINGLE sum
+    (e.g. the client gist's "3D 2R + 2D 2R" -- two 3-digit rows followed by
+    two 2-digit rows, added together as one problem), which the existing
+    uniform (row_count, magnitude_min, magnitude_max) shape from
+    _AddLessRowPlan cannot express -- that shape assumes every row in a
+    question shares one digit width. GeneratorConfig["rowWidthPlan"], when
+    present, is a list of (digitCount, rowCount) pairs consumed in order
+    (e.g. [(3, 2), (2, 2)]); each pair expands to `rowCount` copies of that
+    digit width's (min, max) range via the same _DigitRange helper
+    _AddLessRowPlan's own explicitDigitCount branch already uses.
+
+    Purely additive: no existing caller sets rowWidthPlan, so every existing
+    DPS/section falls straight through to the `else` branch below, which
+    replicates _AddLessRowPlan's own (RowCount, Minimum, Maximum) result
+    RowCount times -- identical row count and identical (min, max) per row
+    to what GenerateAddLess used before this helper existed, so the random
+    draw sequence for every pre-existing caller is unchanged.
+    """
+    GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
+    RowWidthPlan = GeneratorConfig.get("rowWidthPlan")
+    if RowWidthPlan:
+        Plan: list[tuple[int, int]] = []
+        for DigitCount, RowCount in RowWidthPlan:
+            Minimum, Maximum = _DigitRange(int(DigitCount))
+            Plan.extend([(Minimum, Maximum)] * int(RowCount))
+        if Plan:
+            return Plan
+    RowCount, Minimum, Maximum = _AddLessRowPlan(Config)
+    return [(Minimum, Maximum)] * RowCount
+
+
 def GenerateAddLess(Config: IMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     GeneratorConfig = Config.GeneratorConfig if isinstance(Config.GeneratorConfig, dict) else {}
     IsDecimal = bool(GeneratorConfig.get("isDecimal")) or Config.ConceptFamily == "DECIMAL_ADD_LESS"
     Places = int(GeneratorConfig.get("decimalPlaces") or (2 if IsDecimal else 0))
-    RowCount, Minimum, Maximum = _AddLessRowPlan(Config)
+    RowMagnitudePlan = _AddLessRowMagnitudePlan(Config)
+    RowCount = len(RowMagnitudePlan)
     BorrowingMode = GeneratorConfig.get("borrowingMode")
 
     # Sign/magnitude bias, calibrated against real workbook row values (not
@@ -142,6 +178,7 @@ def GenerateAddLess(Config: IMConfig, Rng: random.Random, QuestionNumber: int) -
 
     Values: list[Decimal] = []
     for RowIndex in range(RowCount):
+        Minimum, Maximum = RowMagnitudePlan[RowIndex]
         RowNegativeProbability = FirstRowNegativeProbability if RowIndex == 0 else NegativeProbability
         Sign = -1 if Rng.random() < RowNegativeProbability else 1
         if Sign == -1 and IsPositiveOnlyBorrowing:

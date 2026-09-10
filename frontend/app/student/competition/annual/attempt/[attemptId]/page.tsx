@@ -495,6 +495,15 @@ function AnnualCompetitionAttemptContent() {
               saving={savingQuestionId === currentQuestion.questionId}
               compact
               onSave={(answerText) => handleSaveAnswer(currentQuestion.questionId, answerText)}
+              // Enter-to-advance (2026-09-10, Shailesh): saves (same as
+              // always) then moves to the next question -- identical
+              // clamped step the "next" arrow/button below already use, so
+              // it's a no-op on the section's last question rather than
+              // erroring or wrapping. The arrows and QuestionNavigator
+              // below are completely untouched and still work exactly as
+              // before, including going backward to revise an earlier
+              // answer before the section timer runs out.
+              onEnterAdvance={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
             />
           </div>
 
