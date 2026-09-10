@@ -261,6 +261,33 @@ function AnnualCompetitionAttemptContent() {
     }
   }, []);
 
+  // Enter-to-advance (2026-09-10, Shailesh): "on hitting the enter key
+  // whether from the answer box or not should not matter as soon as the
+  // key is hit it should take them to the next question always seamlessly."
+  // This is a single page-level listener rather than a per-input handler on
+  // AnswerInputBox specifically because focus can legitimately be anywhere
+  // (or nowhere) when Enter is pressed -- see AnswerInputBox's own comment
+  // for the focus-loss bug that made a per-input handler unreliable here.
+  // Flushes whatever's sitting in the debounce window (same as a blur
+  // always did) before advancing, so nothing typed is ever lost to the
+  // jump. Guarded against firing while the submit-confirm dialog is open
+  // (Enter there should confirm the dialog, not skip a question) or while a
+  // submit is already in flight.
+  useEffect(() => {
+    function handleGlobalKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Enter" || event.repeat) return;
+      if (event.target instanceof HTMLButtonElement) return;
+      if (showSubmitConfirm || isFinalizingSubmit || submittingSection) return;
+      if (!liveAttempt || liveAttempt.status !== "IN_PROGRESS" || remainingSeconds <= 0) return;
+      if (questions.length === 0) return;
+      event.preventDefault();
+      answerInputRef.current?.flushPendingSave();
+      setCurrentIndex((value) => Math.min(questions.length - 1, value + 1));
+    }
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [showSubmitConfirm, isFinalizingSubmit, submittingSection, liveAttempt, remainingSeconds, questions.length]);
+
   async function handleSubmitSection() {
     if (!liveAttempt || !sessionToken) return;
     setSubmittingSection(true);
@@ -489,22 +516,24 @@ function AnnualCompetitionAttemptContent() {
               disabled={
                 isFinalizingSubmit ||
                 submittingSection ||
-                Boolean(savingQuestionId) ||
                 remainingSeconds <= 0
               }
               saving={savingQuestionId === currentQuestion.questionId}
               compact
               onSave={(answerText) => handleSaveAnswer(currentQuestion.questionId, answerText)}
-              // Enter-to-advance (2026-09-10, Shailesh): saves (same as
-              // always) then moves to the next question -- identical
-              // clamped step the "next" arrow/button below already use, so
-              // it's a no-op on the section's last question rather than
-              // erroring or wrapping. The arrows and QuestionNavigator
-              // below are completely untouched and still work exactly as
-              // before, including going backward to revise an earlier
-              // answer before the section timer runs out.
-              onEnterAdvance={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
             />
+            {/* 2026-09-10 (Shailesh): "we can add a tooltip somewhere where
+                the students know that enter key helps them do this" -- Enter
+                itself is handled page-wide by the global listener above
+                (see its own comment for why), so the hint lives here rather
+                than inside AnswerInputBox. */}
+            <p className="mt-2 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              Press{" "}
+              <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                Enter
+              </kbd>{" "}
+              to move to the next question
+            </p>
           </div>
 
           {saveError ? <ErrorState message={apiErrorMessage(saveError)} /> : null}

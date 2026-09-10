@@ -14,7 +14,6 @@ export function QuestionCard({
   compact = false,
   onSave,
   answerInputRef,
-  onEnterAdvance,
 }: {
   question: DpsStudentQuestion;
   savedAnswerText?: string | null;
@@ -27,9 +26,6 @@ export function QuestionCard({
   // see AnswerInputBox's own docstring and the attempt page's
   // flushAndAwaitAllPendingSaves() for the race this closes.
   answerInputRef?: Ref<AnswerInputBoxHandle>;
-  // Annual Competition only -- see AnswerInputBox's file-level comment.
-  // Left undefined by every other caller of this card.
-  onEnterAdvance?: () => void;
 }) {
   // Section/lesson context now lives in the attempt page's top info bar
   // (see app/student/attempt/[attemptId]/page.tsx) -- repeating it here
@@ -55,28 +51,28 @@ export function QuestionCard({
       </div>
 
       {/*
-        Fixed pixel breakpoint jumps (e.g. "lg:h-[360px]") only had one size
-        for every screen above lg -- a 1366x768 laptop and a 3440x1440
-        monitor got the identical pane height. clamp(min, preferred, max)
-        instead scales continuously with the viewport: never below 320px
-        (tested margin above the ~306px a worst-case 5-row question needs),
-        never above 380px (no point growing forever on huge monitors), and
-        fluid in between via vh so it actually adapts per-device instead of
-        snapping between a couple of hardcoded sizes.
+        2026-09-10 (Shailesh, Annual Competition bug report): this used to be
+        a *fixed* height (lg:h-[clamp(...)]) sized for a "worst-case 5-row
+        question," with overflow-auto on both panels below scrolling any
+        question that needed more room than that estimate -- e.g. some
+        Add/Less sums. "No question should ever be scrollable" means the
+        card has to grow to fit its content instead of clipping it, so this
+        is now a *minimum* height (a floor so short questions don't look
+        cramped) with no overflow/clipping on either panel -- both panels,
+        and the card around them, simply grow as tall as the content needs.
       */}
-      <div className={`${compact ? "mt-2 gap-3" : "mt-3 gap-5"} flex flex-col lg:h-[clamp(320px,36vh,380px)] lg:flex-row`}>
-        <div className={`flex min-h-[300px] flex-1 items-center justify-center overflow-auto rounded-[22px] bg-slate-50/90 dark:bg-slate-900/70 lg:h-full lg:min-h-0 ${compact ? "p-2.5 sm:p-3" : "p-3 sm:p-4"}`}>
+      <div className={`${compact ? "mt-2 gap-3" : "mt-3 gap-5"} flex flex-col lg:min-h-[clamp(320px,36vh,380px)] lg:flex-row`}>
+        <div className={`flex min-h-[300px] flex-1 items-center justify-center rounded-[22px] bg-slate-50/90 dark:bg-slate-900/70 ${compact ? "p-2.5 sm:p-3" : "p-3 sm:p-4"}`}>
           <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={(question as any).questionText ?? (question as any).question_text} />
         </div>
 
-        <div className="flex min-h-[220px] flex-1 items-center justify-center overflow-auto lg:h-full lg:min-h-0">
+        <div className="flex min-h-[220px] flex-1 items-center justify-center">
           <AnswerInputBox
             key={question.questionId}
             ref={answerInputRef}
             initialValue={savedAnswerText}
             disabled={disabled}
             onSave={onSave}
-            onEnterAdvance={onEnterAdvance}
           />
         </div>
       </div>
