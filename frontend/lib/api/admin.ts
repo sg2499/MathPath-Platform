@@ -1934,7 +1934,7 @@ export async function getAnnualCompetitionLiveMonitoring(eventId: string, slotId
   return data;
 }
 
-export async function reconcileAnnualCompetitionAttempts(): Promise<{ reconciledCount: number; attemptIds: string[] }> {
-  const { data } = await api.post(`/admin/annual-competition/attempts/reconcile`, {});
+export async function reconcileAnnualCompetitionAttempts(eventId: string): Promise<{ reconciledCount: number; attemptIds: string[] }> {
+  const { data } = await api.post(`/admin/annual-competition/events/${eventId}/attempts/reconcile`, {});
   return data;
 }

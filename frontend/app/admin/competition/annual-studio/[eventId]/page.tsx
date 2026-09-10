@@ -406,7 +406,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   });
 
   const ReconcileMutation = useMutation({
-    mutationFn: () => reconcileAnnualCompetitionAttempts(),
+    mutationFn: () => reconcileAnnualCompetitionAttempts(EventId),
     onSuccess: (Result) => {
       SetLastMessage(`Reconciliation sweep: ${Result.reconciledCount} abandoned attempt${Result.reconciledCount === 1 ? "" : "s"} force-closed.`);
       InvalidateLiveMonitoring();
@@ -572,7 +572,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
             <span className="inline-flex items-center gap-2"><Lock size={14} />Results release: {FormatDateTime(Overview.event.resultsReleaseAt)}</span>
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
-            {["DRAFT", "SCHEDULED", "LIVE", "COMPLETED"].map((StatusOption) => (
+            {["DRAFT", "SCHEDULED", "COMPLETED"].map((StatusOption) => (
               <button
                 key={StatusOption}
                 type="button"
@@ -1206,7 +1206,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                     type="button"
                     disabled={ReconcileMutation.isPending}
                     onClick={() => {
-                      if (window.confirm("Force-close every abandoned attempt (no heartbeat within the grace window) across ALL events? This cannot be undone.")) {
+                      if (window.confirm("Force-close every abandoned attempt (no heartbeat within the grace window) in this event? This cannot be undone.")) {
                         ReconcileMutation.mutate();
                       }
                     }}

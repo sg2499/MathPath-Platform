@@ -51,7 +51,11 @@ from app.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
     CompetitionEventAttempt,
+    CompetitionEventAttemptAnswer,
+    CompetitionEventAttemptRetryGrant,
+    CompetitionEventAttemptSectionState,
     CompetitionEventLevelPaper,
+    CompetitionEventResult,
     CompetitionEventSectionTimer,
     CompetitionEventSlot,
     CompetitionMockExam,
@@ -209,10 +213,15 @@ def test_new_event_is_not_suspended_by_default():
 # ---------------------------------------------------------------------------
 # Delete event (2026-09-08): the Studio's event list had no way to remove a
 # throwaway/test event at all (Shailesh's own "ZZ-TEST-DELETE-ME" naming was
-# the tell). Hard delete, not the isActive soft-delete slots use -- mirrors
-# DeleteCompetitionMockExam's existing guard precedent (reject once a real
-# attempt exists, or once results_release_at locks the event) applied to the
-# event itself.
+# the tell). Hard delete, not the isActive soft-delete slots use.
+#
+# 2026-09-10 (Shailesh): the original guard here (reject once a real attempt
+# exists, or once results_release_at locks the event) has been REMOVED --
+# Shailesh explicitly asked for an unconditional admin override "just in
+# case of any unavoidable circumstances," even past results release /
+# certificates. The tests below now assert deletion succeeds in both of
+# those cases, and that the full attempt-family tree (section states,
+# answers, results, retry grants) is cleaned up alongside it.
 # ---------------------------------------------------------------------------
 
 def test_delete_event_removes_it_and_every_child_row():
@@ -250,7 +259,7 @@ def test_delete_event_removes_it_and_every_child_row():
     assert db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.event_id == "event-1").count() == 0
 
 
-def test_delete_event_rejected_once_a_real_attempt_exists():
+def test_delete_event_now_allowed_even_with_a_real_attempt_and_cascades_the_whole_attempt_family():
     db = _session()
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
     exam = _mock_exam(db, level.id, module.id)
@@ -258,6 +267,7 @@ def test_delete_event_rejected_once_a_real_attempt_exists():
     db.commit()
     studio.LinkExistingCompetitionEventLevelPaper(db, EventId="event-1", CompetitionLevelCode="PM-L2", MockExamId=exam.id)
     level_paper = db.query(CompetitionEventLevelPaper).filter(CompetitionEventLevelPaper.event_id == "event-1").one()
+    level_paper_id = level_paper.id  # captured now -- the row (and this ORM object) won't survive the delete below
 
     user = User(id="user-s1", full_name="S1", email="s1@example.test", password_hash="x", role="STUDENT", is_active=True)
     student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
@@ -266,29 +276,57 @@ def test_delete_event_rejected_once_a_real_attempt_exists():
     db.add(
         CompetitionEventAttempt(
             id="attempt-1", event_id="event-1", assignment_id="assignment-placeholder",
-            level_paper_id=level_paper.id, student_id="s1", started_at=datetime.now(timezone.utc),
+            level_paper_id=level_paper_id, student_id="s1", status="FINALIZED", started_at=datetime.now(timezone.utc),
+        )
+    )
+    db.flush()
+    # The full attempt-family tree -- section state, answer, result, and a
+    # USED retry grant pointing at this same attempt via used_attempt_id
+    # (the FK with no ondelete=CASCADE that makes ordering matter here).
+    db.add(
+        CompetitionEventAttemptSectionState(
+            id="section-state-1", attempt_id="attempt-1", section_number=1,
+            status="COMPLETED", time_limit_seconds=600,
+        )
+    )
+    db.add(
+        CompetitionEventAttemptAnswer(
+            id="answer-1", attempt_id="attempt-1", mock_question_id="question-placeholder", selected_value="4",
+        )
+    )
+    db.add(
+        CompetitionEventResult(
+            id="result-1", attempt_id="attempt-1", event_id="event-1", assignment_id="assignment-placeholder",
+            student_id="s1", competition_level_code="PM-L2", is_released=True, released_at=datetime.now(timezone.utc),
+        )
+    )
+    db.add(
+        CompetitionEventAttemptRetryGrant(
+            id="retry-1", event_id="event-1", assignment_id="assignment-placeholder", student_id="s1",
+            reason="Technical issue", status="USED", used_attempt_id="attempt-1", used_at=datetime.now(timezone.utc),
         )
     )
     db.commit()
 
-    with pytest.raises(HTTPException) as exc_info:
-        studio.DeleteCompetitionEvent(db, EventId="event-1")
-    assert exc_info.value.status_code == 409
-    assert exc_info.value.detail["code"] == "COMPETITION_EVENT_LOCKED"
-    # Rejected, not partially cascaded.
-    assert db.get(CompetitionEvent, "event-1") is not None
-    assert db.get(CompetitionEventLevelPaper, level_paper.id) is not None
+    result = studio.DeleteCompetitionEvent(db, EventId="event-1")
+    assert result == {"eventId": "event-1", "deleted": True}
+
+    assert db.get(CompetitionEvent, "event-1") is None
+    assert db.query(CompetitionEventLevelPaper).filter_by(id=level_paper_id).count() == 0
+    assert db.query(CompetitionEventAttempt).filter_by(id="attempt-1").count() == 0
+    assert db.query(CompetitionEventAttemptSectionState).filter_by(attempt_id="attempt-1").count() == 0
+    assert db.query(CompetitionEventAttemptAnswer).filter_by(attempt_id="attempt-1").count() == 0
+    assert db.query(CompetitionEventResult).filter_by(event_id="event-1").count() == 0
+    assert db.query(CompetitionEventAttemptRetryGrant).filter_by(event_id="event-1").count() == 0
 
 
-def test_delete_event_rejected_once_results_release_at_is_set():
+def test_delete_event_now_allowed_even_after_results_release_at_is_set():
     db = _session()
     _event(db, results_release_at=datetime.now(timezone.utc))
     db.commit()
-    with pytest.raises(HTTPException) as exc_info:
-        studio.DeleteCompetitionEvent(db, EventId="event-1")
-    assert exc_info.value.status_code == 409
-    assert exc_info.value.detail["code"] == "COMPETITION_EVENT_LOCKED"
-    assert db.get(CompetitionEvent, "event-1") is not None
+    result = studio.DeleteCompetitionEvent(db, EventId="event-1")
+    assert result == {"eventId": "event-1", "deleted": True}
+    assert db.get(CompetitionEvent, "event-1") is None
 
 
 def test_delete_unknown_event_is_a_clean_404():

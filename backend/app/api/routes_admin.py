@@ -6047,9 +6047,9 @@ def admin_override_annual_competition_assignment(
 # directly -- everything else (start/heartbeat/submit-section) is student-
 # facing, in routes_student.py.
 
-@router.post("/annual-competition/attempts/reconcile")
-def admin_reconcile_annual_competition_attempts(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
-    return ReconcileExpiredCompetitionEventAttempts(db)
+@router.post("/annual-competition/events/{event_id}/attempts/reconcile")
+def admin_reconcile_annual_competition_attempts(event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return ReconcileExpiredCompetitionEventAttempts(db, EventId=event_id)
 
 
 # REQUIREMENTS.md item 6 -- the admin-only "technical issue" single-retake

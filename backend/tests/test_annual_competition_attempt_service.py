@@ -447,7 +447,7 @@ def test_reconciliation_leaves_a_live_heartbeating_attempt_alone():
     section.last_heartbeat_at = datetime.now(timezone.utc) - timedelta(seconds=5)  # well under grace
     db.commit()
 
-    result = engine.ReconcileExpiredCompetitionEventAttempts(db)
+    result = engine.ReconcileExpiredCompetitionEventAttempts(db, EventId=event.id)
     assert result["reconciledCount"] == 0
 
     db.refresh(section)
@@ -464,7 +464,7 @@ def test_reconciliation_force_closes_an_abandoned_attempt_through_all_sections()
     section.last_heartbeat_at = datetime.now(timezone.utc) - timedelta(hours=3)  # long abandoned
     db.commit()
 
-    result = engine.ReconcileExpiredCompetitionEventAttempts(db)
+    result = engine.ReconcileExpiredCompetitionEventAttempts(db, EventId=event.id)
     assert result["reconciledCount"] == 1
     assert attempt_id in result["attemptIds"]
 
@@ -490,8 +490,8 @@ def test_reconciliation_is_idempotent():
     section.last_heartbeat_at = datetime.now(timezone.utc) - timedelta(hours=1)
     db.commit()
 
-    first = engine.ReconcileExpiredCompetitionEventAttempts(db)
-    second = engine.ReconcileExpiredCompetitionEventAttempts(db)
+    first = engine.ReconcileExpiredCompetitionEventAttempts(db, EventId=event.id)
+    second = engine.ReconcileExpiredCompetitionEventAttempts(db, EventId=event.id)
     assert first["reconciledCount"] == 1
     assert second["reconciledCount"] == 0
 
