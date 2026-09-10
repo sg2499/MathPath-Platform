@@ -458,7 +458,7 @@ def test_reconciliation_sweep_also_finalizes_scoring():
     section.last_heartbeat_at = datetime.now(timezone.utc) - timedelta(minutes=10)  # well past the grace window
     db.commit()
 
-    attempt_engine.ReconcileExpiredCompetitionEventAttempts(db)
+    attempt_engine.ReconcileExpiredCompetitionEventAttempts(db, EventId=event.id)
 
     attempt = db.get(CompetitionEventAttempt, attempt_id)
     assert attempt.status == "FINALIZED"

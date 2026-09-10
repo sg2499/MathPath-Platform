@@ -137,10 +137,13 @@ export default function AdminAnnualCompetitionStudioPage() {
   });
 
   // Hard delete (CompetitionEvent has no isActive flag to soft-delete with,
-  // unlike slots) -- the backend rejects this once the event has a real
-  // attempt or a locked results-release date, so this is only ever
-  // reachable for a still-rough-draft event. Confirmed before deleting,
-  // same as this page's other consequential actions.
+  // unlike slots). 2026-09-10 (Shailesh): the backend used to reject this
+  // once the event had a real attempt or a locked results-release date --
+  // that guard has been removed on purpose, so this is now reachable even
+  // for an event with attempts/released results/certificates, as an admin
+  // escape hatch for unavoidable circumstances. Confirmed before deleting,
+  // same as this page's other consequential actions, with copy that now
+  // reflects how much more this button can actually do.
   const DeleteEventMutation = useMutation({
     mutationFn: (EventId: string) => deleteAnnualCompetitionEvent(EventId),
     onSuccess: () => {
@@ -326,7 +329,7 @@ export default function AdminAnnualCompetitionStudioPage() {
                           ClickEvent.preventDefault();
                           if (
                             window.confirm(
-                              `Delete "${EventItem.name}"? This removes the event and all of its slots, papers, and assignments. It can only be deleted while no student has a real attempt yet and results haven't been released. This can't be undone.`
+                              `Delete "${EventItem.name}"? This removes the event and everything under it -- slots, papers, assignments, and ALL student attempts, answers, and results, even if results have already been released and certificates issued. This can't be undone.`
                             )
                           ) {
                             DeleteEventMutation.mutate(EventItem.eventId);

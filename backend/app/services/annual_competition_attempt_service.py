@@ -251,6 +251,25 @@ def _CheckEventNotSuspended(EventRecord: CompetitionEvent) -> None:
         )
 
 
+def _CheckEventNotCompleted(EventRecord: CompetitionEvent) -> None:
+    """2026-09-10 (Shailesh): once an admin marks an event COMPLETED, no
+    attempt -- new or already in progress -- can be started/resumed
+    anymore. In practice an admin should only ever flip an event to
+    COMPLETED once every student has finished submitting, so this is a
+    uniform block covering both the fresh-start and resume paths rather
+    than trying to distinguish them -- there should be nothing left to
+    resume by the time this fires for real. Checked at the same two entry
+    points as _CheckEventNotSuspended, for the same reason: these are the
+    only two places that take an EventRecord directly, before a
+    session_token exists to key off instead."""
+    if EventRecord.status == "COMPLETED":
+        api_error(
+            403,
+            "COMPETITION_EVENT_COMPLETED",
+            "This competition event has been marked complete. No new or resumed attempts are possible.",
+        )
+
+
 def _CheckSlotGate(db: Session, AssignmentRecord: CompetitionEventAssignment, NowUtc: datetime) -> None:
     """Only enforced when the assignment has a slot_id -- see
     StartCompetitionEventAttempt's docstring for why that's the common
@@ -631,6 +650,7 @@ def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: s
     if not EventRecord:
         api_error(404, "COMPETITION_EVENT_NOT_FOUND", "Annual Competition event not found.")
     _CheckEventNotSuspended(EventRecord)
+    _CheckEventNotCompleted(EventRecord)
 
     AssignmentRecord = (
         db.query(CompetitionEventAssignment)
@@ -960,6 +980,7 @@ def GetCompetitionEventInstructions(db: Session, StudentRecord: Student, EventId
     if not EventRecord:
         api_error(404, "COMPETITION_EVENT_NOT_FOUND", "Annual Competition event not found.")
     _CheckEventNotSuspended(EventRecord)
+    _CheckEventNotCompleted(EventRecord)
 
     AssignmentRecord = (
         db.query(CompetitionEventAssignment)
@@ -1053,15 +1074,29 @@ def GetCompetitionEventInstructions(db: Session, StudentRecord: Student, EventId
     }
 
 
-def ReconcileExpiredCompetitionEventAttempts(db: Session) -> dict[str, Any]:
+def ReconcileExpiredCompetitionEventAttempts(db: Session, *, EventId: str) -> dict[str, Any]:
     """Admin-triggered safety net -- see module docstring. Only ever acts
     on an attempt that is IN_PROGRESS *and* currently paused (no heartbeat
     within the grace window right now); an attempt receiving live
     heartbeats this instant is left alone. Naturally idempotent: a second
     run finds nothing left to do, since reconciled attempts are no longer
-    IN_PROGRESS."""
+    IN_PROGRESS.
+
+    2026-09-10 (Shailesh): scoped to a single event -- this is triggered
+    from one specific event's page in the admin Studio, so it must only
+    ever touch that event's own attempts. It used to sweep every event on
+    the platform regardless of which page the button was clicked from,
+    which the admin correctly flagged as making no sense."""
+    EventRecord = db.get(CompetitionEvent, EventId)
+    if not EventRecord:
+        api_error(404, "COMPETITION_EVENT_NOT_FOUND", "Annual Competition event not found.")
     NowUtc = _NowUtc()
-    Attempts = db.query(CompetitionEventAttempt).filter(CompetitionEventAttempt.status == IN_PROGRESS_STATUS).all()
+    Attempts = (
+        db.query(CompetitionEventAttempt)
+        .filter(CompetitionEventAttempt.event_id == EventId)
+        .filter(CompetitionEventAttempt.status == IN_PROGRESS_STATUS)
+        .all()
+    )
 
     ReconciledAttemptIds: list[str] = []
 

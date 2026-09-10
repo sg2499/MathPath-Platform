@@ -60,8 +60,11 @@ from app.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
     CompetitionEventAttempt,
+    CompetitionEventAttemptAnswer,
     CompetitionEventAttemptRetryGrant,
+    CompetitionEventAttemptSectionState,
     CompetitionEventLevelPaper,
+    CompetitionEventResult,
     CompetitionEventSectionTimer,
     CompetitionEventSlot,
     CompetitionMockExam,
@@ -246,46 +249,59 @@ def DeleteCompetitionEvent(db: Session, *, EventId: str) -> dict[str, Any]:
     Shailesh's own throwaway naming convention was the tell that this gap
     was real, not hypothetical. Hard delete, not the isActive-style soft
     delete UpdateCompetitionEventSlot uses for slots -- CompetitionEvent has
-    no such flag (only the DRAFT/SCHEDULED/LIVE/COMPLETED status column,
-    which already carries its own separate meaning), and a genuinely
-    throwaway test event should actually go away, not linger hidden.
+    no such flag (only the DRAFT/SCHEDULED/COMPLETED status column, which
+    already carries its own separate meaning), and a genuinely throwaway
+    test event should actually go away, not linger hidden.
 
-    Mirrors DeleteCompetitionMockExam's existing guard precedent exactly
-    (competition_mock_generation_service.py, "reject once a real attempt
-    exists or once results are release-locked"), applied here to the event
-    itself rather than one linked exam: once ANY CompetitionEventAttempt row
-    exists (a student actually started, not just got assigned) or
-    results_release_at is set (every linked level paper is already locked),
-    this event is no longer a rough draft and can no longer be deleted --
-    only an assignment-only, attempt-free, not-yet-release-locked event
-    (exactly the ZZ-TEST-DELETE-ME / Test-1 state) is eligible.
+    2026-09-10 (Shailesh): deletion is now allowed unconditionally, even
+    once real attempts exist and even after results have been released
+    (certificates possibly already issued) -- Shailesh explicitly asked for
+    this as an admin escape hatch "just in case of any unavoidable
+    circumstances," with no exceptions. This deliberately drops the
+    original guard (see git history for the prior "reject once a real
+    attempt exists or a locked results date is set" behaviour, which mirrored
+    DeleteCompetitionMockExam's own guard) -- that guard was correct for the
+    zero-real-attempts case it was designed for, but the admin needs the
+    option to go further now. Nothing about DeleteCompetitionMockExam's own
+    guard changes: this only affects deleting the CompetitionEvent itself.
 
     Deletes children explicitly, in dependency order, rather than relying on
     each table's own ondelete=CASCADE firing correctly -- SQLite (this
     suite's test DB) does not enforce foreign keys unless a connection
     explicitly turns PRAGMA foreign_keys on, so a correctness bug here could
     pass its own tests for the wrong reason if left to implicit DB cascade.
-    Safe to do explicitly precisely because the guard above already
-    guarantees zero attempts (and therefore zero results and zero retry
-    grants, both of which only ever exist once an attempt does) by the time
-    this point is reached -- only slots, level papers (+ their section
-    timers), and assignments can still be present.
+    Now that real attempts are no longer guaranteed absent, the full
+    attempt-family tree has to be unwound explicitly too, in dependency
+    order:
+      1. CompetitionEventAttemptSectionState and CompetitionEventAttemptAnswer
+         (both keyed off attempt_id) -- deleted first, before their parent
+         attempts.
+      2. CompetitionEventResult -- has its own direct event_id column, so it
+         doesn't need an attempt_id lookup, but still has to go before the
+         attempts it points at.
+      3. CompetitionEventAttemptRetryGrant -- must be deleted before the
+         attempts, because its used_attempt_id FK to
+         competition_event_attempts.id has no ondelete=CASCADE of its own.
+      4. CompetitionEventAttempt -- must be deleted before the level papers,
+         because its level_paper_id FK to competition_event_level_papers.id
+         also has no ondelete=CASCADE.
+    Only then do the pre-existing steps (section timers, level papers,
+    assignments, slots) run, same as before.
     """
     EventRecord = _GetEventOr404(db, EventId)
 
-    HasRealAttempt = db.query(CompetitionEventAttempt).filter(CompetitionEventAttempt.event_id == EventId).first() is not None
-    if HasRealAttempt or EventRecord.results_release_at is not None:
-        api_error(
-            409,
-            "COMPETITION_EVENT_LOCKED",
-            "This event has at least one real attempt or a locked results date, and can no longer be deleted.",
-        )
+    AttemptIds = [Row.id for Row in db.query(CompetitionEventAttempt.id).filter(CompetitionEventAttempt.event_id == EventId).all()]
+    if AttemptIds:
+        db.query(CompetitionEventAttemptSectionState).filter(CompetitionEventAttemptSectionState.attempt_id.in_(AttemptIds)).delete(synchronize_session=False)
+        db.query(CompetitionEventAttemptAnswer).filter(CompetitionEventAttemptAnswer.attempt_id.in_(AttemptIds)).delete(synchronize_session=False)
+    db.query(CompetitionEventResult).filter(CompetitionEventResult.event_id == EventId).delete(synchronize_session=False)
+    db.query(CompetitionEventAttemptRetryGrant).filter(CompetitionEventAttemptRetryGrant.event_id == EventId).delete(synchronize_session=False)
+    db.query(CompetitionEventAttempt).filter(CompetitionEventAttempt.event_id == EventId).delete(synchronize_session=False)
 
     LevelPaperIds = [Row.id for Row in db.query(CompetitionEventLevelPaper.id).filter(CompetitionEventLevelPaper.event_id == EventId).all()]
     if LevelPaperIds:
         db.query(CompetitionEventSectionTimer).filter(CompetitionEventSectionTimer.level_paper_id.in_(LevelPaperIds)).delete(synchronize_session=False)
     db.query(CompetitionEventLevelPaper).filter(CompetitionEventLevelPaper.event_id == EventId).delete(synchronize_session=False)
-    db.query(CompetitionEventAttemptRetryGrant).filter(CompetitionEventAttemptRetryGrant.event_id == EventId).delete(synchronize_session=False)
     db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.event_id == EventId).delete(synchronize_session=False)
     db.query(CompetitionEventSlot).filter(CompetitionEventSlot.event_id == EventId).delete(synchronize_session=False)
     db.delete(EventRecord)

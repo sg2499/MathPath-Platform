@@ -359,7 +359,7 @@ def test_full_rehearsal_across_five_slots_with_disconnects_and_abandonment():
     # 5. Reconciliation sweep: catches student_off_1 (paused, abandoned),
     #    leaves student_intl (live) alone, and is idempotent on a second run.
     # -----------------------------------------------------------------
-    swept = engine.ReconcileExpiredCompetitionEventAttempts(db)
+    swept = engine.ReconcileExpiredCompetitionEventAttempts(db, EventId=event.id)
     assert swept["reconciledCount"] == 1
     assert attempt_off_1 in swept["attemptIds"]
     assert attempt_intl not in swept["attemptIds"]
@@ -369,7 +369,7 @@ def test_full_rehearsal_across_five_slots_with_disconnects_and_abandonment():
     assert reconciled_attempt.status == "FINALIZED"  # force-closed all the way through, not left half-advanced
     assert db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == attempt_off_1).count() == 1
 
-    swept_again = engine.ReconcileExpiredCompetitionEventAttempts(db)
+    swept_again = engine.ReconcileExpiredCompetitionEventAttempts(db, EventId=event.id)
     assert swept_again["reconciledCount"] == 0  # nothing left to do -- confirmed idempotent
 
     live_attempt = db.get(CompetitionEventAttempt, attempt_intl)
