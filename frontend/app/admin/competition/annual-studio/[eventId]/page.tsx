@@ -95,13 +95,6 @@ function RankBadge({ Rank }: { Rank: number | null }) {
   );
 }
 
-// A level with no curriculum Level/registry entry yet (Package 2 finding) --
-// "Generate Official Paper" would just 409 here, so the UI steers straight to
-// "Link Existing" instead of offering a button that can only fail. Kept as a
-// small, clearly-commented allow-list rather than inferred, since the whole
-// point is that this is a KNOWN, tracked gap, not a guess.
-const LevelCodesWithNoGenerationYet = new Set(["MM-L2"]);
-
 function SectionTitle({ kicker, title, description, icon }: { kicker: string; title: string; description: string; icon?: ReactNode }) {
   return (
     <div>
@@ -848,7 +841,15 @@ export default function AdminAnnualCompetitionEventDetailPage() {
           <div className="space-y-4">
             {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => {
               const LevelPaper: AnnualCompetitionLevelPaper | undefined = Overview.levelPapers.find((Paper) => Paper.competitionLevelCode === LevelCode);
-              const CanGenerate = !LevelCodesWithNoGenerationYet.has(LevelCode) && (!LevelPaper || LevelPaper.status !== "LOCKED");
+              // 2026-09-10: MM-L2 used to be excluded from generation here
+              // (its curriculum Level row didn't exist yet -- Package 2
+              // finding #4). The Annual Competition question-generation
+              // engine now resolves MM-L2 through the real MM-L1 Level row
+              // while generating MM-L2's own gist-specified content (see
+              // GenerateAnnualCompetitionLevelPaper's CompetitionLevelCode
+              // docstring), so MM-L2 generates exactly like every other
+              // level -- no special-casing needed here anymore.
+              const CanGenerate = !LevelPaper || LevelPaper.status !== "LOCKED";
               const CanLink = !LevelPaper || LevelPaper.status !== "LOCKED";
               return (
                 <div key={LevelCode} className="math-card p-5">
@@ -859,13 +860,6 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                     </div>
                     <StatusChip status={LevelPaper?.status || "PENDING"} />
                   </div>
-
-                  {LevelCodesWithNoGenerationYet.has(LevelCode) && (
-                    <p className="mt-3 inline-flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs font-bold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                      <ShieldAlert size={14} className="mt-0.5 shrink-0" />
-                      No curriculum level exists for {LevelCode} yet (Package 2 finding) -- link an existing mock exam once one is built, generation is disabled here on purpose.
-                    </p>
-                  )}
 
                   {LevelPaper && LevelPaper.sectionTimers.length > 0 && (
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">
