@@ -12,7 +12,7 @@ import {
   type AnnualCompetitionAssignmentForStudent,
 } from "@/lib/api/student";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarClock, Hourglass, MapPin, PlayCircle, Trophy } from "lucide-react";
+import { CalendarClock, Eye, Hourglass, MapPin, PlayCircle, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 function FormatDateTime(value?: string | null) {
@@ -66,11 +66,13 @@ function AssignmentCard({
   starting,
   onStart,
   onResume,
+  onViewResult,
 }: {
   assignment: AnnualCompetitionAssignmentForStudent;
   starting: boolean;
   onStart: () => void;
   onResume: () => void;
+  onViewResult: () => void;
 }) {
   const now = new Date();
   const notStarted = assignment.latestAttemptStatus === "NOT_STARTED";
@@ -144,7 +146,28 @@ function AssignmentCard({
               <PlayCircle size={16} />
               {instructionsGated ? "Not Open Yet" : starting ? "Starting..." : "Start Retry"}
             </button>
+          ) : completed && assignment.latestAttemptId ? (
+            // 2026-09-10 (Shailesh bug report, Ishan Banerjee/Test-4): this
+            // used to be a static, non-clickable "Submitted -- results are
+            // released separately" div with no way to actually reach the
+            // result, even once an admin had released it -- confirmed as a
+            // frontend-only gap, the backend/release pipeline was already
+            // correct. The destination page (attempt/[attemptId]) already
+            // handles both the not-yet-released ("still being scored") and
+            // released (score/accuracy/rank/certificate) states on its own,
+            // so this just needs to actually link there.
+            <button
+              className="math-role-action-button h-10 px-4 text-sm"
+              onClick={onViewResult}
+            >
+              <Eye size={16} />
+              View Result
+            </button>
           ) : completed ? (
+            // Defensive fallback only -- a completed (SUBMITTED/FINALIZED)
+            // assignment should always carry a latestAttemptId; this covers
+            // the data-oddity case where it somehow doesn't, rather than
+            // rendering a dead button.
             <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/70 px-4 py-2.5 text-xs font-black text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/20 dark:text-emerald-200">
               Submitted -- results are released separately.
             </div>
@@ -217,6 +240,7 @@ function AnnualCompetitionContent() {
                 starting={resumeMutation.isPending}
                 onStart={() => router.push(`/student/competition/annual/${assignment.eventId}/instructions`)}
                 onResume={() => resumeMutation.mutate(assignment.eventId)}
+                onViewResult={() => router.push(`/student/competition/annual/attempt/${assignment.latestAttemptId}`)}
               />
             ))}
           </div>
