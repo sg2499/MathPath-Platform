@@ -14,6 +14,7 @@ export function QuestionCard({
   compact = false,
   onSave,
   answerInputRef,
+  onEnterAdvance,
 }: {
   question: DpsStudentQuestion;
   savedAnswerText?: string | null;
@@ -26,6 +27,9 @@ export function QuestionCard({
   // see AnswerInputBox's own docstring and the attempt page's
   // flushAndAwaitAllPendingSaves() for the race this closes.
   answerInputRef?: Ref<AnswerInputBoxHandle>;
+  // Annual Competition only -- see AnswerInputBox's file-level comment.
+  // Left undefined by every other caller of this card.
+  onEnterAdvance?: () => void;
 }) {
   // Section/lesson context now lives in the attempt page's top info bar
   // (see app/student/attempt/[attemptId]/page.tsx) -- repeating it here
@@ -73,6 +77,7 @@ export function QuestionCard({
             initialValue={savedAnswerText}
             disabled={disabled}
             onSave={onSave}
+            onEnterAdvance={onEnterAdvance}
           />
         </div>
       </div>

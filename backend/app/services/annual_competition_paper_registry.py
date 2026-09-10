@@ -310,46 +310,79 @@ ANNUAL_COMPETITION_MARKS_PER_QUESTION = 1
 ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     "YLM-L1": {
         "sections": [
+<<<<<<< HEAD
             {"key": "SEC1", "number": 1, "title": "Direct Sums (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 600},
+=======
+            {"key": "SEC1", "number": 1, "title": "Section 1 - Direct Sums (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 600},
+>>>>>>> origin/main
         ],
         "sectionConceptPools": {"SEC1": _YLM_L1_DIRECT_POOL},
     },
     "PM-L1": {
         "sections": [
+<<<<<<< HEAD
             {"key": "SEC1", "number": 1, "title": "All Concepts (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600},
+=======
+            {"key": "SEC1", "number": 1, "title": "Section 1 - All Concepts (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600},
+>>>>>>> origin/main
         ],
         "sectionConceptPools": {"SEC1": _PM_L1_ALL_CONCEPTS_POOL},
     },
     "PM-L2": {
         "sections": [
+<<<<<<< HEAD
             {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC2", "number": 2, "title": "Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+=======
+            {"key": "SEC1", "number": 1, "title": "Section 1 - Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC2", "number": 2, "title": "Section 2 - Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+>>>>>>> origin/main
         ],
         "sectionConceptPools": {"SEC1": _PM_L2_ABACUS_POOL, "SEC2": _PM_L2_VISUAL_POOL},
     },
     "PM-L3": {
         "sections": [
+<<<<<<< HEAD
             {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC2", "number": 2, "title": "Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 600},
+=======
+            {"key": "SEC1", "number": 1, "title": "Section 1 - Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC2", "number": 2, "title": "Section 2 - Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC3", "number": 3, "title": "Section 3 - Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 600},
+>>>>>>> origin/main
         ],
         "sectionConceptPools": {"SEC1": _PM_L3_ABACUS_POOL, "SEC2": _PM_L3_VISUAL_POOL, "SEC3": _PM_L3_MULTIPLY_POOL},
     },
     "PM-L4": {
         "sections": [
+<<<<<<< HEAD
             {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC2", "number": 2, "title": "Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
             {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+=======
+            {"key": "SEC1", "number": 1, "title": "Section 1 - Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC2", "number": 2, "title": "Section 2 - Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC3", "number": 3, "title": "Section 3 - Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC4", "number": 4, "title": "Section 4 - Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+>>>>>>> origin/main
         ],
         "sectionConceptPools": {"SEC1": _PM_L4_ABACUS_POOL, "SEC2": _PM_L4_VISUAL_POOL, "SEC3": _PM_L4_MULTIPLY_POOL, "SEC4": _PM_L4_DIVIDE_POOL},
     },
     "IM-L1": {
         "sections": [
+<<<<<<< HEAD
             {"key": "SEC1", "number": 1, "title": "Decimal Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC2", "number": 2, "title": "Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
             {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+=======
+            {"key": "SEC1", "number": 1, "title": "Section 1 - Decimal Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC2", "number": 2, "title": "Section 2 - Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC3", "number": 3, "title": "Section 3 - Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC4", "number": 4, "title": "Section 4 - Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+>>>>>>> origin/main
         ],
         "sectionConceptPools": {
             "SEC1": _IM_L1_DECIMAL_ADD_LESS_POOL,
@@ -360,10 +393,17 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     },
     "IM-L2": {
         "sections": [
+<<<<<<< HEAD
             {"key": "SEC1", "number": 1, "title": "Decimal Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC2", "number": 2, "title": "Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
             {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+=======
+            {"key": "SEC1", "number": 1, "title": "Section 1 - Decimal Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC2", "number": 2, "title": "Section 2 - Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC3", "number": 3, "title": "Section 3 - Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC4", "number": 4, "title": "Section 4 - Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+>>>>>>> origin/main
         ],
         "sectionConceptPools": {
             "SEC1": _IM_L2_DECIMAL_ADD_LESS_ABACUS_POOL,
@@ -374,11 +414,19 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     },
     "IM-L3": {
         "sections": [
+<<<<<<< HEAD
             {"key": "SEC1", "number": 1, "title": "Decimal Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC2", "number": 2, "title": "Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
             {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
             {"key": "SEC5", "number": 5, "title": "Squares (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+=======
+            {"key": "SEC1", "number": 1, "title": "Section 1 - Decimal Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC2", "number": 2, "title": "Section 2 - Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC3", "number": 3, "title": "Section 3 - Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC4", "number": 4, "title": "Section 4 - Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC5", "number": 5, "title": "Section 5 - Squares (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+>>>>>>> origin/main
         ],
         "sectionConceptPools": {
             "SEC1": _IM_L3_DECIMAL_ADD_LESS_ABACUS_POOL,
@@ -390,12 +438,21 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     },
     "IM-L4": {
         "sections": [
+<<<<<<< HEAD
             {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC2", "number": 2, "title": "Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
             {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
             {"key": "SEC5", "number": 5, "title": "Squares (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC6", "number": 6, "title": "Percentage (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+=======
+            {"key": "SEC1", "number": 1, "title": "Section 1 - Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC2", "number": 2, "title": "Section 2 - Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC3", "number": 3, "title": "Section 3 - Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC4", "number": 4, "title": "Section 4 - Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC5", "number": 5, "title": "Section 5 - Squares (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC6", "number": 6, "title": "Section 6 - Percentage (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+>>>>>>> origin/main
         ],
         "sectionConceptPools": {
             "SEC1": _IM_L4_ADD_LESS_BORROWING_POOL,
@@ -408,6 +465,7 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     },
     "MM-L1": {
         "sections": [
+<<<<<<< HEAD
             {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC2", "number": 2, "title": "Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
@@ -415,6 +473,15 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
             {"key": "SEC5", "number": 5, "title": "Squares and Cubes (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC6", "number": 6, "title": "Percentage (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC7", "number": 7, "title": "Roots (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+=======
+            {"key": "SEC1", "number": 1, "title": "Section 1 - Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC2", "number": 2, "title": "Section 2 - Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC3", "number": 3, "title": "Section 3 - Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC4", "number": 4, "title": "Section 4 - Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC5", "number": 5, "title": "Section 5 - Squares and Cubes (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC6", "number": 6, "title": "Section 6 - Percentage (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC7", "number": 7, "title": "Section 7 - Roots (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+>>>>>>> origin/main
         ],
         "sectionConceptPools": {
             "SEC1": _MM_ADD_LESS_BORROWING_POOL,
