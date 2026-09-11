@@ -481,9 +481,10 @@ def assignments(db: Session = Depends(get_db), student: Student = Depends(get_cu
     # no invalidation anywhere), which is the confirmed root cause of a
     # freshly-created assignment intermittently not showing up when a
     # student logs in: any request from that student in the prior 60s, on
-    # the same one of the 4 gunicorn worker processes (each with its own
-    # separate copy of the cache, so which worker a request lands on
-    # matters), returned the stale pre-assignment response instead of
+    # the same one of this service's gunicorn worker processes (systemd
+    # runs it with -w 2; each worker has its own separate copy of the
+    # cache, so which worker a request lands on matters), returned the
+    # stale pre-assignment response instead of
     # querying the database. The cache is now removed entirely rather than
     # patched with invalidation, since with multiple worker processes and
     # no shared cache store, invalidating on one worker would still leave
