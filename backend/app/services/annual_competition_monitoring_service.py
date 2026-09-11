@@ -327,6 +327,67 @@ def ListAnnualCompetitionResultsForRoster(
     return {"eventId": EventId, "competitionLevelCode": CompetitionLevelCode, "totalResults": len(Rows), "rows": Rows}
 
 
+def ListAnnualCompetitionPracticeResultsForRoster(
+    db: Session, *, EventId: str, StudentIdsFilter: list[str], CompetitionLevelCode: str | None = None
+) -> dict[str, Any]:
+    """Practice's own teacher-facing results surface (Phase E) -- the
+    sibling of ListAnnualCompetitionResultsForRoster above, but practice has
+    no CompetitionEventAssignment to traverse from at all (see this
+    module's own docstring on why the OFFICIAL-side functions above are
+    assignment-keyed), so this is scoped directly off CompetitionEventResult
+    rows for the teacher's own roster instead. Unlike OFFICIAL's one-row-
+    per-assignment shape, a student can have MANY practice results for one
+    event (one per consumed bank paper) -- every one of them is listed,
+    newest first, since practice is never ranked (Phase B keeps ranking
+    OFFICIAL-only) and is always released the instant it's computed
+    (Phase D) -- so there is no rank to order by and no release gate to
+    apply here, unlike _TeacherResultRow's own gate above.
+
+    StudentIdsFilter follows this module's own convention (see docstring):
+    an explicitly empty list is "this teacher has no students" and
+    short-circuits without ever issuing an `IN ()` query.
+    """
+    _GetEventOr404(db, EventId)
+    if not StudentIdsFilter:
+        return {"eventId": EventId, "competitionLevelCode": CompetitionLevelCode, "totalResults": 0, "rows": []}
+
+    Query = db.query(CompetitionEventResult).filter(
+        CompetitionEventResult.event_id == EventId,
+        CompetitionEventResult.attempt_type == "PRACTICE",
+        CompetitionEventResult.student_id.in_(StudentIdsFilter),
+    )
+    if CompetitionLevelCode:
+        Query = Query.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
+    ResultRecords = Query.order_by(CompetitionEventResult.computed_at.desc()).all()
+
+    Rows: list[dict[str, Any]] = []
+    for ResultRecord in ResultRecords:
+        StudentRecord = db.get(Student, ResultRecord.student_id)
+        if not StudentRecord:
+            continue
+        UserRecord = db.get(User, StudentRecord.user_id) if StudentRecord.user_id else None
+        Rows.append(
+            {
+                "attemptId": ResultRecord.attempt_id,
+                "studentId": StudentRecord.id,
+                "studentCode": StudentRecord.student_code,
+                "studentName": UserRecord.full_name if UserRecord else StudentRecord.student_code,
+                "competitionLevelCode": ResultRecord.competition_level_code,
+                "score": ResultRecord.score,
+                "maxScore": ResultRecord.max_score,
+                "percentage": ResultRecord.percentage,
+                "accuracyPercentage": ResultRecord.accuracy_percentage,
+                "correctCount": ResultRecord.correct_count,
+                "wrongCount": ResultRecord.wrong_count,
+                "unansweredCount": ResultRecord.unanswered_count,
+                "timeTakenSeconds": ResultRecord.time_taken_seconds,
+                "computedAt": ResultRecord.computed_at.isoformat() if ResultRecord.computed_at else None,
+            }
+        )
+
+    return {"eventId": EventId, "competitionLevelCode": CompetitionLevelCode, "totalResults": len(Rows), "rows": Rows}
+
+
 def ListNonDraftAnnualCompetitionEvents(db: Session) -> dict[str, Any]:
     """A minimal event picker for the teacher monitoring screens -- neither
     endpoint above is usable without an event ID first, and unlike admin

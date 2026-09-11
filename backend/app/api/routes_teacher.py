@@ -30,6 +30,7 @@ from app.services.competition_mock_attempt_service import GetCompetitionMockResu
 from app.services.annual_competition_monitoring_service import (
     GetAnnualCompetitionLiveMonitoring,
     ListAnnualCompetitionResultsForRoster,
+    ListAnnualCompetitionPracticeResultsForRoster,
     ListNonDraftAnnualCompetitionEvents,
 )
 from app.services.route_harmonization_service import EmptyTeacherAssignmentOptionsResponse, EmptyTeacherDpsOptionsResponse
@@ -316,6 +317,20 @@ def teacher_list_annual_competition_results(
 ):
     student_ids = [student.id for student in own_students_query(db, teacher).filter(Student.is_active == True).all()]
     return ListAnnualCompetitionResultsForRoster(db, EventId=event_id, StudentIdsFilter=student_ids, CompetitionLevelCode=competitionLevelCode)
+
+
+# Phase E: practice's own roster results -- practice has no
+# CompetitionEventAssignment to scope a roster through (see
+# ListAnnualCompetitionPracticeResultsForRoster's own docstring), so this is
+# a separate endpoint from /results above rather than a query param on it.
+@router.get("/competition/annual/events/{event_id}/practice-results")
+def teacher_list_annual_competition_practice_results(
+    event_id: str, competitionLevelCode: str | None = None, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)
+):
+    student_ids = [student.id for student in own_students_query(db, teacher).filter(Student.is_active == True).all()]
+    return ListAnnualCompetitionPracticeResultsForRoster(
+        db, EventId=event_id, StudentIdsFilter=student_ids, CompetitionLevelCode=competitionLevelCode
+    )
 
 
 @router.get("/dashboard")

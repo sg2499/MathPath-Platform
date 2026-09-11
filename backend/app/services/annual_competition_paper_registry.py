@@ -223,6 +223,18 @@ _IM_L3_SQUARES_POOL: list[dict[str, Any]] = [
 # service only: it calls MM's already-shipped, unmodified public API
 # (GenerateMmQuestionSet) exactly the way MM-L1/MM-L2 do, and does not
 # touch im/operands.py to add these families.
+#
+# 2026-09-11 moderation pass -- reviewed and deliberately LEFT UNCHANGED:
+# mmStagingQuestionNumber=9 (CHALLENGE stage) here is not an incidental
+# difficulty choice the way it was for Squares/Cubes/Roots below. With no
+# mmLessonNumber override this defaults to LessonNumber=5 (Band 1, the
+# GENTLEST magnitude band MM has), and per the generation service's own
+# comment on _GenerateMmQuestion, CHALLENGE stage + Band <=2 is specifically
+# what makes MM's staging trick land on row_count=4 with ~4-digit operands
+# -- i.e. it is what PRODUCES the "4D 4R" shape this pool's own title names,
+# not excess difficulty layered on top of it. Lowering the stage here would
+# shrink the row/digit count below the gist's literal "4D 4R" spec, not just
+# soften the numbers within it. Flagging this rather than changing it.
 # ---------------------------------------------------------------------------
 _IM_L4_ADD_LESS_BORROWING_POOL: list[dict[str, Any]] = [
     {"generatorFamily": "MM", "title": "Add/Less 4D 4R (Abacus) - Borrowing, Positive/Negative Answers", "conceptFamily": "ADD_LESS", "borrowingMode": "MIXED_POSITIVE_NEGATIVE", "mmStagingQuestionNumber": 9},
@@ -252,6 +264,10 @@ _IM_L4_PERCENTAGE_POOL: list[dict[str, Any]] = [
 
 # ---------------------------------------------------------------------------
 # gist "MM-2" -> platform MM-L1 AND MM-L2 (identical content, both levels).
+# Same "2026-09-11 moderation pass -- deliberately left unchanged" note as
+# _IM_L4_ADD_LESS_BORROWING_POOL above applies here: mmStagingQuestionNumber
+# =9 at the default Band-1 LessonNumber is what produces this pool's own
+# "4D 4R" title, not incidental difficulty.
 # ---------------------------------------------------------------------------
 _MM_ADD_LESS_BORROWING_POOL: list[dict[str, Any]] = [
     {"generatorFamily": "MM", "title": "Add/Less 4D 4R (Abacus) - Borrowing, Positive/Negative Answers", "conceptFamily": "ADD_LESS", "borrowingMode": "MIXED_POSITIVE_NEGATIVE", "mmStagingQuestionNumber": 9},
@@ -274,29 +290,57 @@ _MM_DIVISION_POOL: list[dict[str, Any]] = [
 # mmLessonNumber/mmStagingQuestionNumber here widen MM's own internal
 # base-number range for Squares/Cubes/Roots -- both concept families' base
 # range scales with MM's LessonBand/DifficultyStage (see mm/operands.py's
-# _SquareBaseRange/_CubeBaseRange), and at the module's own default
-# LessonNumber (mid-band) + a first-slot QuestionNumber (WARM_UP stage),
-# Cubes/Cube-Root's achievable output space is too small to fill 25
-# in-paper-unique questions each (live-confirmed 2026-09-09 build session:
-# only 8 unique Cubes / 7 unique Cube Roots at the un-staged default,
-# reliably exhausted well before slot 25/50). Band 5 (lesson 25) + the same
-# CHALLENGE-stage staging trick used for the Add/Less borrowing section
-# above widens Cubes to 24-25 and Cube Root to ~25 unique -- combined with
-# the collector's own cross-concept fallback (a slot that can't get a fresh
-# Cubes question falls back to Squares, and Cube Root to Square Root, both
-# of which have ample headroom), the section's total count is reliably
-# achievable even though the two concepts don't split perfectly evenly.
+# _SquareBaseRange/_CubeBaseRange/_SquareRootBaseRange/_CubeRootBaseRange),
+# and at the module's own default LessonNumber (mid-band) + a first-slot
+# QuestionNumber (WARM_UP stage), Cubes/Cube-Root's achievable output space
+# is too small to fill 25 in-paper-unique questions each (live-confirmed
+# 2026-09-09 build session: only 8 unique Cubes / 7 unique Cube Roots at the
+# un-staged default, reliably exhausted well before slot 25/50).
+#
+# 2026-09-11 moderation pass (Shailesh's "not too tough, standard/moderate"
+# instruction): the original fix went straight to Band 5/lesson 25 +
+# CHALLENGE stage (the highest of both knobs) purely to clear the pool-size
+# floor above -- not because the client gist calls for maximum difficulty on
+# these sections (unlike the Add/Less "4D 4R" pools below, these titles
+# carry no digit-count spec of their own). That combination pushed Squares
+# into a 400-900 base range and Cubes into 90-160 -- needlessly hard for a
+# flat 1-mark, no-negative-marking paper.
+#
+# Lesson 20 (Band 4, one band down from 25/Band 5) keeps the CHALLENGE stage
+# (still needed -- see below) but moderates the base range: Squares 150-350
+# (was 400-900), Cubes 60-95 (was 90-160). An earlier attempt at moderating
+# BOTH knobs together (Band 4 + ADVANCED stage/staging 7) looked fine on an
+# isolated uniqueness probe (250-300 sample) but measurably flaked under the
+# real collector's retry budget -- 1 failure in 8 real full-paper-generation
+# runs (test_mm_l2_generates_via_competition_level_code_override_on_mm_l1_row,
+# live-observed 2026-09-11) -- because Cubes'/Cube-Root's achievable output
+# space at ADVANCED is close enough to the 25-per-concept floor that the
+# in-paper duplicate-signature check occasionally exhausts it before all 10
+# retries land a fresh question. Keeping staging at 9 (CHALLENGE) and only
+# dropping the lesson band is the more moderate combination that stayed
+# reliable: live-verified 2026-09-11 across 400 sampled seeds each --
+# Squares 177 unique, Cubes 36 unique, Square Root 114 unique, Cube Root 41
+# unique (all comfortably above both the 25/section-half floor AND the
+# current-production Band-5 numbers for Cube Root specifically, which are
+# tighter at only ~26 unique) -- plus 20/20 clean real full-paper-generation
+# runs at this setting with no flakes. Retained the collector's own
+# cross-concept fallback (a slot that can't get a fresh Cubes question falls
+# back to Squares, and Cube Root to Square Root, both of which have ample
+# headroom) as the same safety net it always was.
 _MM_SQUARES_CUBES_POOL: list[dict[str, Any]] = [
-    {"generatorFamily": "MM", "title": "Squares", "conceptFamily": "SQUARES", "mmLessonNumber": 25, "mmStagingQuestionNumber": 9},
-    {"generatorFamily": "MM", "title": "Cubes", "conceptFamily": "CUBES", "mmLessonNumber": 25, "mmStagingQuestionNumber": 9},
+    {"generatorFamily": "MM", "title": "Squares", "conceptFamily": "SQUARES", "mmLessonNumber": 20, "mmStagingQuestionNumber": 9},
+    {"generatorFamily": "MM", "title": "Cubes", "conceptFamily": "CUBES", "mmLessonNumber": 20, "mmStagingQuestionNumber": 9},
 ]
 _MM_PERCENTAGE_POOL: list[dict[str, Any]] = [
     {"generatorFamily": "MM", "title": "Add Percentage Challenge", "conceptFamily": "PERCENTAGE_ADD_LESS"},
     {"generatorFamily": "MM", "title": "Less Percentage Challenge", "conceptFamily": "PERCENTAGE_ADD_LESS"},
 ]
+# See the 2026-09-11 moderation note above _MM_SQUARES_CUBES_POOL -- same
+# rationale and same live-verified (lesson 20 / staging 9) combination
+# applied here for Square Root / Cube Root.
 _MM_ROOTS_POOL: list[dict[str, Any]] = [
-    {"generatorFamily": "MM", "title": "Square Root", "conceptFamily": "SQUARE_ROOT", "mmLessonNumber": 25, "mmStagingQuestionNumber": 9},
-    {"generatorFamily": "MM", "title": "Cube Root", "conceptFamily": "CUBE_ROOT", "mmLessonNumber": 25, "mmStagingQuestionNumber": 9},
+    {"generatorFamily": "MM", "title": "Square Root", "conceptFamily": "SQUARE_ROOT", "mmLessonNumber": 20, "mmStagingQuestionNumber": 9},
+    {"generatorFamily": "MM", "title": "Cube Root", "conceptFamily": "CUBE_ROOT", "mmLessonNumber": 20, "mmStagingQuestionNumber": 9},
 ]
 
 

@@ -9,12 +9,14 @@ import { apiErrorMessage } from "@/lib/api";
 import {
   getTeacherAnnualCompetitionEvents,
   getTeacherAnnualCompetitionLive,
+  getTeacherAnnualCompetitionPracticeResults,
   getTeacherAnnualCompetitionResults,
   type TeacherAnnualCompetitionLiveRow,
+  type TeacherAnnualCompetitionPracticeResultRow,
   type TeacherAnnualCompetitionResultRow,
 } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, CalendarClock, Medal, RefreshCcw, Trophy } from "lucide-react";
+import { Activity, CalendarClock, Medal, Repeat, RefreshCcw, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
 
 // Read-only by design -- Teacher: monitor/review only, no assign/rank/
@@ -50,7 +52,13 @@ function LiveStatusChip({ status }: { status: TeacherAnnualCompetitionLiveRow["l
   return <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${LiveStatusTone[status]}`}>{status.replace("_", " ")}</span>;
 }
 
-const TabList = ["LIVE", "RESULTS"] as const;
+// Phase H: PRACTICE added as its own tab -- practice results are always a
+// separately-scoped surface, never mixed into the OFFICIAL Results tab
+// (see ListAnnualCompetitionPracticeResultsForRoster's own docstring on the
+// backend, and Phase B's original "practice results get their own,
+// separately-scoped admin surface" comment this whole feature has followed
+// on the admin and student sides alike).
+const TabList = ["LIVE", "RESULTS", "PRACTICE"] as const;
 type TabKey = (typeof TabList)[number];
 
 export default function TeacherAnnualCompetitionMonitorPage() {
@@ -82,6 +90,12 @@ export default function TeacherAnnualCompetitionMonitorPage() {
     queryKey: ["teacher", "annual-competition", "results", SelectedEventId],
     queryFn: () => getTeacherAnnualCompetitionResults(SelectedEventId),
     enabled: Ready && Boolean(SelectedEventId) && ActiveTab === "RESULTS",
+  });
+
+  const PracticeQuery = useQuery({
+    queryKey: ["teacher", "annual-competition", "practice-results", SelectedEventId],
+    queryFn: () => getTeacherAnnualCompetitionPracticeResults(SelectedEventId),
+    enabled: Ready && Boolean(SelectedEventId) && ActiveTab === "PRACTICE",
   });
 
   if (!Ready) return null;
@@ -129,7 +143,7 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                       aria-selected={ActiveTab === Tab}
                       className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${ActiveTab === Tab ? "is-active" : ""}`}
                     >
-                      {Tab === "LIVE" ? "Live Status" : "Results"}
+                      {Tab === "LIVE" ? "Live Status" : Tab === "RESULTS" ? "Results" : "Practice"}
                     </button>
                   ))}
                 </div>
@@ -247,6 +261,60 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                 ) : (
                   <div className="mt-4">
                     <EmptyState title="No students of yours are assigned" description="Nothing to review for this event yet." />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {ActiveTab === "PRACTICE" && (
+              <div className="math-card p-5">
+                <p className="math-block-header"><Repeat size={14} />Practice</p>
+                <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+                  Every practice paper your students have completed for this event -- results are visible to them the
+                  instant they're scored (no release gate, unlike Official). Not ranked -- practice papers are for
+                  building confidence and speed, never for competing against classmates.
+                </p>
+
+                {PracticeQuery.data ? (
+                  <div className="mt-4 flex flex-wrap gap-4 text-xs font-black text-slate-600 dark:text-slate-300">
+                    <span>{PracticeQuery.data.totalResults} total attempts scored</span>
+                  </div>
+                ) : null}
+
+                {PracticeQuery.isLoading ? (
+                  <div className="mt-4"><LoadingState label="Loading practice results..." /></div>
+                ) : PracticeQuery.error ? (
+                  <div className="mt-4"><ErrorState message={apiErrorMessage(PracticeQuery.error)} /></div>
+                ) : PracticeQuery.data && PracticeQuery.data.rows.length > 0 ? (
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full min-w-[680px] text-left text-xs font-bold">
+                      <thead>
+                        <tr className="text-slate-500 dark:text-slate-400">
+                          <th className="px-2 py-1.5">Student</th>
+                          <th className="px-2 py-1.5">Level</th>
+                          <th className="px-2 py-1.5">Accuracy</th>
+                          <th className="px-2 py-1.5">Score</th>
+                          <th className="px-2 py-1.5">Time Taken</th>
+                          <th className="px-2 py-1.5">Completed</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {PracticeQuery.data.rows.map((Row: TeacherAnnualCompetitionPracticeResultRow) => (
+                          <tr key={Row.attemptId} className="border-t border-[color:var(--mp-role-border)]">
+                            <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                            <td className="px-2 py-2">{Row.competitionLevelCode}</td>
+                            <td className="px-2 py-2">{Row.accuracyPercentage}%</td>
+                            <td className="px-2 py-2">{Row.score}/{Row.maxScore}</td>
+                            <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
+                            <td className="px-2 py-2">{FormatEventDate(Row.computedAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <EmptyState title="No practice activity yet" description="Practice results appear here automatically once a student finishes a practice paper." />
                   </div>
                 )}
               </div>

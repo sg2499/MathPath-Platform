@@ -671,6 +671,51 @@ export async function getTeacherAnnualCompetitionResults(eventId: string, compet
   return data;
 }
 
+// Phase H (Competition Practice, teacher frontend): the read-only sibling
+// of TeacherAnnualCompetitionResultRow above -- separate type/endpoint
+// rather than a field on the OFFICIAL row, mirroring
+// ListAnnualCompetitionPracticeResultsForRoster's own backend docstring on
+// why (practice has no CompetitionEventAssignment to key a roster row by,
+// and a student can have MANY practice results per event -- one per
+// consumed bank paper -- unlike OFFICIAL's one row per assignment). Never
+// ranked, never release-gated (practice is always released the instant
+// it's scored), so there's no `released`/`rank` here the way the OFFICIAL
+// row has.
+export type TeacherAnnualCompetitionPracticeResultRow = {
+  attemptId: string;
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  competitionLevelCode: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  accuracyPercentage: number;
+  correctCount: number;
+  wrongCount: number;
+  unansweredCount: number;
+  timeTakenSeconds: number | null;
+  computedAt: string | null;
+};
+
+export type TeacherAnnualCompetitionPracticeResultsList = {
+  eventId: string;
+  competitionLevelCode: string | null;
+  totalResults: number;
+  rows: TeacherAnnualCompetitionPracticeResultRow[];
+};
+
+export async function getTeacherAnnualCompetitionPracticeResults(
+  eventId: string,
+  competitionLevelCode?: string | null
+): Promise<TeacherAnnualCompetitionPracticeResultsList> {
+  const { data } = await api.get<TeacherAnnualCompetitionPracticeResultsList>(
+    `/teacher/competition/annual/events/${eventId}/practice-results`,
+    { params: competitionLevelCode ? { competitionLevelCode } : undefined }
+  );
+  return data;
+}
+
 export type TeacherParentReportDelivery = {
   id: string;
   studentId?: string | null;

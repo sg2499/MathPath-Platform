@@ -488,13 +488,35 @@ class CompetitionEventLevelPaper(Base):
     # is set, whichever comes first).
     status = Column(String(30), default="PENDING", nullable=False)
     locked_at = Column(DateTime(timezone=True), nullable=True)
+    # 2026-09-11 (Shailesh, Competition Practice feature): OFFICIAL (the one
+    # paper per event+level, as before) or PRACTICE (one of many freshly
+    # generated bank papers an admin batch-assigns to a specific student --
+    # see assigned_student_id below). The DB-level one-row-per-event+level
+    # UniqueConstraint that used to live here has been dropped (a practice
+    # bank needs many PRACTICE rows per event+level); it is replaced by an
+    # equivalent service-layer guard scoped to paper_kind == "OFFICIAL"
+    # inside _GetOrCreateLevelPaper (annual_competition_studio_service.py),
+    # so official's exact one-paper-per-level guarantee is unchanged.
+    paper_kind = Column(String(20), default="OFFICIAL", nullable=False, server_default="OFFICIAL")
+    # The remaining columns are only ever populated for paper_kind ==
+    # "PRACTICE" rows -- null for every OFFICIAL row. assigned_student_id is
+    # who this specific bank paper belongs to (practice papers are never
+    # shared across students, unlike the one shared OFFICIAL paper per
+    # level); consumed_at is set once the student submits the practice
+    # attempt built on this paper, at which point it is permanently done --
+    # no retakes, the student's next practice attempt draws a different,
+    # still-unconsumed bank paper.
+    assigned_student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=True, index=True)
+    assigned_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    assigned_at = Column(DateTime(timezone=True), nullable=True)
+    consumed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     event = relationship("CompetitionEvent")
     mock_exam = relationship("CompetitionMockExam")
-
-    __table_args__ = (UniqueConstraint("event_id", "competition_level_code", name="uq_competition_event_level_paper"),)
+    assigned_student = relationship("Student", foreign_keys=[assigned_student_id])
+    assigned_by = relationship("User", foreign_keys=[assigned_by_user_id])
 
 
 class CompetitionEventSectionTimer(Base):
@@ -541,10 +563,22 @@ class CompetitionEventAttempt(Base):
     __tablename__ = "competition_event_attempts"
     id = Column(String, primary_key=True, default=uuid_str)
     event_id = Column(String, ForeignKey("competition_events.id", ondelete="CASCADE"), nullable=False, index=True)
-    assignment_id = Column(String, ForeignKey("competition_event_assignments.id", ondelete="CASCADE"), nullable=False, index=True)
+    # 2026-09-11 (Shailesh, Competition Practice feature): nullable because a
+    # PRACTICE attempt (see attempt_type below) has no CompetitionEventAssignment
+    # at all -- practice access is granted via a bank of
+    # CompetitionEventLevelPaper rows (paper_kind == "PRACTICE"), not the
+    # permanent per-student-per-event OFFICIAL enrollment this FK was built
+    # for. Always non-null for attempt_type == "OFFICIAL".
+    assignment_id = Column(String, ForeignKey("competition_event_assignments.id", ondelete="CASCADE"), nullable=True, index=True)
     level_paper_id = Column(String, ForeignKey("competition_event_level_papers.id"), nullable=False, index=True)
     student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     attempt_number = Column(Integer, default=1, nullable=False)
+    # OFFICIAL (the one scored, certificate-eligible attempt against the
+    # student's permanent event assignment, as before) or PRACTICE (an
+    # unlimited, ungated attempt against one bank paper -- see
+    # CompetitionEventLevelPaper.paper_kind). server_default backfills every
+    # existing row as OFFICIAL with zero behavior change.
+    attempt_type = Column(String(20), default="OFFICIAL", nullable=False, server_default="OFFICIAL")
     # NOT_STARTED -> IN_PROGRESS -> SUBMITTED -> FINALIZED. FINALIZED is set
     # once CompetitionEventResult has been computed for this attempt (either
     # at natural submission or by the reconciliation sweep -- see
@@ -600,8 +634,19 @@ class CompetitionEventResult(Base):
     id = Column(String, primary_key=True, default=uuid_str)
     attempt_id = Column(String, ForeignKey("competition_event_attempts.id", ondelete="CASCADE"), unique=True, nullable=False)
     event_id = Column(String, ForeignKey("competition_events.id"), nullable=False, index=True)
-    assignment_id = Column(String, ForeignKey("competition_event_assignments.id"), nullable=False, index=True)
+    # 2026-09-11 (Shailesh, Competition Practice feature): nullable for the
+    # same reason as CompetitionEventAttempt.assignment_id above -- a
+    # PRACTICE result's attempt has no assignment to denormalize here.
+    # Always non-null for attempt_type == "OFFICIAL".
+    assignment_id = Column(String, ForeignKey("competition_event_assignments.id"), nullable=True, index=True)
     student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    # Mirrors CompetitionEventAttempt.attempt_type (denormalized here for the
+    # same reason the rest of this row denormalizes attempt fields -- so
+    # every official-flow-protection filter, e.g. ranking/release/admin and
+    # teacher results lists, can filter on the result row directly without a
+    # join back to the attempt). server_default backfills every existing row
+    # as OFFICIAL with zero behavior change.
+    attempt_type = Column(String(20), default="OFFICIAL", nullable=False, server_default="OFFICIAL")
     competition_level_code = Column(String(50), nullable=False)
     score = Column(Float, default=0, nullable=False)
     max_score = Column(Float, default=0, nullable=False)

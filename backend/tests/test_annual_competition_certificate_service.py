@@ -28,6 +28,7 @@ from app.database import Base
 from app.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
+    CompetitionEventAttempt,
     CompetitionEventLevelPaper,
     CompetitionEventResult,
     CompetitionEventSectionTimer,
@@ -352,3 +353,82 @@ def test_certificate_available_again_once_unvoided():
     response = certificates.BuildAnnualCompetitionCertificateForStudent(db, student, attempt_id)
     PdfBytes = _collect_pdf_bytes(response)
     assert PdfBytes[:4] == b"%PDF"
+
+
+# ---------------------------------------------------------------------------
+# Phase B (Competition Practice feature): certificates are an OFFICIAL-
+# competition artifact only. A practice result is is_released=True from the
+# moment it's created (so the student sees their own score right away) --
+# without an explicit block, that would let a practice attempt slip past the
+# student-facing is_released gate above and download a "Certificate of
+# Achievement" for a practice paper, which must never happen. There is no
+# practice attempt-start flow yet (Phase C/D), so this constructs the
+# finished shape directly, exactly like test_annual_competition_scoring_
+# service.py's own _practice_result helper.
+# ---------------------------------------------------------------------------
+
+def _practice_finalized_attempt(db, student_id="sPractice", event_id="event-1", level_code="PM-L2"):
+    student = _student(db, student_id)
+    practice_paper = CompetitionEventLevelPaper(
+        id=f"practice-paper-{student_id}",
+        event_id=event_id,
+        competition_level_code=level_code,
+        paper_kind="PRACTICE",
+        status="READY",
+        assigned_student_id=student_id,
+    )
+    db.add(practice_paper)
+    db.flush()
+    attempt = CompetitionEventAttempt(
+        id=f"practice-attempt-{student_id}",
+        event_id=event_id,
+        assignment_id=None,
+        level_paper_id=practice_paper.id,
+        student_id=student_id,
+        attempt_number=1,
+        attempt_type="PRACTICE",
+        status="FINALIZED",
+    )
+    db.add(attempt)
+    db.flush()
+    result = CompetitionEventResult(
+        id=f"practice-result-{student_id}",
+        attempt_id=attempt.id,
+        event_id=event_id,
+        assignment_id=None,
+        student_id=student_id,
+        attempt_type="PRACTICE",
+        competition_level_code=level_code,
+        score=1, max_score=1, percentage=100.0, accuracy_percentage=100.0,
+        correct_count=1, wrong_count=0, unanswered_count=0, time_taken_seconds=30,
+        is_released=True,  # mirrors the real practice auto-release design
+    )
+    db.add(result)
+    db.flush()
+    return student, attempt.id
+
+
+def test_student_certificate_blocked_for_a_practice_attempt():
+    db = _session()
+    event = _event(db)
+    student, attempt_id = _practice_finalized_attempt(db, event_id=event.id)
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        certificates.BuildAnnualCompetitionCertificateForStudent(db, student, attempt_id)
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail["code"] == "COMPETITION_CERTIFICATE_NOT_AVAILABLE_FOR_PRACTICE"
+
+
+def test_admin_certificate_also_blocked_for_a_practice_attempt():
+    """Admin normally bypasses the release gate entirely -- but the practice
+    block is not a release-gate check, so it applies to admin too."""
+    db = _session()
+    event = _event(db)
+    _, attempt_id = _practice_finalized_attempt(db, event_id=event.id)
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        certificates.BuildAnnualCompetitionCertificateForAdmin(db, AttemptId=attempt_id)
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail["code"] == "COMPETITION_CERTIFICATE_NOT_AVAILABLE_FOR_PRACTICE"

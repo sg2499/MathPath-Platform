@@ -254,19 +254,49 @@ def ComputeAndFinalizeCompetitionEventResult(db: Session, AttemptRecord: Competi
     attempt to FINALIZED. Safe to call again later (e.g. after a genuine
     technical-issue retry attempt is re-finalized) without disturbing a
     result already shown to anyone -- see module docstring.
+
+    2026-09-11 (Shailesh, Competition Practice feature, Phase D): this is
+    the ONE place both OFFICIAL and PRACTICE attempts get scored (the
+    single-funnel design Phase B's protections were built around), so it is
+    also the one place that has to set attempt_type correctly on the result
+    row -- CompetitionEventResult.attempt_type has a Python-side model
+    default of "OFFICIAL" (models.py), so leaving it unset here would
+    silently mis-tag every practice result as OFFICIAL and undo every one
+    of Phase B's attempt_type == "OFFICIAL" filters. Two more practice-only
+    effects live here, both on FIRST creation only (never on a later
+    recompute -- see below):
+      - is_released=True immediately: practice is deliberately ungated (the
+        client only asked for OFFICIAL results to stay hidden until
+        release; practice's whole point is instant self-visible feedback,
+        confirmed by Shailesh) -- GetCompetitionEventResultForStudent needs
+        zero code changes because of this one flag.
+      - the practice bank paper this attempt was built on gets
+        consumed_at stamped -- see CompetitionEventLevelPaper.consumed_at's
+        own docstring and StartAnnualCompetitionPracticeAttempt's bank
+        query, which is what actually enforces "no retakes" by simply never
+        offering a consumed paper again.
     """
     Metrics = _RawMetricsForAttempt(db, AttemptRecord)
 
     ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).first()
+    IsFirstFinalize = ResultRecord is None
     if not ResultRecord:
         ResultRecord = CompetitionEventResult(
             attempt_id=AttemptRecord.id,
             event_id=AttemptRecord.event_id,
             assignment_id=AttemptRecord.assignment_id,
             student_id=AttemptRecord.student_id,
+            attempt_type=AttemptRecord.attempt_type,
             competition_level_code=_CompetitionLevelCodeForAttempt(db, AttemptRecord),
         )
         db.add(ResultRecord)
+        if AttemptRecord.attempt_type == "PRACTICE":
+            # Only on first creation -- mirrors this module's own "never
+            # touch is_released/released_at on a later recompute" rule for
+            # OFFICIAL results (module docstring), just applied to practice's
+            # own always-released state instead of a manual admin release.
+            ResultRecord.is_released = True
+            ResultRecord.released_at = _NowUtc()
 
     ResultRecord.score = Metrics["score"]
     ResultRecord.max_score = Metrics["maxScore"]
@@ -280,6 +310,11 @@ def ComputeAndFinalizeCompetitionEventResult(db: Session, AttemptRecord: Competi
     ResultRecord.computed_at = _NowUtc()
 
     AttemptRecord.status = "FINALIZED"
+
+    if AttemptRecord.attempt_type == "PRACTICE" and IsFirstFinalize:
+        LevelPaperRecord = db.get(CompetitionEventLevelPaper, AttemptRecord.level_paper_id)
+        if LevelPaperRecord and LevelPaperRecord.consumed_at is None:
+            LevelPaperRecord.consumed_at = _NowUtc()
 
     db.flush()
     return ResultRecord
@@ -366,6 +401,13 @@ def _RankResultsForLevel(db: Session, EventId: str, CompetitionLevelCode: str) -
     ranking purposes. VoidCompetitionEventResult itself already nulls out
     `rank` the instant a result is voided, so nothing here needs to touch a
     voided row at all.
+
+    2026-09-11 (Shailesh, Competition Practice feature, Phase B): also
+    excludes attempt_type == "PRACTICE" results the same way -- practice is
+    unlimited, ungated, and explicitly never competitive (see
+    CompetitionEventAttempt.attempt_type's own docstring in models.py), so a
+    practice result must never receive a rank or affect anyone else's,
+    exactly like a voided one.
     """
     ResultRecords = (
         db.query(CompetitionEventResult)
@@ -373,6 +415,7 @@ def _RankResultsForLevel(db: Session, EventId: str, CompetitionLevelCode: str) -
             CompetitionEventResult.event_id == EventId,
             CompetitionEventResult.competition_level_code == CompetitionLevelCode,
             CompetitionEventResult.is_voided == False,  # noqa: E712
+            CompetitionEventResult.attempt_type == "OFFICIAL",
         )
         .all()
     )
@@ -403,12 +446,22 @@ def ReleaseCompetitionEventResults(
     or every level of the event at once when CompetitionLevelCode is None.
     Always (re-)ranks the level(s) being released first, in the SAME
     transaction, so a released result is never shown without a rank.
+
+    2026-09-11 (Shailesh, Competition Practice feature, Phase B): scoped to
+    attempt_type == "OFFICIAL" throughout -- this is specifically the
+    official results-release action; a practice result is never released
+    through this path (it's set is_released=True at creation time instead,
+    see ComputeAndFinalizeCompetitionEventResult's practice branch) and must
+    never appear in levelsReleased/newlyReleasedCount here.
     """
     EventRecord = db.get(CompetitionEvent, EventId)
     if not EventRecord:
         api_error(404, "COMPETITION_EVENT_NOT_FOUND", "The selected Annual Competition event was not found.")
 
-    LevelCodesQuery = db.query(CompetitionEventResult.competition_level_code).filter(CompetitionEventResult.event_id == EventId)
+    LevelCodesQuery = db.query(CompetitionEventResult.competition_level_code).filter(
+        CompetitionEventResult.event_id == EventId,
+        CompetitionEventResult.attempt_type == "OFFICIAL",
+    )
     if CompetitionLevelCode:
         LevelCodesQuery = LevelCodesQuery.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
     LevelCodes = sorted({Row[0] for Row in LevelCodesQuery.distinct().all()})
@@ -419,6 +472,7 @@ def ReleaseCompetitionEventResults(
     ResultsQuery = db.query(CompetitionEventResult).filter(
         CompetitionEventResult.event_id == EventId,
         CompetitionEventResult.is_voided == False,  # noqa: E712 -- a voided result is never released, see VoidCompetitionEventResult
+        CompetitionEventResult.attempt_type == "OFFICIAL",
     )
     if CompetitionLevelCode:
         ResultsQuery = ResultsQuery.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
@@ -573,12 +627,20 @@ def ListCompetitionEventResultsForAdmin(db: Session, *, EventId: str, Competitio
     already documented ("no frontend/admin UI for the preview... per
     Package 3's scope"); a monitoring/results-review screen is Package 7's
     territory, not this one.
+
+    2026-09-11 (Shailesh, Competition Practice feature, Phase B): scoped to
+    attempt_type == "OFFICIAL" -- this is the official competitive results
+    list; practice results get their own, separately-scoped admin surface
+    in a later phase, never mixed into this one.
     """
     EventRecord = db.get(CompetitionEvent, EventId)
     if not EventRecord:
         api_error(404, "COMPETITION_EVENT_NOT_FOUND", "The selected Annual Competition event was not found.")
 
-    Query = db.query(CompetitionEventResult).filter(CompetitionEventResult.event_id == EventId)
+    Query = db.query(CompetitionEventResult).filter(
+        CompetitionEventResult.event_id == EventId,
+        CompetitionEventResult.attempt_type == "OFFICIAL",
+    )
     if CompetitionLevelCode:
         Query = Query.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
     ResultRecords = Query.all()
@@ -601,6 +663,61 @@ def ListCompetitionEventResultsForAdmin(db: Session, *, EventId: str, Competitio
     return {
         "eventId": EventId,
         "competitionLevelCode": CompetitionLevelCode,
+        "totalResults": len(Rows),
+        "rows": Rows,
+    }
+
+
+def ListAnnualCompetitionPracticeResultsForAdmin(
+    db: Session, *, EventId: str, CompetitionLevelCode: str | None = None, StudentId: str | None = None
+) -> dict[str, Any]:
+    """Practice's own admin results surface (Phase E) -- deliberately
+    separate from ListCompetitionEventResultsForAdmin above, exactly as
+    that function's own Phase B docstring already promised ("practice
+    results get their own, separately-scoped admin surface in a later
+    phase, never mixed into this one").
+
+    Practice is never ranked -- RankCompetitionEventResults/
+    ReleaseCompetitionEventResults both stay attempt_type == "OFFICIAL"-only
+    (Phase B) -- so there is no rank to sort by here; newest-first
+    (computed_at desc) reads naturally for "recent practice activity"
+    instead of a competitive standings order. A student can also have MANY
+    practice results for one event (one per consumed bank paper, unlike
+    OFFICIAL's single result per assignment) -- StudentId optionally narrows
+    to one student's own history, e.g. from a student detail page in the
+    admin Studio.
+    """
+    EventRecord = db.get(CompetitionEvent, EventId)
+    if not EventRecord:
+        api_error(404, "COMPETITION_EVENT_NOT_FOUND", "The selected Annual Competition event was not found.")
+
+    Query = db.query(CompetitionEventResult).filter(
+        CompetitionEventResult.event_id == EventId,
+        CompetitionEventResult.attempt_type == "PRACTICE",
+    )
+    if CompetitionLevelCode:
+        Query = Query.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
+    if StudentId:
+        Query = Query.filter(CompetitionEventResult.student_id == StudentId)
+    ResultRecords = Query.order_by(CompetitionEventResult.computed_at.desc()).all()
+
+    Rows: list[dict[str, Any]] = []
+    for ResultRecord in ResultRecords:
+        StudentRecord = db.get(Student, ResultRecord.student_id)
+        Rows.append(
+            {
+                **_ResultPayload(ResultRecord),
+                "attemptId": ResultRecord.attempt_id,
+                "studentId": ResultRecord.student_id,
+                "studentCode": StudentRecord.student_code if StudentRecord else None,
+                "studentName": (StudentRecord.user.full_name if StudentRecord and StudentRecord.user else None),
+            }
+        )
+
+    return {
+        "eventId": EventId,
+        "competitionLevelCode": CompetitionLevelCode,
+        "studentId": StudentId,
         "totalResults": len(Rows),
         "rows": Rows,
     }

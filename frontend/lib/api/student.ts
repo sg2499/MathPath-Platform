@@ -608,8 +608,17 @@ export type AnnualCompetitionQuestion = {
 export type AnnualCompetitionAttempt = {
   attemptId: string;
   eventId: string;
-  assignmentId: string;
+  // null for a PRACTICE attempt -- practice papers are batch-assigned
+  // directly to a student with no CompetitionEventAssignment involved.
+  assignmentId: string | null;
   levelPaperId: string;
+  // Phase G (Competition Practice): "OFFICIAL" or "PRACTICE", now present
+  // on every attempt payload. competitionLevelCode is what
+  // startAnnualCompetitionPracticeAttempt needs even to RESUME a practice
+  // attempt (its lookup filters by level code) -- sourced here so the
+  // resume bootstrap effect never needs a second round trip to find it.
+  attemptType: string;
+  competitionLevelCode: string | null;
   // IN_PROGRESS | SUBMITTED | FINALIZED
   status: string;
   currentSectionNumber: number;
@@ -704,5 +713,196 @@ export async function downloadAnnualCompetitionCertificate(attemptId: string): P
   const { data } = await api.get(`/student/annual-competition/attempts/${attemptId}/certificate`, {
     responseType: "blob",
   });
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Annual Competition Practice (Phase G): student-facing "Start Next Practice
+// Paper" + bank-remaining + submitted-practice-history + Answer Sheet/
+// Scorecard review. Deliberately separate exports from the OFFICIAL ones
+// above -- mirrors this same "official vs practice, always a separate
+// surface" convention already followed on the admin (lib/api/admin.ts) and
+// teacher sides. getAnnualCompetitionAttemptReview below is the one
+// exception: it's shared by OFFICIAL and PRACTICE attempts alike (see the
+// backend's own docstring on GetCompetitionEventAttemptReviewForStudent --
+// is_released already carries the whole distinction, so there's only ever
+// one review endpoint, keyed purely by attemptId).
+// ---------------------------------------------------------------------------
+
+// Shailesh's Phase G correction (2026-09-11): "the students should be able
+// to practice any paper even if they do not have any official competition
+// attempts, that is the whole point of this entire practice feature." The
+// first Phase G pass scoped the Practice tab off the student's OFFICIAL
+// assignments (getMyAnnualCompetitionAssignments above), since there was no
+// other list of event+level combos to enumerate -- but practice papers are
+// batch-assigned directly (see BatchAssignAnnualCompetitionPracticePapers's
+// own signature, no CompetitionEventAssignment dependency), so a student
+// with practice papers but zero official assignments legitimately exists
+// and needs to see them too. This is the discovery endpoint that fixes it:
+// every distinct event+level scope this student has ANY practice papers
+// for, independent of official assignment, with the same
+// totalAssigned/consumedCount/remainingCount summary the bank endpoint
+// gives per-paper -- see ListMyAnnualCompetitionPracticeScopes's own
+// docstring on the backend.
+export type AnnualCompetitionPracticeScope = {
+  eventId: string;
+  eventName: string | null;
+  competitionDate: string | null;
+  competitionLevelCode: string;
+  totalAssigned: number;
+  consumedCount: number;
+  remainingCount: number;
+};
+
+export async function getMyAnnualCompetitionPracticeScopes(): Promise<AnnualCompetitionPracticeScope[]> {
+  const { data } = await api.get<{ scopes: AnnualCompetitionPracticeScope[] }>("/student/annual-competition/practice/scopes");
+  return data.scopes;
+}
+
+export async function startAnnualCompetitionPracticeAttempt(
+  eventId: string,
+  competitionLevelCode: string
+): Promise<AnnualCompetitionAttempt> {
+  const { data } = await api.post<AnnualCompetitionAttempt>("/student/annual-competition/practice/attempts/start", {
+    eventId,
+    competitionLevelCode,
+  });
+  return data;
+}
+
+// Mirrors AnnualCompetitionPracticeBank/-BankPaper in lib/api/admin.ts field
+// for field -- same GetAnnualCompetitionPracticeBankForStudent shape, just
+// reached via the student-scoped route (no studentId param needed, it's
+// always "me").
+export type AnnualCompetitionPracticeBankPaper = {
+  levelPaperId: string;
+  competitionLevelCode: string;
+  status: string;
+  assignedAt: string | null;
+  consumedAt: string | null;
+  isConsumed: boolean;
+};
+
+export type AnnualCompetitionPracticeBank = {
+  eventId: string;
+  studentId: string;
+  studentCode: string | null;
+  competitionLevelCode: string | null;
+  totalAssigned: number;
+  consumedCount: number;
+  remainingCount: number;
+  papers: AnnualCompetitionPracticeBankPaper[];
+};
+
+export async function getAnnualCompetitionPracticeBank(
+  eventId: string,
+  competitionLevelCode?: string | null
+): Promise<AnnualCompetitionPracticeBank> {
+  const { data } = await api.get<AnnualCompetitionPracticeBank>(`/student/annual-competition/events/${eventId}/practice/bank`, {
+    params: { competitionLevelCode: competitionLevelCode || undefined },
+  });
+  return data;
+}
+
+// Phase E: the submitted-practice-history sibling of the bank query above
+// (which only answers "how many are left") -- one row per PRACTICE attempt
+// ever started, newest first, IN_PROGRESS ones included so a resumable
+// half-done paper still shows up (see the backend's own docstring on
+// ListMyAnnualCompetitionPracticeAttempts).
+export type AnnualCompetitionPracticeAttemptResult = {
+  score: number;
+  maxScore: number;
+  percentage: number;
+  accuracyPercentage: number;
+  correctCount: number;
+  wrongCount: number;
+  unansweredCount: number;
+  timeTakenSeconds: number | null;
+};
+
+export type AnnualCompetitionPracticeAttemptRow = {
+  attemptId: string;
+  competitionLevelCode: string;
+  status: string;
+  startedAt: string | null;
+  submittedAt: string | null;
+  result: AnnualCompetitionPracticeAttemptResult | null;
+};
+
+export type AnnualCompetitionPracticeAttemptsList = {
+  eventId: string;
+  competitionLevelCode: string | null;
+  totalAttempts: number;
+  attempts: AnnualCompetitionPracticeAttemptRow[];
+};
+
+export async function getMyAnnualCompetitionPracticeAttempts(
+  eventId: string,
+  competitionLevelCode?: string | null
+): Promise<AnnualCompetitionPracticeAttemptsList> {
+  const { data } = await api.get<AnnualCompetitionPracticeAttemptsList>(
+    `/student/annual-competition/events/${eventId}/practice/attempts`,
+    { params: { competitionLevelCode: competitionLevelCode || undefined } }
+  );
+  return data;
+}
+
+// Phase E/G: the student/parent-facing Answer Sheet + Scorecard -- shared by
+// OFFICIAL and PRACTICE attempts (see the module note above). Mirrors
+// AnnualCompetitionAttemptReview* in lib/api/admin.ts field for field, with
+// one deliberate difference: attemptType/competitionLevelCode/result/
+// sections are only ever populated once released is true (an unreleased or
+// voided result returns the same lean "not released" shape
+// getAnnualCompetitionResult already uses -- never a partial peek), and
+// result here has no isReleased/isVoided (released is already known true by
+// the time result is non-null).
+export type AnnualCompetitionAttemptReviewQuestion = {
+  questionId: string;
+  questionNumber: number;
+  displayType: string | null;
+  questionText: string | null;
+  operands: Array<number | string>;
+  operators: string[];
+  studentAnswer: string | null;
+  correctAnswer: string | null;
+  isUnanswered: boolean;
+  isCorrect: boolean;
+};
+
+export type AnnualCompetitionAttemptReviewSection = {
+  sectionNumber: number;
+  sectionTitle: string | null;
+  mode: string | null;
+  status: string;
+  timeLimitSeconds: number | null;
+  startedAt: string | null;
+  submittedAt: string | null;
+  questions: AnnualCompetitionAttemptReviewQuestion[];
+};
+
+export type AnnualCompetitionAttemptReviewResult = {
+  score: number;
+  maxScore: number;
+  percentage: number;
+  accuracyPercentage: number;
+  correctCount: number;
+  wrongCount: number;
+  unansweredCount: number;
+  timeTakenSeconds: number | null;
+  rank: number | null;
+};
+
+export type AnnualCompetitionAttemptReview = {
+  attemptId: string;
+  attemptStatus: string;
+  attemptType?: string;
+  competitionLevelCode?: string | null;
+  released: boolean;
+  result: AnnualCompetitionAttemptReviewResult | null;
+  sections: AnnualCompetitionAttemptReviewSection[] | null;
+};
+
+export async function getAnnualCompetitionAttemptReview(attemptId: string): Promise<AnnualCompetitionAttemptReview> {
+  const { data } = await api.get<AnnualCompetitionAttemptReview>(`/student/annual-competition/attempts/${attemptId}/review`);
   return data;
 }

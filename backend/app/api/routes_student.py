@@ -42,12 +42,19 @@ from app.services.annual_competition_attempt_service import (
     SaveCompetitionEventAnswer,
     ListMyAnnualCompetitionAssignments,
     GetCompetitionEventInstructions,
+    StartAnnualCompetitionPracticeAttempt,
+    ListMyAnnualCompetitionPracticeAttempts,
+    GetCompetitionEventAttemptReviewForStudent,
 )
 from app.services.annual_competition_scoring_service import (
     GetCompetitionEventResultForStudent,
 )
 from app.services.annual_competition_certificate_service import (
     BuildAnnualCompetitionCertificateForStudent,
+)
+from app.services.annual_competition_studio_service import (
+    GetAnnualCompetitionPracticeBankForStudent,
+    ListMyAnnualCompetitionPracticeScopes,
 )
 from app.services.student_activity_service import GetStudentActivityEventsInRange
 from app.core.errors import api_error
@@ -113,6 +120,11 @@ class SubmitCompetitionMockRequest(BaseModel):
 
 class StartAnnualCompetitionAttemptRequest(BaseModel):
     eventId: str
+
+
+class StartAnnualCompetitionPracticeAttemptRequest(BaseModel):
+    eventId: str
+    competitionLevelCode: str
 
 
 class AnnualCompetitionHeartbeatRequest(BaseModel):
@@ -346,6 +358,54 @@ def student_start_annual_competition_attempt(
     return StartCompetitionEventAttempt(db, student, payload.eventId)
 
 
+# --- Annual Competition Practice (Phase D): "Start Next Practice Paper" --
+# separate from the OFFICIAL start route above -- see
+# StartAnnualCompetitionPracticeAttempt's own docstring for the full design
+# (no slot, no completed-event gate, resumes an in-progress paper before
+# ever pulling a new one, unlimited but never a retake of the same paper).
+# Every OTHER attempt route above (get/heartbeat/submit-section/answers) and
+# below (result/certificate) is already keyed purely by attempt_id, so a
+# practice attempt/result flows through every one of them unchanged -- no
+# new routes needed for any of that.
+
+@router.post("/annual-competition/practice/attempts/start")
+def student_start_annual_competition_practice_attempt(
+    payload: StartAnnualCompetitionPracticeAttemptRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
+):
+    return StartAnnualCompetitionPracticeAttempt(db, student, payload.eventId, payload.competitionLevelCode)
+
+
+@router.get("/annual-competition/practice/scopes")
+def student_annual_competition_practice_scopes(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return ListMyAnnualCompetitionPracticeScopes(db, student)
+
+
+@router.get("/annual-competition/events/{event_id}/practice/bank")
+def student_annual_competition_practice_bank(
+    event_id: str,
+    competitionLevelCode: str | None = None,
+    db: Session = Depends(get_db),
+    student: Student = Depends(get_current_student),
+):
+    return GetAnnualCompetitionPracticeBankForStudent(
+        db, EventId=event_id, StudentId=student.id, CompetitionLevelCode=competitionLevelCode
+    )
+
+
+# Phase E: "what have I already submitted, and how did I do" -- the sibling
+# of the bank endpoint just above (which only answers "how many are left").
+@router.get("/annual-competition/events/{event_id}/practice/attempts")
+def student_annual_competition_practice_attempts(
+    event_id: str,
+    competitionLevelCode: str | None = None,
+    db: Session = Depends(get_db),
+    student: Student = Depends(get_current_student),
+):
+    return ListMyAnnualCompetitionPracticeAttempts(
+        db, student, event_id, CompetitionLevelCode=competitionLevelCode
+    )
+
+
 @router.get("/annual-competition/attempts/{attempt_id}")
 def student_get_annual_competition_attempt(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     return GetCompetitionEventAttemptForStudent(db, student, attempt_id)
@@ -383,6 +443,18 @@ def student_save_annual_competition_answer(
 @router.get("/annual-competition/attempts/{attempt_id}/result")
 def student_get_annual_competition_result(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     return GetCompetitionEventResultForStudent(db, student, attempt_id)
+
+
+# Phase E: the Answer Sheet/Scorecard review screen -- every section, every
+# question, student answer vs. correct answer, plus the same scorecard the
+# /result endpoint above already returns. Additive, not a replacement for
+# /result: this is the new per-question detail view, gated behind the exact
+# same is_released check (see GetCompetitionEventAttemptReviewForStudent's
+# own docstring). Shared by OFFICIAL and PRACTICE attempts alike -- no
+# attempt_type branch anywhere in this route or the function behind it.
+@router.get("/annual-competition/attempts/{attempt_id}/review")
+def student_get_annual_competition_attempt_review(attempt_id: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return GetCompetitionEventAttemptReviewForStudent(db, student, attempt_id)
 
 
 # Package 8 (certificate half): downloadable once the result above returns

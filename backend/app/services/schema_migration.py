@@ -1319,6 +1319,93 @@ def ensure_annual_competition_answer_text_column() -> None:
                 connection.execute(text("ALTER TABLE competition_event_attempt_answers ADD COLUMN selected_value TEXT"))
 
 
+def ensure_annual_competition_practice_bank_columns() -> None:
+    """Self-heal safety net for the Competition Practice feature's data
+    model (Phase A) -- see matching Alembic migration
+    ba2ef4da0cf9_add_annual_competition_practice_bank.py, and this file's
+    own module docstring / test file docstring on why a real deploy cannot
+    be trusted to have actually run `alembic upgrade head`:
+    `ensure_annual_competition_tables()` only ever CREATEs these tables if
+    they don't already exist, so on every environment that already ran this
+    epic's earlier packages (i.e. every real deploy), that function alone
+    would never add these new columns -- the same gap class
+    ensure_annual_competition_go_live_columns() and
+    ensure_assessment_questions_lesson_id_nullable() already exist to close
+    for their own features.
+
+    Three changes, matching the migration exactly:
+
+    1. `competition_event_level_papers` gets `paper_kind` (OFFICIAL/PRACTICE)
+       plus the assignment bookkeeping columns, and its old one-row-per-
+       event+level UNIQUE constraint is dropped -- a practice bank needs many
+       PRACTICE rows per event+level (see CompetitionEventLevelPaper's own
+       model comment). Postgres-only: SQLite never has this constraint to
+       drop in the first place (every SQLite user of this codebase is a test
+       building the table fresh from today's ORM model, which no longer
+       declares it), and SQLite's ALTER TABLE cannot drop a named constraint
+       without a full table rebuild -- a real gap this additive-only file has
+       never needed to close before, since every other ensure_*() here only
+       ever adds columns/indexes/tables.
+    2. `competition_event_attempts.assignment_id` becomes nullable (a
+       PRACTICE attempt has no CompetitionEventAssignment) -- this one
+       matters even on a fresh column-add: without it, the very first
+       PRACTICE attempt ever started against a real (pre-existing, still
+       NOT NULL) production column would fail its INSERT with a raw
+       IntegrityError, the same failure mode
+       ensure_assessment_questions_lesson_id_nullable's own docstring
+       documents for lesson_id. SQLite is skipped for the same reason as (1)
+       -- a fresh SQLite table already has it nullable.
+    3. `competition_event_results.assignment_id` becomes nullable, same
+       reasoning as (2).
+
+    Foreign keys on the new assigned_student_id/assigned_by_user_id columns
+    are deliberately NOT added here, matching this file's own established
+    convention: ensure_annual_competition_go_live_columns() above adds
+    suspended_by_user_id (also a users.id reference) without an FK
+    constraint either -- self-heal only guarantees the column exists so
+    application code doesn't crash on a missing column; enforcing
+    referential integrity is left to the Alembic migration, if it is ever
+    actually run.
+    """
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    is_sqlite = engine.dialect.name == "sqlite"
+
+    if "competition_event_level_papers" in tables:
+        existing = {column["name"] for column in inspector.get_columns("competition_event_level_papers")}
+        with engine.begin() as connection:
+            if "paper_kind" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_level_papers ADD COLUMN paper_kind VARCHAR(20) DEFAULT 'OFFICIAL' NOT NULL"))
+            if "assigned_student_id" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_level_papers ADD COLUMN assigned_student_id VARCHAR"))
+            if "assigned_by_user_id" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_level_papers ADD COLUMN assigned_by_user_id VARCHAR"))
+            if "assigned_at" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_level_papers ADD COLUMN assigned_at TIMESTAMP"))
+            if "consumed_at" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_level_papers ADD COLUMN consumed_at TIMESTAMP"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_level_papers_assigned_student_id ON competition_event_level_papers (assigned_student_id)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_competition_event_level_papers_assigned_by_user_id ON competition_event_level_papers (assigned_by_user_id)"))
+            if not is_sqlite:
+                connection.execute(text("ALTER TABLE competition_event_level_papers DROP CONSTRAINT IF EXISTS uq_competition_event_level_paper"))
+
+    if "competition_event_attempts" in tables:
+        existing = {column["name"] for column in inspector.get_columns("competition_event_attempts")}
+        with engine.begin() as connection:
+            if "attempt_type" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_attempts ADD COLUMN attempt_type VARCHAR(20) DEFAULT 'OFFICIAL' NOT NULL"))
+            if not is_sqlite:
+                connection.execute(text("ALTER TABLE competition_event_attempts ALTER COLUMN assignment_id DROP NOT NULL"))
+
+    if "competition_event_results" in tables:
+        existing = {column["name"] for column in inspector.get_columns("competition_event_results")}
+        with engine.begin() as connection:
+            if "attempt_type" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_results ADD COLUMN attempt_type VARCHAR(20) DEFAULT 'OFFICIAL' NOT NULL"))
+            if not is_sqlite:
+                connection.execute(text("ALTER TABLE competition_event_results ALTER COLUMN assignment_id DROP NOT NULL"))
+
+
 def ensure_mock_notifications_fixed() -> None:
     import re
     from app.database import SessionLocal
