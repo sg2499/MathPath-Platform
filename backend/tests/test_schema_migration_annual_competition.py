@@ -176,3 +176,65 @@ def test_ensure_annual_competition_go_live_columns_noop_when_tables_absent(monke
     monkeypatch.setattr(schema_migration, "engine", test_engine)
 
     schema_migration.ensure_annual_competition_go_live_columns()  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# ensure_annual_competition_practice_bank_columns() -- Competition Practice
+# feature, Phase A data model (matching Alembic migration
+# ba2ef4da0cf9_add_annual_competition_practice_bank.py). Same gap class as
+# the go-live columns above: ensure_annual_competition_tables() only ever
+# CREATEs competition_event_level_papers/attempts/results if they don't
+# already exist, so every real deploy (which already has these tables from
+# earlier packages) would never pick up these new columns without this
+# function. Deliberately scoped to what SQLite can actually exercise --
+# column presence and idempotency; the Postgres-only DROP CONSTRAINT /
+# ALTER COLUMN ... DROP NOT NULL branches (see the function's own docstring
+# for why those are skipped on SQLite) are not exercised here and can only
+# be verified against a real Postgres instance.
+# ---------------------------------------------------------------------------
+
+def test_ensure_annual_competition_practice_bank_columns_backfills_onto_pre_existing_tables(monkeypatch):
+    test_engine = _isolated_engine()
+    monkeypatch.setattr(schema_migration, "engine", test_engine)
+
+    # Simulate a real pre-Competition-Practice deploy: the tables already
+    # exist (via the safety net above), in their OLD shape.
+    schema_migration.ensure_annual_competition_tables()
+    old_paper_columns = {c["name"] for c in inspect(test_engine).get_columns("competition_event_level_papers")}
+    old_attempt_columns = {c["name"] for c in inspect(test_engine).get_columns("competition_event_attempts")}
+    old_result_columns = {c["name"] for c in inspect(test_engine).get_columns("competition_event_results")}
+    assert "paper_kind" not in old_paper_columns
+    assert "attempt_type" not in old_attempt_columns
+    assert "attempt_type" not in old_result_columns
+
+    schema_migration.ensure_annual_competition_practice_bank_columns()
+
+    paper_columns = {c["name"] for c in inspect(test_engine).get_columns("competition_event_level_papers")}
+    assert {"paper_kind", "assigned_student_id", "assigned_by_user_id", "assigned_at", "consumed_at"} <= paper_columns
+
+    attempt_columns = {c["name"] for c in inspect(test_engine).get_columns("competition_event_attempts")}
+    assert "attempt_type" in attempt_columns
+
+    result_columns = {c["name"] for c in inspect(test_engine).get_columns("competition_event_results")}
+    assert "attempt_type" in result_columns
+
+
+def test_ensure_annual_competition_practice_bank_columns_is_idempotent(monkeypatch):
+    test_engine = _isolated_engine()
+    monkeypatch.setattr(schema_migration, "engine", test_engine)
+
+    schema_migration.ensure_annual_competition_tables()
+    schema_migration.ensure_annual_competition_practice_bank_columns()
+    schema_migration.ensure_annual_competition_practice_bank_columns()  # must not raise
+
+    paper_columns = {c["name"] for c in inspect(test_engine).get_columns("competition_event_level_papers")}
+    assert "paper_kind" in paper_columns
+
+
+def test_ensure_annual_competition_practice_bank_columns_noop_when_tables_absent(monkeypatch):
+    """Fresh install where ensure_annual_competition_tables() hasn't been
+    called first -- must not raise just because the tables don't exist."""
+    test_engine = _isolated_engine()
+    monkeypatch.setattr(schema_migration, "engine", test_engine)
+
+    schema_migration.ensure_annual_competition_practice_bank_columns()  # must not raise

@@ -191,6 +191,22 @@ def _ResolveCertificateData(
             "This result has been voided by an administrator and no certificate is available for it.",
         )
 
+    # 2026-09-11 (Shailesh, Competition Practice feature, Phase B): a
+    # practice attempt's result is set is_released=True at creation (see
+    # ComputeAndFinalizeCompetitionEventResult's practice branch) so the
+    # student can see their own score immediately -- but that would let a
+    # student's is_released check below pass for a practice paper too, and a
+    # "Certificate of Achievement" is explicitly an OFFICIAL-competition
+    # artifact (module docstring: "every student who finalized an [official]
+    # attempt"). Blocked here, in the one shared resolver both the student
+    # and admin entry points funnel through, rather than duplicated in each.
+    if AttemptRecord.attempt_type == "PRACTICE":
+        api_error(
+            409,
+            "COMPETITION_CERTIFICATE_NOT_AVAILABLE_FOR_PRACTICE",
+            "Certificates are only issued for the official Annual Competition, not practice attempts.",
+        )
+
     EventRecord = db.get(CompetitionEvent, AttemptRecord.event_id)
     StudentRecord = db.get(Student, AttemptRecord.student_id)
     return AttemptRecord, ResultRecord, EventRecord, StudentRecord

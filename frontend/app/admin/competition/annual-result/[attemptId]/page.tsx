@@ -131,6 +131,10 @@ export default function AdminAnnualCompetitionAttemptReviewPage() {
                 {Review.studentCode ? <Chip label={Review.studentCode} /> : null}
                 {Review.assignedLevelCode ? <Chip label={Review.assignedLevelCode} /> : null}
                 {Review.eventName ? <Chip label={Review.eventName} /> : null}
+                {/* Phase E: PRACTICE and OFFICIAL attempts share this exact
+                    review screen -- this is the only thing on the page that
+                    says which kind you're looking at. */}
+                <Chip tone={Review.attemptType === "PRACTICE" ? "amber" : "slate"}>{Review.attemptType}</Chip>
                 <Chip tone={Review.status === "SUBMITTED" || Review.status === "FINALIZED" ? "green" : "slate"}>{Review.status}</Chip>
               </div>
               <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-300">

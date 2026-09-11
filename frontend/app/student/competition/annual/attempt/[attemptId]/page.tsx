@@ -1,9 +1,11 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { Chip } from "@/components/common/DetailWorkspaceViews";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { QuestionCard } from "@/components/student/QuestionCard";
 import type { AnswerInputBoxHandle } from "@/components/student/AnswerInputBox";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
@@ -15,14 +17,18 @@ import { apiErrorDetail, apiErrorMessage } from "@/lib/api";
 import {
   downloadAnnualCompetitionCertificate,
   getAnnualCompetitionAttempt,
+  getAnnualCompetitionAttemptReview,
   getAnnualCompetitionResult,
   saveAnnualCompetitionAnswer,
   startAnnualCompetitionAttempt,
+  startAnnualCompetitionPracticeAttempt,
   submitAnnualCompetitionSection,
   type AnnualCompetitionAttempt,
+  type AnnualCompetitionAttemptReview,
+  type AnnualCompetitionAttemptReviewQuestion,
 } from "@/lib/api/student";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Award, ClipboardCheck, Gauge, Layers3, ShieldAlert, Trophy } from "lucide-react";
+import { Award, ClipboardCheck, Gauge, Layers3, ListChecks, ShieldAlert, Trophy } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -100,6 +106,20 @@ function AnnualCompetitionAttemptContent() {
     refetchOnWindowFocus: false,
   });
 
+  // Phase G (Competition Practice): the Answer Sheet/Scorecard tabs below,
+  // shared by OFFICIAL and PRACTICE attempts alike -- same gating as
+  // resultQuery above (nothing to show mid-attempt), and same
+  // released:false lock-down convention (a lean shape while unreleased,
+  // never a partial peek -- see getAnnualCompetitionAttemptReview's own
+  // docstring on the backend).
+  const reviewQuery = useQuery({
+    queryKey: ["annual-competition-attempt-review", attemptId],
+    queryFn: () => getAnnualCompetitionAttemptReview(attemptId),
+    enabled: ready && Boolean(attemptId) && Boolean(liveAttempt) && liveAttempt?.status !== "IN_PROGRESS",
+    refetchOnWindowFocus: false,
+  });
+  const [reviewTab, setReviewTab] = useState<"answerSheet" | "scorecard">("answerSheet");
+
   // Package 8 (certificate half): only ever offered once resultQuery.data
   // itself says released:true -- the backend re-checks this independently
   // on every download, so this button being visible is a UX convenience,
@@ -116,14 +136,34 @@ function AnnualCompetitionAttemptContent() {
   // reissues a fresh token -- this IS the "resume here" remediation, and it
   // runs unconditionally on every mount (a refresh included), not just the
   // very first visit.
+  //
+  // Phase G (Competition Practice): this attempt can be OFFICIAL or
+  // PRACTICE -- StartAnnualCompetitionPracticeAttempt is a different
+  // endpoint that additionally requires the competition level code (it
+  // looks the practice paper up by event+level, not just event, even to
+  // resume). liveAttempt.competitionLevelCode is sourced by the backend's
+  // _AttemptPayload specifically so this resume call never needs a second
+  // round trip to find it. If it's ever missing on a PRACTICE attempt
+  // (should not happen -- see that backend comment), this fails loudly via
+  // bootstrapError rather than silently guessing an endpoint/argument.
   const bootstrapRequestedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!liveAttempt || liveAttempt.status !== "IN_PROGRESS") return;
     if (sessionToken || bootstrapRequestedRef.current === liveAttempt.attemptId) return;
     bootstrapRequestedRef.current = liveAttempt.attemptId;
-    startAnnualCompetitionAttempt(liveAttempt.eventId)
-      .then((data) => setSessionToken(data.sessionToken))
-      .catch((error) => setBootstrapError(error));
+    if (liveAttempt.attemptType === "PRACTICE") {
+      if (!liveAttempt.competitionLevelCode) {
+        setBootstrapError(new Error("This practice attempt is missing its competition level code and cannot be resumed."));
+        return;
+      }
+      startAnnualCompetitionPracticeAttempt(liveAttempt.eventId, liveAttempt.competitionLevelCode)
+        .then((data) => setSessionToken(data.sessionToken))
+        .catch((error) => setBootstrapError(error));
+    } else {
+      startAnnualCompetitionAttempt(liveAttempt.eventId)
+        .then((data) => setSessionToken(data.sessionToken))
+        .catch((error) => setBootstrapError(error));
+    }
   }, [liveAttempt, sessionToken]);
 
   const handleHeartbeatUpdate = useCallback(
@@ -408,6 +448,64 @@ function AnnualCompetitionAttemptContent() {
             <p className="mt-2 text-xs font-bold text-rose-600 dark:text-rose-300">{apiErrorMessage(certificateMutation.error)}</p>
           ) : null}
         </div>
+
+        {/* Phase G: Answer Sheet/Scorecard -- reuses this exact tab pair's
+            naming/layout from the admin review screen
+            (annual-result/[attemptId]/page.tsx), the one thing this screen
+            deliberately mirrors, per that page's own comment on why. Only
+            rendered once the review is actually released -- for an
+            unreleased OFFICIAL attempt reviewQuery.data.sections stays
+            null (PRACTICE is always released instantly, see the backend
+            docstring, so this appears immediately for practice results). */}
+        {reviewQuery.data?.released && reviewQuery.data.sections ? (
+          <div className="mt-5 space-y-5">
+            <div className="math-card p-2">
+              <div className="flex flex-wrap gap-2">
+                <ReviewTabButton active={reviewTab === "answerSheet"} onClick={() => setReviewTab("answerSheet")} label="Answer Sheet" />
+                <ReviewTabButton active={reviewTab === "scorecard"} onClick={() => setReviewTab("scorecard")} label="Scorecard" />
+              </div>
+            </div>
+
+            {reviewTab === "answerSheet" ? (
+              reviewQuery.data.sections.length === 0 ? (
+                <div className="math-card p-5 text-sm font-bold text-slate-700 dark:text-slate-300">
+                  No section data is available for this attempt yet.
+                </div>
+              ) : (
+                reviewQuery.data.sections.map((sectionReview) => (
+                  <div key={sectionReview.sectionNumber} className="math-card p-5">
+                    <div className="mb-4 flex flex-col gap-2 rounded-[22px] border border-[#2563eb]/15 bg-[#2563eb]/5 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/30 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2563eb] dark:text-cyan-100">
+                          Section {sectionReview.sectionNumber}
+                        </p>
+                        <h3 className="text-lg font-black text-slate-950 dark:text-white">
+                          {sectionReview.sectionTitle || `Section ${sectionReview.sectionNumber}`}
+                          {sectionReview.mode ? ` · ${sectionReview.mode}` : ""}
+                        </h3>
+                      </div>
+                      <Chip tone="slate">{sectionReview.questions.length} Questions</Chip>
+                    </div>
+
+                    {sectionReview.questions.length === 0 ? (
+                      <p className="rounded-[20px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
+                        No questions found for this section.
+                      </p>
+                    ) : (
+                      <div className="space-y-5">
+                        {sectionReview.questions.map((questionReview) => (
+                          <QuestionReviewCard key={questionReview.questionId} question={questionReview} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )
+            ) : (
+              <ScorecardTab review={reviewQuery.data} />
+            )}
+          </div>
+        ) : null}
       </AppShell>
     );
   }
@@ -616,6 +714,137 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
       <div>
         <p className="relative z-10 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">{label}</p>
         <p className="relative z-10 mt-1 origin-left text-3xl font-black leading-none text-slate-950 dark:text-white">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+// Phase G: local duplicates of the admin review screen's own
+// QuestionReviewCard/AnswerBox/ScorecardTab (annual-result/[attemptId]/
+// page.tsx) -- deliberately re-declared here rather than imported across
+// the admin/student route trees, matching this codebase's own established
+// per-page-helper-duplication convention (see e.g. FormatDateTime,
+// triggerBlobDownload above).
+function ReviewTabButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className={active ? "math-role-tab math-role-tab-active" : "math-role-tab"}>
+      {label}
+    </button>
+  );
+}
+
+function QuestionReviewCard({ question }: { question: AnnualCompetitionAttemptReviewQuestion }) {
+  return (
+    <article className="rounded-[28px] border border-[#2563eb]/15 bg-white/86 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-xl font-black text-slate-950 dark:text-white">Question {question.questionNumber}</h3>
+        <Chip tone={question.isUnanswered ? "slate" : question.isCorrect ? "green" : "red"}>
+          {question.isUnanswered ? "Unanswered" : question.isCorrect ? "Correct" : "Wrong"}
+        </Chip>
+      </div>
+
+      <div className="mt-5 rounded-[24px] bg-slate-50/90 p-5 dark:bg-slate-950/60">
+        <MathQuestionDisplay
+          operands={question.operands}
+          operators={question.operators}
+          displayType={question.displayType}
+          questionText={question.questionText}
+        />
+      </div>
+
+      <div className="mt-5 grid gap-3 xl:grid-cols-2">
+        <AnswerBox title="Your Answer" tone={question.isUnanswered ? "neutral" : question.isCorrect ? "correct" : "wrong"}>
+          {question.studentAnswer ?? "Not Answered"}
+        </AnswerBox>
+        <AnswerBox title="Correct Answer" tone="correct">
+          {question.correctAnswer ?? "Not Available"}
+        </AnswerBox>
+      </div>
+    </article>
+  );
+}
+
+function AnswerBox({ title, children, tone }: { title: string; children: React.ReactNode; tone: "correct" | "wrong" | "neutral" }) {
+  const className =
+    tone === "correct"
+      ? "border-emerald-100 bg-emerald-50/80 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/25 dark:text-emerald-100"
+      : tone === "wrong"
+        ? "border-cyan-100 bg-cyan-50/80 text-cyan-950 dark:border-cyan-800 dark:bg-cyan-950/25 dark:text-cyan-100"
+        : "border-slate-200 bg-slate-50 text-slate-900 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100";
+  return (
+    <div className={`rounded-[22px] border p-4 ${className}`}>
+      <p className="text-xs font-extrabold uppercase tracking-[0.14em] opacity-80">{title}</p>
+      <p className="mt-2 text-lg font-black">{children}</p>
+    </div>
+  );
+}
+
+// Section-by-section marks table, derived from the exact same `sections`
+// data the Answer Sheet tab above already renders -- never re-fetched or
+// re-derived from a separate result payload, so this tab's totals can
+// never drift from what the Answer Sheet visibly shows (mirrors the admin
+// ScorecardTab's own reasoning verbatim).
+function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
+  const rows = (review.sections || []).map((sectionReview) => ({
+    sectionNumber: sectionReview.sectionNumber,
+    sectionTitle: sectionReview.sectionTitle || `Section ${sectionReview.sectionNumber}`,
+    totalQuestions: sectionReview.questions.length,
+    correctCount: sectionReview.questions.filter((questionReview) => questionReview.isCorrect).length,
+  }));
+  const totalQuestions = rows.reduce((sum, row) => sum + row.totalQuestions, 0);
+  const totalMarksObtained = rows.reduce((sum, row) => sum + row.correctCount, 0);
+
+  return (
+    <div className="math-card p-5">
+      <div className="mb-4">
+        <p className="math-block-header"><ListChecks size={14} />Scorecard</p>
+        <h3 className="text-lg font-black text-slate-950 dark:text-white">Section-wise Marks</h3>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="rounded-[20px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
+          No section data is available for this attempt yet.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b-2 border-slate-200 dark:border-slate-700">
+                <th className="px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Section</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Total Questions</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Correct Answers</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Marks Obtained</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.sectionNumber} className="border-b border-slate-100 dark:border-slate-800">
+                  <td className="px-3 py-3 font-bold text-slate-900 dark:text-slate-100">
+                    Section {row.sectionNumber} -- {row.sectionTitle}
+                  </td>
+                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.totalQuestions}</td>
+                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.correctCount}</td>
+                  <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{row.correctCount}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-[#2563eb]/30 dark:border-cyan-300/30">
+                <td className="px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">Total</td>
+                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalQuestions}</td>
+                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalMarksObtained}</td>
+                <td className="px-3 py-3 text-right text-lg font-black text-[#2563eb] dark:text-cyan-100">{totalMarksObtained}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      <div className="mt-4 rounded-[22px] border border-[#2563eb]/25 bg-[#2563eb]/5 px-5 py-4 text-center dark:border-cyan-300/30 dark:bg-cyan-400/10">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2563eb] dark:text-cyan-100">Total Marks Obtained</p>
+        <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
+          {totalMarksObtained}/{totalQuestions}
+        </p>
       </div>
     </div>
   );

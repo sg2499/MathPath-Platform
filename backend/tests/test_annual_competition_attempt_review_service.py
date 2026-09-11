@@ -391,3 +391,185 @@ def test_review_prefers_selected_value_over_legacy_option_when_both_somehow_pres
     q1 = review["sections"][0]["questions"][0]
     assert q1["studentAnswer"] == "4"
     assert q1["isCorrect"] is True
+
+
+# ---------------------------------------------------------------------------
+# Competition Practice (Phase E): results & review visibility.
+#
+# _setup_student_with_practice_questions is this file's own practice
+# sibling of _setup_student_with_questions above -- no
+# CompetitionEventAssignment (practice has none), paper_kind="PRACTICE"
+# with assigned_student_id set, matching every other test file's own
+# practice fixture convention in this codebase.
+# ---------------------------------------------------------------------------
+
+def _setup_student_with_practice_questions(db, student_id, event_id, section_seconds, questions_per_section, level_code="PM-L2"):
+    student = _student(db, student_id)
+    m, l = _module_and_level(db, level_code=level_code)
+    exam = _mock_exam(db, l.id, m.id, exam_id=f"practice-exam-{level_code}-{student_id}")
+    for section_number, count in enumerate(questions_per_section, start=1):
+        for n in range(1, count + 1):
+            question_number = (section_number - 1) * 10 + n
+            _question(db, exam.id, section_number, question_number, qid=f"practice-q-{student_id}-{section_number}-{question_number}")
+
+    level_paper_id = f"practice-paper-{student_id}"
+    paper = CompetitionEventLevelPaper(
+        id=level_paper_id, event_id=event_id, competition_level_code=level_code,
+        mock_exam_id=exam.id, status="READY", paper_kind="PRACTICE",
+        assigned_student_id=student.id, assigned_at=datetime.now(timezone.utc),
+    )
+    db.add(paper)
+    db.flush()
+    for i, seconds in enumerate(section_seconds, start=1):
+        t = CompetitionEventSectionTimer(
+            id=f"{level_paper_id}-timer-{i}", level_paper_id=paper.id, section_number=i,
+            section_title=f"Speed Round {i}", mode="ABACUS", time_limit_seconds=seconds, display_order=i,
+        )
+        db.add(t)
+    db.flush()
+    db.commit()
+    return student
+
+
+def test_admin_review_shows_the_correct_level_code_for_a_practice_attempt():
+    """2026-09-11 (Shailesh, Competition Practice feature, Phase E):
+    regression test for the exact gap flagged (not fixed) during Phase D
+    review -- a practice attempt has no CompetitionEventAssignment at all,
+    so the old assignedLevelCode-from-AssignmentRecord lookup always
+    returned None for one. The fix sources the level code from
+    LevelPaperRecord.competition_level_code instead, which exists for
+    both kinds."""
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_practice_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    review = attempt_engine.GetCompetitionEventAttemptReviewForAdmin(db, AttemptId=attempt_id)
+    assert review["assignedLevelCode"] == "PM-L2"
+    assert review["attemptType"] == "PRACTICE"
+
+
+def test_admin_review_still_shows_the_official_level_code_unchanged():
+    """The fix above is a strict superset, not a behavior change for
+    OFFICIAL -- confirms assignedLevelCode still reads correctly for an
+    OFFICIAL attempt after switching its source to LevelPaperRecord."""
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    review = attempt_engine.GetCompetitionEventAttemptReviewForAdmin(db, AttemptId=attempt_id)
+    assert review["assignedLevelCode"] == "PM-L2"
+    assert review["attemptType"] == "OFFICIAL"
+
+
+# ---------------------------------------------------------------------------
+# GetCompetitionEventAttemptReviewForStudent -- the release-gated student/
+# parent-facing sibling of the admin review above, shared by OFFICIAL and
+# PRACTICE attempts alike.
+# ---------------------------------------------------------------------------
+
+def test_student_review_locked_before_official_result_is_released():
+    """OFFICIAL stays locked until an admin actually releases it -- the
+    review screen must return a lean "not released" shape with zero
+    section/answer/correct-answer detail, mirroring
+    GetCompetitionEventResultForStudent's own full lock-down exactly."""
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[2])
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "q-1-1", "4")
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    review = attempt_engine.GetCompetitionEventAttemptReviewForStudent(db, student, attempt_id)
+    assert review["released"] is False
+    assert review["result"] is None
+    assert review["sections"] is None
+
+
+def test_student_review_shows_full_detail_once_official_result_is_released():
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[2])
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "q-1-1", "4")   # correct
+    _answer(db, student, attempt_id, token, 1, "q-1-2", "5")   # wrong
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    # Release it, mirroring how an admin actually flips this on for OFFICIAL.
+    from app.services import annual_competition_scoring_service as scoring
+    admin = User(id="admin-1", full_name="Admin", email="admin-1@example.test", password_hash="x", role="ADMIN", is_active=True)
+    db.add(admin)
+    db.commit()
+    scoring.ReleaseCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode="PM-L2", ReleasedBy=admin)
+
+    review = attempt_engine.GetCompetitionEventAttemptReviewForStudent(db, student, attempt_id)
+    assert review["released"] is True
+    assert review["attemptType"] == "OFFICIAL"
+    assert review["competitionLevelCode"] == "PM-L2"
+    assert review["result"]["correctCount"] == 1
+    assert review["result"]["wrongCount"] == 1
+    section = review["sections"][0]
+    q1 = next(q for q in section["questions"] if q["questionId"] == "q-1-1")
+    assert q1["isCorrect"] is True
+    assert q1["correctAnswer"] == "4"
+
+
+def test_student_review_instantly_available_for_a_practice_attempt_no_release_needed():
+    """Practice's whole point is instant self-visible feedback (Phase D) --
+    this function has no attempt_type branch at all, so a practice
+    attempt's review reads as immediately available purely because
+    is_released is already True the moment it's computed."""
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_practice_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    attempt_engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, f"practice-q-s1-1-1", "4")
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    review = attempt_engine.GetCompetitionEventAttemptReviewForStudent(db, student, attempt_id)
+    assert review["released"] is True
+    assert review["attemptType"] == "PRACTICE"
+    assert review["competitionLevelCode"] == "PM-L2"
+    assert review["result"]["correctCount"] == 1
+    q1 = review["sections"][0]["questions"][0]
+    assert q1["isCorrect"] is True
+
+
+def test_student_review_ownership_is_enforced():
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    other_student = _student(db, "s2", name="Someone Else")
+    db.commit()
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+
+    with pytest.raises(HTTPException) as exc_info:
+        attempt_engine.GetCompetitionEventAttemptReviewForStudent(db, other_student, started["attemptId"])
+    assert exc_info.value.status_code == 404
+
+
+def test_student_review_unknown_attempt_raises_404():
+    db = _session()
+    student = _student(db)
+    db.commit()
+    with pytest.raises(HTTPException) as exc_info:
+        attempt_engine.GetCompetitionEventAttemptReviewForStudent(db, student, "does-not-exist")
+    assert exc_info.value.status_code == 404

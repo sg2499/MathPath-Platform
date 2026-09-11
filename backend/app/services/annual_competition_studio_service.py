@@ -51,6 +51,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -577,12 +578,26 @@ def _LevelPaperPayload(db: Session, LevelPaperRecord: CompetitionEventLevelPaper
 
 
 def _GetOrCreateLevelPaper(db: Session, EventId: str, CompetitionLevelCode: str) -> CompetitionEventLevelPaper:
+    """2026-09-11 (Shailesh, Competition Practice feature): this function is
+    only ever called by the two OFFICIAL generate/link entry points below
+    (GenerateAndLinkCompetitionEventLevelPaper, LinkExistingCompetitionEventLevelPaper)
+    -- it has never been, and still isn't, used for practice-bank papers
+    (those are created directly, one row per bank paper, by the batch-assign
+    service). The DB-level UniqueConstraint("event_id", "competition_level_code")
+    that used to guarantee "one paper per event+level" has been dropped from
+    the model (a practice bank needs many PRACTICE-kind rows per event+level),
+    so this explicit paper_kind == "OFFICIAL" filter is now what preserves
+    that exact one-paper-per-level guarantee for official papers -- it must
+    stay in lockstep with the two callers below only ever being used for
+    OFFICIAL papers.
+    """
     _ValidateCompetitionLevelCode(CompetitionLevelCode)
     LevelPaperRecord = (
         db.query(CompetitionEventLevelPaper)
         .filter(
             CompetitionEventLevelPaper.event_id == EventId,
             CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode,
+            CompetitionEventLevelPaper.paper_kind == "OFFICIAL",
         )
         .first()
     )
@@ -591,6 +606,7 @@ def _GetOrCreateLevelPaper(db: Session, EventId: str, CompetitionLevelCode: str)
             event_id=EventId,
             competition_level_code=CompetitionLevelCode,
             status="PENDING",
+            paper_kind="OFFICIAL",
         )
         db.add(LevelPaperRecord)
         db.flush()
@@ -735,10 +751,20 @@ def UpdateCompetitionEventSectionTimer(
 
 
 def ListCompetitionEventLevelPapers(db: Session, EventId: str) -> list[dict[str, Any]]:
+    """2026-09-11 (Shailesh, Competition Practice feature, Phase C): scoped
+    to paper_kind == "OFFICIAL" -- this is the admin Studio's PAPERS tab,
+    built on a "one row per level" assumption (GetCompetitionEventStudioOverview
+    derives missingLevelPapers from it the same way). Once practice papers
+    exist, a student's bank can hold many PRACTICE-kind rows per event+level
+    (see BatchAssignAnnualCompetitionPracticePapers below); without this
+    filter every one of them would flood this list and break that
+    assumption. Practice bank papers have their own listing,
+    GetAnnualCompetitionPracticeBankForStudent.
+    """
     _GetEventOr404(db, EventId)
     LevelPapers = (
         db.query(CompetitionEventLevelPaper)
-        .filter(CompetitionEventLevelPaper.event_id == EventId)
+        .filter(CompetitionEventLevelPaper.event_id == EventId, CompetitionEventLevelPaper.paper_kind == "OFFICIAL")
         .order_by(CompetitionEventLevelPaper.competition_level_code.asc())
         .all()
     )
@@ -836,6 +862,244 @@ def OverrideCompetitionEventAssignment(
         "slotId": AssignmentRecord.slot_id,
         "assignmentSource": AssignmentRecord.assignment_source,
         "overriddenByUserId": AssignmentRecord.overridden_by_user_id,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Practice bank (Competition Practice feature, Phase C)
+#
+# An admin batch-generates N freshly-generated, always-different practice
+# papers into one student's bank at once (in multiples of 5 -- Shailesh's
+# own words: "assigning multiple papers in multiples of 5 like 5, 10 or 15
+# papers at once ... so that we do not have to assign it every day and the
+# student has a bank of papers which they can go on practicing"), rather
+# than a student self-serve-generating on demand. Each bank paper is its
+# own CompetitionEventLevelPaper row (paper_kind == "PRACTICE",
+# assigned_student_id set, never shared across students -- unlike the one
+# OFFICIAL row shared by everyone on a level) pointing at its own freshly
+# generated CompetitionMockExam, produced by the exact same paper-generation
+# engine and reused GenerateAndLinkCompetitionEventLevelPaper flow uses for
+# the OFFICIAL paper -- confirmed genuinely non-deterministic per call (a
+# fresh PaperSeed = uuid4().hex every time, see
+# annual_competition_paper_generation_service.py), so no two bank papers,
+# and no bank paper and the official paper, are ever the same content.
+# consumed_at stays NULL here -- it is set by the practice attempt-submit
+# flow (a later phase), the moment a student finishes one of these papers,
+# which is also this feature's permanent "no retakes" marker: a consumed
+# paper is never re-offered.
+# ---------------------------------------------------------------------------
+
+# Deliberately conservative: this action generates each paper synchronously,
+# in the same request/transaction, because this repo has no background job/
+# queue infrastructure at all (confirmed during the original Package 4
+# design -- "no scheduler/cron exists anywhere in this backend"). Empirically
+# the heaviest level (MM-L2, 450 questions) takes well under a second per
+# paper to generate, so 25 papers stays comfortably inside a normal HTTP
+# request/proxy timeout; an admin who wants more than 25 at once simply
+# calls this action again to top up the bank further.
+PRACTICE_BATCH_MIN_QUANTITY = 5
+PRACTICE_BATCH_MAX_QUANTITY = 25
+
+
+def _ValidatePracticeBatchQuantity(Quantity: int) -> None:
+    if not isinstance(Quantity, int) or isinstance(Quantity, bool) or Quantity < PRACTICE_BATCH_MIN_QUANTITY or Quantity % 5 != 0:
+        api_error(
+            400,
+            "INVALID_PRACTICE_BATCH_QUANTITY",
+            f"Quantity must be a whole multiple of 5, at least {PRACTICE_BATCH_MIN_QUANTITY} (e.g. 5, 10, 15).",
+        )
+    if Quantity > PRACTICE_BATCH_MAX_QUANTITY:
+        api_error(
+            400,
+            "INVALID_PRACTICE_BATCH_QUANTITY",
+            f"Quantity cannot exceed {PRACTICE_BATCH_MAX_QUANTITY} papers in one batch -- call this action again to "
+            "top up the bank further.",
+        )
+
+
+def BatchAssignAnnualCompetitionPracticePapers(
+    db: Session, *, EventId: str, CompetitionLevelCode: str, StudentId: str, Quantity: int, AssignedBy: User
+) -> dict[str, Any]:
+    """Admin action: generates Quantity fresh practice papers and adds them
+    to StudentId's bank for this event+level. Safe to call repeatedly for
+    the same student/level -- each call only ever ADDS new, additional bank
+    papers; it never touches, consumes, or removes any paper already in the
+    bank (existing rows are never queried here at all)."""
+    _GetEventOr404(db, EventId)
+    _ValidateCompetitionLevelCode(CompetitionLevelCode)
+    _ValidatePracticeBatchQuantity(Quantity)
+    StudentRecord = _ResolveStudentByIdOrCode(db, StudentId)
+
+    # Same curriculum-lookup override and "no curriculum Level yet" guard
+    # GenerateAndLinkCompetitionEventLevelPaper already applies for the
+    # OFFICIAL paper (e.g. MM-L2 has no Level row of its own) -- a practice
+    # paper for that level needs the identical Module/Level linkage for its
+    # own CompetitionMockExam rows.
+    CurriculumLookupLevelCode = _CURRICULUM_LOOKUP_LEVEL_CODE_OVERRIDES.get(CompetitionLevelCode, CompetitionLevelCode)
+    LevelRecord = (
+        db.query(Level).filter(Level.level_code == CurriculumLookupLevelCode, Level.is_active == True).first()  # noqa: E712
+    )
+    if not LevelRecord:
+        api_error(
+            409,
+            "NO_CURRICULUM_LEVEL_FOR_CODE",
+            f"'{CompetitionLevelCode}' has no matching curriculum Level yet, so no practice paper can be generated for it.",
+        )
+
+    NowUtc = datetime.now(timezone.utc)
+    CreatedPapers: list[CompetitionEventLevelPaper] = []
+    for _Index in range(Quantity):
+        ExamPayload = GenerateAnnualCompetitionLevelPaper(
+            db,
+            LevelId=LevelRecord.id,
+            CreatedBy=AssignedBy,
+            Title=f"Annual Competition Practice -- {CompetitionLevelCode} for {StudentRecord.student_code}",
+            MockCode=f"ANNUAL-PRACTICE-{EventId[:8]}-{CompetitionLevelCode}-{uuid4().hex[:10].upper()}",
+            CompetitionScope="ANNUAL_COMPETITION_PRACTICE",
+            CompetitionLevelCode=CompetitionLevelCode,
+        )
+        PracticePaperRecord = CompetitionEventLevelPaper(
+            event_id=EventId,
+            competition_level_code=CompetitionLevelCode,
+            mock_exam_id=ExamPayload["mockExamId"],
+            paper_kind="PRACTICE",
+            assigned_student_id=StudentRecord.id,
+            assigned_by_user_id=AssignedBy.id if AssignedBy else None,
+            assigned_at=NowUtc,
+        )
+        db.add(PracticePaperRecord)
+        db.flush()
+        _SeedDefaultSectionTimers(db, PracticePaperRecord)
+        db.flush()  # section timer rows must be visible to _RecomputeLevelPaperStatus's query
+        _RecomputeLevelPaperStatus(db, PracticePaperRecord)
+        CreatedPapers.append(PracticePaperRecord)
+
+    db.commit()
+    for PracticePaperRecord in CreatedPapers:
+        db.refresh(PracticePaperRecord)
+
+    return {
+        "eventId": EventId,
+        "competitionLevelCode": CompetitionLevelCode,
+        "studentId": StudentRecord.id,
+        "studentCode": StudentRecord.student_code,
+        "quantityAssigned": Quantity,
+        "levelPapers": [_LevelPaperPayload(db, PracticePaperRecord) for PracticePaperRecord in CreatedPapers],
+    }
+
+
+def ListMyAnnualCompetitionPracticeScopes(db: Session, StudentRecord: Student) -> dict[str, Any]:
+    """Student-facing discovery endpoint (Shailesh's Phase G correction,
+    2026-09-11): "the students should be able to practice any paper even if
+    they do not have any official competition attempts, that is the whole
+    point of this entire practice feature." The original Phase G student
+    frontend scoped the Practice tab off the student's OFFICIAL assignments
+    (there was no other list to scope it by), which meant a student with
+    practice papers batch-assigned but no official CompetitionEventAssignment
+    saw nothing -- confirmed as a real gap, not hypothetical, since
+    BatchAssignAnnualCompetitionPracticePapers has no dependency on an
+    official assignment existing (StudentId + CompetitionLevelCode is
+    enough). This function is the fix: it answers "which event+level combos
+    do I have ANY practice papers for," independent of official assignment,
+    so the frontend can enumerate practice panels correctly. Grouped by
+    (event_id, competition_level_code) -- one row per distinct scope, not
+    one row per paper (GetAnnualCompetitionPracticeBankForStudent below
+    stays the per-paper detail view once a scope is known).
+    """
+    Rows = (
+        db.query(CompetitionEventLevelPaper)
+        .filter(
+            CompetitionEventLevelPaper.paper_kind == "PRACTICE",
+            CompetitionEventLevelPaper.assigned_student_id == StudentRecord.id,
+        )
+        .all()
+    )
+
+    ScopesByKey: dict[tuple[str, str], dict[str, Any]] = {}
+    EventNameCache: dict[str, CompetitionEvent | None] = {}
+    for PaperRecord in Rows:
+        Key = (PaperRecord.event_id, PaperRecord.competition_level_code)
+        if Key not in ScopesByKey:
+            if PaperRecord.event_id not in EventNameCache:
+                EventNameCache[PaperRecord.event_id] = db.get(CompetitionEvent, PaperRecord.event_id)
+            EventRecord = EventNameCache[PaperRecord.event_id]
+            ScopesByKey[Key] = {
+                "eventId": PaperRecord.event_id,
+                "eventName": EventRecord.name if EventRecord else None,
+                "competitionDate": EventRecord.competition_date.isoformat() if EventRecord and EventRecord.competition_date else None,
+                "competitionLevelCode": PaperRecord.competition_level_code,
+                "totalAssigned": 0,
+                "consumedCount": 0,
+            }
+        ScopesByKey[Key]["totalAssigned"] += 1
+        if PaperRecord.consumed_at is not None:
+            ScopesByKey[Key]["consumedCount"] += 1
+
+    Scopes = list(ScopesByKey.values())
+    for Scope in Scopes:
+        Scope["remainingCount"] = Scope["totalAssigned"] - Scope["consumedCount"]
+    # Stable, predictable ordering -- newest competition first, then level
+    # code ascending within the same event -- rather than dict-insertion
+    # order (which would depend on CompetitionEventLevelPaper's own row
+    # order, an implementation detail no client should rely on). Two
+    # stable sorts (secondary key first) rather than a single reverse=True
+    # tuple sort, since reversing the tuple would also reverse level code
+    # alphabetically, which is not the intent.
+    Scopes.sort(key=lambda S: S["competitionLevelCode"])
+    Scopes.sort(key=lambda S: S["competitionDate"] or "", reverse=True)
+
+    return {"scopes": Scopes}
+
+
+def GetAnnualCompetitionPracticeBankForStudent(
+    db: Session, *, EventId: str, StudentId: str, CompetitionLevelCode: str | None = None
+) -> dict[str, Any]:
+    """Admin's bank-status/history view: every practice paper ever assigned
+    to this student on this event (optionally scoped to one level),
+    consumed or not, oldest-assigned first -- so an admin can see at a
+    glance how many are left before deciding whether to top up the bank.
+    consumed_at (set by the practice attempt-submit flow, a later phase) is
+    the source of truth for "done"; this function only ever reads it, never
+    infers or recomputes it.
+    """
+    _GetEventOr404(db, EventId)
+    StudentRecord = _ResolveStudentByIdOrCode(db, StudentId)
+
+    Query = db.query(CompetitionEventLevelPaper).filter(
+        CompetitionEventLevelPaper.event_id == EventId,
+        CompetitionEventLevelPaper.paper_kind == "PRACTICE",
+        CompetitionEventLevelPaper.assigned_student_id == StudentRecord.id,
+    )
+    if CompetitionLevelCode:
+        Query = Query.filter(CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode)
+    PracticePapers = Query.order_by(CompetitionEventLevelPaper.assigned_at.asc()).all()
+
+    Rows: list[dict[str, Any]] = []
+    ConsumedCount = 0
+    for PaperRecord in PracticePapers:
+        IsConsumed = PaperRecord.consumed_at is not None
+        if IsConsumed:
+            ConsumedCount += 1
+        Rows.append(
+            {
+                "levelPaperId": PaperRecord.id,
+                "competitionLevelCode": PaperRecord.competition_level_code,
+                "status": PaperRecord.status,
+                "assignedAt": PaperRecord.assigned_at.isoformat() if PaperRecord.assigned_at else None,
+                "consumedAt": PaperRecord.consumed_at.isoformat() if PaperRecord.consumed_at else None,
+                "isConsumed": IsConsumed,
+            }
+        )
+
+    return {
+        "eventId": EventId,
+        "studentId": StudentRecord.id,
+        "studentCode": StudentRecord.student_code,
+        "competitionLevelCode": CompetitionLevelCode,
+        "totalAssigned": len(Rows),
+        "consumedCount": ConsumedCount,
+        "remainingCount": len(Rows) - ConsumedCount,
+        "papers": Rows,
     }
 
 

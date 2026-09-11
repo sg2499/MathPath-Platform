@@ -183,6 +183,72 @@ def test_pm_l1_round_hundreds_narrow_diversity_does_not_break_generation():
     assert len(signatures) == len(questions)
 
 
+def test_mm_l1_squares_cubes_roots_stay_within_moderated_magnitude():
+    """Regression guard for the 2026-09-11 difficulty-moderation pass
+    (Shailesh's "not too tough, standard/moderate" instruction).
+
+    Squares/Cubes/Square-Root/Cube-Root were originally staged to MM's
+    internal Band 5 (lesson 25) + CHALLENGE tier purely to clear a pool-size
+    floor (see annual_competition_paper_registry.py's own comment above
+    _MM_SQUARES_CUBES_POOL) -- not because the gist demands maximum
+    difficulty there. That combination pushed Squares' base numbers as high
+    as 900 and Cubes' as high as 160. The moderation dropped to Band 4
+    (lesson 20), which live-verified testing confirmed keeps every concept's
+    achievable-output headroom safely above the 25-per-concept floor. This
+    test locks in the moderated ceiling so a future edit cannot silently
+    push these sections back toward maximum difficulty without this test
+    failing first.
+    """
+    db = _session()
+    admin = _admin(db)
+    _module, level = _module_and_level(db, "MM", "MM-L1", "Master Module Level 1")
+    db.commit()
+
+    payload = GenerateAnnualCompetitionLevelPaper(db, LevelId=level.id, CreatedBy=admin)
+
+    import json
+    import re
+
+    # Pre-moderation (Band 5/lesson 25 + CHALLENGE) ceilings per concept,
+    # derived from mm/operands.py's own _SquareBaseRange/_CubeBaseRange/
+    # _SquareRootBaseRange/_CubeRootBaseRange band-5 CHALLENGE rows. Squares
+    # and Square Root have a clean, large before/after gap (moderation
+    # roughly halves their range); Cubes similarly. Cube Root's ceiling is
+    # capped near 99 at every band by the generator's own `min(Maximum, 99)`
+    # rule, so its before/after gap is small -- checked mainly as a no-blowup
+    # sanity guard, not a strong discriminator.
+    OLD_CEILINGS = {
+        "SQUARES": 900,            # was (400, 900)
+        "CUBES": 160,               # was (90, 160)
+        "SQUARE_ROOT": 450 ** 2,    # was base (220, 450) -> radicand up to 450**2
+        "CUBE_ROOT": 100 ** 3,      # was base capped ~99 -> radicand up to ~99**3
+    }
+
+    questions = (
+        db.query(CompetitionMockQuestion)
+        .filter(
+            CompetitionMockQuestion.mock_exam_id == payload["mockExamId"],
+            CompetitionMockQuestion.section_number.in_((5, 7)),
+        )
+        .all()
+    )
+    assert questions, "sections 5/7 (Squares/Cubes/Roots) produced no questions"
+    seen_families = set()
+    for question in questions:
+        ceiling = OLD_CEILINGS.get(question.concept_family)
+        assert ceiling is not None, f"unexpected concept_family {question.concept_family!r} in Squares/Cubes/Roots sections"
+        seen_families.add(question.concept_family)
+        max_operand = 0
+        for operand in json.loads(question.operands_json or "[]"):
+            for number in re.findall(r"\d+", str(operand)):
+                max_operand = max(max_operand, int(number))
+        assert max_operand < ceiling, (
+            f"{question.concept_family}: operand {max_operand} did not drop below the "
+            f"pre-moderation ceiling {ceiling} -- difficulty moderation may have regressed"
+        )
+    assert seen_families == set(OLD_CEILINGS)
+
+
 def test_registry_has_no_entry_for_non_competition_levels():
     assert GetAnnualCompetitionLevelConfig("BM-L1") is None
     assert GetAnnualCompetitionLevelConfig("NOT-A-REAL-CODE") is None

@@ -12,6 +12,8 @@ item 3 ("Teacher role has no write path here").
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -112,11 +114,17 @@ def _assignment(db, event_id, student_id, assigned_level_code, assignment_id="as
 
 
 def _level_paper_with_timers(db, event_id, level_code, mock_exam_id, section_seconds, level_paper_id="paper-1"):
-    # (event_id, competition_level_code) is unique -- when two students on
-    # the same event share a level_code (the "shared paper" case), reuse
-    # the existing level paper instead of trying to insert a second one,
-    # same existence-check pattern test_annual_competition_scoring_service.py
-    # already uses for its own shared-paper ranking tests.
+    # One OFFICIAL paper per (event_id, competition_level_code) -- when two
+    # students on the same event share a level_code (the "shared paper"
+    # case), reuse the existing level paper instead of trying to insert a
+    # second one, same existence-check pattern test_annual_competition_
+    # scoring_service.py already uses for its own shared-paper ranking
+    # tests. This used to be a DB-level UniqueConstraint; since the
+    # Competition Practice feature's Phase A it's an application-level
+    # guarantee instead (a practice bank needs many PRACTICE-kind rows per
+    # event+level -- see CompetitionEventLevelPaper's own docstring in
+    # models.py), which is exactly what this existence check already
+    # provides for every OFFICIAL-paper fixture in this file.
     p = (
         db.query(CompetitionEventLevelPaper)
         .filter(CompetitionEventLevelPaper.event_id == event_id, CompetitionEventLevelPaper.competition_level_code == level_code)
@@ -372,6 +380,181 @@ def test_roster_results_empty_filter_short_circuits():
 
 
 # ---------------------------------------------------------------------------
+# Phase B (Competition Practice feature): both concerns in this module are
+# built by traversing CompetitionEventAssignment -> its latest attempt
+# (_LatestAttemptForAssignment filters CompetitionEventAttempt.assignment_id
+# == AssignmentRecord.id). A PRACTICE attempt always has assignment_id=None
+# (see that column's own docstring in models.py -- practice access is
+# granted via a bank of level papers, not the permanent OFFICIAL
+# assignment), so it can never match that filter -- this module needs no
+# explicit attempt_type guard at all, unlike the scoring/certificate
+# services, which read CompetitionEventResult directly by event_id. These
+# tests confirm that's actually true, not just true by argument: a practice
+# attempt/result is planted for the SAME student who also has a real
+# OFFICIAL assignment, so a leak would be unambiguous (the student would
+# show up with attempt data despite never touching their official
+# assignment).
+# ---------------------------------------------------------------------------
+
+def _practice_attempt_with_result(db, student_id, event_id, level_code="PM-L2"):
+    practice_paper = CompetitionEventLevelPaper(
+        id=f"practice-paper-{student_id}", event_id=event_id, competition_level_code=level_code,
+        paper_kind="PRACTICE", status="READY", assigned_student_id=student_id,
+    )
+    db.add(practice_paper)
+    db.flush()
+    attempt = CompetitionEventAttempt(
+        id=f"practice-attempt-{student_id}", event_id=event_id, assignment_id=None,
+        level_paper_id=practice_paper.id, student_id=student_id, attempt_number=1,
+        attempt_type="PRACTICE", status="FINALIZED",
+        started_at=datetime.now(timezone.utc), submitted_at=datetime.now(timezone.utc),
+    )
+    db.add(attempt)
+    db.flush()
+    result = CompetitionEventResult(
+        id=f"practice-result-{student_id}", attempt_id=attempt.id, event_id=event_id, assignment_id=None,
+        student_id=student_id, attempt_type="PRACTICE", competition_level_code=level_code,
+        score=1, max_score=1, percentage=100, accuracy_percentage=100,
+        correct_count=1, wrong_count=0, unanswered_count=0, time_taken_seconds=30,
+        is_released=True,
+    )
+    db.add(result)
+    db.commit()
+    return attempt, result
+
+
+def test_live_monitoring_never_shows_a_practice_attempt():
+    db = _session()
+    student, event = _full_setup(db)  # OFFICIAL assignment, no attempt started yet
+    _practice_attempt_with_result(db, student.id, event.id)
+
+    result = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event.id)
+
+    assert result["summary"]["totalCount"] == 1  # one assignment, not one-per-attempt
+    row = result["rows"][0]
+    assert row["studentId"] == student.id
+    assert row["liveStatus"] == "NOT_STARTED"  # never picked up the FINALIZED practice attempt
+    assert row["attemptId"] is None
+
+
+def test_roster_results_never_shows_a_practice_result():
+    db = _session()
+    student, event = _full_setup(db)
+    _practice_attempt_with_result(db, student.id, event.id)
+
+    result = engine.ListAnnualCompetitionResultsForRoster(db, EventId=event.id, StudentIdsFilter=[student.id])
+
+    assert result["totalResults"] == 1
+    row = result["rows"][0]
+    assert row["released"] is False  # not "released" -- simply never found (NOT_STARTED)
+    assert row["result"] is None
+    assert row["attemptStatus"] == "NOT_STARTED"
+
+
+# ---------------------------------------------------------------------------
+# Practice's own teacher-facing results surface (Phase E) --
+# ListAnnualCompetitionPracticeResultsForRoster. Deliberately scoped off
+# CompetitionEventResult directly rather than CompetitionEventAssignment,
+# since practice has none -- see that function's own docstring.
+# ---------------------------------------------------------------------------
+
+def test_practice_roster_results_surfaces_a_practice_result_for_a_rostered_student():
+    db = _session()
+    student, event = _full_setup(db)
+    _practice_attempt_with_result(db, student.id, event.id)
+
+    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, EventId=event.id, StudentIdsFilter=[student.id])
+
+    assert result["totalResults"] == 1
+    row = result["rows"][0]
+    assert row["studentId"] == student.id
+    assert row["competitionLevelCode"] == "PM-L2"
+    assert row["correctCount"] == 1
+    assert row["attemptId"] == f"practice-attempt-{student.id}"
+
+
+def test_practice_roster_results_excludes_a_student_outside_the_roster():
+    db = _session()
+    student, event = _full_setup(db)
+    _practice_attempt_with_result(db, student.id, event.id)
+    other_student = _student(db, sid="student-2")
+    db.commit()
+
+    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, EventId=event.id, StudentIdsFilter=[other_student.id])
+    assert result["totalResults"] == 0
+
+
+def test_practice_roster_results_empty_filter_short_circuits_without_a_query():
+    db = _session()
+    student, event = _full_setup(db)
+    _practice_attempt_with_result(db, student.id, event.id)
+
+    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, EventId=event.id, StudentIdsFilter=[])
+    assert result["totalResults"] == 0
+    assert result["rows"] == []
+
+
+def test_practice_roster_results_filters_by_level_code():
+    db = _session()
+    student, event = _full_setup(db)
+    _practice_attempt_with_result(db, student.id, event.id, level_code="PM-L2")
+
+    matching = engine.ListAnnualCompetitionPracticeResultsForRoster(
+        db, EventId=event.id, StudentIdsFilter=[student.id], CompetitionLevelCode="PM-L2"
+    )
+    assert matching["totalResults"] == 1
+
+    non_matching = engine.ListAnnualCompetitionPracticeResultsForRoster(
+        db, EventId=event.id, StudentIdsFilter=[student.id], CompetitionLevelCode="IM-L1"
+    )
+    assert non_matching["totalResults"] == 0
+
+
+def test_practice_roster_results_lists_every_result_for_a_student_not_just_the_latest():
+    """Unlike OFFICIAL's one-row-per-assignment shape, a student can have
+    MANY practice results for one event (one per consumed bank paper) --
+    all of them must show up here, not just the most recent."""
+    db = _session()
+    student, event = _full_setup(db)
+    _practice_attempt_with_result(db, student.id, event.id)
+    # A second practice paper/attempt/result for the SAME student+event.
+    second_paper = CompetitionEventLevelPaper(
+        id="practice-paper-2", event_id=event.id, competition_level_code="PM-L2",
+        paper_kind="PRACTICE", status="READY", assigned_student_id=student.id,
+    )
+    db.add(second_paper)
+    db.flush()
+    second_attempt = CompetitionEventAttempt(
+        id="practice-attempt-2", event_id=event.id, assignment_id=None,
+        level_paper_id=second_paper.id, student_id=student.id, attempt_number=1,
+        attempt_type="PRACTICE", status="FINALIZED",
+        started_at=datetime.now(timezone.utc), submitted_at=datetime.now(timezone.utc),
+    )
+    db.add(second_attempt)
+    db.flush()
+    second_result = CompetitionEventResult(
+        id="practice-result-2", attempt_id=second_attempt.id, event_id=event.id, assignment_id=None,
+        student_id=student.id, attempt_type="PRACTICE", competition_level_code="PM-L2",
+        score=1, max_score=2, percentage=50, accuracy_percentage=50,
+        correct_count=1, wrong_count=1, unanswered_count=0, time_taken_seconds=45,
+        is_released=True,
+    )
+    db.add(second_result)
+    db.commit()
+
+    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, EventId=event.id, StudentIdsFilter=[student.id])
+    assert result["totalResults"] == 2
+    attempt_ids = {row["attemptId"] for row in result["rows"]}
+    assert attempt_ids == {f"practice-attempt-{student.id}", "practice-attempt-2"}
+
+
+def test_practice_roster_results_unknown_event_is_404():
+    db = _session()
+    with pytest.raises(HTTPException):
+        engine.ListAnnualCompetitionPracticeResultsForRoster(db, EventId="does-not-exist", StudentIdsFilter=["s1"])
+
+
+# ---------------------------------------------------------------------------
 # Event picker
 # ---------------------------------------------------------------------------
 
@@ -393,9 +576,13 @@ def test_non_draft_events_excludes_draft():
 # ---------------------------------------------------------------------------
 
 def test_teacher_annual_competition_routes_are_all_get_only():
+    """2026-09-11 (Shailesh, Competition Practice feature, Phase E): count
+    bumped 3 -> 4 for the new /practice-results route
+    (ListAnnualCompetitionPracticeResultsForRoster) -- still GET-only, same
+    read-only guarantee, just one more surface."""
     from app.api.routes_teacher import router as teacher_router
 
     annual_routes = [r for r in teacher_router.routes if "/competition/annual" in getattr(r, "path", "")]
-    assert len(annual_routes) == 3, "expected exactly the 3 new pkg-07 teacher routes"
+    assert len(annual_routes) == 4, "expected exactly the 4 pkg-07/Phase E teacher routes"
     for route in annual_routes:
         assert route.methods == {"GET"}, f"{route.path} must be GET-only -- teacher has no write path here"

@@ -115,6 +115,8 @@ from app.services.annual_competition_studio_service import (
     OverrideCompetitionEventAssignment,
     SuspendCompetitionEvent,
     LiftCompetitionEventSuspension,
+    BatchAssignAnnualCompetitionPracticePapers,
+    GetAnnualCompetitionPracticeBankForStudent,
 )
 
 from app.services.annual_competition_attempt_service import (
@@ -131,6 +133,7 @@ from app.services.annual_competition_scoring_service import (
     VoidCompetitionEventResult,
     UnvoidCompetitionEventResult,
     RecomputeAnnualCompetitionResults,
+    ListAnnualCompetitionPracticeResultsForAdmin,
 )
 
 from app.services.annual_competition_certificate_service import (
@@ -235,6 +238,11 @@ class AnnualCompetitionSuspendEventRequest(BaseModel):
 
 class AnnualCompetitionVoidResultRequest(BaseModel):
     reason: str
+
+class AnnualCompetitionPracticeBatchAssignRequest(BaseModel):
+    studentId: str
+    competitionLevelCode: str
+    quantity: int
 
 
 def _admin_natural_sort_key(value: Any) -> list[Any]:
@@ -6041,6 +6049,37 @@ def admin_override_annual_competition_assignment(
     )
 
 
+# --- Annual Competition (Competition Practice feature, Phase C): admin
+# batch-assigns a bank of freshly generated practice papers to one student
+# at a time. See BatchAssignAnnualCompetitionPracticePapers's own docstring
+# in annual_competition_studio_service.py for the full design.
+@router.post("/annual-competition/events/{event_id}/practice-bank/assign")
+def admin_batch_assign_annual_competition_practice_papers(
+    event_id: str, payload: AnnualCompetitionPracticeBatchAssignRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return BatchAssignAnnualCompetitionPracticePapers(
+        db,
+        EventId=event_id,
+        CompetitionLevelCode=payload.competitionLevelCode,
+        StudentId=payload.studentId,
+        Quantity=payload.quantity,
+        AssignedBy=user,
+    )
+
+
+@router.get("/annual-competition/events/{event_id}/practice-bank")
+def admin_get_annual_competition_practice_bank(
+    event_id: str,
+    studentId: str,
+    competitionLevelCode: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return GetAnnualCompetitionPracticeBankForStudent(
+        db, EventId=event_id, StudentId=studentId, CompetitionLevelCode=competitionLevelCode
+    )
+
+
 # --- Annual Competition (Package 4): section-timer + pause engine ----------
 # See backend/app/services/annual_competition_attempt_service.py. The
 # reconciliation sweep is the only Package 4 surface an admin ever calls
@@ -6089,6 +6128,23 @@ def admin_list_annual_competition_results(
     event_id: str, competitionLevelCode: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)
 ):
     return ListCompetitionEventResultsForAdmin(db, EventId=event_id, CompetitionLevelCode=competitionLevelCode)
+
+
+# Phase E: practice's own results surface -- deliberately separate from the
+# OFFICIAL list just above (see ListAnnualCompetitionPracticeResultsForAdmin's
+# own docstring). Not ranked, always released -- optional studentId narrows
+# to one student's own practice history.
+@router.get("/annual-competition/events/{event_id}/practice-results")
+def admin_list_annual_competition_practice_results(
+    event_id: str,
+    competitionLevelCode: str | None = None,
+    studentId: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return ListAnnualCompetitionPracticeResultsForAdmin(
+        db, EventId=event_id, CompetitionLevelCode=competitionLevelCode, StudentId=studentId
+    )
 
 
 @router.post("/annual-competition/events/{event_id}/results/rank")

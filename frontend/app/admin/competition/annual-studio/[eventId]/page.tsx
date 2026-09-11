@@ -9,14 +9,18 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
   ANNUAL_COMPETITION_LEVEL_CODES,
+  PRACTICE_BATCH_QUANTITY_OPTIONS,
+  batchAssignAnnualCompetitionPracticePapers,
   createAnnualCompetitionSlot,
   downloadAnnualCompetitionCertificate,
   generateAnnualCompetitionLevelPaper,
   getAnnualCompetitionEventOverview,
   getAnnualCompetitionLiveMonitoring,
+  getAnnualCompetitionPracticeBank,
   grantAnnualCompetitionAttemptRetry,
   linkAnnualCompetitionLevelPaper,
   listAnnualCompetitionAttemptRetryGrants,
+  listAnnualCompetitionPracticeResults,
   listAnnualCompetitionResults,
   overrideAnnualCompetitionAssignment,
   previewAnnualCompetitionAssignments,
@@ -31,6 +35,7 @@ import {
   type AnnualCompetitionAssignmentPreviewRow,
   type AnnualCompetitionLevelPaper,
   type AnnualCompetitionLiveMonitoringRow,
+  type AnnualCompetitionPracticeResultRow,
   type AnnualCompetitionResultRow,
   type AnnualCompetitionSlot,
 } from "@/lib/api/admin";
@@ -133,7 +138,15 @@ function ToLocalInputValue(IsoValue: string | null): string {
   return `${D.getFullYear()}-${Pad(D.getMonth() + 1)}-${Pad(D.getDate())}T${Pad(D.getHours())}:${Pad(D.getMinutes())}`;
 }
 
-const TabList = ["SLOTS", "PAPERS", "ASSIGNMENTS", "MONITORING", "RESULTS"] as const;
+// Phase F (Competition Practice, admin Studio frontend): PRACTICE is the
+// Official/Practice switcher itself -- rather than a toggle nested inside
+// an existing tab, practice gets its own top-level tab here, matching this
+// page's own existing pattern of one tab per concern (ASSIGNMENTS vs.
+// MONITORING vs. RESULTS are already separate tabs, never merged with a
+// switch). RESULTS stays exactly as it was (OFFICIAL-only, never mixed
+// with practice -- see ListAnnualCompetitionPracticeResultsForAdmin's own
+// backend docstring).
+const TabList = ["SLOTS", "PAPERS", "ASSIGNMENTS", "MONITORING", "RESULTS", "PRACTICE"] as const;
 type TabKey = (typeof TabList)[number];
 const TabLabels: Record<TabKey, string> = {
   SLOTS: "Slots",
@@ -141,6 +154,7 @@ const TabLabels: Record<TabKey, string> = {
   ASSIGNMENTS: "Assignments",
   MONITORING: "Live Monitoring",
   RESULTS: "Results",
+  PRACTICE: "Practice",
 };
 
 const LiveStatusTone: Record<AnnualCompetitionLiveMonitoringRow["liveStatus"], string> = {
@@ -227,6 +241,18 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const [ResultsLevelFilter, SetResultsLevelFilter] = useState<string>("ALL");
   const [RankLevelCode, SetRankLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
 
+  // --- Practice (Phase F): batch-assign + bank lookup share one student/
+  // level context -- the natural admin workflow is "look up a student's
+  // bank, see it's running low, assign more for the same level" -- while
+  // PracticeBankLookup is only ever set by the explicit "View Bank" click
+  // below (never fired on every keystroke), same pattern as this page's
+  // other explicit-action lookups (Preview, Manual Override).
+  const [PracticeStudentId, SetPracticeStudentId] = useState("");
+  const [PracticeLevelCode, SetPracticeLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
+  const [PracticeQuantity, SetPracticeQuantity] = useState<number>(PRACTICE_BATCH_QUANTITY_OPTIONS[0]);
+  const [PracticeBankLookup, SetPracticeBankLookup] = useState<{ StudentId: string; LevelCode: string } | null>(null);
+  const [PracticeResultsLevelFilter, SetPracticeResultsLevelFilter] = useState<string>("ALL");
+
   const OverviewQuery = useQuery({
     queryKey: ["admin", "annual-competition", "overview", EventId],
     queryFn: () => getAnnualCompetitionEventOverview(EventId),
@@ -256,11 +282,28 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     enabled: Ready && Boolean(EventId) && ActiveTab === "RESULTS",
   });
 
+  const PracticeBankQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "practice-bank", EventId, PracticeBankLookup?.StudentId, PracticeBankLookup?.LevelCode],
+    queryFn: () => getAnnualCompetitionPracticeBank(EventId, PracticeBankLookup!.StudentId, PracticeBankLookup!.LevelCode),
+    enabled: Ready && Boolean(EventId) && ActiveTab === "PRACTICE" && Boolean(PracticeBankLookup),
+  });
+
+  const PracticeResultsQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "practice-results", EventId, PracticeResultsLevelFilter],
+    queryFn: () =>
+      listAnnualCompetitionPracticeResults(EventId, {
+        competitionLevelCode: PracticeResultsLevelFilter === "ALL" ? undefined : PracticeResultsLevelFilter,
+      }),
+    enabled: Ready && Boolean(EventId) && ActiveTab === "PRACTICE",
+  });
+
   const InvalidateOverview = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "overview", EventId] });
   const InvalidatePreview = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "preview", EventId] });
   const InvalidateEventsList = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "events"] });
   const InvalidateLiveMonitoring = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "monitoring-live", EventId] });
   const InvalidateResults = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "results", EventId] });
+  const InvalidatePracticeBank = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "practice-bank", EventId] });
+  const InvalidatePracticeResults = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "practice-results", EventId] });
 
   const SetLockedMutation = useMutation({
     mutationFn: (Status: string) => updateAnnualCompetitionEvent(EventId, { status: Status }),
@@ -454,6 +497,26 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     },
   });
 
+  // Phase F: generates Quantity fresh, always-different practice papers and
+  // adds them to PracticeStudentId's bank -- never touches or consumes any
+  // paper already there (safe to call repeatedly to top up). Automatically
+  // (re-)loads the bank view for the exact student+level just assigned, so
+  // an admin sees the new papers land without a second manual click.
+  const BatchAssignPracticeMutation = useMutation({
+    mutationFn: () =>
+      batchAssignAnnualCompetitionPracticePapers(EventId, {
+        studentId: PracticeStudentId.trim(),
+        competitionLevelCode: PracticeLevelCode,
+        quantity: PracticeQuantity,
+      }),
+    onSuccess: (Result) => {
+      SetLastMessage(`Assigned ${Result.quantityAssigned} practice paper${Result.quantityAssigned === 1 ? "" : "s"} of ${Result.competitionLevelCode} to ${Result.studentCode || Result.studentId}.`);
+      SetPracticeBankLookup({ StudentId: Result.studentId, LevelCode: Result.competitionLevelCode });
+      InvalidatePracticeBank();
+      InvalidatePracticeResults();
+    },
+  });
+
   // Point 10: which students already have an unused retry grant pending,
   // so the Results-table button can reflect that instead of letting an
   // admin fire a second grant into the "one already exists" 409 -- fetched
@@ -506,11 +569,13 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     ReleaseResultsMutation.error ||
     (ActiveTab === "MONITORING" ? LiveMonitoringQuery.error : null) ||
     (ActiveTab === "RESULTS" ? ResultsQuery.error : null) ||
+    (ActiveTab === "PRACTICE" ? PracticeBankQuery.error || PracticeResultsQuery.error : null) ||
     ReconcileMutation.error ||
     RankResultsMutation.error ||
     ReleaseResultsForLevelMutation.error ||
     CertificateMutation.error ||
     RecomputeResultsMutation.error ||
+    BatchAssignPracticeMutation.error ||
     RetryMutation.error;
 
   // Points 2 & 3: derived, client-side view of the preview table --
@@ -1453,6 +1518,181 @@ export default function AdminAnnualCompetitionEventDetailPage() {
               ) : (
                 <div className="mt-5">
                   <EmptyState title="No results computed yet" description="Results appear automatically once a student's last section closes -- nothing to review until then." />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {ActiveTab === "PRACTICE" && (
+          <div className="space-y-6">
+            <div className="math-card p-5">
+              <SectionTitle
+                icon={<Sparkles size={14} />}
+                kicker="Practice Bank"
+                title="Batch-Assign &amp; Look Up"
+                description="Generates fresh, always-different practice papers and adds them to one student's bank for a level -- safe to call repeatedly, it never touches or consumes a paper already there. Quantity must be a multiple of 5, up to 25 per batch."
+              />
+              <div className="mt-4 flex flex-wrap items-end gap-3">
+                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                  Student Code (or ID)
+                  <input
+                    value={PracticeStudentId}
+                    onChange={(EventValue) => SetPracticeStudentId(EventValue.target.value)}
+                    placeholder="e.g. MP-ST-005"
+                    className="math-input"
+                  />
+                </label>
+                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                  Level
+                  <select value={PracticeLevelCode} onChange={(EventValue) => SetPracticeLevelCode(EventValue.target.value)} className="math-input">
+                    {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                  Quantity
+                  <select
+                    value={PracticeQuantity}
+                    onChange={(EventValue) => SetPracticeQuantity(Number(EventValue.target.value))}
+                    className="math-input"
+                  >
+                    {PRACTICE_BATCH_QUANTITY_OPTIONS.map((Quantity) => (
+                      <option key={Quantity} value={Quantity}>{Quantity}</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  disabled={!PracticeStudentId.trim() || BatchAssignPracticeMutation.isPending}
+                  onClick={() => BatchAssignPracticeMutation.mutate()}
+                  className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <PlusCircle size={16} />
+                  {BatchAssignPracticeMutation.isPending ? "Assigning..." : `Assign ${PracticeQuantity}`}
+                </button>
+                <button
+                  type="button"
+                  disabled={!PracticeStudentId.trim()}
+                  onClick={() => SetPracticeBankLookup({ StudentId: PracticeStudentId.trim(), LevelCode: PracticeLevelCode })}
+                  className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950/60"
+                >
+                  <Search size={14} />
+                  View Bank
+                </button>
+              </div>
+
+              {PracticeBankLookup && (
+                <div className="mt-5">
+                  {PracticeBankQuery.isLoading ? (
+                    <LoadingState label="Loading bank..." />
+                  ) : PracticeBankQuery.data ? (
+                    <>
+                      <div className="flex flex-wrap gap-4 text-xs font-black text-slate-600 dark:text-slate-300">
+                        <span>{PracticeBankQuery.data.totalAssigned} assigned</span>
+                        <span className="text-emerald-600 dark:text-emerald-300">{PracticeBankQuery.data.remainingCount} remaining</span>
+                        <span className="text-slate-400">{PracticeBankQuery.data.consumedCount} consumed</span>
+                      </div>
+                      {PracticeBankQuery.data.papers.length > 0 ? (
+                        <div className="mt-3 overflow-x-auto">
+                          <table className="w-full min-w-[640px] text-left text-xs font-bold">
+                            <thead>
+                              <tr className="text-slate-500 dark:text-slate-400">
+                                <th className="px-2 py-1.5">Level</th>
+                                <th className="px-2 py-1.5">Assigned</th>
+                                <th className="px-2 py-1.5">Status</th>
+                                <th className="px-2 py-1.5">Consumed</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {PracticeBankQuery.data.papers.map((Paper) => (
+                                <tr key={Paper.levelPaperId} className="border-t border-[color:var(--mp-role-border)]">
+                                  <td className="px-2 py-2">{Paper.competitionLevelCode}</td>
+                                  <td className="px-2 py-2">{FormatDateTime(Paper.assignedAt)}</td>
+                                  <td className="px-2 py-2">
+                                    {Paper.isConsumed ? (
+                                      <span className="text-slate-400">Consumed</span>
+                                    ) : (
+                                      <span className="text-emerald-600 dark:text-emerald-300">Available</span>
+                                    )}
+                                  </td>
+                                  <td className="px-2 py-2">{FormatDateTime(Paper.consumedAt)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="mt-3">
+                          <EmptyState title="No practice papers assigned yet" description="Use Assign above to add this student's first batch for this level." />
+                        </div>
+                      )}
+                    </>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            <div className="math-card p-5">
+              <SectionTitle
+                icon={<Medal size={14} />}
+                kicker="Practice Results"
+                title="Recent Practice Activity"
+                description="Never ranked, and always released to the student the instant it's computed -- a separate surface from the OFFICIAL Rank & Release list on the Results tab, never mixed with it."
+              />
+              <div className="mt-4 flex flex-wrap items-end gap-3">
+                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                  Filter by Level
+                  <select value={PracticeResultsLevelFilter} onChange={(EventValue) => SetPracticeResultsLevelFilter(EventValue.target.value)} className="math-input">
+                    <option value="ALL">All Levels</option>
+                    {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {PracticeResultsQuery.isLoading ? (
+                <div className="mt-5"><LoadingState label="Loading practice results..." /></div>
+              ) : PracticeResultsQuery.data && PracticeResultsQuery.data.rows.length > 0 ? (
+                <div className="mt-5 overflow-x-auto">
+                  <table className="w-full min-w-[820px] text-left text-xs font-bold">
+                    <thead>
+                      <tr className="text-slate-500 dark:text-slate-400">
+                        <th className="px-2 py-1.5">Student</th>
+                        <th className="px-2 py-1.5">Level</th>
+                        <th className="px-2 py-1.5">Accuracy</th>
+                        <th className="px-2 py-1.5">Score</th>
+                        <th className="px-2 py-1.5">Time Taken</th>
+                        <th className="px-2 py-1.5">Attempt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {PracticeResultsQuery.data.rows.map((Row: AnnualCompetitionPracticeResultRow) => (
+                        <tr key={Row.resultId} className="border-t border-[color:var(--mp-role-border)]">
+                          <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                          <td className="px-2 py-2">{Row.competitionLevelCode}</td>
+                          <td className="px-2 py-2">{Row.accuracyPercentage}%</td>
+                          <td className="px-2 py-2">{Row.score}/{Row.maxScore}</td>
+                          <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
+                          <td className="px-2 py-2">
+                            <Link
+                              href={`/admin/competition/annual-result/${Row.attemptId}`}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+                            >
+                              <ClipboardList size={12} />
+                              View
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="mt-5">
+                  <EmptyState title="No practice activity yet" description="Practice results appear automatically once a student finishes a practice paper." />
                 </div>
               )}
             </div>

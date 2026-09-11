@@ -97,11 +97,11 @@ def _assignment(db, event_id, student_id, assigned_level_code, assignment_id="as
     return a
 
 
-def _level_paper_with_timers(db, event_id, level_code, mock_exam_id, section_seconds, level_paper_id="paper-1"):
+def _level_paper_with_timers(db, event_id, level_code, mock_exam_id, section_seconds, level_paper_id="paper-1", paper_kind="OFFICIAL"):
     """section_seconds: list of time_limit_seconds, one per section (1-indexed)."""
     p = CompetitionEventLevelPaper(
         id=level_paper_id, event_id=event_id, competition_level_code=level_code,
-        mock_exam_id=mock_exam_id, status="READY",
+        mock_exam_id=mock_exam_id, status="READY", paper_kind=paper_kind,
     )
     db.add(p)
     db.flush()
@@ -150,6 +150,26 @@ def test_start_creates_attempt_and_activates_first_section():
     assert section_2["remainingSeconds"] is None
 
 
+def test_start_payload_includes_competition_level_code():
+    """2026-09-11 (Shailesh, Competition Practice feature, Phase G):
+    regression test for the _AttemptPayload fix -- every attempt payload
+    (OFFICIAL here, PRACTICE in test_practice_start_payload_includes_
+    competition_level_code below) must expose competitionLevelCode so a
+    client can resume a PRACTICE attempt (StartAnnualCompetitionPractice
+    Attempt requires the level code even to resume) without an extra
+    round trip. Also checked via a plain get (not just start) to confirm
+    _AttemptPayload's lookup is exercised on every code path that funnels
+    through it, not just attempt creation."""
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,), level_code="PM-L2")
+
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+    assert started["competitionLevelCode"] == "PM-L2"
+
+    fetched = engine.GetCompetitionEventAttemptForStudent(db, student, started["attemptId"])
+    assert fetched["competitionLevelCode"] == "PM-L2"
+
+
 def test_start_without_assignment_is_404():
     db = _session()
     student = _student(db)
@@ -167,6 +187,32 @@ def test_start_without_ready_level_paper_is_400():
     db.commit()
     with pytest.raises(HTTPException):
         engine.StartCompetitionEventAttempt(db, student, event.id)
+
+
+def test_start_resolves_to_official_paper_even_when_a_practice_bank_paper_exists():
+    """2026-09-11 (Shailesh, Competition Practice feature, Phase B):
+    _BuildFreshAttempt's level-paper lookup now filters paper_kind ==
+    "OFFICIAL" -- confirms a coexisting PRACTICE-kind bank paper for the
+    exact same event+level (deliberately given a different, shorter
+    section duration here) is never picked up for an OFFICIAL attempt."""
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,), level_code="PM-L2")  # OFFICIAL: 600s section
+    level = db.query(Level).filter_by(level_code="PM-L2").one()
+    module = db.query(Module).filter_by(module_code="PM").one()
+    practice_exam = _mock_exam(db, level.id, module.id, exam_id="practice-exam-1")
+    _level_paper_with_timers(
+        db, event.id, "PM-L2", practice_exam.id, [60], level_paper_id="practice-paper-1", paper_kind="PRACTICE",
+    )
+    db.commit()
+
+    started = engine.StartCompetitionEventAttempt(db, student, event.id)
+
+    attempt = db.get(CompetitionEventAttempt, started["attemptId"])
+    official_paper = db.query(CompetitionEventLevelPaper).filter_by(event_id=event.id, paper_kind="OFFICIAL").one()
+    assert attempt.level_paper_id == official_paper.id
+    assert attempt.level_paper_id != "practice-paper-1"
+    active_section = db.query(CompetitionEventAttemptSectionState).filter_by(attempt_id=attempt.id, section_number=1).one()
+    assert active_section.time_limit_seconds == 600  # the OFFICIAL section duration, not practice's 60
 
 
 # ---------------------------------------------------------------------------
@@ -657,6 +703,24 @@ def test_instructions_show_default_copy_with_no_retry_grant():
     assert "You get one attempt at this competition." in instructions["instructions"]
 
 
+def test_instructions_resolve_to_official_paper_even_when_a_practice_bank_paper_exists():
+    """Same paper_kind == "OFFICIAL" guard as _BuildFreshAttempt's own,
+    applied to the pre-attempt instructions screen (see that function's
+    identical lookup in GetCompetitionEventInstructions)."""
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,), level_code="PM-L2")  # OFFICIAL: 600s section
+    level = db.query(Level).filter_by(level_code="PM-L2").one()
+    module = db.query(Module).filter_by(module_code="PM").one()
+    practice_exam = _mock_exam(db, level.id, module.id, exam_id="practice-exam-1")
+    _level_paper_with_timers(
+        db, event.id, "PM-L2", practice_exam.id, [60], level_paper_id="practice-paper-1", paper_kind="PRACTICE",
+    )
+    db.commit()
+
+    instructions = engine.GetCompetitionEventInstructions(db, student, event.id)
+    assert instructions["sections"][0]["timeLimitSeconds"] == 600  # OFFICIAL, not practice's 60
+
+
 def test_granted_retry_is_consumed_and_not_reusable_for_a_third_attempt():
     db = _session()
     student, event = _full_setup(db, section_seconds=(600,))
@@ -684,3 +748,381 @@ def test_cannot_grant_a_second_retry_while_one_is_still_unused():
 
     with pytest.raises(HTTPException):
         engine.GrantAnnualCompetitionAttemptRetry(db, AttemptId=started["attemptId"], GrantedBy=admin, Reason="Second reason.")
+
+
+# ---------------------------------------------------------------------------
+# Competition Practice (Phase D) -- StartAnnualCompetitionPracticeAttempt's
+# own start/resume flow, and the shared mid-attempt engine's zero-change
+# reuse for a PRACTICE attempt. See _BuildFreshPracticeAttempt's and
+# StartAnnualCompetitionPracticeAttempt's own docstrings in
+# annual_competition_attempt_service.py for the full design rationale --
+# no assignment, no slot, never blocked by event-COMPLETED, no-retake
+# enforced by construction (a consumed bank paper is simply never
+# returned again) rather than a separate runtime check.
+# ---------------------------------------------------------------------------
+
+def _practice_bank_paper(db, event_id, level_code, mock_exam_id, section_seconds, student_id, level_paper_id="practice-paper-1", assigned_at=None):
+    """Practice sibling of _level_paper_with_timers above: paper_kind
+    "PRACTICE", assigned to one specific student, consumed_at left NULL
+    (unconsumed -- eligible for the bank query)."""
+    p = CompetitionEventLevelPaper(
+        id=level_paper_id, event_id=event_id, competition_level_code=level_code,
+        mock_exam_id=mock_exam_id, status="READY", paper_kind="PRACTICE",
+        assigned_student_id=student_id, assigned_at=assigned_at or datetime.now(timezone.utc),
+    )
+    db.add(p)
+    db.flush()
+    for i, seconds in enumerate(section_seconds, start=1):
+        t = CompetitionEventSectionTimer(
+            id=f"{level_paper_id}-timer-{i}", level_paper_id=p.id, section_number=i,
+            section_title=f"Section {i}", mode="MIXED", time_limit_seconds=seconds, display_order=i,
+        )
+        db.add(t)
+    db.flush()
+    return p
+
+
+def test_practice_start_pulls_oldest_unconsumed_bank_paper():
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam_old = _mock_exam(db, l.id, m.id, exam_id="exam-old")
+    exam_new = _mock_exam(db, l.id, m.id, exam_id="exam-new")
+    _practice_bank_paper(
+        db, event.id, "PM-L2", exam_old.id, [300], student.id,
+        level_paper_id="practice-old", assigned_at=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+    _practice_bank_paper(
+        db, event.id, "PM-L2", exam_new.id, [300], student.id,
+        level_paper_id="practice-new", assigned_at=datetime.now(timezone.utc),
+    )
+    db.commit()
+
+    result = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+
+    attempt = db.get(CompetitionEventAttempt, result["attemptId"])
+    assert attempt.level_paper_id == "practice-old"
+
+
+def test_practice_start_creates_attempt_with_correct_shape():
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id, exam_id="exam-practice")
+    _practice_bank_paper(db, event.id, "PM-L2", exam.id, [300, 180], student.id)
+    db.commit()
+
+    result = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+
+    assert result["attemptType"] == "PRACTICE"
+    assert result["status"] == "IN_PROGRESS"
+    assert result["currentSectionNumber"] == 1
+    assert result["sessionToken"]
+    assert len(result["sections"]) == 2
+    assert result["sections"][0]["status"] == "ACTIVE"
+    assert result["sections"][0]["remainingSeconds"] == 300
+    assert result["sections"][1]["status"] == "PENDING"
+
+    attempt = db.get(CompetitionEventAttempt, result["attemptId"])
+    assert attempt.assignment_id is None
+    assert attempt.attempt_number == 1
+
+
+def test_practice_start_payload_includes_competition_level_code():
+    """2026-09-11 (Shailesh, Competition Practice feature, Phase G): the
+    PRACTICE counterpart of test_start_payload_includes_competition_level_
+    code above -- this is the case that actually matters, since
+    StartAnnualCompetitionPracticeAttempt requires CompetitionLevelCode as
+    an argument even to resume, so the client needs this field back from
+    the very first PRACTICE payload it ever sees."""
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id, exam_id="exam-practice-code-check")
+    _practice_bank_paper(db, event.id, "PM-L2", exam.id, [300], student.id)
+    db.commit()
+
+    result = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    assert result["competitionLevelCode"] == "PM-L2"
+
+    fetched = engine.GetCompetitionEventAttemptForStudent(db, student, result["attemptId"])
+    assert fetched["competitionLevelCode"] == "PM-L2"
+
+
+def test_practice_start_resumes_in_progress_attempt_instead_of_pulling_new_paper():
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam_1 = _mock_exam(db, l.id, m.id, exam_id="exam-1")
+    exam_2 = _mock_exam(db, l.id, m.id, exam_id="exam-2")
+    _practice_bank_paper(db, event.id, "PM-L2", exam_1.id, [300], student.id, level_paper_id="practice-1")
+    _practice_bank_paper(
+        db, event.id, "PM-L2", exam_2.id, [300], student.id,
+        level_paper_id="practice-2", assigned_at=datetime.now(timezone.utc) + timedelta(minutes=1),
+    )
+    db.commit()
+
+    first = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    second = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+
+    assert first["attemptId"] == second["attemptId"]
+    assert first["sessionToken"] != second["sessionToken"]
+
+    # The old token is stale now, same "resume here" remediation OFFICIAL uses.
+    with pytest.raises(HTTPException):
+        engine.RecordCompetitionEventHeartbeat(db, student, first["attemptId"], first["sessionToken"], 1)
+
+    # The second (newer) bank paper was never touched by any of this.
+    still_unused = db.get(CompetitionEventLevelPaper, "practice-2")
+    assert still_unused.consumed_at is None
+    assert db.query(CompetitionEventAttempt).filter_by(level_paper_id="practice-2").count() == 0
+
+
+def test_practice_start_empty_bank_is_404():
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    _module_and_level(db, level_code="PM-L2")
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail["code"] == "COMPETITION_PRACTICE_BANK_EMPTY"
+
+
+def test_practice_start_unknown_event_is_404():
+    db = _session()
+    student = _student(db)
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        engine.StartAnnualCompetitionPracticeAttempt(db, student, "does-not-exist", "PM-L2")
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail["code"] == "COMPETITION_EVENT_NOT_FOUND"
+
+
+def test_practice_start_rejected_when_event_suspended():
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id)
+    _practice_bank_paper(db, event.id, "PM-L2", exam.id, [300], student.id)
+    event.attempts_suspended_at = datetime.now(timezone.utc)
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    assert exc_info.value.detail["code"] == "COMPETITION_EVENT_SUSPENDED"
+
+
+def test_practice_start_allowed_even_when_event_completed():
+    """The key official/practice differentiator this phase's design turns
+    on: _CheckEventNotCompleted is deliberately never called from
+    StartAnnualCompetitionPracticeAttempt (Shailesh: "the students can
+    attempt the practice papers anytime") -- unlike OFFICIAL's own
+    StartCompetitionEventAttempt, which _CheckEventNotCompleted actively
+    blocks once status flips to COMPLETED."""
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    event.status = "COMPLETED"
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id)
+    _practice_bank_paper(db, event.id, "PM-L2", exam.id, [300], student.id)
+    db.commit()
+
+    result = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    assert result["status"] == "IN_PROGRESS"
+
+
+def test_grant_retry_rejected_for_practice_attempt():
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id)
+    _practice_bank_paper(db, event.id, "PM-L2", exam.id, [300], student.id)
+    db.commit()
+    started = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    engine.SubmitCompetitionEventSection(db, student, started["attemptId"], started["sessionToken"], 1)
+    admin = _admin_user(db)
+
+    with pytest.raises(HTTPException) as exc_info:
+        engine.GrantAnnualCompetitionAttemptRetry(db, AttemptId=started["attemptId"], GrantedBy=admin, Reason="Any reason.")
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail["code"] == "COMPETITION_RETRY_NOT_APPLICABLE_TO_PRACTICE"
+
+
+def test_practice_attempt_shares_heartbeat_save_and_get_routes_unchanged():
+    """Regression proof: the mid-attempt engine (get/heartbeat/submit-
+    section) is purely AttemptId-keyed and needed zero code changes for
+    Phase D -- confirmed here by driving a full two-section practice
+    attempt through exactly the same functions the OFFICIAL tests above
+    use, start to finalize."""
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id)
+    _practice_bank_paper(db, event.id, "PM-L2", exam.id, [600, 300], student.id)
+    db.commit()
+
+    started = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+
+    fetched = engine.GetCompetitionEventAttemptForStudent(db, student, attempt_id)
+    assert fetched["attemptType"] == "PRACTICE"
+
+    heartbeat = engine.RecordCompetitionEventHeartbeat(db, student, attempt_id, token, 1)
+    assert heartbeat["status"] == "IN_PROGRESS"
+
+    first_section = engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+    assert first_section["sections"][0]["status"] == "COMPLETED"
+    assert first_section["currentSectionNumber"] == 2
+
+    final = engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 2)
+    assert final["status"] == "FINALIZED"
+
+
+def test_practice_abandoned_in_progress_attempt_is_not_consumed_and_still_resumes():
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id)
+    _practice_bank_paper(db, event.id, "PM-L2", exam.id, [600], student.id, level_paper_id="practice-1")
+    db.commit()
+
+    started = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+
+    paper = db.get(CompetitionEventLevelPaper, "practice-1")
+    assert paper.consumed_at is None
+
+    resumed = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    assert resumed["attemptId"] == started["attemptId"]
+    assert resumed["status"] == "IN_PROGRESS"
+
+
+# ---------------------------------------------------------------------------
+# ListMyAnnualCompetitionPracticeAttempts (Phase E) -- the student-facing
+# "what have I already submitted, and how did I do" history list. Sibling
+# of GetAnnualCompetitionPracticeBankForStudent (Phase C, "how many are
+# left"), tested in test_annual_competition_studio_service.py.
+# ---------------------------------------------------------------------------
+
+def test_practice_history_lists_a_finalized_attempt_with_its_result():
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id)
+    _practice_bank_paper(db, event.id, "PM-L2", exam.id, [600], student.id, level_paper_id="practice-1")
+    db.commit()
+
+    started = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    engine.SubmitCompetitionEventSection(db, student, started["attemptId"], started["sessionToken"], 1)
+
+    history = engine.ListMyAnnualCompetitionPracticeAttempts(db, student, event.id)
+    assert history["totalAttempts"] == 1
+    row = history["attempts"][0]
+    assert row["attemptId"] == started["attemptId"]
+    assert row["competitionLevelCode"] == "PM-L2"
+    assert row["status"] == "FINALIZED"
+    assert row["result"] is not None  # zero graded questions here, but a result row still exists
+
+
+def test_practice_history_includes_a_still_in_progress_attempt():
+    """A resumable half-done paper shows up too -- not only finished ones."""
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id)
+    _practice_bank_paper(db, event.id, "PM-L2", exam.id, [600, 300], student.id, level_paper_id="practice-1")
+    db.commit()
+
+    started = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+
+    history = engine.ListMyAnnualCompetitionPracticeAttempts(db, student, event.id)
+    assert history["totalAttempts"] == 1
+    row = history["attempts"][0]
+    assert row["attemptId"] == started["attemptId"]
+    assert row["status"] == "IN_PROGRESS"
+    assert row["result"] is None
+
+
+def test_practice_history_lists_newest_attempt_first():
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam_1 = _mock_exam(db, l.id, m.id, exam_id="exam-1")
+    exam_2 = _mock_exam(db, l.id, m.id, exam_id="exam-2")
+    _practice_bank_paper(
+        db, event.id, "PM-L2", exam_1.id, [600], student.id,
+        level_paper_id="practice-1", assigned_at=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+    _practice_bank_paper(
+        db, event.id, "PM-L2", exam_2.id, [600], student.id,
+        level_paper_id="practice-2", assigned_at=datetime.now(timezone.utc),
+    )
+    db.commit()
+
+    first = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    engine.SubmitCompetitionEventSection(db, student, first["attemptId"], first["sessionToken"], 1)
+    second = engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+
+    history = engine.ListMyAnnualCompetitionPracticeAttempts(db, student, event.id)
+    assert history["totalAttempts"] == 2
+    assert history["attempts"][0]["attemptId"] == second["attemptId"]  # started later, listed first
+    assert history["attempts"][1]["attemptId"] == first["attemptId"]
+
+
+def test_practice_history_filters_by_level_code():
+    db = _session()
+    student = _student(db)
+    event = _event(db)
+    m1, l1 = _module_and_level(db, module_code="PM", level_code="PM-L2")
+    m2, l2 = _module_and_level(db, module_code="IM", level_code="IM-L1")
+    exam_1 = _mock_exam(db, l1.id, m1.id, exam_id="exam-pm")
+    exam_2 = _mock_exam(db, l2.id, m2.id, exam_id="exam-im")
+    _practice_bank_paper(db, event.id, "PM-L2", exam_1.id, [600], student.id, level_paper_id="practice-pm")
+    _practice_bank_paper(db, event.id, "IM-L1", exam_2.id, [600], student.id, level_paper_id="practice-im")
+    db.commit()
+
+    engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "IM-L1")
+
+    pm_only = engine.ListMyAnnualCompetitionPracticeAttempts(db, student, event.id, CompetitionLevelCode="PM-L2")
+    assert pm_only["totalAttempts"] == 1
+    assert pm_only["attempts"][0]["competitionLevelCode"] == "PM-L2"
+
+
+def test_practice_history_never_shows_another_students_attempt():
+    db = _session()
+    student = _student(db)
+    other_student = _student(db, sid="student-2")
+    event = _event(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id)
+    _practice_bank_paper(db, event.id, "PM-L2", exam.id, [600], student.id, level_paper_id="practice-1")
+    db.commit()
+    engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+
+    history = engine.ListMyAnnualCompetitionPracticeAttempts(db, other_student, event.id)
+    assert history["totalAttempts"] == 0
+
+
+def test_practice_history_unknown_event_is_404():
+    db = _session()
+    student = _student(db)
+    db.commit()
+    with pytest.raises(HTTPException) as exc_info:
+        engine.ListMyAnnualCompetitionPracticeAttempts(db, student, "does-not-exist")
+    assert exc_info.value.status_code == 404

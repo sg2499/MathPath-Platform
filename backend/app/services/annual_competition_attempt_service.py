@@ -519,11 +519,31 @@ def _AttemptPayload(
 ) -> dict[str, Any]:
     Sections = _AllSectionsOrdered(db, AttemptRecord)
     TimersBySectionNumber = _SectionTimerLookup(db, AttemptRecord.level_paper_id)
+    # 2026-09-11 (Shailesh, Competition Practice feature, Phase G): caught
+    # while wiring the student frontend's resume flow -- the bootstrap
+    # effect that reissues a session_token on page load/refresh has to call
+    # StartCompetitionEventAttempt (OFFICIAL) or StartAnnualCompetitionPracticeAttempt
+    # (PRACTICE) depending on attemptType, and the practice one REQUIRES a
+    # CompetitionLevelCode argument even to resume (its lookup query filters
+    # CompetitionEventLevelPaper.competition_level_code) -- but nothing in
+    # this payload told the client what that code was. levelPaperId alone
+    # isn't enough without a second round trip to resolve it. Sourcing it
+    # here, once, keeps every attempt payload self-sufficient for a client
+    # to resume correctly regardless of attempt_type.
+    LevelPaperRecord = db.get(CompetitionEventLevelPaper, AttemptRecord.level_paper_id) if AttemptRecord.level_paper_id else None
     Payload: dict[str, Any] = {
         "attemptId": AttemptRecord.id,
         "eventId": AttemptRecord.event_id,
         "assignmentId": AttemptRecord.assignment_id,
         "levelPaperId": AttemptRecord.level_paper_id,
+        "competitionLevelCode": LevelPaperRecord.competition_level_code if LevelPaperRecord else None,
+        # 2026-09-11 (Shailesh, Competition Practice feature, Phase D):
+        # OFFICIAL or PRACTICE -- shared by both StartCompetitionEventAttempt
+        # and StartAnnualCompetitionPracticeAttempt, so this one addition
+        # lets any client distinguish the two from every endpoint that
+        # returns an attempt (get/heartbeat/submit/save all funnel through
+        # this same payload builder).
+        "attemptType": AttemptRecord.attempt_type,
         "status": AttemptRecord.status,
         "currentSectionNumber": AttemptRecord.current_section_number,
         "startedAt": AttemptRecord.started_at.isoformat() if AttemptRecord.started_at else None,
@@ -574,7 +594,16 @@ def _BuildFreshAttempt(
     scheduled_start_at -- see its own docstring), so it is safe to apply
     here unconditionally even though a retry-granted attempt, by
     definition, always starts well after the event's original scheduled
-    time."""
+    time.
+
+    2026-09-11 (Shailesh, Competition Practice feature, Phase B):
+    paper_kind == "OFFICIAL" is required here -- this function builds an
+    OFFICIAL attempt against a student's permanent event assignment, and
+    once a practice bank (many PRACTICE-kind CompetitionEventLevelPaper
+    rows per event+level, see that model's own docstring) exists, an
+    unfiltered lookup here could non-deterministically pick a practice bank
+    paper instead of the one shared official paper everyone on this level
+    must answer identically (Package 1's "paper fairness")."""
     _CheckSlotGate(db, AssignmentRecord, NowUtc)
 
     LevelPaperRecord = (
@@ -582,6 +611,7 @@ def _BuildFreshAttempt(
         .filter(
             CompetitionEventLevelPaper.event_id == EventId,
             CompetitionEventLevelPaper.competition_level_code == AssignmentRecord.assigned_level_code,
+            CompetitionEventLevelPaper.paper_kind == "OFFICIAL",
         )
         .first()
     )
@@ -603,6 +633,61 @@ def _BuildFreshAttempt(
         level_paper_id=LevelPaperRecord.id,
         student_id=StudentRecord.id,
         attempt_number=AttemptNumber,
+        status=IN_PROGRESS_STATUS,
+        session_token=secrets.token_urlsafe(32),
+        current_section_number=SectionTimers[0].section_number,
+        started_at=NowUtc,
+    )
+    db.add(AttemptRecord)
+    db.flush()  # AttemptRecord.id must exist before the section-state rows below reference it
+
+    for Index, Timer in enumerate(SectionTimers):
+        SectionState = CompetitionEventAttemptSectionState(
+            attempt_id=AttemptRecord.id,
+            section_number=Timer.section_number,
+            status="PENDING",
+            time_limit_seconds=Timer.time_limit_seconds,
+        )
+        if Index == 0:
+            _ActivateSection(SectionState, NowUtc)
+        db.add(SectionState)
+
+    return AttemptRecord
+
+
+def _BuildFreshPracticeAttempt(
+    db: Session, EventId: str, LevelPaperRecord: CompetitionEventLevelPaper, StudentRecord: Student, NowUtc: datetime
+) -> CompetitionEventAttempt:
+    """2026-09-11 (Shailesh, Competition Practice feature, Phase D):
+    practice's own attempt-builder, parallel to (not sharing code with)
+    _BuildFreshAttempt above -- matching this module's own established
+    precedent of small self-contained helpers per concern rather than one
+    branchy shared function (see e.g. this file's own _NowUtc/_Aware note).
+    The differences are substantive, not cosmetic: no slot gate (practice
+    has no slot at all), no CompetitionEventAssignment (assignment_id stays
+    NULL, attempt_type is "PRACTICE", attempt_number is always 1 -- a
+    practice paper is used exactly once, ever, by design), and
+    LevelPaperRecord is passed in already-resolved by the caller (the
+    oldest unconsumed bank paper) rather than looked up by event+level here
+    -- there is no single "the" practice paper for an event+level the way
+    there is for OFFICIAL.
+    """
+    SectionTimers = (
+        db.query(CompetitionEventSectionTimer)
+        .filter(CompetitionEventSectionTimer.level_paper_id == LevelPaperRecord.id)
+        .order_by(CompetitionEventSectionTimer.display_order.asc(), CompetitionEventSectionTimer.section_number.asc())
+        .all()
+    )
+    if not SectionTimers:
+        api_error(400, "COMPETITION_LEVEL_PAPER_NOT_READY", "This practice paper's section timers have not been set up yet.")
+
+    AttemptRecord = CompetitionEventAttempt(
+        event_id=EventId,
+        assignment_id=None,
+        level_paper_id=LevelPaperRecord.id,
+        student_id=StudentRecord.id,
+        attempt_number=1,
+        attempt_type="PRACTICE",
         status=IN_PROGRESS_STATUS,
         session_token=secrets.token_urlsafe(32),
         current_section_number=SectionTimers[0].section_number,
@@ -700,6 +785,91 @@ def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: s
         return _AttemptPayload(db, ExistingAttempt, IncludeSessionToken=True)
 
     AttemptRecord = _BuildFreshAttempt(db, EventId, AssignmentRecord, StudentRecord, NowUtc, AttemptNumber=1)
+    db.commit()
+    db.refresh(AttemptRecord)
+    return _AttemptPayload(db, AttemptRecord, IncludeSessionToken=True)
+
+
+def StartAnnualCompetitionPracticeAttempt(
+    db: Session, StudentRecord: Student, EventId: str, CompetitionLevelCode: str
+) -> dict[str, Any]:
+    """2026-09-11 (Shailesh, Competition Practice feature, Phase D): "Start
+    Next Practice Paper" -- practice's own start/resume entry point,
+    deliberately separate from StartCompetitionEventAttempt above rather
+    than a branch inside it. Practice has no CompetitionEventAssignment, no
+    slot, and is never blocked once the event is marked COMPLETED
+    (Shailesh: "the students can attempt the practice papers anytime") --
+    _CheckEventNotCompleted is deliberately NOT called here. It still
+    respects an emergency suspension (_CheckEventNotSuspended) -- that is a
+    whole-event stop covering official and practice alike.
+
+    Resumes an already-IN_PROGRESS practice attempt on this event+level if
+    one exists -- the same reissue-token-and-lazily-self-correct resume
+    StartCompetitionEventAttempt already does for OFFICIAL, so a half-done
+    paper stays resumable rather than getting silently orphaned by a second
+    "Start Next Practice Paper" click. Only when there is no in-progress
+    attempt does this pull the OLDEST unconsumed bank paper (assigned_at
+    ascending -- first assigned, first offered) and start a fresh one.
+
+    No-retake is enforced by construction, not a separate check here: a
+    consumed paper is simply never returned by the bank query below --
+    ComputeAndFinalizeCompetitionEventResult's practice branch is what sets
+    consumed_at, exactly once, the moment this exact paper's attempt is
+    actually finalized (submitted), never at start time -- so an abandoned,
+    still-IN_PROGRESS attempt does not burn its paper; only a genuine
+    submission does.
+    """
+    EventRecord = db.get(CompetitionEvent, EventId)
+    if not EventRecord:
+        api_error(404, "COMPETITION_EVENT_NOT_FOUND", "Annual Competition event not found.")
+    _CheckEventNotSuspended(EventRecord)
+
+    NowUtc = _NowUtc()
+
+    ExistingAttempt = (
+        db.query(CompetitionEventAttempt)
+        .join(CompetitionEventLevelPaper, CompetitionEventLevelPaper.id == CompetitionEventAttempt.level_paper_id)
+        .filter(
+            CompetitionEventAttempt.event_id == EventId,
+            CompetitionEventAttempt.student_id == StudentRecord.id,
+            CompetitionEventAttempt.attempt_type == "PRACTICE",
+            CompetitionEventAttempt.status == IN_PROGRESS_STATUS,
+            CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode,
+        )
+        .order_by(CompetitionEventAttempt.started_at.desc())
+        .first()
+    )
+    if ExistingAttempt:
+        # Resume: same pattern as StartCompetitionEventAttempt's own resume
+        # branch -- reissue the session token, then self-correct any state
+        # that should already have advanced/finalized while nobody was
+        # looking.
+        ExistingAttempt.session_token = secrets.token_urlsafe(32)
+        _EnsureActiveSectionOrAdvance(db, ExistingAttempt, NowUtc)
+        db.commit()
+        db.refresh(ExistingAttempt)
+        return _AttemptPayload(db, ExistingAttempt, IncludeSessionToken=True)
+
+    LevelPaperRecord = (
+        db.query(CompetitionEventLevelPaper)
+        .filter(
+            CompetitionEventLevelPaper.event_id == EventId,
+            CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode,
+            CompetitionEventLevelPaper.paper_kind == "PRACTICE",
+            CompetitionEventLevelPaper.assigned_student_id == StudentRecord.id,
+            CompetitionEventLevelPaper.consumed_at.is_(None),
+        )
+        .order_by(CompetitionEventLevelPaper.assigned_at.asc())
+        .first()
+    )
+    if not LevelPaperRecord:
+        api_error(
+            404,
+            "COMPETITION_PRACTICE_BANK_EMPTY",
+            "You have no unused practice papers for this level yet -- ask your admin/teacher to assign more.",
+        )
+
+    AttemptRecord = _BuildFreshPracticeAttempt(db, EventId, LevelPaperRecord, StudentRecord, NowUtc)
     db.commit()
     db.refresh(AttemptRecord)
     return _AttemptPayload(db, AttemptRecord, IncludeSessionToken=True)
@@ -994,11 +1164,17 @@ def GetCompetitionEventInstructions(db: Session, StudentRecord: Student, EventId
     if not AssignmentRecord:
         api_error(404, "COMPETITION_ASSIGNMENT_NOT_FOUND", "You are not assigned to this competition event.")
 
+    # 2026-09-11 (Shailesh, Competition Practice feature, Phase B): same
+    # paper_kind == "OFFICIAL" reasoning as _BuildFreshAttempt's identical
+    # lookup -- this is the pre-attempt instructions screen for the
+    # student's OFFICIAL assignment, and must never resolve to a practice
+    # bank paper once one exists for this event+level.
     LevelPaperRecord = (
         db.query(CompetitionEventLevelPaper)
         .filter(
             CompetitionEventLevelPaper.event_id == EventId,
             CompetitionEventLevelPaper.competition_level_code == AssignmentRecord.assigned_level_code,
+            CompetitionEventLevelPaper.paper_kind == "OFFICIAL",
         )
         .first()
     )
@@ -1151,6 +1327,23 @@ def GrantAnnualCompetitionAttemptRetry(db: Session, *, AttemptId: str, GrantedBy
     AttemptRecord = db.get(CompetitionEventAttempt, AttemptId)
     if not AttemptRecord:
         api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition attempt not found.")
+
+    # 2026-09-11 (Shailesh, Competition Practice feature, Phase D): retry
+    # grants are an OFFICIAL-only concept (REQUIREMENTS.md item 6's genuine-
+    # technical-issue override against the one scored attempt) -- practice
+    # already offers unlimited attempts, each against a fresh bank paper, so
+    # "retry" has no meaning there. Without this guard, AttemptRecord.
+    # assignment_id being NULL for a practice attempt would create a
+    # CompetitionEventAttemptRetryGrant row with assignment_id=NULL that
+    # StartCompetitionEventAttempt's own _ActiveRetryGrant lookup could
+    # never resolve to anything real -- confusing, dead data, not a crash,
+    # but a genuine correctness gap now that real PRACTICE attempts exist.
+    if AttemptRecord.attempt_type == "PRACTICE":
+        api_error(
+            409,
+            "COMPETITION_RETRY_NOT_APPLICABLE_TO_PRACTICE",
+            "Practice attempts don't use retry grants -- the student can just start a new practice paper from their bank.",
+        )
 
     if AttemptRecord.status not in TERMINAL_ATTEMPT_STATUSES:
         api_error(
@@ -1308,7 +1501,7 @@ def GetCompetitionEventAttemptReviewForAdmin(db: Session, *, AttemptId: str) -> 
         api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition attempt not found.")
 
     EventRecord = db.get(CompetitionEvent, AttemptRecord.event_id)
-    AssignmentRecord = db.get(CompetitionEventAssignment, AttemptRecord.assignment_id)
+    AssignmentRecord = db.get(CompetitionEventAssignment, AttemptRecord.assignment_id) if AttemptRecord.assignment_id else None
     StudentRecord = db.get(Student, AttemptRecord.student_id)
     LevelPaperRecord = db.get(CompetitionEventLevelPaper, AttemptRecord.level_paper_id)
     MockExamId = LevelPaperRecord.mock_exam_id if LevelPaperRecord else None
@@ -1333,7 +1526,19 @@ def GetCompetitionEventAttemptReviewForAdmin(db: Session, *, AttemptId: str) -> 
         "studentId": AttemptRecord.student_id,
         "studentCode": StudentRecord.student_code if StudentRecord else None,
         "studentName": (StudentRecord.user.full_name if StudentRecord and StudentRecord.user else None),
-        "assignedLevelCode": AssignmentRecord.assigned_level_code if AssignmentRecord else None,
+        # 2026-09-11 (Shailesh, Competition Practice feature, Phase E): a
+        # known gap flagged (not fixed) during Phase D review -- this used
+        # to read assignedLevelCode purely off AssignmentRecord, which is
+        # always NULL for a PRACTICE attempt (practice has no
+        # CompetitionEventAssignment at all), so a practice attempt's
+        # review screen showed no level code even though one obviously
+        # exists. LevelPaperRecord.competition_level_code is the correct
+        # source for BOTH kinds -- an OFFICIAL level paper's code always
+        # matches its assignment's own assigned_level_code by construction
+        # (_BuildFreshAttempt resolves the paper BY that same code), so
+        # this is a strict superset fix, not a behavior change for OFFICIAL.
+        "assignedLevelCode": LevelPaperRecord.competition_level_code if LevelPaperRecord else None,
+        "attemptType": AttemptRecord.attempt_type,
         "status": AttemptRecord.status,
         "startedAt": AttemptRecord.started_at.isoformat() if AttemptRecord.started_at else None,
         "submittedAt": AttemptRecord.submitted_at.isoformat() if AttemptRecord.submitted_at else None,
@@ -1354,5 +1559,144 @@ def GetCompetitionEventAttemptReviewForAdmin(db: Session, *, AttemptId: str) -> 
             if ResultRecord
             else None
         ),
+        "sections": Sections,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Competition Practice (Phase E): results & review visibility -- the
+# student-facing "what have I submitted, and how did I do" history list,
+# and the release-gated Answer Sheet/Scorecard review both OFFICIAL and
+# PRACTICE attempts share. See module docstring sections above for the
+# admin-only equivalents (GetCompetitionEventAttemptReviewForAdmin) these
+# deliberately reuse the same per-section rendering helper as, rather than
+# duplicating question/answer logic a second time.
+# ---------------------------------------------------------------------------
+
+def ListMyAnnualCompetitionPracticeAttempts(
+    db: Session, StudentRecord: Student, EventId: str, CompetitionLevelCode: str | None = None
+) -> dict[str, Any]:
+    """Student-facing submitted-practice history (Phase E) -- the sibling of
+    GetAnnualCompetitionPracticeBankForStudent (Phase C, "how many practice
+    papers do I have left"): this answers "what have I already started or
+    finished, and how did I do." One row per PRACTICE CompetitionEventAttempt
+    this student has ever started for this event, newest first --
+    IN_PROGRESS ones are included too (so a resumable half-done paper still
+    shows up, matching _AssignmentWithAttemptPayload's own NOT_STARTED ->
+    IN_PROGRESS -> ... -> FINALIZED shape for OFFICIAL) rather than only
+    ever listing finished ones."""
+    EventRecord = db.get(CompetitionEvent, EventId)
+    if not EventRecord:
+        api_error(404, "COMPETITION_EVENT_NOT_FOUND", "Annual Competition event not found.")
+
+    Query = (
+        db.query(CompetitionEventAttempt, CompetitionEventLevelPaper)
+        .join(CompetitionEventLevelPaper, CompetitionEventLevelPaper.id == CompetitionEventAttempt.level_paper_id)
+        .filter(
+            CompetitionEventAttempt.event_id == EventId,
+            CompetitionEventAttempt.student_id == StudentRecord.id,
+            CompetitionEventAttempt.attempt_type == "PRACTICE",
+        )
+    )
+    if CompetitionLevelCode:
+        Query = Query.filter(CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode)
+    Rows = Query.order_by(CompetitionEventAttempt.started_at.desc()).all()
+
+    Attempts: list[dict[str, Any]] = []
+    for AttemptRecord, LevelPaperRecord in Rows:
+        ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).first()
+        Attempts.append(
+            {
+                "attemptId": AttemptRecord.id,
+                "competitionLevelCode": LevelPaperRecord.competition_level_code,
+                "status": AttemptRecord.status,
+                "startedAt": AttemptRecord.started_at.isoformat() if AttemptRecord.started_at else None,
+                "submittedAt": AttemptRecord.submitted_at.isoformat() if AttemptRecord.submitted_at else None,
+                "result": (
+                    {
+                        "score": ResultRecord.score,
+                        "maxScore": ResultRecord.max_score,
+                        "percentage": ResultRecord.percentage,
+                        "accuracyPercentage": ResultRecord.accuracy_percentage,
+                        "correctCount": ResultRecord.correct_count,
+                        "wrongCount": ResultRecord.wrong_count,
+                        "unansweredCount": ResultRecord.unanswered_count,
+                        "timeTakenSeconds": ResultRecord.time_taken_seconds,
+                    }
+                    if ResultRecord
+                    else None
+                ),
+            }
+        )
+
+    return {
+        "eventId": EventId,
+        "competitionLevelCode": CompetitionLevelCode,
+        "totalAttempts": len(Attempts),
+        "attempts": Attempts,
+    }
+
+
+def GetCompetitionEventAttemptReviewForStudent(db: Session, StudentRecord: Student, AttemptId: str) -> dict[str, Any]:
+    """Student/parent-facing Answer Sheet + Scorecard (Phase E) -- the
+    release-gated sibling of GetCompetitionEventAttemptReviewForAdmin above,
+    and the one new review surface OFFICIAL and PRACTICE attempts share.
+    Mirrors GetCompetitionEventResultForStudent's own full lock-down exactly
+    (REQUIREMENTS.md item 5): an unreleased or voided result returns a lean
+    "not released" shape with zero section/answer/correct-answer detail,
+    never a partial peek -- this function has no attempt_type branch at all,
+    because is_released already carries the whole distinction: PRACTICE is
+    always released the instant it's computed (Phase D), so it reads as
+    "instantly available" here purely as a consequence of that flag, while
+    OFFICIAL stays locked until an admin actually releases it.
+    """
+    AttemptRecord = db.get(CompetitionEventAttempt, AttemptId)
+    if not AttemptRecord or AttemptRecord.student_id != StudentRecord.id:
+        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition attempt not found.")
+
+    ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).first()
+    # A voided result is reported exactly like an unreleased one -- same
+    # "never hint that anything unusual happened" reasoning
+    # GetCompetitionEventResultForStudent's own docstring already spells out.
+    if not ResultRecord or not ResultRecord.is_released or ResultRecord.is_voided:
+        return {
+            "attemptId": AttemptRecord.id,
+            "attemptStatus": AttemptRecord.status,
+            "released": False,
+            "result": None,
+            "sections": None,
+        }
+
+    LevelPaperRecord = db.get(CompetitionEventLevelPaper, AttemptRecord.level_paper_id)
+    MockExamId = LevelPaperRecord.mock_exam_id if LevelPaperRecord else None
+    TimersBySectionNumber = _SectionTimerLookup(db, AttemptRecord.level_paper_id)
+    AnswersByQuestionId = {
+        Answer.mock_question_id: Answer
+        for Answer in db.query(CompetitionEventAttemptAnswer).filter(CompetitionEventAttemptAnswer.attempt_id == AttemptRecord.id).all()
+    }
+    Sections = [
+        _AttemptReviewSectionPayload(
+            db, AttemptRecord, SectionState, TimersBySectionNumber.get(SectionState.section_number), MockExamId, AnswersByQuestionId,
+        )
+        for SectionState in _AllSectionsOrdered(db, AttemptRecord)
+    ]
+
+    return {
+        "attemptId": AttemptRecord.id,
+        "attemptStatus": AttemptRecord.status,
+        "attemptType": AttemptRecord.attempt_type,
+        "competitionLevelCode": LevelPaperRecord.competition_level_code if LevelPaperRecord else None,
+        "released": True,
+        "result": {
+            "score": ResultRecord.score,
+            "maxScore": ResultRecord.max_score,
+            "percentage": ResultRecord.percentage,
+            "accuracyPercentage": ResultRecord.accuracy_percentage,
+            "correctCount": ResultRecord.correct_count,
+            "wrongCount": ResultRecord.wrong_count,
+            "unansweredCount": ResultRecord.unanswered_count,
+            "timeTakenSeconds": ResultRecord.time_taken_seconds,
+            "rank": ResultRecord.rank,
+        },
         "sections": Sections,
     }
