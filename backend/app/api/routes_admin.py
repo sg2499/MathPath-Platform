@@ -2997,9 +2997,39 @@ def get_assignment_route(assignment_id: str, db: Session = Depends(get_db), user
     attempt_rows = []
     latest_attempt_by_student: dict[str, Attempt] = {}
 
+    target_students = []
+    if assignment.assigned_to_type == "STUDENT":
+        student = db.get(Student, assignment.assigned_to_id)
+        if student:
+            target_students = [student]
+    elif assignment.assigned_to_type == "LEVEL":
+        target_students = (
+            db.query(Student)
+            .filter(Student.current_level_id == assignment.assigned_to_id)
+            .order_by(Student.student_code.asc())
+            .all()
+        )
+    else:
+        target_students = []
+
+    # Bulk-prefetch Student/User rows once for both loops below instead of a
+    # db.get() per attempt and again per target student -- both loops read
+    # the same small, shared set of students for this one assignment's
+    # roster, so this collapses what used to be up to
+    # 2 * (len(attempts) + len(target_students)) round trips into two.
+    NeededStudentIds = {a.student_id for a in attempts if a.student_id} | {s.id for s in target_students}
+    StudentsById: dict[str, Student] = {s.id: s for s in target_students}
+    MissingStudentIds = NeededStudentIds - set(StudentsById.keys())
+    if MissingStudentIds:
+        StudentsById.update({s.id: s for s in db.query(Student).filter(Student.id.in_(MissingStudentIds)).all()})
+    NeededUserIds = {s.user_id for s in StudentsById.values() if s.user_id}
+    UsersById: dict[str, User] = (
+        {u.id: u for u in db.query(User).filter(User.id.in_(NeededUserIds)).all()} if NeededUserIds else {}
+    )
+
     for attempt in attempts:
-        student = db.get(Student, attempt.student_id)
-        student_user = db.get(User, student.user_id) if student else None
+        student = StudentsById.get(attempt.student_id) if attempt.student_id else None
+        student_user = UsersById.get(student.user_id) if student and student.user_id else None
 
         if attempt.student_id and attempt.student_id not in latest_attempt_by_student:
             latest_attempt_by_student[attempt.student_id] = attempt
@@ -3025,26 +3055,11 @@ def get_assignment_route(assignment_id: str, db: Session = Depends(get_db), user
             **attempt_date_payload(attempt),
         })
 
-    target_students = []
-    if assignment.assigned_to_type == "STUDENT":
-        student = db.get(Student, assignment.assigned_to_id)
-        if student:
-            target_students = [student]
-    elif assignment.assigned_to_type == "LEVEL":
-        target_students = (
-            db.query(Student)
-            .filter(Student.current_level_id == assignment.assigned_to_id)
-            .order_by(Student.student_code.asc())
-            .all()
-        )
-    else:
-        target_students = []
-
     student_rows = []
     completed_statuses = {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}
 
     for student in target_students:
-        student_user = db.get(User, student.user_id)
+        student_user = UsersById.get(student.user_id) if student.user_id else None
         attempt = latest_attempt_by_student.get(student.id)
         completed = bool(attempt and attempt.status in completed_statuses)
 

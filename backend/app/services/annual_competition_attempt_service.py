@@ -1712,3 +1712,76 @@ def GetCompetitionEventAttemptReviewForStudent(db: Session, StudentRecord: Stude
         },
         "sections": Sections,
     }
+
+
+def GetCompetitionEventAttemptReviewForTeacher(db: Session, AttemptId: str, *, StudentIdsFilter: list[str]) -> dict[str, Any]:
+    """Teacher-facing Answer Sheet + Scorecard (2026-09-14 batch, Shailesh:
+    "have the view button for the teacher login for both the flows, for
+    practice they can see as soon as the student submits and for the
+    official competition attempt they can see it when the results are
+    released"). That's exactly the same is_released gate
+    GetCompetitionEventAttemptReviewForStudent already uses above -- PRACTICE
+    results are stamped is_released=True the instant they're computed at
+    submission (ComputeAndFinalizeCompetitionEventResult), while OFFICIAL
+    stays locked until an admin releases it -- so this function reuses that
+    identical gate rather than inventing a second one, and (like the student
+    version) has no attempt_type branch at all.
+
+    Ownership is scoped the same way every other teacher-facing Annual
+    Competition endpoint in routes_teacher.py already is: the caller passes
+    in StudentIdsFilter from own_students_query(db, teacher), not a second,
+    separate teacher-resolution path -- a teacher can only ever review an
+    attempt belonging to one of their own students, admin-override students
+    included (own_students_query's own dual teacher_id/legacy-name match).
+    """
+    AttemptRecord = db.get(CompetitionEventAttempt, AttemptId)
+    if not AttemptRecord or AttemptRecord.student_id not in StudentIdsFilter:
+        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition attempt not found.")
+
+    ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).first()
+    if not ResultRecord or not ResultRecord.is_released or ResultRecord.is_voided:
+        return {
+            "attemptId": AttemptRecord.id,
+            "attemptStatus": AttemptRecord.status,
+            "released": False,
+            "result": None,
+            "sections": None,
+        }
+
+    LevelPaperRecord = db.get(CompetitionEventLevelPaper, AttemptRecord.level_paper_id)
+    MockExamId = LevelPaperRecord.mock_exam_id if LevelPaperRecord else None
+    StudentRecord = db.get(Student, AttemptRecord.student_id)
+    TimersBySectionNumber = _SectionTimerLookup(db, AttemptRecord.level_paper_id)
+    AnswersByQuestionId = {
+        Answer.mock_question_id: Answer
+        for Answer in db.query(CompetitionEventAttemptAnswer).filter(CompetitionEventAttemptAnswer.attempt_id == AttemptRecord.id).all()
+    }
+    Sections = [
+        _AttemptReviewSectionPayload(
+            db, AttemptRecord, SectionState, TimersBySectionNumber.get(SectionState.section_number), MockExamId, AnswersByQuestionId,
+        )
+        for SectionState in _AllSectionsOrdered(db, AttemptRecord)
+    ]
+
+    return {
+        "attemptId": AttemptRecord.id,
+        "attemptStatus": AttemptRecord.status,
+        "attemptType": AttemptRecord.attempt_type,
+        "competitionLevelCode": LevelPaperRecord.competition_level_code if LevelPaperRecord else None,
+        "studentId": AttemptRecord.student_id,
+        "studentCode": StudentRecord.student_code if StudentRecord else None,
+        "studentName": (StudentRecord.user.full_name if StudentRecord and StudentRecord.user else None),
+        "released": True,
+        "result": {
+            "score": ResultRecord.score,
+            "maxScore": ResultRecord.max_score,
+            "percentage": ResultRecord.percentage,
+            "accuracyPercentage": ResultRecord.accuracy_percentage,
+            "correctCount": ResultRecord.correct_count,
+            "wrongCount": ResultRecord.wrong_count,
+            "unansweredCount": ResultRecord.unanswered_count,
+            "timeTakenSeconds": ResultRecord.time_taken_seconds,
+            "rank": ResultRecord.rank,
+        },
+        "sections": Sections,
+    }

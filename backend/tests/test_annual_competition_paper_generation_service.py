@@ -70,7 +70,11 @@ EXPECTED = {
     "IM-L1": ("IM", 4, 300, 20 * 60),
     "IM-L2": ("IM", 4, 300, 20 * 60),
     "IM-L3": ("IM", 5, 350, 25 * 60),
-    "IM-L4": ("IM", 6, 400, 30 * 60),
+    # 2026-09-14 batch (Shailesh): Section 6 (Percentage) removed entirely --
+    # was ("IM", 6, 400, 30 * 60). Totals are always computed live from
+    # whatever sections remain, never hardcoded, so this table just reflects
+    # the new live total.
+    "IM-L4": ("IM", 5, 350, 25 * 60),
     "MM-L1": ("MM", 7, 450, 35 * 60),
 }
 
@@ -183,7 +187,7 @@ def test_pm_l1_round_hundreds_narrow_diversity_does_not_break_generation():
     assert len(signatures) == len(questions)
 
 
-def test_mm_l1_squares_cubes_roots_stay_within_moderated_magnitude():
+def test_mm_l2_squares_cubes_roots_stay_within_moderated_magnitude():
     """Regression guard for the 2026-09-11 difficulty-moderation pass
     (Shailesh's "not too tough, standard/moderate" instruction).
 
@@ -198,13 +202,23 @@ def test_mm_l1_squares_cubes_roots_stay_within_moderated_magnitude():
     test locks in the moderated ceiling so a future edit cannot silently
     push these sections back toward maximum difficulty without this test
     failing first.
+
+    2026-09-14 batch (Shailesh, "MM-1 and MM-2 are two distinct papers"):
+    this content (Squares AND Cubes, Square Root AND Cube Root) now lives on
+    MM-L2 only -- MM-L1's Section 5/7 were replaced with new, separately
+    tested content (see test_mm_l1_squares_section_is_digit_targeted_2_and_3
+    / test_mm_l1_cube_roots_section_is_digit_targeted_4_5_6 below). This test
+    was retargeted from MM-L1 to MM-L2 rather than deleted, since MM-L2 keeps
+    the exact original content the moderation pass above was about.
     """
     db = _session()
     admin = _admin(db)
-    _module, level = _module_and_level(db, "MM", "MM-L1", "Master Module Level 1")
+    _module, mm_l1_level = _module_and_level(db, "MM", "MM-L1", "Master Module Level 1")
     db.commit()
 
-    payload = GenerateAnnualCompetitionLevelPaper(db, LevelId=level.id, CreatedBy=admin)
+    payload = GenerateAnnualCompetitionLevelPaper(
+        db, LevelId=mm_l1_level.id, CreatedBy=admin, CompetitionLevelCode="MM-L2"
+    )
 
     import json
     import re
@@ -249,16 +263,133 @@ def test_mm_l1_squares_cubes_roots_stay_within_moderated_magnitude():
     assert seen_families == set(OLD_CEILINGS)
 
 
+def test_pm_l3_section3_renamed_to_multiplication_abacus():
+    """2026-09-14 batch (Shailesh: rename Section 3 to "Multiplication
+    (Abacus)"; "nothing else in that paper changes"). Title and mode both
+    changed together (mode is a pure display badge, matched to the title so
+    it never contradicts it) -- the underlying pool/question content and
+    every other section are untouched."""
+    section3 = next(s for s in ANNUAL_COMPETITION_LEVEL_REGISTRY["PM-L3"]["sections"] if s["key"] == "SEC3")
+    assert section3["title"] == "Multiplication (Abacus)"
+    assert section3["mode"] == "ABACUS"
+    assert section3["questionCount"] == 100
+    assert section3["timeLimitSeconds"] == 600
+
+
 def test_registry_has_no_entry_for_non_competition_levels():
     assert GetAnnualCompetitionLevelConfig("BM-L1") is None
     assert GetAnnualCompetitionLevelConfig("NOT-A-REAL-CODE") is None
 
 
-def test_mm_l2_registry_entry_is_alias_of_mm_l1():
-    """Documented, intentional design (annual_competition_paper_registry.py):
-    the gist's "MM-2" row maps to both platform levels with identical
-    section/concept/count/time content."""
-    assert ANNUAL_COMPETITION_LEVEL_REGISTRY["MM-L2"] is ANNUAL_COMPETITION_LEVEL_REGISTRY["MM-L1"]
+def test_mm_l1_and_mm_l2_are_independent_registry_entries():
+    """2026-09-14 batch (Shailesh: "MM-1 and MM-2... in reality they are two
+    distinct papers and are different from each other"). Supersedes the old
+    "MM-L2 is a plain alias of MM-L1" design this test used to assert --
+    they are now two fully independent dict objects, so editing one's
+    sections can never silently change the other's. MM-L2 keeps the exact
+    section/title/mode/questionCount/timeLimitSeconds content MM-1 used to
+    share with it; only MM-1's Section 5/7 content actually changed."""
+    mm_l1 = ANNUAL_COMPETITION_LEVEL_REGISTRY["MM-L1"]
+    mm_l2 = ANNUAL_COMPETITION_LEVEL_REGISTRY["MM-L2"]
+    assert mm_l1 is not mm_l2
+    assert mm_l1["sections"] is not mm_l2["sections"]
+
+    # Sections 1-4 (untouched by this batch) still match exactly between the
+    # two levels -- only Section 5/7 are meant to differ now.
+    for section_key in ("SEC1", "SEC2", "SEC3", "SEC4", "SEC6"):
+        mm_l1_section = next(s for s in mm_l1["sections"] if s["key"] == section_key)
+        mm_l2_section = next(s for s in mm_l2["sections"] if s["key"] == section_key)
+        assert mm_l1_section == mm_l2_section
+
+    mm_l1_sec5 = next(s for s in mm_l1["sections"] if s["key"] == "SEC5")
+    mm_l2_sec5 = next(s for s in mm_l2["sections"] if s["key"] == "SEC5")
+    assert mm_l1_sec5["title"] == "Squares (Visual)"
+    assert mm_l2_sec5["title"] == "Squares and Cubes (Visual)"
+    # Shared, unchanged metadata (questionCount/timeLimitSeconds) even though
+    # the title/content differs -- per Shailesh's "keep the section totals
+    # as-is, just the questions inside follow the new rules" instruction.
+    assert mm_l1_sec5["questionCount"] == mm_l2_sec5["questionCount"] == 50
+    assert mm_l1_sec5["timeLimitSeconds"] == mm_l2_sec5["timeLimitSeconds"] == 300
+
+    mm_l1_sec7 = next(s for s in mm_l1["sections"] if s["key"] == "SEC7")
+    mm_l2_sec7 = next(s for s in mm_l2["sections"] if s["key"] == "SEC7")
+    assert mm_l1_sec7["title"] == "Cube Roots (Visual)"
+    assert mm_l2_sec7["title"] == "Roots (Visual)"
+    assert mm_l1_sec7["questionCount"] == mm_l2_sec7["questionCount"] == 50
+    assert mm_l1_sec7["timeLimitSeconds"] == mm_l2_sec7["timeLimitSeconds"] == 300
+
+
+def test_mm_l1_squares_section_is_digit_targeted_2_and_3():
+    """2026-09-14 batch (Shailesh: "the squares section should have 2 digit
+    and 3 digit sums only"). Cubes must be gone entirely -- only SQUARES
+    concept questions, with base values (the number being squared) that are
+    always exactly 2 or 3 digits, roughly evenly split across the section,
+    and unique."""
+    db = _session()
+    admin = _admin(db)
+    _module, level = _module_and_level(db, "MM", "MM-L1", "Master Module Level 1")
+    db.commit()
+
+    payload = GenerateAnnualCompetitionLevelPaper(db, LevelId=level.id, CreatedBy=admin)
+
+    import json
+
+    questions = (
+        db.query(CompetitionMockQuestion)
+        .filter(CompetitionMockQuestion.mock_exam_id == payload["mockExamId"], CompetitionMockQuestion.section_number == 5)
+        .all()
+    )
+    assert len(questions) == 50
+    assert {q.concept_family for q in questions} == {"SQUARES"}
+
+    digit_counts = []
+    signatures = set()
+    for question in questions:
+        metadata = json.loads(question.metadata_json or "{}")
+        base_value = metadata.get("base_value")
+        assert base_value is not None, f"no base_value in metadata for {question.id}"
+        digit_count = len(str(base_value))
+        assert digit_count in (2, 3), f"base {base_value} is not 2 or 3 digits"
+        digit_counts.append(digit_count)
+        signatures.add((question.operands_json, question.correct_answer))
+
+    assert set(digit_counts) == {2, 3}  # both tiers actually present, not just one
+    assert len(signatures) == len(questions)  # all 50 unique
+
+
+def test_mm_l1_cube_roots_section_is_digit_targeted_4_5_6():
+    """2026-09-14 batch (Shailesh: "Section 7 'Roots' should only include
+    cube roots of 4 digit, 5 digit and 6 digit numbers"). Square Root must
+    be gone entirely -- only CUBE_ROOT concept questions, radicand digit
+    counts always in {4, 5, 6}, all three tiers actually present, unique."""
+    db = _session()
+    admin = _admin(db)
+    _module, level = _module_and_level(db, "MM", "MM-L1", "Master Module Level 1")
+    db.commit()
+
+    payload = GenerateAnnualCompetitionLevelPaper(db, LevelId=level.id, CreatedBy=admin)
+
+    questions = (
+        db.query(CompetitionMockQuestion)
+        .filter(CompetitionMockQuestion.mock_exam_id == payload["mockExamId"], CompetitionMockQuestion.section_number == 7)
+        .all()
+    )
+    assert len(questions) == 50
+    assert {q.concept_family for q in questions} == {"CUBE_ROOT"}
+
+    import json
+
+    digit_counts = []
+    signatures = set()
+    for question in questions:
+        metadata = json.loads(question.metadata_json or "{}")
+        digit_count = metadata.get("radicand_digit_count")
+        assert digit_count in (4, 5, 6), f"radicand digit count {digit_count} is not 4, 5, or 6"
+        digit_counts.append(digit_count)
+        signatures.add((question.question_text, question.correct_answer))
+
+    assert set(digit_counts) == {4, 5, 6}  # all three tiers actually present
+    assert len(signatures) == len(questions)  # all 50 unique
 
 
 def test_generate_fails_cleanly_for_inactive_level():

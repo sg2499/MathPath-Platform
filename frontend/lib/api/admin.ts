@@ -2143,14 +2143,18 @@ export async function deleteAllAnnualCompetitionPracticeRecordsForStudent(studen
 // CompetitionResults with EventId=None) or every PRACTICE result
 // (RecomputeAnnualCompetitionPracticeResults) under the corrected
 // (attempted-questions) accuracy formula. Never touches is_released/rank.
-export async function recomputeAllAnnualCompetitionOfficialResults(competitionLevelCode?: string | null) {
+export async function recomputeAllAnnualCompetitionOfficialResults(
+  competitionLevelCode?: string | null
+): Promise<{ competitionLevelCode: string | null; recomputedCount: number }> {
   const { data } = await api.post(`/admin/annual-competition/results/recompute-all`, {
     competitionLevelCode: competitionLevelCode || undefined,
   });
   return data;
 }
 
-export async function recomputeAnnualCompetitionPracticeResults(competitionLevelCode?: string | null) {
+export async function recomputeAnnualCompetitionPracticeResults(
+  competitionLevelCode?: string | null
+): Promise<{ competitionLevelCode: string | null; recomputedCount: number }> {
   const { data } = await api.post(`/admin/annual-competition/practice-results/recompute`, {
     competitionLevelCode: competitionLevelCode || undefined,
   });

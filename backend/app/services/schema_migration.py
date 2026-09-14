@@ -674,6 +674,32 @@ def ensure_assignment_notified_at_column() -> None:
         connection.execute(text("UPDATE assignments SET notified_at = created_at WHERE notified_at IS NULL"))
 
 
+def ensure_assignments_assigned_to_id_indexed() -> None:
+    """2026-09-14 performance batch (Shailesh, via the hosting engineer's
+    diagnosis: "apply indexes... make the queries faster"). assignments.
+    assigned_to_id is filtered on directly in roughly a dozen hot-path
+    queries (student dashboard, teacher rosters, admin reporting) but never
+    carried an index -- every one of those queries did a full table scan of
+    `assignments`, one of the largest, most heavily-written tables in the
+    schema.
+
+    This is also declared as `index=True` on the Assignment model
+    (models.py) and shipped as an Alembic migration
+    (b7c1e4f0a2d9_add_index_on_assignments_assigned_to_id.py) for anyone
+    who does run `alembic upgrade head` against a properly-tracked DB (a
+    fresh dev database, for instance). It is registered here, and called
+    from main.py's on_startup() the same as every other ensure_* function,
+    because that is documented (COWORK_HANDOFF.md, CLAUDE_CODE_STATUS.md
+    2026-07-30/2026-08 entries) as the migration mechanism this repo's
+    actual production deploy pipeline relies on -- Alembic has previously
+    been confirmed to silently no-op against production here. `CREATE INDEX
+    IF NOT EXISTS` is valid on both SQLite (tests/dev) and Postgres
+    (production) and is a no-op if the index is already there, so this is
+    safe to run unconditionally on every startup."""
+    with engine.begin() as connection:
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_assignments_assigned_to_id ON assignments (assigned_to_id)"))
+
+
 PARENT_REPORT_EMAIL_LOG_COLUMNS = {
     "delivery_status": "VARCHAR(30) DEFAULT 'QUEUED' NOT NULL",
     "delivery_provider": "VARCHAR(50)",

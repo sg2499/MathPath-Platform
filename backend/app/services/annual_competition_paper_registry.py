@@ -343,6 +343,44 @@ _MM_ROOTS_POOL: list[dict[str, Any]] = [
     {"generatorFamily": "MM", "title": "Cube Root", "conceptFamily": "CUBE_ROOT", "mmLessonNumber": 20, "mmStagingQuestionNumber": 9},
 ]
 
+# MM-1-only pools (2026-09-14 batch, Shailesh: "the squares section should
+# have 2 digit and 3 digit sums only... Cube roots section -> cube roots
+# of 4 digit, 5 digit and 6 digit numbers"). MM-2 keeps the original
+# _MM_SQUARES_CUBES_POOL/_MM_ROOTS_POOL above untouched (see MM-L2's own
+# registry entry below) -- MM-1 and MM-2 are now two fully independent
+# papers, not two codes for the same content.
+#
+# The title strings below drive _SquareBaseDigitTargets/
+# _CubeRootRadicandDigitTargets's title-parsing mechanism in
+# mm/operands.py -- the digit-tiered cube-root titles are the exact same
+# convention already proven in production via competition_mock_generation_
+# service.py's MM_CUBES_ROOTS pool. Uniqueness is comfortable for both: 90
+# 2-digit + 900 3-digit = 990 unique squares against 50 questions; ~12+25+53
+# = 90 unique cube roots across the three 4/5/6-digit tiers against 50
+# questions (see the 2026-09-11 moderation note above for the matching
+# MM-2/Competition-Mock analysis this mirrors).
+# Two separate single-digit-target entries, NOT one combined "2 & 3 digit"
+# title -- MM's own Annual Competition staging convention
+# (mmStagingQuestionNumber, see _GenerateMmQuestion's own docstring) always
+# requests a fixed-size batch and takes the LAST question from it, so the
+# internal QuestionNumber a within-title digit-alternation scheme would
+# cycle on is always the same value on every call, not varying 1..50 the
+# way a naive reading of GenerateSquares/GenerateSquareRoot's cycling logic
+# suggests. Splitting into two entries lets the section COLLECTOR alternate
+# between them across the 50 slots instead (live-verified 2026-09-14: 50/50
+# split, all base values 2-digit or 3-digit, 50 unique) -- exactly the same
+# pattern _MM_L1_CUBE_ROOTS_POOL below already uses for its three digit
+# tiers, and the one that actually works under this staging convention.
+_MM_L1_SQUARES_POOL: list[dict[str, Any]] = [
+    {"generatorFamily": "MM", "title": "Squares 2 Digit Number", "conceptFamily": "SQUARES", "mmLessonNumber": 20, "mmStagingQuestionNumber": 9},
+    {"generatorFamily": "MM", "title": "Squares 3 Digit Number", "conceptFamily": "SQUARES", "mmLessonNumber": 20, "mmStagingQuestionNumber": 9},
+]
+_MM_L1_CUBE_ROOTS_POOL: list[dict[str, Any]] = [
+    {"generatorFamily": "MM", "title": "Cube Root 4 Digit Number", "conceptFamily": "CUBE_ROOT", "mmLessonNumber": 20, "mmStagingQuestionNumber": 9},
+    {"generatorFamily": "MM", "title": "Cube Root 5 Digit Number", "conceptFamily": "CUBE_ROOT", "mmLessonNumber": 20, "mmStagingQuestionNumber": 9},
+    {"generatorFamily": "MM", "title": "Cube Root 6 Digit Number", "conceptFamily": "CUBE_ROOT", "mmLessonNumber": 20, "mmStagingQuestionNumber": 9},
+]
+
 
 # ---------------------------------------------------------------------------
 # The registry itself: level code -> {"sections": [...], "sectionConceptPools": {...}}
@@ -375,7 +413,15 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
         "sections": [
             {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC2", "number": 2, "title": "Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
-            {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 600},
+            # 2026-09-14 batch (Shailesh): renamed from "Multiplication
+            # (Visual)" to "Multiplication (Abacus)" -- title AND mode both
+            # changed together so the mode pill matches the title (mode is a
+            # pure display badge, never a functional switch -- see
+            # frontend/app/student/competition/annual/attempt/[attemptId]/
+            # page.tsx's sectionMode usage). The underlying question pool
+            # (_PM_L3_MULTIPLY_POOL) is untouched: "nothing else in that
+            # paper changes."
+            {"key": "SEC3", "number": 3, "title": "Multiplication (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600},
         ],
         "sectionConceptPools": {"SEC1": _PM_L3_ABACUS_POOL, "SEC2": _PM_L3_VISUAL_POOL, "SEC3": _PM_L3_MULTIPLY_POOL},
     },
@@ -432,6 +478,13 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
             "SEC5": _IM_L3_SQUARES_POOL,
         },
     },
+    # 2026-09-14 batch (Shailesh): "for the IM-L4 paper, remove Section 6
+    # Percentage entirely". Section 6 and its pool entry are gone outright
+    # (not just emptied) -- total questions/time recompute live from
+    # whatever sections remain (see TotalDurationSeconds/TotalQuestionCount
+    # in annual_competition_paper_generation_service.py, which always sums
+    # the live Sections list rather than a hardcoded total): 350 questions /
+    # 1500s, down from 400/1800.
     "IM-L4": {
         "sections": [
             {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
@@ -439,7 +492,6 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
             {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
             {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
             {"key": "SEC5", "number": 5, "title": "Squares (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
-            {"key": "SEC6", "number": 6, "title": "Percentage (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
         ],
         "sectionConceptPools": {
             "SEC1": _IM_L4_ADD_LESS_BORROWING_POOL,
@@ -447,10 +499,44 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
             "SEC3": _IM_L4_MULTIPLICATION_POOL,
             "SEC4": _IM_L4_DIVISION_POOL,
             "SEC5": _IM_L4_SQUARES_POOL,
-            "SEC6": _IM_L4_PERCENTAGE_POOL,
         },
     },
+    # 2026-09-14 batch (Shailesh): "the section names need to be adjusted...
+    # Squares (Method), Cube Roots (Method)". Section 5 is Squares-only now
+    # (Cubes removed entirely, 2/3-digit bases only); Section 7 is
+    # Cube-Roots-only now (Square Root removed entirely, 4/5/6-digit
+    # radicands). questionCount/timeLimitSeconds are unchanged for both --
+    # only the questions inside follow the new rules, per Shailesh's own
+    # instruction to keep section totals as-is when a section's content
+    # changes conceptually rather than by removal.
+    #
+    # MM-1 and MM-2 used to be a plain alias (one dict, two codes) -- as of
+    # this batch they are two fully independent registry entries (Shailesh:
+    # "in reality they are two distinct papers and are different from each
+    # other"). MM-L2 (below) keeps the ORIGINAL content this level always
+    # had -- Squares AND Cubes, Square Root AND Cube Root -- byte-for-byte
+    # unchanged; only MM-L1 gets the new content here.
     "MM-L1": {
+        "sections": [
+            {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC2", "number": 2, "title": "Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC5", "number": 5, "title": "Squares (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC6", "number": 6, "title": "Percentage (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC7", "number": 7, "title": "Cube Roots (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+        ],
+        "sectionConceptPools": {
+            "SEC1": _MM_ADD_LESS_BORROWING_POOL,
+            "SEC2": _MM_DECIMAL_ADD_LESS_POOL,
+            "SEC3": _MM_MULTIPLICATION_POOL,
+            "SEC4": _MM_DIVISION_POOL,
+            "SEC5": _MM_L1_SQUARES_POOL,
+            "SEC6": _MM_PERCENTAGE_POOL,
+            "SEC7": _MM_L1_CUBE_ROOTS_POOL,
+        },
+    },
+    "MM-L2": {
         "sections": [
             {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC2", "number": 2, "title": "Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
@@ -471,11 +557,6 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
         },
     },
 }
-# MM-L2 -- identical content to MM-L1 per the gist ("MM-2" maps to both
-# platform levels with the same section/concept/count/time spec). A plain
-# alias (not a deepcopy) is intentional: every pool entry here is treated as
-# read-only data by the generation service, never mutated in place.
-ANNUAL_COMPETITION_LEVEL_REGISTRY["MM-L2"] = ANNUAL_COMPETITION_LEVEL_REGISTRY["MM-L1"]
 
 
 def GetAnnualCompetitionLevelConfig(LevelCode: str) -> dict[str, Any] | None:

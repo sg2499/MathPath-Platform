@@ -740,6 +740,69 @@ export async function getTeacherAnnualCompetitionPracticeResults(
   return data;
 }
 
+// 2026-09-14 batch (Shailesh): teacher-facing Answer Sheet + Scorecard --
+// the "View" action on both the Official results table
+// (TeacherAnnualCompetitionResultRow, gated on released/result above, same
+// as it already was) and the Practice roster (TeacherAnnualCompetitionPracticeRosterPaper,
+// gated on result being present -- practice results are visible the instant
+// they're computed at submission). Mirrors AnnualCompetitionAttemptReview*
+// in lib/api/student.ts field for field, plus studentId/studentCode/
+// studentName since a teacher (unlike a student viewing their own attempt)
+// needs to know whose attempt this is.
+export type TeacherAnnualCompetitionAttemptReviewQuestion = {
+  questionId: string;
+  questionNumber: number;
+  displayType: string | null;
+  questionText: string | null;
+  operands: Array<number | string>;
+  operators: string[];
+  studentAnswer: string | null;
+  correctAnswer: string | null;
+  isUnanswered: boolean;
+  isCorrect: boolean;
+};
+
+export type TeacherAnnualCompetitionAttemptReviewSection = {
+  sectionNumber: number;
+  sectionTitle: string | null;
+  mode: string | null;
+  status: string;
+  timeLimitSeconds: number | null;
+  startedAt: string | null;
+  submittedAt: string | null;
+  questions: TeacherAnnualCompetitionAttemptReviewQuestion[];
+};
+
+export type TeacherAnnualCompetitionAttemptReviewResult = {
+  score: number;
+  maxScore: number;
+  percentage: number;
+  accuracyPercentage: number;
+  correctCount: number;
+  wrongCount: number;
+  unansweredCount: number;
+  timeTakenSeconds: number | null;
+  rank: number | null;
+};
+
+export type TeacherAnnualCompetitionAttemptReview = {
+  attemptId: string;
+  attemptStatus: string;
+  attemptType?: string;
+  competitionLevelCode?: string | null;
+  studentId?: string;
+  studentCode?: string | null;
+  studentName?: string | null;
+  released: boolean;
+  result: TeacherAnnualCompetitionAttemptReviewResult | null;
+  sections: TeacherAnnualCompetitionAttemptReviewSection[] | null;
+};
+
+export async function getTeacherAnnualCompetitionAttemptReview(attemptId: string): Promise<TeacherAnnualCompetitionAttemptReview> {
+  const { data } = await api.get<TeacherAnnualCompetitionAttemptReview>(`/teacher/competition/annual/attempts/${attemptId}/review`);
+  return data;
+}
+
 export type TeacherParentReportDelivery = {
   id: string;
   studentId?: string | null;

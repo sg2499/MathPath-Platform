@@ -1150,7 +1150,7 @@ class Assignment(Base):
     dps_id = Column(String, ForeignKey("dps.id", ondelete="CASCADE"), nullable=False, index=True)
     assigned_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     assigned_to_type = Column(String(30), nullable=False)
-    assigned_to_id = Column(String, nullable=False)
+    assigned_to_id = Column(String, nullable=False, index=True)
     title = Column(String(255), nullable=False)
     instructions = Column(Text)
     start_time = Column(DateTime(timezone=True), nullable=True)

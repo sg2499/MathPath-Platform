@@ -1,0 +1,379 @@
+"use client";
+
+// 2026-09-14 batch (Shailesh): teacher-facing per-question Annual
+// Competition attempt review -- the "View" action wired into both the
+// Official results table and the Practice roster on
+// app/teacher/competition/annual/page.tsx. Deliberately the same plain,
+// professional audit view as the admin version
+// (app/admin/competition/annual-result/[attemptId]/page.tsx) -- every
+// section, every question, the student's typed answer next to the correct
+// answer -- just teacher-scoped (own students only, enforced server-side)
+// and without the admin-only "always visible" bypass: an OFFICIAL attempt
+// stays locked here until an admin releases results, a PRACTICE attempt is
+// visible the moment the student submits it (see
+// GetCompetitionEventAttemptReviewForTeacher's own docstring on the
+// backend for why that's the same is_released gate, not a new one).
+
+import { AppShell } from "@/components/common/AppShell";
+import { Chip } from "@/components/common/DetailWorkspaceViews";
+import { ErrorState } from "@/components/common/ErrorState";
+import { LoadingState } from "@/components/common/LoadingState";
+import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
+import { useProtectedPage } from "@/hooks/useProtectedPage";
+import { apiErrorMessage } from "@/lib/api";
+import {
+  getTeacherAnnualCompetitionAttemptReview,
+  type TeacherAnnualCompetitionAttemptReview,
+  type TeacherAnnualCompetitionAttemptReviewQuestion,
+} from "@/lib/api/teacher";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  BookOpenCheck,
+  CheckCircle2,
+  Clock3,
+  ListChecks,
+  Target,
+  Trophy,
+} from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+
+function FormatDurationSeconds(Value: number | null | undefined): string {
+  if (Value === null || Value === undefined) return "-";
+  const Total = Math.max(0, Math.round(Number(Value) || 0));
+  const Minutes = Math.floor(Total / 60);
+  const Seconds = Total % 60;
+  if (Minutes && Seconds) return `${Minutes} Min${Minutes !== 1 ? "s" : ""} ${Seconds} Sec${Seconds !== 1 ? "s" : ""}`;
+  if (Minutes) return `${Minutes} Min${Minutes !== 1 ? "s" : ""}`;
+  return `${Seconds} Sec${Seconds !== 1 ? "s" : ""}`;
+}
+
+function FormatNumber(Value: number | null | undefined): string {
+  if (Value === null || Value === undefined || Number.isNaN(Number(Value))) return "-";
+  return String(Math.round(Number(Value) * 100) / 100);
+}
+
+type ReviewTab = "answerSheet" | "scorecard";
+
+export default function TeacherAnnualCompetitionAttemptReviewPage() {
+  const Ready = useProtectedPage(["TEACHER"]);
+  const Params = useParams<{ attemptId: string }>();
+  const Router = useRouter();
+  const AttemptId = Params.attemptId;
+  const [ActiveTab, SetActiveTab] = useState<ReviewTab>("answerSheet");
+
+  const ReviewQuery = useQuery({
+    queryKey: ["teacher-annual-competition-attempt-review", AttemptId],
+    queryFn: () => getTeacherAnnualCompetitionAttemptReview(AttemptId),
+    enabled: Ready && Boolean(AttemptId),
+  });
+
+  if (!Ready) return null;
+
+  if (ReviewQuery.isLoading) {
+    return (
+      <AppShell title="Annual Competition Attempt Review">
+        <LoadingState label="Loading attempt review..." />
+      </AppShell>
+    );
+  }
+
+  if (ReviewQuery.error) {
+    return (
+      <AppShell title="Annual Competition Attempt Review">
+        <ErrorState message={apiErrorMessage(ReviewQuery.error)} />
+      </AppShell>
+    );
+  }
+
+  const Review = ReviewQuery.data;
+  if (!Review) {
+    return (
+      <AppShell title="Annual Competition Attempt Review">
+        <LoadingState label="Preparing attempt review..." />
+      </AppShell>
+    );
+  }
+
+  const BackButton = (
+    <button
+      type="button"
+      className="math-button-secondary mb-4 inline-flex items-center gap-1.5 px-4 py-2 text-sm"
+      onClick={() => Router.push("/teacher/competition/annual")}
+    >
+      <ArrowLeft size={14} />
+      Back To Annual Competition
+    </button>
+  );
+
+  if (!Review.released) {
+    return (
+      <AppShell title="Annual Competition Attempt Review">
+        <section className="space-y-5">
+          <div className="math-card p-6">
+            {BackButton}
+            <p className="math-block-header"><BookOpenCheck size={14} />Attempt Review</p>
+            <h1 className="math-title">Not released yet</h1>
+            <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+              This attempt hasn't been submitted yet, or -- for an official competition attempt -- results haven't been
+              released by an admin yet. Check back once that's done.
+            </p>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
+
+  const Result = Review.result;
+
+  return (
+    <AppShell title="Annual Competition Attempt Review">
+      <section className="space-y-5">
+        <div className="math-card p-6">
+          {BackButton}
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="math-block-header"><BookOpenCheck size={14} />Attempt Review</p>
+              <h1 className="math-title">{Review.studentName || Review.studentCode || Review.studentId}</h1>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {Review.studentCode ? <Chip label={Review.studentCode} /> : null}
+                {Review.competitionLevelCode ? <Chip label={Review.competitionLevelCode} /> : null}
+                {Review.attemptType ? (
+                  <Chip tone={Review.attemptType === "PRACTICE" ? "amber" : "slate"}>{Review.attemptType}</Chip>
+                ) : null}
+              </div>
+            </div>
+            {Result ? (
+              <div className="rounded-[24px] border border-[#2563eb]/25 bg-[#2563eb]/5 px-6 py-4 text-center dark:border-cyan-300/30 dark:bg-cyan-400/10">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2563eb] dark:text-cyan-100">Score</p>
+                <p className="mt-1 text-4xl font-black text-slate-950 dark:text-white">
+                  {FormatNumber(Result.score)}/{FormatNumber(Result.maxScore)}
+                </p>
+                <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">{FormatNumber(Result.percentage)}%</p>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {Result ? (
+          <div className="grid gap-4 lg:grid-cols-4">
+            <MetricCard icon={<Target size={18} />} label="ACCURACY" value={`${FormatNumber(Result.accuracyPercentage)}%`} helper={`${Result.correctCount} correct, ${Result.wrongCount} wrong`} />
+            <MetricCard icon={<CheckCircle2 size={18} />} label="CORRECT" value={Result.correctCount} helper={`${Result.unansweredCount} unanswered`} />
+            <MetricCard icon={<Trophy size={18} />} label="RANK" value={Result.rank ?? "-"} helper="Among ranked official attempts" />
+            <MetricCard icon={<Clock3 size={18} />} label="TIME TAKEN" value={FormatDurationSeconds(Result.timeTakenSeconds)} helper="Across all sections" />
+          </div>
+        ) : null}
+
+        <div className="math-card p-2">
+          <div className="flex flex-wrap gap-2">
+            <ReviewTabButton active={ActiveTab === "answerSheet"} onClick={() => SetActiveTab("answerSheet")} label="Answer Sheet" />
+            <ReviewTabButton active={ActiveTab === "scorecard"} onClick={() => SetActiveTab("scorecard")} label="Scorecard" />
+          </div>
+        </div>
+
+        {ActiveTab === "answerSheet" ? (
+          !Review.sections || Review.sections.length === 0 ? (
+            <div className="math-card p-5 text-sm font-bold text-slate-700 dark:text-slate-300">
+              No section data is available for this attempt yet.
+            </div>
+          ) : (
+            Review.sections.map((SectionReview) => (
+              <div key={SectionReview.sectionNumber} className="math-card p-5">
+                <div className="mb-4 flex flex-col gap-2 rounded-[22px] border border-[#2563eb]/15 bg-[#2563eb]/5 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/30 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2563eb] dark:text-cyan-100">Section {SectionReview.sectionNumber}</p>
+                    <h3 className="text-lg font-black text-slate-950 dark:text-white">
+                      {SectionReview.sectionTitle || `Section ${SectionReview.sectionNumber}`}
+                      {SectionReview.mode ? ` · ${SectionReview.mode}` : ""}
+                    </h3>
+                  </div>
+                  <Chip tone="slate">{SectionReview.questions.length} Questions</Chip>
+                </div>
+
+                {SectionReview.questions.length === 0 ? (
+                  <p className="rounded-[20px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
+                    No questions found for this section.
+                  </p>
+                ) : (
+                  <div className="space-y-5">
+                    {SectionReview.questions.map((QuestionReview) => (
+                      <QuestionReviewCard key={QuestionReview.questionId} Question={QuestionReview} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          )
+        ) : (
+          <ScorecardTab Review={Review} />
+        )}
+      </section>
+    </AppShell>
+  );
+}
+
+function ReviewTabButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className={active ? "math-role-tab math-role-tab-active" : "math-role-tab"}>
+      {label}
+    </button>
+  );
+}
+
+// Section-by-section marks table, derived from the exact same `sections`
+// data the Answer Sheet tab already renders -- mirrors the admin page's own
+// ScorecardTab (same reasoning: this tab's totals must never drift from
+// what the Answer Sheet tab visibly shows above it).
+function ScorecardTab({ Review }: { Review: TeacherAnnualCompetitionAttemptReview }) {
+  const Sections = Review.sections || [];
+  const Rows = Sections.map((SectionReview) => ({
+    sectionNumber: SectionReview.sectionNumber,
+    sectionTitle: SectionReview.sectionTitle || `Section ${SectionReview.sectionNumber}`,
+    totalQuestions: SectionReview.questions.length,
+    correctCount: SectionReview.questions.filter((QuestionReview) => QuestionReview.isCorrect).length,
+  }));
+  const TotalQuestions = Rows.reduce((Sum, Row) => Sum + Row.totalQuestions, 0);
+  const TotalMarksObtained = Rows.reduce((Sum, Row) => Sum + Row.correctCount, 0);
+  const ResultForBreakdown = Review.result;
+  const AttemptedCountForBreakdown = ResultForBreakdown ? ResultForBreakdown.correctCount + ResultForBreakdown.wrongCount : 0;
+
+  return (
+    <div className="math-card p-5">
+      <div className="mb-4">
+        <p className="math-block-header"><ListChecks size={14} />Scorecard</p>
+        <h3 className="text-lg font-black text-slate-950 dark:text-white">Section-wise Marks</h3>
+      </div>
+
+      {Rows.length === 0 ? (
+        <p className="rounded-[20px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
+          No section data is available for this attempt yet.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b-2 border-slate-200 dark:border-slate-700">
+                <th className="px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Section</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Total Questions</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Correct Answers</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Marks Obtained</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Rows.map((Row) => (
+                <tr key={Row.sectionNumber} className="border-b border-slate-100 dark:border-slate-800">
+                  <td className="px-3 py-3 font-bold text-slate-900 dark:text-slate-100">
+                    Section {Row.sectionNumber} -- {Row.sectionTitle}
+                  </td>
+                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{Row.totalQuestions}</td>
+                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{Row.correctCount}</td>
+                  <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{Row.correctCount}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-[#2563eb]/30 dark:border-cyan-300/30">
+                <td className="px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">Total</td>
+                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{TotalQuestions}</td>
+                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{TotalMarksObtained}</td>
+                <td className="px-3 py-3 text-right text-lg font-black text-[#2563eb] dark:text-cyan-100">{TotalMarksObtained}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      <div className="mt-4 rounded-[22px] border border-[#2563eb]/25 bg-[#2563eb]/5 px-5 py-4 text-center dark:border-cyan-300/30 dark:bg-cyan-400/10">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2563eb] dark:text-cyan-100">Total Marks Obtained</p>
+        <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
+          {TotalMarksObtained}/{TotalQuestions}
+        </p>
+      </div>
+
+      {ResultForBreakdown ? (
+        <div className="mt-4 rounded-[22px] border border-emerald-500/25 bg-emerald-500/5 p-5 dark:border-emerald-400/25 dark:bg-emerald-400/10">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Accuracy Breakdown</p>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Attempted</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{AttemptedCountForBreakdown}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Correct</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{ResultForBreakdown.correctCount}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Wrong</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{ResultForBreakdown.wrongCount}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Unanswered</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{ResultForBreakdown.unansweredCount}</p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+            Accuracy = Correct ÷ Attempted = {ResultForBreakdown.correctCount}/{AttemptedCountForBreakdown} = {ResultForBreakdown.accuracyPercentage}%
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function QuestionReviewCard({ Question }: { Question: TeacherAnnualCompetitionAttemptReviewQuestion }) {
+  return (
+    <article className="rounded-[28px] border border-[#2563eb]/15 bg-white/86 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-xl font-black text-slate-950 dark:text-white">Question {Question.questionNumber}</h3>
+        <Chip tone={Question.isUnanswered ? "slate" : Question.isCorrect ? "green" : "red"}>
+          {Question.isUnanswered ? "Unanswered" : Question.isCorrect ? "Correct" : "Wrong"}
+        </Chip>
+      </div>
+
+      <div className="mt-5 rounded-[24px] bg-slate-50/90 p-5 dark:bg-slate-950/60">
+        <MathQuestionDisplay
+          operands={Question.operands}
+          operators={Question.operators}
+          displayType={Question.displayType}
+          questionText={Question.questionText}
+        />
+      </div>
+
+      <div className="mt-5 grid gap-3 xl:grid-cols-2">
+        <AnswerBox title="Student Answer" tone={Question.isUnanswered ? "neutral" : Question.isCorrect ? "correct" : "wrong"}>
+          {Question.studentAnswer ?? "Not Answered"}
+        </AnswerBox>
+        <AnswerBox title="Correct Answer" tone="correct">
+          {Question.correctAnswer ?? "Not Available"}
+        </AnswerBox>
+      </div>
+    </article>
+  );
+}
+
+function AnswerBox({ title, children, tone }: { title: string; children: React.ReactNode; tone: "correct" | "wrong" | "neutral" }) {
+  const ClassName =
+    tone === "correct"
+      ? "border-emerald-100 bg-emerald-50/80 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/25 dark:text-emerald-100"
+      : tone === "wrong"
+        ? "border-cyan-100 bg-cyan-50/80 text-cyan-950 dark:border-cyan-800 dark:bg-cyan-950/25 dark:text-cyan-100"
+        : "border-slate-200 bg-slate-50 text-slate-900 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100";
+  return (
+    <div className={`rounded-[22px] border p-4 ${ClassName}`}>
+      <p className="text-xs font-extrabold uppercase tracking-[0.14em] opacity-80">{title}</p>
+      <p className="mt-2 text-lg font-black">{children}</p>
+    </div>
+  );
+}
+
+function MetricCard({ icon, label, value, helper }: { icon: React.ReactNode; label: string; value: string | number; helper: string }) {
+  return (
+    <article className="math-card p-5">
+      <div className="inline-flex rounded-2xl bg-[#2563eb]/5 p-2 text-[#2563eb] dark:bg-cyan-400/10 dark:text-cyan-100">{icon}</div>
+      <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 dark:text-slate-300">{label}</p>
+      <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">{value}</p>
+      <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-300">{helper}</p>
+    </article>
+  );
+}
