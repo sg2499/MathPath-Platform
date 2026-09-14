@@ -2050,7 +2050,13 @@ export async function batchAssignAnnualCompetitionPracticePapers(payload: {
   return data;
 }
 
-export type AnnualCompetitionPracticeResultRow = {
+// 2026-09-14 (Shailesh, "show all papers, not just submitted, on
+// expanding a student block"): rewired from a flat list of submitted
+// results to a per-student roster of every practice paper (pending AND
+// submitted), ascending by assignment order -- see
+// ListAnnualCompetitionPracticeResultsForAdmin's own docstring in
+// annual_competition_scoring_service.py.
+export type AnnualCompetitionPracticeResult = {
   resultId: string;
   competitionLevelCode: string;
   score: number;
@@ -2068,25 +2074,39 @@ export type AnnualCompetitionPracticeResultRow = {
   isVoided: boolean;
   voidedReason: string | null;
   voidedAt: string | null;
-  attemptId: string;
+};
+
+export type AnnualCompetitionPracticeRosterPaper = {
+  levelPaperId: string;
+  attemptId: string | null;
+  competitionLevelCode: string;
   // levelPaperId/paperOrdinal/paperLabel (2026-09-14, Shailesh -- "Practice
   // Paper 1, 2 and so on"): stable per (student, competitionLevelCode)
   // numbering computed server-side by ComputePracticePaperOrdinals, so it
   // reads identically here and in the student/teacher surfaces -- never
   // recompute this client-side.
-  levelPaperId: string | null;
   paperOrdinal: number | null;
   paperLabel: string;
+  // NOT_STARTED for a pending (never-attempted) paper; otherwise the
+  // underlying CompetitionEventAttempt's own status (IN_PROGRESS/FINALIZED).
+  status: string;
+  assignedAt: string | null;
+  submittedAt: string | null;
+  result: AnnualCompetitionPracticeResult | null;
+};
+
+export type AnnualCompetitionPracticeRosterStudent = {
   studentId: string;
   studentCode: string | null;
   studentName: string | null;
+  papers: AnnualCompetitionPracticeRosterPaper[];
 };
 
 export type AnnualCompetitionPracticeResultsList = {
   competitionLevelCode: string | null;
   studentId: string | null;
-  totalResults: number;
-  rows: AnnualCompetitionPracticeResultRow[];
+  totalStudents: number;
+  students: AnnualCompetitionPracticeRosterStudent[];
 };
 
 export async function listAnnualCompetitionPracticeResults(filters?: {
@@ -2098,6 +2118,41 @@ export async function listAnnualCompetitionPracticeResults(filters?: {
       competitionLevelCode: filters?.competitionLevelCode || undefined,
       studentId: filters?.studentId || undefined,
     },
+  });
+  return data;
+}
+
+// 2026-09-14 (Shailesh): admin Practice delete icons -- per-row (works on
+// a pending OR submitted row, keyed by levelPaperId since a pending row
+// has no attempt) and per-student-block ("delete all", Practice-only,
+// that student's OFFICIAL Annual Competition record is untouched). See
+// DeleteAnnualCompetitionPracticeAttempt/
+// DeleteAllAnnualCompetitionPracticeRecordsForStudent's own docstrings.
+export async function deleteAnnualCompetitionPracticeAttempt(levelPaperId: string) {
+  const { data } = await api.delete(`/admin/annual-competition/practice/attempt/${levelPaperId}`);
+  return data;
+}
+
+export async function deleteAllAnnualCompetitionPracticeRecordsForStudent(studentId: string) {
+  const { data } = await api.delete(`/admin/annual-competition/practice/student/${studentId}`);
+  return data;
+}
+
+// 2026-09-14 (Shailesh, accuracy-formula backfill): recomputes every
+// already-finalized OFFICIAL result across every event (RecomputeAnnual-
+// CompetitionResults with EventId=None) or every PRACTICE result
+// (RecomputeAnnualCompetitionPracticeResults) under the corrected
+// (attempted-questions) accuracy formula. Never touches is_released/rank.
+export async function recomputeAllAnnualCompetitionOfficialResults(competitionLevelCode?: string | null) {
+  const { data } = await api.post(`/admin/annual-competition/results/recompute-all`, {
+    competitionLevelCode: competitionLevelCode || undefined,
+  });
+  return data;
+}
+
+export async function recomputeAnnualCompetitionPracticeResults(competitionLevelCode?: string | null) {
+  const { data } = await api.post(`/admin/annual-competition/practice-results/recompute`, {
+    competitionLevelCode: competitionLevelCode || undefined,
   });
   return data;
 }

@@ -1495,6 +1495,49 @@ def test_practice_paper_numbering_is_independent_per_level():
     assert im_ordinals == [1, 2, 3, 4, 5]
 
 
+def test_practice_bank_display_order_matches_paper_label_even_with_shared_assigned_at():
+    # 2026-09-14 (Shailesh, ordering bug -- "Practice Paper 4, 3, 5, 2, 1"):
+    # regression test for the exact scattered-order screenshot. Pre
+    # microsecond-stagger-fix data (or any other reason several papers in
+    # one batch end up with a byte-identical assigned_at) used to display
+    # in a different order than ComputePracticePaperOrdinals's own label,
+    # because the bank listing query had no id.asc() tie-break to match the
+    # ordinal helper's. Five papers are inserted here sharing one identical
+    # assigned_at, in a deliberately scrambled id order (z, a, m, b, y) --
+    # after the fix, the bank listing's row order must exactly match each
+    # row's own paperOrdinal, whatever id order they were inserted in.
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    student = _student(db, "s1", module_id=module.id, level_id=level.id)
+    db.commit()
+
+    SharedAssignedAt = datetime.now(timezone.utc)
+    ScrambledIds = ["paper-z", "paper-a", "paper-m", "paper-b", "paper-y"]
+    for PaperId in ScrambledIds:
+        db.add(
+            CompetitionEventLevelPaper(
+                id=PaperId, event_id=None, competition_level_code="PM-L2", paper_kind="PRACTICE",
+                status="READY", assigned_student_id=student.id, assigned_at=SharedAssignedAt,
+            )
+        )
+    db.commit()
+
+    bank = studio.GetAnnualCompetitionPracticeBankForStudent(db, StudentId=student.id)
+    assert bank["totalAssigned"] == 5
+    ordinals = [row["paperOrdinal"] for row in bank["papers"]]
+    # The bug: this used to NOT be [1, 2, 3, 4, 5] in row order -- whatever
+    # order the ordinals landed in, some row's position didn't match its
+    # own label. The fix guarantees display position N always carries
+    # paperOrdinal N, regardless of insertion/id order.
+    assert ordinals == [1, 2, 3, 4, 5], ordinals
+    labels = [row["paperLabel"] for row in bank["papers"]]
+    assert labels == [f"Practice Paper {n}" for n in range(1, 6)]
+    # Sorted alphabetically the ids would read a, b, m, y, z -- proving this
+    # isn't just an accidental id-sort match, re-fetching must be stable.
+    bank_again = studio.GetAnnualCompetitionPracticeBankForStudent(db, StudentId=student.id)
+    assert [row["levelPaperId"] for row in bank_again["papers"]] == [row["levelPaperId"] for row in bank["papers"]]
+
+
 def test_get_practice_bank_reflects_consumed_papers():
     db = _session()
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
@@ -1686,3 +1729,189 @@ def test_practice_scopes_never_includes_another_students_papers():
 
     assert studio.ListMyAnnualCompetitionPracticeScopes(db, student_a)["scopes"][0]["totalAssigned"] == 5
     assert studio.ListMyAnnualCompetitionPracticeScopes(db, student_b)["scopes"] == []
+
+
+# ---------------------------------------------------------------------------
+# Admin Practice delete icons (2026-09-14, Shailesh) --
+# DeleteAnnualCompetitionPracticeAttempt (per-row) and
+# DeleteAllAnnualCompetitionPracticeRecordsForStudent (per-student-block).
+# ---------------------------------------------------------------------------
+
+def _practice_paper_with_full_attempt(db, student_id, level_code="PM-L2", suffix=""):
+    """Builds one fully-submitted practice paper -- level paper + attempt +
+    section state + answer + result -- so a delete test can confirm every
+    dependent row actually gets removed, not just the paper itself.
+
+    Unlike _module_and_level (which always inserts a fresh Level row), this
+    get-or-creates the Module/Level so it's safe to call more than once
+    with the same level_code in one test (e.g. several papers for
+    different students on the same level)."""
+    module_code = level_code.split("-")[0]
+    module = db.query(Module).filter(Module.module_code == module_code).first()
+    if not module:
+        module = Module(id=f"module-{module_code}", module_code=module_code, module_name=module_code, is_active=True)
+        db.add(module)
+        db.flush()
+    level = db.query(Level).filter(Level.level_code == level_code).first()
+    if not level:
+        level = Level(id=f"level-{level_code}", module_id=module.id, level_code=level_code, level_name=level_code, is_active=True)
+        db.add(level)
+        db.flush()
+    exam = _mock_exam(db, level.id, module.id, exam_id=f"exam{suffix}")
+    question = CompetitionMockQuestion(
+        id=f"question{suffix}", mock_exam_id=exam.id, section_number=1, question_number=1,
+        correct_answer="4",
+    )
+    db.add(question)
+    db.flush()
+
+    paper = CompetitionEventLevelPaper(
+        id=f"paper{suffix}", event_id=None, competition_level_code=level_code, paper_kind="PRACTICE",
+        status="READY", mock_exam_id=exam.id, assigned_student_id=student_id,
+        assigned_at=datetime.now(timezone.utc), consumed_at=datetime.now(timezone.utc),
+    )
+    db.add(paper)
+    db.flush()
+
+    attempt = CompetitionEventAttempt(
+        id=f"attempt{suffix}", event_id=None, assignment_id=None, level_paper_id=paper.id,
+        student_id=student_id, attempt_number=1, attempt_type="PRACTICE", status="FINALIZED",
+        started_at=datetime.now(timezone.utc), submitted_at=datetime.now(timezone.utc),
+    )
+    db.add(attempt)
+    db.flush()
+
+    section_state = CompetitionEventAttemptSectionState(
+        id=f"section{suffix}", attempt_id=attempt.id, section_number=1, status="COMPLETED",
+        time_limit_seconds=600, remaining_seconds_at_last_heartbeat=0,
+    )
+    db.add(section_state)
+
+    answer = CompetitionEventAttemptAnswer(
+        id=f"answer{suffix}", attempt_id=attempt.id, mock_question_id=question.id,
+        selected_value="4", is_correct=True,
+    )
+    db.add(answer)
+
+    result = CompetitionEventResult(
+        id=f"result{suffix}", attempt_id=attempt.id, event_id=None, assignment_id=None,
+        student_id=student_id, attempt_type="PRACTICE", competition_level_code=level_code,
+        score=1, max_score=1, percentage=100.0, accuracy_percentage=100.0,
+        correct_count=1, wrong_count=0, unanswered_count=0, time_taken_seconds=30, is_released=True,
+    )
+    db.add(result)
+    db.commit()
+    return paper, attempt
+
+
+def test_delete_practice_attempt_removes_paper_attempt_answer_section_and_result():
+    db = _session()
+    student = _student(db, "s1")
+    db.commit()
+    paper, attempt = _practice_paper_with_full_attempt(db, student.id)
+
+    studio.DeleteAnnualCompetitionPracticeAttempt(db, LevelPaperId=paper.id)
+
+    assert db.get(CompetitionEventLevelPaper, paper.id) is None
+    assert db.get(CompetitionEventAttempt, attempt.id) is None
+    assert db.query(CompetitionEventAttemptSectionState).filter_by(attempt_id=attempt.id).count() == 0
+    assert db.query(CompetitionEventAttemptAnswer).filter_by(attempt_id=attempt.id).count() == 0
+    assert db.query(CompetitionEventResult).filter_by(attempt_id=attempt.id).count() == 0
+
+
+def test_delete_practice_attempt_works_on_a_pending_never_attempted_paper():
+    # 2026-09-14 (Shailesh): "pending row should get the delete option as
+    # well" -- a paper with no attempt at all must delete cleanly too.
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    student = _student(db, "s1", module_id=module.id, level_id=level.id)
+    db.commit()
+    studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
+    )
+    paper = db.query(CompetitionEventLevelPaper).filter_by(assigned_student_id=student.id).first()
+    assert paper.consumed_at is None  # genuinely pending
+    paper_id = paper.id  # captured before delete/commit expires the ORM object
+
+    result = studio.DeleteAnnualCompetitionPracticeAttempt(db, LevelPaperId=paper_id)
+    assert result["deleted"] is True
+    assert db.get(CompetitionEventLevelPaper, paper_id) is None
+
+
+def test_delete_practice_attempt_404s_for_an_official_paper():
+    # Never lets the practice delete route reach an OFFICIAL paper by id.
+    db = _session()
+    event = _event(db)
+    official_paper = CompetitionEventLevelPaper(
+        id="official-paper-1", event_id=event.id, competition_level_code="PM-L2", paper_kind="OFFICIAL",
+        status="READY",
+    )
+    db.add(official_paper)
+    db.commit()
+
+    with pytest.raises(HTTPException):
+        studio.DeleteAnnualCompetitionPracticeAttempt(db, LevelPaperId="official-paper-1")
+
+
+def test_delete_all_practice_records_for_student_removes_every_paper_and_leaves_other_students_alone():
+    db = _session()
+    student_a = _student(db, "s1")
+    student_b = _student(db, "s2")
+    db.commit()
+    paper_a1, attempt_a1 = _practice_paper_with_full_attempt(db, student_a.id, suffix="-a1")
+    paper_a2, attempt_a2 = _practice_paper_with_full_attempt(db, student_a.id, suffix="-a2")
+    paper_b1, attempt_b1 = _practice_paper_with_full_attempt(db, student_b.id, suffix="-b1")
+    # Captured before the delete/commit below expires these ORM objects.
+    paper_a1_id, paper_a2_id, attempt_a1_id, attempt_a2_id = paper_a1.id, paper_a2.id, attempt_a1.id, attempt_a2.id
+    paper_b1_id, attempt_b1_id = paper_b1.id, attempt_b1.id
+
+    result = studio.DeleteAllAnnualCompetitionPracticeRecordsForStudent(db, StudentId=student_a.id)
+    assert result["deletedPaperCount"] == 2
+
+    assert db.get(CompetitionEventLevelPaper, paper_a1_id) is None
+    assert db.get(CompetitionEventLevelPaper, paper_a2_id) is None
+    assert db.get(CompetitionEventAttempt, attempt_a1_id) is None
+    assert db.get(CompetitionEventAttempt, attempt_a2_id) is None
+    # Student B's practice records are completely untouched.
+    assert db.get(CompetitionEventLevelPaper, paper_b1_id) is not None
+    assert db.get(CompetitionEventAttempt, attempt_b1_id) is not None
+    assert db.query(CompetitionEventResult).filter_by(attempt_id=attempt_b1_id).count() == 1
+
+
+def test_delete_all_practice_records_for_student_never_touches_their_official_record():
+    # 2026-09-14 (Shailesh, explicit): "delete all records is valid for
+    # practice flow ... only" -- this student's OFFICIAL Annual Competition
+    # assignment/attempt/result must survive a practice-only delete-all.
+    db = _session()
+    event = _event(db)
+    student = _student(db, "s1")
+    db.commit()
+    _practice_paper_with_full_attempt(db, student.id)
+
+    official_paper = CompetitionEventLevelPaper(
+        id="official-paper-1", event_id=event.id, competition_level_code="PM-L2", paper_kind="OFFICIAL",
+        status="READY",
+    )
+    db.add(official_paper)
+    db.flush()
+    official_attempt = CompetitionEventAttempt(
+        id="official-attempt-1", event_id=event.id, assignment_id=None, level_paper_id=official_paper.id,
+        student_id=student.id, attempt_number=1, attempt_type="OFFICIAL", status="FINALIZED",
+    )
+    db.add(official_attempt)
+    db.commit()
+
+    studio.DeleteAllAnnualCompetitionPracticeRecordsForStudent(db, StudentId=student.id)
+
+    assert db.get(CompetitionEventLevelPaper, "official-paper-1") is not None
+    assert db.get(CompetitionEventAttempt, "official-attempt-1") is not None
+
+
+def test_delete_all_practice_records_for_student_with_no_records_is_a_safe_noop():
+    db = _session()
+    student = _student(db, "s1")
+    db.commit()
+
+    result = studio.DeleteAllAnnualCompetitionPracticeRecordsForStudent(db, StudentId=student.id)
+    assert result == {"studentId": student.id, "deletedPaperCount": 0}

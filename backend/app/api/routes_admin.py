@@ -118,6 +118,8 @@ from app.services.annual_competition_studio_service import (
     BatchAssignAnnualCompetitionPracticePapers,
     GetAnnualCompetitionPracticeBankForStudent,
     ListStudentsForPracticeBank,
+    DeleteAnnualCompetitionPracticeAttempt,
+    DeleteAllAnnualCompetitionPracticeRecordsForStudent,
 )
 
 from app.services.annual_competition_attempt_service import (
@@ -134,6 +136,7 @@ from app.services.annual_competition_scoring_service import (
     VoidCompetitionEventResult,
     UnvoidCompetitionEventResult,
     RecomputeAnnualCompetitionResults,
+    RecomputeAnnualCompetitionPracticeResults,
     ListAnnualCompetitionPracticeResultsForAdmin,
 )
 
@@ -6164,6 +6167,28 @@ def admin_list_annual_competition_practice_results(
     )
 
 
+# 2026-09-14 (Shailesh): per-row delete icon in the admin Practice view --
+# works on both a pending (never-attempted) row and a submitted one, see
+# DeleteAnnualCompetitionPracticeAttempt's own docstring. Keyed by
+# levelPaperId (not attemptId) since a pending row has no attempt at all.
+@router.delete("/annual-competition/practice/attempt/{level_paper_id}")
+def admin_delete_annual_competition_practice_attempt(
+    level_paper_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return DeleteAnnualCompetitionPracticeAttempt(db, LevelPaperId=level_paper_id)
+
+
+# 2026-09-14 (Shailesh): per-student-block delete icon in the admin
+# Practice view -- deletes every PRACTICE record for this student only,
+# their OFFICIAL Annual Competition record (if any) is untouched. See
+# DeleteAllAnnualCompetitionPracticeRecordsForStudent's own docstring.
+@router.delete("/annual-competition/practice/student/{student_id}")
+def admin_delete_all_annual_competition_practice_records_for_student(
+    student_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return DeleteAllAnnualCompetitionPracticeRecordsForStudent(db, StudentId=student_id)
+
+
 @router.post("/annual-competition/events/{event_id}/results/rank")
 def admin_rank_annual_competition_results(
     event_id: str, payload: AnnualCompetitionRankResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
@@ -6189,6 +6214,29 @@ def admin_recompute_annual_competition_results(
     event_id: str, payload: AnnualCompetitionRecomputeResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
 ):
     return RecomputeAnnualCompetitionResults(db, EventId=event_id, CompetitionLevelCode=payload.competitionLevelCode)
+
+
+# 2026-09-14 (Shailesh, accuracy-formula backfill): the event-scoped route
+# above needs an event ID up front, which is awkward for "recompute
+# literally every OFFICIAL result, across every event, under the corrected
+# formula" -- exactly what's needed once, right after a scoring-formula fix
+# ships. See RecomputeAnnualCompetitionResults's own docstring for why
+# EventId is optional now.
+@router.post("/annual-competition/results/recompute-all")
+def admin_recompute_all_annual_competition_official_results(
+    payload: AnnualCompetitionRecomputeResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return RecomputeAnnualCompetitionResults(db, EventId=None, CompetitionLevelCode=payload.competitionLevelCode)
+
+
+# Practice's own sibling of the two recompute routes above -- see
+# RecomputeAnnualCompetitionPracticeResults's own docstring. No event_id
+# path segment at all: practice results are never event-scoped.
+@router.post("/annual-competition/practice-results/recompute")
+def admin_recompute_annual_competition_practice_results(
+    payload: AnnualCompetitionRecomputeResultsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return RecomputeAnnualCompetitionPracticeResults(db, CompetitionLevelCode=payload.competitionLevelCode)
 
 
 # Package 10 (go-live rollback plan): correct/void a single attempt's

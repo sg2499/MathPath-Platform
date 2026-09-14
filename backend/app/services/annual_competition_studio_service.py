@@ -1190,7 +1190,25 @@ def GetAnnualCompetitionPracticeBankForStudent(
     )
     if CompetitionLevelCode:
         Query = Query.filter(CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode)
-    PracticePapers = Query.order_by(CompetitionEventLevelPaper.assigned_at.asc()).all()
+    # 2026-09-14 (Shailesh, ordering bug -- "Practice Paper 4, 3, 5, 2, 1"):
+    # this listing's own row order must match ComputePracticePaperOrdinals's
+    # tie-break exactly (assigned_at.asc(), THEN id.asc()), or a batch of
+    # papers sharing one identical assigned_at (pre microsecond-stagger-fix
+    # data) can display in a different order than the "Practice Paper N"
+    # label computed for the same rows below -- exactly the scattered order
+    # Shailesh reported. Was previously assigned_at.asc() only.
+    PracticePapers = Query.order_by(
+        CompetitionEventLevelPaper.assigned_at.asc(), CompetitionEventLevelPaper.id.asc()
+    ).all()
+
+    # See ComputePracticePaperOrdinals's own docstring -- computed here from
+    # every distinct (student, level) scope actually present in this
+    # listing (usually just one, since this function is normally called for
+    # one student, but a level-agnostic call still numbers each level
+    # independently, correctly).
+    Ordinals = ComputePracticePaperOrdinals(
+        db, {(PaperRecord.assigned_student_id, PaperRecord.competition_level_code) for PaperRecord in PracticePapers}
+    )
 
     # See ComputePracticePaperOrdinals's own docstring -- computed here from
     # every distinct (student, level) scope actually present in this
@@ -1230,6 +1248,108 @@ def GetAnnualCompetitionPracticeBankForStudent(
         "remainingCount": len(Rows) - ConsumedCount,
         "papers": Rows,
     }
+
+
+def DeleteAnnualCompetitionPracticeAttempt(db: Session, *, LevelPaperId: str) -> dict[str, Any]:
+    """Admin per-row delete, Practice view (2026-09-14, Shailesh): removes
+    one practice paper entirely -- the CompetitionEventLevelPaper row
+    itself, plus its attempt/result/answers/section-states if it was ever
+    started or submitted. Works identically for a pending (never attempted)
+    row and a submitted one: a pending row has no attempt to unwind, so
+    that whole block below is simply skipped.
+
+    Mirrors DeleteCompetitionEvent's own explicit, dependency-ordered
+    cascade (this module, above) rather than relying on implicit DB
+    cascade -- same reasoning: SQLite (this suite's test DB) does not
+    enforce foreign keys unless a connection explicitly turns
+    PRAGMA foreign_keys on, so a correctness bug here could pass its own
+    tests for the wrong reason if left to implicit cascade.
+
+    2026-09-14 (Shailesh, explicit): a deleted paper is genuinely gone, not
+    reset to "pending" for reassignment -- "if that paper ever gets
+    assigned to the same student later someday not a problem as so many
+    papers are there no one will remember the exact questions." If this
+    student is later given a fresh practice paper for the same level, it is
+    a brand new CompetitionEventLevelPaper row, entirely independent of the
+    one deleted here.
+    """
+    PaperRecord = db.get(CompetitionEventLevelPaper, LevelPaperId)
+    if not PaperRecord or PaperRecord.paper_kind != "PRACTICE":
+        api_error(404, "PRACTICE_PAPER_NOT_FOUND", "Practice paper not found.")
+
+    AttemptRecord = (
+        db.query(CompetitionEventAttempt)
+        .filter(CompetitionEventAttempt.level_paper_id == LevelPaperId, CompetitionEventAttempt.attempt_type == "PRACTICE")
+        .first()
+    )
+    if AttemptRecord:
+        db.query(CompetitionEventAttemptSectionState).filter(
+            CompetitionEventAttemptSectionState.attempt_id == AttemptRecord.id
+        ).delete(synchronize_session=False)
+        db.query(CompetitionEventAttemptAnswer).filter(
+            CompetitionEventAttemptAnswer.attempt_id == AttemptRecord.id
+        ).delete(synchronize_session=False)
+        db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).delete(synchronize_session=False)
+        db.query(CompetitionEventAttemptRetryGrant).filter(
+            CompetitionEventAttemptRetryGrant.used_attempt_id == AttemptRecord.id
+        ).delete(synchronize_session=False)
+        db.delete(AttemptRecord)
+
+    db.delete(PaperRecord)
+    db.commit()
+    return {"levelPaperId": LevelPaperId, "deleted": True}
+
+
+def DeleteAllAnnualCompetitionPracticeRecordsForStudent(db: Session, *, StudentId: str) -> dict[str, Any]:
+    """Admin per-student-block delete, Practice view (2026-09-14, Shailesh):
+    removes every PRACTICE record for one student -- every practice
+    CompetitionEventLevelPaper they were ever assigned (consumed or not)
+    plus each one's attempt/result/answers/section-states, the same
+    cascade DeleteAnnualCompetitionPracticeAttempt uses per paper, just
+    batched across every paper_kind == "PRACTICE" row this student has.
+
+    2026-09-14 (Shailesh, explicit): "delete all records is valid for
+    practice flow ... only" -- deliberately scoped to paper_kind ==
+    "PRACTICE" only. This student's OFFICIAL Annual Competition
+    assignment/attempt/result, if any, is completely untouched; nothing
+    here ever filters or deletes by paper_kind == "OFFICIAL".
+    """
+    StudentRecord = _ResolveStudentByIdOrCode(db, StudentId)
+
+    PaperIds = [
+        Row.id
+        for Row in db.query(CompetitionEventLevelPaper.id)
+        .filter(
+            CompetitionEventLevelPaper.paper_kind == "PRACTICE",
+            CompetitionEventLevelPaper.assigned_student_id == StudentRecord.id,
+        )
+        .all()
+    ]
+    if not PaperIds:
+        return {"studentId": StudentRecord.id, "deletedPaperCount": 0}
+
+    AttemptIds = [
+        Row.id
+        for Row in db.query(CompetitionEventAttempt.id)
+        .filter(CompetitionEventAttempt.level_paper_id.in_(PaperIds), CompetitionEventAttempt.attempt_type == "PRACTICE")
+        .all()
+    ]
+    if AttemptIds:
+        db.query(CompetitionEventAttemptSectionState).filter(
+            CompetitionEventAttemptSectionState.attempt_id.in_(AttemptIds)
+        ).delete(synchronize_session=False)
+        db.query(CompetitionEventAttemptAnswer).filter(
+            CompetitionEventAttemptAnswer.attempt_id.in_(AttemptIds)
+        ).delete(synchronize_session=False)
+        db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id.in_(AttemptIds)).delete(synchronize_session=False)
+        db.query(CompetitionEventAttemptRetryGrant).filter(
+            CompetitionEventAttemptRetryGrant.used_attempt_id.in_(AttemptIds)
+        ).delete(synchronize_session=False)
+        db.query(CompetitionEventAttempt).filter(CompetitionEventAttempt.id.in_(AttemptIds)).delete(synchronize_session=False)
+
+    db.query(CompetitionEventLevelPaper).filter(CompetitionEventLevelPaper.id.in_(PaperIds)).delete(synchronize_session=False)
+    db.commit()
+    return {"studentId": StudentRecord.id, "deletedPaperCount": len(PaperIds)}
 
 
 def ListStudentsForPracticeBank(db: Session) -> dict[str, Any]:

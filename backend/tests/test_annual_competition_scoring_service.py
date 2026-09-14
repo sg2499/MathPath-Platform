@@ -237,7 +237,13 @@ def test_finalize_counts_unanswered_as_zero_marks_not_wrong():
     assert result.unanswered_count == 2
     assert result.score == 1
     assert result.max_score == 3
-    assert round(result.accuracy_percentage, 2) == round((1 / 3) * 100, 2)
+    # Accuracy fix (Shailesh, 2026-09-14): denominator is ATTEMPTED
+    # questions (correct + wrong = 1 here), never every question in the
+    # paper (3) -- unanswered questions must never drag accuracy% down, only
+    # completion% (score/maxScore, asserted above via score/max_score). One
+    # correct out of one attempted is 100% accuracy, despite two of the
+    # paper's three questions being left unanswered.
+    assert round(result.accuracy_percentage, 2) == 100.0
 
 
 def test_finalize_score_is_count_based_not_marks_weighted():
@@ -573,15 +579,27 @@ def test_ranking_later_first_mistake_wins_full_tie():
     assert result_a.rank == 2
 
 
-def test_ranking_no_mistake_beats_a_tied_student_with_one_mistake():
+def test_ranking_zero_wrong_outranks_one_wrong_via_accuracy_alone():
+    """2026-09-14 (Shailesh, accuracy-formula fix): before the fix, this
+    exact scenario (A: 3 correct + 1 unanswered; B: 3 correct + 1 wrong)
+    computed as a 75%/75% ACCURACY TIE under the old total-questions
+    denominator, requiring the first-mistake tie-break
+    (test_ranking_later_first_mistake_wins_full_tie, above) to separate
+    them. Under the corrected attempted-questions denominator, a student
+    with zero wrong answers always reads 100% accuracy the moment they've
+    attempted anything, so A (3 correct / 3 attempted = 100%) now
+    genuinely outranks B (3 correct / 4 attempted = 75%) on accuracy% alone
+    -- no tie, no tie-break needed. This is a direct regression test for
+    the accuracy fix itself, exercised through the real ranking pipeline.
+    """
     db = _session()
     event = _event(db)
     student_a = _setup_student_with_questions(db, "sA", event.id, section_seconds=(600,), questions_per_section=[4], exam_id="exam-shared", level_paper_id="paper-shared")
     student_b = _setup_student_with_questions(db, "sB", event.id, section_seconds=(600,), questions_per_section=[4], exam_id="exam-shared", level_paper_id="paper-shared")
     db.commit()
 
-    # Same accuracy (75%) and time via different mixes: A gets 3 correct +
-    # 1 unanswered (never "wrong"); B gets 3 correct + 1 wrong.
+    # A: 3 correct + 1 unanswered (never "wrong"); B: 3 correct + 1 wrong.
+    # Same time taken -- accuracy alone must separate them now.
     started_a = attempt_engine.StartCompetitionEventAttempt(db, student_a, event.id)
     _answer(db, student_a, started_a["attemptId"], started_a["sessionToken"], 1, "q-1-1", correct=True)
     _answer(db, student_a, started_a["attemptId"], started_a["sessionToken"], 1, "q-1-2", correct=True)
@@ -606,9 +624,10 @@ def test_ranking_no_mistake_beats_a_tied_student_with_one_mistake():
 
     result_a = db.query(CompetitionEventResult).filter_by(student_id="sA").one()
     result_b = db.query(CompetitionEventResult).filter_by(student_id="sB").one()
-    assert result_a.accuracy_percentage == result_b.accuracy_percentage
+    assert result_a.accuracy_percentage == 100.0
+    assert result_b.accuracy_percentage == 75.0
     assert result_a.time_taken_seconds == result_b.time_taken_seconds
-    assert result_a.rank == 1  # never made a mistake at all
+    assert result_a.rank == 1  # 100% accuracy beats 75%, no tie-break involved
     assert result_b.rank == 2
 
 
@@ -1269,8 +1288,8 @@ def test_admin_practice_results_list_never_mixes_in_an_official_result():
     db.commit()
 
     result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db)
-    assert result["totalResults"] == 1
-    assert result["rows"][0]["studentId"] == "sPractice"
+    assert result["totalStudents"] == 1
+    assert result["students"][0]["studentId"] == "sPractice"
 
 
 def test_admin_practice_results_list_filters_by_level_code():
@@ -1281,9 +1300,9 @@ def test_admin_practice_results_list_filters_by_level_code():
     db.commit()
 
     matching = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, CompetitionLevelCode="PM-L2")
-    assert matching["totalResults"] == 1
+    assert matching["totalStudents"] == 1
     non_matching = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, CompetitionLevelCode="IM-L1")
-    assert non_matching["totalResults"] == 0
+    assert non_matching["totalStudents"] == 0
 
 
 def test_admin_practice_results_list_filters_by_student_id():
@@ -1296,8 +1315,8 @@ def test_admin_practice_results_list_filters_by_student_id():
     db.commit()
 
     result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, StudentId="sPracticeA")
-    assert result["totalResults"] == 1
-    assert result["rows"][0]["studentId"] == "sPracticeA"
+    assert result["totalStudents"] == 1
+    assert result["students"][0]["studentId"] == "sPracticeA"
 
 
 def test_admin_practice_results_list_carries_level_paper_id_and_paper_label():
@@ -1311,7 +1330,7 @@ def test_admin_practice_results_list_carries_level_paper_id_and_paper_label():
     db.commit()
 
     result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db)
-    row = result["rows"][0]
+    row = result["students"][0]["papers"][0]
     assert row["levelPaperId"] == "practice-paper-sPractice"
     assert row["paperOrdinal"] == 1
     assert row["paperLabel"] == "Practice Paper 1"
@@ -1365,8 +1384,8 @@ def test_admin_practice_results_list_labels_multiple_results_in_assignment_order
     db.commit()
 
     result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db)
-    assert result["totalResults"] == 2
-    by_level_paper = {row["levelPaperId"]: row["paperLabel"] for row in result["rows"]}
+    assert result["totalStudents"] == 1
+    by_level_paper = {row["levelPaperId"]: row["paperLabel"] for row in result["students"][0]["papers"]}
     assert by_level_paper == {"paper-1": "Practice Paper 1", "paper-2": "Practice Paper 2"}
 
 
@@ -1383,4 +1402,121 @@ def test_admin_practice_results_list_spans_students_with_no_event_in_common():
     db.commit()
 
     result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db)
-    assert result["totalResults"] == 2
+    assert result["totalStudents"] == 2
+
+
+def test_admin_practice_results_list_includes_pending_papers_not_just_submitted():
+    # 2026-09-14 (Shailesh): "the admin should see all the papers assigned
+    # to a student ... not only the submitted ones but also the pending
+    # ones just as the student sees them." A pending (never-attempted)
+    # paper has no CompetitionEventResult at all -- it must still show up,
+    # ascending by paperOrdinal alongside the submitted one, with a plain
+    # NOT_STARTED status and result=None.
+    db = _session()
+    student = _student(db, "sPractice")
+    db.commit()
+    _practice_result(db, "sPractice", "PM-L2")  # paper 1: submitted
+
+    pending_paper = CompetitionEventLevelPaper(
+        id="pending-paper-1", event_id=None, competition_level_code="PM-L2", paper_kind="PRACTICE",
+        status="READY", assigned_student_id="sPractice",
+        assigned_at=datetime.now(timezone.utc) + timedelta(minutes=5),  # assigned after paper 1
+    )
+    db.add(pending_paper)
+    db.commit()
+
+    result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db)
+    assert result["totalStudents"] == 1
+    papers = result["students"][0]["papers"]
+    assert len(papers) == 2
+    assert [p["paperLabel"] for p in papers] == ["Practice Paper 1", "Practice Paper 2"]
+
+    submitted_row, pending_row = papers[0], papers[1]
+    assert submitted_row["result"] is not None
+    assert submitted_row["status"] == "FINALIZED"
+
+    assert pending_row["levelPaperId"] == "pending-paper-1"
+    assert pending_row["attemptId"] is None
+    assert pending_row["result"] is None
+    assert pending_row["status"] == "NOT_STARTED"
+
+
+def test_recompute_all_official_results_spans_every_event_when_event_id_omitted():
+    # 2026-09-14 (Shailesh, accuracy-formula backfill): the whole point of
+    # making EventId optional -- one call recomputes OFFICIAL results
+    # across every event, not just one, for a platform-wide formula fix.
+    db = _session()
+    event_1 = _event(db, "event-1")
+    event_2 = CompetitionEvent(
+        id="event-2", name="Second Event", status="SCHEDULED",
+        competition_date=datetime.now(timezone.utc) + timedelta(days=60),
+    )
+    db.add(event_2)
+    student_1 = _setup_student_with_questions(db, "s1", event_1.id, section_seconds=(600,), questions_per_section=[2], exam_id="exam-1", level_paper_id="paper-1")
+    student_2 = _setup_student_with_questions(db, "s2", event_2.id, section_seconds=(600,), questions_per_section=[2], exam_id="exam-2", level_paper_id="paper-2", qid_prefix="s2")
+    db.commit()
+
+    started_1 = attempt_engine.StartCompetitionEventAttempt(db, student_1, event_1.id)
+    _answer(db, student_1, started_1["attemptId"], started_1["sessionToken"], 1, "q-1-1", correct=True)
+    attempt_engine.SubmitCompetitionEventSection(db, student_1, started_1["attemptId"], started_1["sessionToken"], 1)
+
+    started_2 = attempt_engine.StartCompetitionEventAttempt(db, student_2, event_2.id)
+    _answer(db, student_2, started_2["attemptId"], started_2["sessionToken"], 1, "s2-q-1-1", correct=True)
+    attempt_engine.SubmitCompetitionEventSection(db, student_2, started_2["attemptId"], started_2["sessionToken"], 1)
+
+    # Simulate both results having been computed under the OLD (wrong)
+    # formula, exactly the state a real deploy would find them in.
+    db.query(CompetitionEventResult).update({CompetitionEventResult.accuracy_percentage: 12.34})
+    db.commit()
+
+    outcome = scoring.RecomputeAnnualCompetitionResults(db, EventId=None)
+    assert outcome["eventId"] is None
+    assert outcome["recomputedCount"] == 2
+
+    result_1 = db.query(CompetitionEventResult).filter_by(student_id="s1").one()
+    result_2 = db.query(CompetitionEventResult).filter_by(student_id="s2").one()
+    assert result_1.accuracy_percentage == 100.0
+    assert result_2.accuracy_percentage == 100.0
+
+
+def test_recompute_all_official_results_never_touches_practice_results():
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+    _submit_full_attempt(db, student, event.id, {"q-1-1": True})
+    _practice_result(db, "sPractice", "PM-L2", accuracy=12.34)
+    db.commit()
+    db.query(CompetitionEventResult).filter_by(attempt_type="PRACTICE").update({CompetitionEventResult.accuracy_percentage: 12.34})
+    db.commit()
+
+    scoring.RecomputeAnnualCompetitionResults(db, EventId=None)
+
+    practice_result = db.query(CompetitionEventResult).filter_by(attempt_type="PRACTICE").one()
+    assert practice_result.accuracy_percentage == 12.34  # untouched -- OFFICIAL-only sweep
+
+
+def test_recompute_practice_results_backfills_every_practice_result_under_new_formula():
+    # 2026-09-14 (Shailesh, accuracy-formula backfill): the practice-side
+    # sibling -- no event scope at all, sweeps every non-voided PRACTICE
+    # result.
+    db = _session()
+    student = _setup_student_with_practice_questions(
+        db, "sPracticeRecompute", section_seconds=(600,), questions_per_section=[1],
+        level_paper_id="practice-recompute-paper-2",
+    )
+    db.commit()
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "practice-q-1-1", correct=True)
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    # Simulate a value computed under the old (wrong) formula.
+    db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).update({CompetitionEventResult.accuracy_percentage: 12.34})
+    db.commit()
+
+    outcome = scoring.RecomputeAnnualCompetitionPracticeResults(db)
+    assert outcome["recomputedCount"] == 1
+
+    result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    assert result.accuracy_percentage == 100.0

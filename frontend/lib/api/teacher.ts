@@ -681,19 +681,14 @@ export async function getTeacherAnnualCompetitionResults(eventId: string, compet
 // assignment). Never ranked, never release-gated (practice is always
 // released the instant it's scored), so there's no `released`/`rank` here
 // the way the OFFICIAL row has, and no event scope either.
-export type TeacherAnnualCompetitionPracticeResultRow = {
-  attemptId: string;
-  // levelPaperId/paperOrdinal/paperLabel (2026-09-14, Shailesh -- teacher
-  // Practice tab restructure): same stable "Practice Paper N" numbering the
-  // admin and student surfaces use, computed server-side -- see
-  // ComputePracticePaperOrdinals's own docstring on the backend.
-  levelPaperId: string | null;
-  paperOrdinal: number | null;
-  paperLabel: string;
-  studentId: string;
-  studentCode: string | null;
-  studentName: string | null;
-  competitionLevelCode: string;
+// 2026-09-14 (Shailesh, "show all papers, not just submitted, on
+// expanding a student block"): rewired from a flat list of submitted
+// results to a per-student roster of every practice paper (pending AND
+// submitted), ascending by assignment order -- mirrors the admin-side
+// AnnualCompetitionPracticeRoster* types exactly. See
+// ListAnnualCompetitionPracticeResultsForRoster's own docstring in
+// annual_competition_monitoring_service.py.
+export type TeacherAnnualCompetitionPracticeResult = {
   score: number;
   maxScore: number;
   percentage: number;
@@ -705,10 +700,35 @@ export type TeacherAnnualCompetitionPracticeResultRow = {
   computedAt: string | null;
 };
 
+export type TeacherAnnualCompetitionPracticeRosterPaper = {
+  levelPaperId: string;
+  attemptId: string | null;
+  competitionLevelCode: string;
+  // levelPaperId/paperOrdinal/paperLabel (2026-09-14, Shailesh -- teacher
+  // Practice tab restructure): same stable "Practice Paper N" numbering the
+  // admin and student surfaces use, computed server-side -- see
+  // ComputePracticePaperOrdinals's own docstring on the backend.
+  paperOrdinal: number | null;
+  paperLabel: string;
+  // NOT_STARTED for a pending (never-attempted) paper; otherwise the
+  // underlying CompetitionEventAttempt's own status.
+  status: string;
+  assignedAt: string | null;
+  submittedAt: string | null;
+  result: TeacherAnnualCompetitionPracticeResult | null;
+};
+
+export type TeacherAnnualCompetitionPracticeRosterStudent = {
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  papers: TeacherAnnualCompetitionPracticeRosterPaper[];
+};
+
 export type TeacherAnnualCompetitionPracticeResultsList = {
   competitionLevelCode: string | null;
-  totalResults: number;
-  rows: TeacherAnnualCompetitionPracticeResultRow[];
+  totalStudents: number;
+  students: TeacherAnnualCompetitionPracticeRosterStudent[];
 };
 
 export async function getTeacherAnnualCompetitionPracticeResults(

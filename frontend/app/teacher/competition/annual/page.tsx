@@ -13,7 +13,7 @@ import {
   getTeacherAnnualCompetitionPracticeResults,
   getTeacherAnnualCompetitionResults,
   type TeacherAnnualCompetitionLiveRow,
-  type TeacherAnnualCompetitionPracticeResultRow,
+  type TeacherAnnualCompetitionPracticeRosterStudent,
   type TeacherAnnualCompetitionResultRow,
 } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
@@ -130,23 +130,27 @@ export default function TeacherAnnualCompetitionMonitorPage() {
   // attempts in one place along with the search bar and module-level
   // filters." Level filtering happens server-side (PracticeLevelFilter,
   // above); search is client-side across the already-fetched page, same as
-  // admin's.
-  const PracticeFiltered = (PracticeQuery.data?.rows || []).filter((Row) => {
-    const Term = PracticeSearchText.trim().toLowerCase();
-    if (!Term) return true;
-    const Haystack = [Row.studentName, Row.studentCode, Row.competitionLevelCode, Row.paperLabel].join(" ").toLowerCase();
-    return Haystack.includes(Term);
-  });
+  // admin's. The backend now does the student-grouping itself
+  // (ListAnnualCompetitionPracticeResultsForRoster returns students[].
+  // papers[] directly, every paper ascending by paperOrdinal, pending AND
+  // submitted together) -- no client-side re-grouping needed anymore.
   const GroupedPracticeResults = (() => {
-    const StudentMap = new Map<string, { key: string; studentId: string; studentCode: string | null; studentName: string | null; rows: TeacherAnnualCompetitionPracticeResultRow[] }>();
-    PracticeFiltered.forEach((Row) => {
-      const Key = Row.studentId;
-      if (!StudentMap.has(Key)) {
-        StudentMap.set(Key, { key: Key, studentId: Row.studentId, studentCode: Row.studentCode, studentName: Row.studentName, rows: [] });
-      }
-      StudentMap.get(Key)!.rows.push(Row);
-    });
-    return Array.from(StudentMap.values()).sort((Left, Right) =>
+    const Term = PracticeSearchText.trim().toLowerCase();
+    const Students = PracticeQuery.data?.students || [];
+    const Filtered = !Term
+      ? Students
+      : Students.filter((StudentGroup) => {
+          const Haystack = [
+            StudentGroup.studentName,
+            StudentGroup.studentCode,
+            ...StudentGroup.papers.map((Paper) => Paper.competitionLevelCode),
+            ...StudentGroup.papers.map((Paper) => Paper.paperLabel),
+          ]
+            .join(" ")
+            .toLowerCase();
+          return Haystack.includes(Term);
+        });
+    return [...Filtered].sort((Left, Right) =>
       (Left.studentName || Left.studentCode || "").localeCompare(Right.studentName || Right.studentCode || "")
     );
   })();
@@ -204,19 +208,21 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                     className="w-64 bg-transparent outline-none placeholder:text-slate-400"
                   />
                 </label>
-                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                  Level
-                  <select
-                    value={PracticeLevelFilter}
-                    onChange={(EventValue) => SetPracticeLevelFilter(EventValue.target.value)}
-                    className="math-input min-w-[200px]"
-                  >
-                    <option value="ALL">All Levels</option>
-                    {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
-                    ))}
-                  </select>
-                </label>
+                {/* 2026-09-14 (Shailesh): "pls remove the level filter text
+                    from top of the level filter dropdown as it is self
+                    explanatory" -- select kept, "Level" label text dropped
+                    (aria-label preserves accessibility). */}
+                <select
+                  aria-label="Filter by level"
+                  value={PracticeLevelFilter}
+                  onChange={(EventValue) => SetPracticeLevelFilter(EventValue.target.value)}
+                  className="math-input min-w-[200px]"
+                >
+                  <option value="ALL">All Levels</option>
+                  {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                    <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                  ))}
+                </select>
               </div>
             ) : Events.length > 0 ? (
               <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
@@ -391,7 +397,10 @@ export default function TeacherAnnualCompetitionMonitorPage() {
 
                 {PracticeQuery.data ? (
                   <div className="mt-4 flex flex-wrap gap-4 text-xs font-black text-slate-600 dark:text-slate-300">
-                    <span>{PracticeQuery.data.totalResults} total attempts scored</span>
+                    <span>{PracticeQuery.data.totalStudents} student{PracticeQuery.data.totalStudents === 1 ? "" : "s"}</span>
+                    <span>
+                      {PracticeQuery.data.students.reduce((Sum, StudentGroup) => Sum + StudentGroup.papers.length, 0)} total practice papers
+                    </span>
                   </div>
                 ) : null}
 
@@ -409,13 +418,14 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                         without the View-attempt link (teacher's Annual
                         Competition monitor is review-only, same as every
                         other table on this page). */}
-                    {GroupedPracticeResults.map((StudentGroup) => {
-                      const StudentOpen = ExpandedPracticeStudents.has(StudentGroup.key);
+                    {GroupedPracticeResults.map((StudentGroup: TeacherAnnualCompetitionPracticeRosterStudent) => {
+                      const StudentOpen = ExpandedPracticeStudents.has(StudentGroup.studentId);
+                      const PendingCount = StudentGroup.papers.filter((Paper) => Paper.status === "NOT_STARTED").length;
                       return (
-                        <div key={StudentGroup.key} className="overflow-hidden rounded-3xl border border-[color:var(--mp-role-border)] bg-white shadow-sm dark:bg-slate-950/35">
+                        <div key={StudentGroup.studentId} className="overflow-hidden rounded-3xl border border-[color:var(--mp-role-border)] bg-white shadow-sm dark:bg-slate-950/35">
                           <button
                             type="button"
-                            onClick={() => TogglePracticeStudentExpanded(StudentGroup.key)}
+                            onClick={() => TogglePracticeStudentExpanded(StudentGroup.studentId)}
                             className="flex w-full flex-col gap-3 bg-slate-50/60 px-4 py-4 text-left transition hover:bg-slate-100/70 sm:flex-row sm:items-center sm:justify-between dark:bg-white/5 dark:hover:bg-white/10"
                           >
                             <div className="flex min-w-0 items-center gap-3">
@@ -432,7 +442,8 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                               </div>
                             </div>
                             <span className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
-                              {StudentGroup.rows.length} Attempt{StudentGroup.rows.length === 1 ? "" : "s"}
+                              {StudentGroup.papers.length} Paper{StudentGroup.papers.length === 1 ? "" : "s"}
+                              {PendingCount > 0 ? ` (${PendingCount} pending)` : ""}
                             </span>
                           </button>
 
@@ -448,19 +459,22 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                                   <span>Completed</span>
                                 </div>
                                 <div className="divide-y divide-slate-100 dark:divide-white/10">
-                                  {StudentGroup.rows.map((Row) => (
-                                    <div
-                                      key={Row.attemptId}
-                                      className="grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr] items-center gap-3 px-5 py-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50/50 dark:text-slate-100 dark:hover:bg-slate-800/40"
-                                    >
-                                      <div className="font-black text-slate-950 dark:text-white">{Row.paperLabel}</div>
-                                      <div>{Row.competitionLevelCode}</div>
-                                      <div>{Row.accuracyPercentage}%</div>
-                                      <div>{Row.score}/{Row.maxScore}</div>
-                                      <div>{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</div>
-                                      <div>{FormatEventDate(Row.computedAt)}</div>
-                                    </div>
-                                  ))}
+                                  {StudentGroup.papers.map((Paper) => {
+                                    const IsPending = Paper.status === "NOT_STARTED" || !Paper.result;
+                                    return (
+                                      <div
+                                        key={Paper.levelPaperId}
+                                        className="grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr] items-center gap-3 px-5 py-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50/50 dark:text-slate-100 dark:hover:bg-slate-800/40"
+                                      >
+                                        <div className="font-black text-slate-950 dark:text-white">{Paper.paperLabel}</div>
+                                        <div>{Paper.competitionLevelCode}</div>
+                                        <div>{IsPending ? "-" : `${Paper.result!.accuracyPercentage}%`}</div>
+                                        <div>{IsPending ? "-" : `${Paper.result!.score}/${Paper.result!.maxScore}`}</div>
+                                        <div>{IsPending ? "-" : FormatSecondsAsMinSec(Paper.result!.timeTakenSeconds)}</div>
+                                        <div>{IsPending ? "Pending" : FormatEventDate(Paper.result!.computedAt)}</div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             </div>

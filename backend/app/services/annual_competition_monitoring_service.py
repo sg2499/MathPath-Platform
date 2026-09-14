@@ -71,6 +71,7 @@ from app.models import (
     CompetitionEventAssignment,
     CompetitionEventAttempt,
     CompetitionEventAttemptSectionState,
+    CompetitionEventLevelPaper,
     CompetitionEventResult,
     CompetitionEventSlot,
     Student,
@@ -335,82 +336,119 @@ def ListAnnualCompetitionPracticeResultsForRoster(
     sibling of ListAnnualCompetitionResultsForRoster above, but practice has
     no CompetitionEventAssignment to traverse from at all (see this
     module's own docstring on why the OFFICIAL-side functions above are
-    assignment-keyed), so this is scoped directly off CompetitionEventResult
-    rows for the teacher's own roster instead. Unlike OFFICIAL's one-row-
-    per-assignment shape, a student can have MANY practice results overall
-    (one per consumed bank paper) -- every one of them is listed, newest
-    first, since practice is never ranked (Phase B keeps ranking
-    OFFICIAL-only) and is always released the instant it's computed
-    (Phase D) -- so there is no rank to order by and no release gate to
-    apply here, unlike _TeacherResultRow's own gate above.
+    assignment-keyed).
+
+    2026-09-14 (Shailesh, "show all papers, not just submitted, on
+    expanding a student block"): rewired from CompetitionEventResult-only
+    (submitted attempts only) to CompetitionEventLevelPaper-driven (the
+    bank itself), exactly mirroring ListAnnualCompetitionPracticeResultsForAdmin's
+    own rewrite in annual_competition_scoring_service.py -- see that
+    function's docstring for the full reasoning. One bucket per student,
+    papers listed ascending by assignment order (paperOrdinal 1, 2, 3...),
+    each carrying its matching result when the paper has been consumed and
+    a plain NOT_STARTED status when it hasn't. Practice is never ranked and
+    always released the instant it's computed (Phase D), so there is no
+    rank to order by and no release gate to apply here, unlike
+    _TeacherResultRow's own gate above.
 
     2026-09-12 (Shailesh, decoupling): no event scope anymore -- there is no
-    event to look up, and results are no longer filtered by event_id.
+    event to look up, and papers are no longer filtered by event_id.
 
     StudentIdsFilter follows this module's own convention (see docstring):
     an explicitly empty list is "this teacher has no students" and
     short-circuits without ever issuing an `IN ()` query.
     """
     if not StudentIdsFilter:
-        return {"competitionLevelCode": CompetitionLevelCode, "totalResults": 0, "rows": []}
+        return {"competitionLevelCode": CompetitionLevelCode, "totalStudents": 0, "students": []}
 
-    Query = db.query(CompetitionEventResult).filter(
-        CompetitionEventResult.attempt_type == "PRACTICE",
-        CompetitionEventResult.student_id.in_(StudentIdsFilter),
+    PaperQuery = db.query(CompetitionEventLevelPaper).filter(
+        CompetitionEventLevelPaper.paper_kind == "PRACTICE",
+        CompetitionEventLevelPaper.assigned_student_id.in_(StudentIdsFilter),
     )
     if CompetitionLevelCode:
-        Query = Query.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
-    ResultRecords = Query.order_by(CompetitionEventResult.computed_at.desc()).all()
+        PaperQuery = PaperQuery.filter(CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode)
+    PracticePapers = PaperQuery.order_by(
+        CompetitionEventLevelPaper.assigned_at.asc(), CompetitionEventLevelPaper.id.asc()
+    ).all()
 
-    # Mirrors ListAnnualCompetitionPracticeResultsForAdmin's own levelPaperId
-    # lookup + ComputePracticePaperOrdinals call (annual_competition_scoring_
-    # service.py) exactly, so the "Paper Name" column reads identically for
-    # a teacher and an admin looking at the same student's practice history.
-    AttemptIds = [ResultRecord.attempt_id for ResultRecord in ResultRecords]
-    AttemptRecordsById = (
+    if not PracticePapers:
+        return {"competitionLevelCode": CompetitionLevelCode, "totalStudents": 0, "students": []}
+
+    # Mirrors ListAnnualCompetitionPracticeResultsForAdmin's own bulk-fetch
+    # + ComputePracticePaperOrdinals call (annual_competition_scoring_
+    # service.py) exactly, so the "Paper Name" column and row set read
+    # identically for a teacher and an admin looking at the same student.
+    Ordinals = ComputePracticePaperOrdinals(
+        db, {(PaperRecord.assigned_student_id, PaperRecord.competition_level_code) for PaperRecord in PracticePapers}
+    )
+
+    PaperIds = [PaperRecord.id for PaperRecord in PracticePapers]
+    AttemptsByLevelPaperId = {
+        AttemptRecord.level_paper_id: AttemptRecord
+        for AttemptRecord in db.query(CompetitionEventAttempt)
+        .filter(CompetitionEventAttempt.level_paper_id.in_(PaperIds), CompetitionEventAttempt.attempt_type == "PRACTICE")
+        .all()
+    }
+    AttemptIds = [AttemptRecord.id for AttemptRecord in AttemptsByLevelPaperId.values()]
+    ResultsByAttemptId = (
         {
-            AttemptRecord.id: AttemptRecord
-            for AttemptRecord in db.query(CompetitionEventAttempt).filter(CompetitionEventAttempt.id.in_(AttemptIds)).all()
+            ResultRecord.attempt_id: ResultRecord
+            for ResultRecord in db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id.in_(AttemptIds)).all()
         }
         if AttemptIds
         else {}
     )
-    Ordinals = ComputePracticePaperOrdinals(
-        db, {(ResultRecord.student_id, ResultRecord.competition_level_code) for ResultRecord in ResultRecords}
-    )
 
-    Rows: list[dict[str, Any]] = []
-    for ResultRecord in ResultRecords:
-        StudentRecord = db.get(Student, ResultRecord.student_id)
+    StudentIds = {PaperRecord.assigned_student_id for PaperRecord in PracticePapers}
+    StudentsById = {StudentRecord.id: StudentRecord for StudentRecord in db.query(Student).filter(Student.id.in_(StudentIds)).all()}
+
+    StudentBuckets: dict[str, dict[str, Any]] = {}
+    for PaperRecord in PracticePapers:
+        StudentRecord = StudentsById.get(PaperRecord.assigned_student_id)
         if not StudentRecord:
             continue
         UserRecord = db.get(User, StudentRecord.user_id) if StudentRecord.user_id else None
-        AttemptRecord = AttemptRecordsById.get(ResultRecord.attempt_id)
-        LevelPaperId = AttemptRecord.level_paper_id if AttemptRecord else None
-        Ordinal = Ordinals.get(LevelPaperId) if LevelPaperId else None
-        Rows.append(
+        Bucket = StudentBuckets.setdefault(
+            StudentRecord.id,
             {
-                "attemptId": ResultRecord.attempt_id,
-                "levelPaperId": LevelPaperId,
-                "paperOrdinal": Ordinal,
-                "paperLabel": f"Practice Paper {Ordinal}" if Ordinal else "Practice Paper",
                 "studentId": StudentRecord.id,
                 "studentCode": StudentRecord.student_code,
                 "studentName": UserRecord.full_name if UserRecord else StudentRecord.student_code,
-                "competitionLevelCode": ResultRecord.competition_level_code,
-                "score": ResultRecord.score,
-                "maxScore": ResultRecord.max_score,
-                "percentage": ResultRecord.percentage,
-                "accuracyPercentage": ResultRecord.accuracy_percentage,
-                "correctCount": ResultRecord.correct_count,
-                "wrongCount": ResultRecord.wrong_count,
-                "unansweredCount": ResultRecord.unanswered_count,
-                "timeTakenSeconds": ResultRecord.time_taken_seconds,
-                "computedAt": ResultRecord.computed_at.isoformat() if ResultRecord.computed_at else None,
+                "papers": [],
+            },
+        )
+        Ordinal = Ordinals.get(PaperRecord.id)
+        AttemptRecord = AttemptsByLevelPaperId.get(PaperRecord.id)
+        ResultRecord = ResultsByAttemptId.get(AttemptRecord.id) if AttemptRecord else None
+        Bucket["papers"].append(
+            {
+                "levelPaperId": PaperRecord.id,
+                "attemptId": AttemptRecord.id if AttemptRecord else None,
+                "competitionLevelCode": PaperRecord.competition_level_code,
+                "paperOrdinal": Ordinal,
+                "paperLabel": f"Practice Paper {Ordinal}" if Ordinal else "Practice Paper",
+                "status": AttemptRecord.status if AttemptRecord else "NOT_STARTED",
+                "assignedAt": PaperRecord.assigned_at.isoformat() if PaperRecord.assigned_at else None,
+                "submittedAt": AttemptRecord.submitted_at.isoformat() if AttemptRecord and AttemptRecord.submitted_at else None,
+                "result": (
+                    {
+                        "score": ResultRecord.score,
+                        "maxScore": ResultRecord.max_score,
+                        "percentage": ResultRecord.percentage,
+                        "accuracyPercentage": ResultRecord.accuracy_percentage,
+                        "correctCount": ResultRecord.correct_count,
+                        "wrongCount": ResultRecord.wrong_count,
+                        "unansweredCount": ResultRecord.unanswered_count,
+                        "timeTakenSeconds": ResultRecord.time_taken_seconds,
+                        "computedAt": ResultRecord.computed_at.isoformat() if ResultRecord.computed_at else None,
+                    }
+                    if ResultRecord
+                    else None
+                ),
             }
         )
 
-    return {"competitionLevelCode": CompetitionLevelCode, "totalResults": len(Rows), "rows": Rows}
+    return {"competitionLevelCode": CompetitionLevelCode, "totalStudents": len(StudentBuckets), "students": list(StudentBuckets.values())}
 
 
 def ListNonDraftAnnualCompetitionEvents(db: Session) -> dict[str, Any]:

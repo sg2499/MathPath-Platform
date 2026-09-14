@@ -13,14 +13,16 @@ import {
   PRACTICE_BULK_MAX_STUDENTS_PER_CALL,
   batchAssignAnnualCompetitionPracticePapers,
   createAnnualCompetitionEvent,
+  deleteAllAnnualCompetitionPracticeRecordsForStudent,
   deleteAnnualCompetitionEvent,
+  deleteAnnualCompetitionPracticeAttempt,
   listAnnualCompetitionEvents,
   listAnnualCompetitionPracticeResults,
   listStudentsForAnnualCompetitionPracticeBank,
   updateAnnualCompetitionEvent,
   type AnnualCompetitionEvent,
   type AnnualCompetitionPracticeBatchAssignFailedRow,
-  type AnnualCompetitionPracticeResultRow,
+  type AnnualCompetitionPracticeRosterStudent,
 } from "@/lib/api/admin";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -343,27 +345,28 @@ export default function AdminAnnualCompetitionStudioPage() {
   // then how will the data here be handled? ... we need to figure a way out
   // where we can see the data cleanly." Agreed fix: group by student
   // (mirrors the Competition Mock Tracker's own StudentMockGroup pattern in
-  // admin/competition/mock-tracker/page.tsx), so every attempt a student has
-  // ever submitted collapses under one row instead of repeating their name.
-  // Practice never needs the Mock Tracker's extra Module/Level nesting --
-  // an Annual Competition level code (e.g. "PM-L2") is already the finest
-  // grain, there's no module/level split underneath it here.
-  const PracticeResultsFiltered = (PracticeResultsQuery.data?.rows || []).filter((Row) => {
-    const Term = PracticeResultsSearchText.trim().toLowerCase();
-    if (!Term) return true;
-    const Haystack = [Row.studentName, Row.studentCode, Row.competitionLevelCode, Row.paperLabel].join(" ").toLowerCase();
-    return Haystack.includes(Term);
-  });
+  // admin/competition/mock-tracker/page.tsx). The backend now does this
+  // grouping itself (ListAnnualCompetitionPracticeResultsForAdmin returns
+  // students[].papers[] directly, every paper ascending by paperOrdinal,
+  // pending AND submitted together) -- this page just filters and sorts
+  // what it's given, no client-side re-grouping needed anymore.
   const GroupedPracticeResults = (() => {
-    const StudentMap = new Map<string, { key: string; studentId: string; studentCode: string | null; studentName: string | null; rows: AnnualCompetitionPracticeResultRow[] }>();
-    PracticeResultsFiltered.forEach((Row) => {
-      const Key = Row.studentId;
-      if (!StudentMap.has(Key)) {
-        StudentMap.set(Key, { key: Key, studentId: Row.studentId, studentCode: Row.studentCode, studentName: Row.studentName, rows: [] });
-      }
-      StudentMap.get(Key)!.rows.push(Row);
-    });
-    return Array.from(StudentMap.values()).sort((Left, Right) =>
+    const Term = PracticeResultsSearchText.trim().toLowerCase();
+    const Students = PracticeResultsQuery.data?.students || [];
+    const Filtered = !Term
+      ? Students
+      : Students.filter((StudentGroup) => {
+          const Haystack = [
+            StudentGroup.studentName,
+            StudentGroup.studentCode,
+            ...StudentGroup.papers.map((Paper) => Paper.competitionLevelCode),
+            ...StudentGroup.papers.map((Paper) => Paper.paperLabel),
+          ]
+            .join(" ")
+            .toLowerCase();
+          return Haystack.includes(Term);
+        });
+    return [...Filtered].sort((Left, Right) =>
       (Left.studentName || Left.studentCode || "").localeCompare(Right.studentName || Right.studentCode || "")
     );
   })();
@@ -375,6 +378,19 @@ export default function AdminAnnualCompetitionStudioPage() {
       return Next;
     });
   }
+
+  // 2026-09-14 (Shailesh): per-row and per-student-block delete icons in
+  // the admin Practice view. Both mutations invalidate the same query key
+  // the practice-results list itself uses, so the table reflects the
+  // deletion immediately without a manual refetch call.
+  const DeletePracticeAttemptMutation = useMutation({
+    mutationFn: (LevelPaperId: string) => deleteAnnualCompetitionPracticeAttempt(LevelPaperId),
+    onSuccess: () => InvalidatePracticeResults(),
+  });
+  const DeleteAllPracticeForStudentMutation = useMutation({
+    mutationFn: (StudentId: string) => deleteAllAnnualCompetitionPracticeRecordsForStudent(StudentId),
+    onSuccess: () => InvalidatePracticeResults(),
+  });
 
   if (!Ready) return null;
 
@@ -821,31 +837,38 @@ export default function AdminAnnualCompetitionStudioPage() {
                       className="w-64 bg-transparent outline-none placeholder:text-slate-400"
                     />
                   </label>
-                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                    Filter by Level
-                    <select value={PracticeResultsLevelFilter} onChange={(EventValue) => SetPracticeResultsLevelFilter(EventValue.target.value)} className="math-input">
-                      <option value="ALL">All Levels</option>
-                      {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                        <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
-                      ))}
-                    </select>
-                  </label>
+                  {/* 2026-09-14 (Shailesh): "remove the level filter text
+                      from top of the level filter dropdown as it is self
+                      explanatory" -- select kept, "Filter by Level" label
+                      text dropped (aria-label preserves accessibility). */}
+                  <select
+                    aria-label="Filter by level"
+                    value={PracticeResultsLevelFilter}
+                    onChange={(EventValue) => SetPracticeResultsLevelFilter(EventValue.target.value)}
+                    className="math-input"
+                  >
+                    <option value="ALL">All Levels</option>
+                    {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {PracticeResultsQuery.isLoading ? (
                   <div className="mt-5"><LoadingState label="Loading practice results..." /></div>
                 ) : GroupedPracticeResults.length > 0 ? (
                   <div className="mt-5 space-y-3">
-                    {GroupedPracticeResults.map((StudentGroup) => {
-                      const StudentOpen = ExpandedPracticeStudents.has(StudentGroup.key);
+                    {GroupedPracticeResults.map((StudentGroup: AnnualCompetitionPracticeRosterStudent) => {
+                      const StudentOpen = ExpandedPracticeStudents.has(StudentGroup.studentId);
+                      const PendingCount = StudentGroup.papers.filter((Paper) => Paper.status === "NOT_STARTED").length;
                       return (
-                        <div key={StudentGroup.key} className="overflow-hidden rounded-3xl border border-[#2563eb]/15 bg-white shadow-sm ring-1 ring-cyan-100/70 dark:border-cyan-300/15 dark:bg-slate-950/35 dark:ring-white/10">
-                          <button
-                            type="button"
-                            onClick={() => TogglePracticeStudentExpanded(StudentGroup.key)}
-                            className="flex w-full flex-col gap-3 bg-[#2563eb]/[0.025] px-4 py-4 text-left transition hover:bg-[#2563eb]/[0.055] sm:flex-row sm:items-center sm:justify-between dark:bg-cyan-400/5 dark:hover:bg-cyan-500/25"
-                          >
-                            <div className="flex min-w-0 items-center gap-3">
+                        <div key={StudentGroup.studentId} className="overflow-hidden rounded-3xl border border-[#2563eb]/15 bg-white shadow-sm ring-1 ring-cyan-100/70 dark:border-cyan-300/15 dark:bg-slate-950/35 dark:ring-white/10">
+                          <div className="flex w-full flex-col gap-3 bg-[#2563eb]/[0.025] px-4 py-4 sm:flex-row sm:items-center sm:justify-between dark:bg-cyan-400/5">
+                            <button
+                              type="button"
+                              onClick={() => TogglePracticeStudentExpanded(StudentGroup.studentId)}
+                              className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl text-left transition hover:opacity-80"
+                            >
                               <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#2563eb]/25 bg-white text-[#2563eb] shadow-sm ring-1 ring-[#2563eb]/10 dark:border-cyan-300/30 dark:bg-slate-950/50 dark:text-cyan-100 dark:ring-cyan-300/10">
                                 {StudentOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
                               </span>
@@ -857,18 +880,40 @@ export default function AdminAnnualCompetitionStudioPage() {
                                   <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">{StudentGroup.studentCode}</p>
                                 ) : null}
                               </div>
-                            </div>
+                            </button>
                             <div className="flex flex-wrap items-center gap-2 text-xs font-black">
                               <span className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
-                                {StudentGroup.rows.length} Attempt{StudentGroup.rows.length === 1 ? "" : "s"}
+                                {StudentGroup.papers.length} Paper{StudentGroup.papers.length === 1 ? "" : "s"}
+                                {PendingCount > 0 ? ` (${PendingCount} pending)` : ""}
                               </span>
+                              {/* 2026-09-14 (Shailesh): per-student "delete
+                                  all" -- Practice records only, that
+                                  student's OFFICIAL record is untouched. */}
+                              <button
+                                type="button"
+                                title="Delete all practice records for this student"
+                                aria-label="Delete all practice records for this student"
+                                disabled={DeleteAllPracticeForStudentMutation.isPending}
+                                onClick={() => {
+                                  if (
+                                    window.confirm(
+                                      `Delete ALL practice records for ${StudentGroup.studentName || StudentGroup.studentCode || StudentGroup.studentId}? This removes every practice paper (pending and submitted), attempt, and result for this student. Their OFFICIAL Annual Competition record, if any, is untouched. This can't be undone.`
+                                    )
+                                  ) {
+                                    DeleteAllPracticeForStudentMutation.mutate(StudentGroup.studentId);
+                                  }
+                                }}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-300 text-rose-600 transition hover:-translate-y-px hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-700/70 dark:text-rose-300"
+                              >
+                                <Trash2 size={13} />
+                              </button>
                             </div>
-                          </button>
+                          </div>
 
                           {StudentOpen ? (
                             <div className="border-t border-[#2563eb]/10 p-3 dark:border-cyan-300/10">
                               <div className="overflow-hidden rounded-2xl border border-[#2563eb]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
-                                <div className="math-admin-light-student-summary-header grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+                                <div className="math-admin-light-student-summary-header grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr_0.5fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
                                   <span>Paper Name</span>
                                   <span>Level</span>
                                   <span>Accuracy</span>
@@ -876,30 +921,66 @@ export default function AdminAnnualCompetitionStudioPage() {
                                   <span>Time Taken</span>
                                   <span>Completed</span>
                                   <span>Attempt</span>
+                                  <span />
                                 </div>
                                 <div className="divide-y divide-slate-100 dark:divide-white/10">
-                                  {StudentGroup.rows.map((Row) => (
-                                    <div
-                                      key={Row.resultId}
-                                      className="math-admin-light-student-summary-row grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr] items-center gap-3 px-5 py-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50/50 dark:text-slate-100 dark:hover:bg-slate-800/40"
-                                    >
-                                      <div className="font-black text-slate-950 dark:text-white">{Row.paperLabel}</div>
-                                      <div>{Row.competitionLevelCode}</div>
-                                      <div>{Row.accuracyPercentage}%</div>
-                                      <div>{Row.score}/{Row.maxScore}</div>
-                                      <div>{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</div>
-                                      <div>{FormatEventDate(Row.computedAt)}</div>
-                                      <div>
-                                        <Link
-                                          href={`/admin/competition/annual-result/${Row.attemptId}`}
-                                          className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
-                                        >
-                                          <ClipboardList size={12} />
-                                          View
-                                        </Link>
+                                  {StudentGroup.papers.map((Paper) => {
+                                    const IsPending = Paper.status === "NOT_STARTED" || !Paper.result;
+                                    return (
+                                      <div
+                                        key={Paper.levelPaperId}
+                                        className="math-admin-light-student-summary-row grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr_0.5fr] items-center gap-3 px-5 py-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50/50 dark:text-slate-100 dark:hover:bg-slate-800/40"
+                                      >
+                                        <div className="font-black text-slate-950 dark:text-white">{Paper.paperLabel}</div>
+                                        <div>{Paper.competitionLevelCode}</div>
+                                        <div>{IsPending ? "-" : `${Paper.result!.accuracyPercentage}%`}</div>
+                                        <div>{IsPending ? "-" : `${Paper.result!.score}/${Paper.result!.maxScore}`}</div>
+                                        <div>{IsPending ? "-" : FormatSecondsAsMinSec(Paper.result!.timeTakenSeconds)}</div>
+                                        <div>{IsPending ? "-" : FormatEventDate(Paper.result!.computedAt)}</div>
+                                        <div>
+                                          {Paper.attemptId ? (
+                                            <Link
+                                              href={`/admin/competition/annual-result/${Paper.attemptId}`}
+                                              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+                                            >
+                                              <ClipboardList size={12} />
+                                              View
+                                            </Link>
+                                          ) : (
+                                            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                              Pending
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div>
+                                          {/* 2026-09-14 (Shailesh): "pending row
+                                              should get the delete option as
+                                              well ... present everywhere" --
+                                              works on both a pending and a
+                                              submitted row, keyed by
+                                              levelPaperId either way. */}
+                                          <button
+                                            type="button"
+                                            title="Delete this practice paper"
+                                            aria-label="Delete this practice paper"
+                                            disabled={DeletePracticeAttemptMutation.isPending}
+                                            onClick={() => {
+                                              if (
+                                                window.confirm(
+                                                  `Delete "${Paper.paperLabel}"? This removes the paper${Paper.attemptId ? ", its attempt, and its result" : ""} entirely. This can't be undone.`
+                                                )
+                                              ) {
+                                                DeletePracticeAttemptMutation.mutate(Paper.levelPaperId);
+                                              }
+                                            }}
+                                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-300 text-rose-600 transition hover:-translate-y-px hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-700/70 dark:text-rose-300"
+                                          >
+                                            <Trash2 size={13} />
+                                          </button>
+                                        </div>
                                       </div>
-                                    </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               </div>
                             </div>
@@ -910,7 +991,7 @@ export default function AdminAnnualCompetitionStudioPage() {
                   </div>
                 ) : (
                   <div className="mt-5">
-                    <EmptyState title="No practice activity yet" description="Practice results appear automatically once a student finishes a practice paper." />
+                    <EmptyState title="No practice activity yet" description="Practice papers appear here as soon as a student is assigned some." />
                   </div>
                 )}
               </div>

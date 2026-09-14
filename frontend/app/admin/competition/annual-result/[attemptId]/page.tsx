@@ -237,6 +237,8 @@ function ScorecardTab({ Review }: { Review: AnnualCompetitionAttemptReview }) {
   }));
   const TotalQuestions = Rows.reduce((Sum, Row) => Sum + Row.totalQuestions, 0);
   const TotalMarksObtained = Rows.reduce((Sum, Row) => Sum + Row.correctCount, 0);
+  const ResultForBreakdown = Review.result;
+  const AttemptedCountForBreakdown = ResultForBreakdown ? ResultForBreakdown.correctCount + ResultForBreakdown.wrongCount : 0;
 
   return (
     <div className="math-card p-5">
@@ -290,6 +292,38 @@ function ScorecardTab({ Review }: { Review: AnnualCompetitionAttemptReview }) {
           {TotalMarksObtained}/{TotalQuestions}
         </p>
       </div>
+
+      {/* 2026-09-14 (Shailesh, accuracy-formula fix): same breakdown the
+          student-facing ScorecardTab shows -- accuracy is CORRECT /
+          ATTEMPTED, never correct-out-of-every-question-in-the-paper. Reuses
+          Review.result (backend-computed, already fetched), never
+          recomputed here. */}
+      {ResultForBreakdown ? (
+        <div className="mt-4 rounded-[22px] border border-emerald-500/25 bg-emerald-500/5 p-5 dark:border-emerald-400/25 dark:bg-emerald-400/10">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Accuracy Breakdown</p>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Attempted</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{AttemptedCountForBreakdown}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Correct</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{ResultForBreakdown.correctCount}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Wrong</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{ResultForBreakdown.wrongCount}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Unanswered</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{ResultForBreakdown.unansweredCount}</p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+            Accuracy = Correct ÷ Attempted = {ResultForBreakdown.correctCount}/{AttemptedCountForBreakdown} = {ResultForBreakdown.accuracyPercentage}%
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
