@@ -1945,16 +1945,26 @@ export async function reconcileAnnualCompetitionAttempts(eventId: string): Promi
 }
 
 // ---------------------------------------------------------------------------
-// Annual Competition -- Practice (Phase C/E admin surfaces). Deliberately
-// separate types/functions from the OFFICIAL ones above -- practice papers
-// are per-student bank rows, never ranked, and always released the instant
-// they're scored, so their shapes genuinely differ (no rank/isReleased
-// columns worth showing, a student can have many results per event).
-// Quantity must be a whole multiple of 5, capped at 25 per batch (see
-// _ValidatePracticeBatchQuantity in annual_competition_studio_service.py).
+// Annual Competition -- Practice (Phase C/E admin surfaces; fully decoupled
+// from any event + bulk assignment, 2026-09-12: "the practice papers should
+// not be related to any event whatsoever ... it allows the admin to just
+// assign papers to all the students"). Deliberately separate types/functions
+// from the OFFICIAL ones above -- practice papers are per-student bank rows,
+// never ranked, and always released the instant they're scored, so their
+// shapes genuinely differ (no rank/isReleased columns worth showing, a
+// student can have many results overall). None of these functions take an
+// eventId. Quantity must be a whole multiple of 5, capped at 25 per batch
+// (see _ValidatePracticeBatchQuantity in annual_competition_studio_service.py).
 // ---------------------------------------------------------------------------
 
 export const PRACTICE_BATCH_QUANTITY_OPTIONS = [5, 10, 15, 20, 25] as const;
+
+// Matches PRACTICE_BULK_MAX_STUDENTS_PER_CALL in annual_competition_studio_
+// service.py -- this backend has no background job queue, so bulk practice
+// generation runs synchronously in-request; the frontend chunks a larger
+// selection ("assign to all 200 students") into sequential calls of at most
+// this many students each rather than ever sending all of them at once.
+export const PRACTICE_BULK_MAX_STUDENTS_PER_CALL = 25;
 
 export type AnnualCompetitionPracticeBankPaper = {
   levelPaperId: string;
@@ -1966,7 +1976,6 @@ export type AnnualCompetitionPracticeBankPaper = {
 };
 
 export type AnnualCompetitionPracticeBank = {
-  eventId: string;
   studentId: string;
   studentCode: string | null;
   competitionLevelCode: string | null;
@@ -1977,33 +1986,67 @@ export type AnnualCompetitionPracticeBank = {
 };
 
 export async function getAnnualCompetitionPracticeBank(
-  eventId: string,
   studentId: string,
   competitionLevelCode?: string | null
 ): Promise<AnnualCompetitionPracticeBank> {
-  const { data } = await api.get<AnnualCompetitionPracticeBank>(`/admin/annual-competition/events/${eventId}/practice-bank`, {
+  const { data } = await api.get<AnnualCompetitionPracticeBank>(`/admin/annual-competition/practice-bank`, {
     params: { studentId, competitionLevelCode: competitionLevelCode || undefined },
   });
   return data;
 }
 
-export type AnnualCompetitionPracticeBatchAssignResult = {
-  eventId: string;
-  competitionLevelCode: string;
+// The roster the Practice Bank student picker lists from -- every active
+// student tagged with the Annual Competition level they're currently
+// eligible for (computed the same way the OFFICIAL assignment engine
+// would), so the admin can select all, many, or a filtered subset before
+// assigning practice papers.
+export type AnnualCompetitionPracticeBankStudentRow = {
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  currentModuleCode: string | null;
+  currentLevelCode: string | null;
+  eligibleCompetitionLevelCode: string | null;
+};
+
+export type AnnualCompetitionPracticeBankStudentsList = {
+  totalStudents: number;
+  students: AnnualCompetitionPracticeBankStudentRow[];
+};
+
+export async function listStudentsForAnnualCompetitionPracticeBank(): Promise<AnnualCompetitionPracticeBankStudentsList> {
+  const { data } = await api.get<AnnualCompetitionPracticeBankStudentsList>(`/admin/annual-competition/practice-bank/students`);
+  return data;
+}
+
+export type AnnualCompetitionPracticeBatchAssignSucceededRow = {
   studentId: string;
   studentCode: string | null;
   quantityAssigned: number;
-  levelPapers: AnnualCompetitionLevelPaper[];
 };
 
-export async function batchAssignAnnualCompetitionPracticePapers(
-  eventId: string,
-  payload: { studentId: string; competitionLevelCode: string; quantity: number }
-): Promise<AnnualCompetitionPracticeBatchAssignResult> {
-  const { data } = await api.post<AnnualCompetitionPracticeBatchAssignResult>(
-    `/admin/annual-competition/events/${eventId}/practice-bank/assign`,
-    payload
-  );
+export type AnnualCompetitionPracticeBatchAssignFailedRow = {
+  studentIdentifier: string;
+  reason: string;
+};
+
+export type AnnualCompetitionPracticeBatchAssignResult = {
+  competitionLevelCode: string;
+  quantityPerStudent: number;
+  studentsRequested: number;
+  studentsSucceeded: number;
+  studentsFailed: number;
+  totalPapersAssigned: number;
+  succeeded: AnnualCompetitionPracticeBatchAssignSucceededRow[];
+  failed: AnnualCompetitionPracticeBatchAssignFailedRow[];
+};
+
+export async function batchAssignAnnualCompetitionPracticePapers(payload: {
+  studentIds: string[];
+  competitionLevelCode: string;
+  quantity: number;
+}): Promise<AnnualCompetitionPracticeBatchAssignResult> {
+  const { data } = await api.post<AnnualCompetitionPracticeBatchAssignResult>(`/admin/annual-competition/practice-bank/assign`, payload);
   return data;
 }
 
@@ -2031,18 +2074,17 @@ export type AnnualCompetitionPracticeResultRow = {
 };
 
 export type AnnualCompetitionPracticeResultsList = {
-  eventId: string;
   competitionLevelCode: string | null;
   studentId: string | null;
   totalResults: number;
   rows: AnnualCompetitionPracticeResultRow[];
 };
 
-export async function listAnnualCompetitionPracticeResults(
-  eventId: string,
-  filters?: { competitionLevelCode?: string | null; studentId?: string | null }
-): Promise<AnnualCompetitionPracticeResultsList> {
-  const { data } = await api.get<AnnualCompetitionPracticeResultsList>(`/admin/annual-competition/events/${eventId}/practice-results`, {
+export async function listAnnualCompetitionPracticeResults(filters?: {
+  competitionLevelCode?: string | null;
+  studentId?: string | null;
+}): Promise<AnnualCompetitionPracticeResultsList> {
+  const { data } = await api.get<AnnualCompetitionPracticeResultsList>(`/admin/annual-competition/practice-results`, {
     params: {
       competitionLevelCode: filters?.competitionLevelCode || undefined,
       studentId: filters?.studentId || undefined,

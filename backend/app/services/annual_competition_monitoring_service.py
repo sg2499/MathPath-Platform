@@ -328,7 +328,7 @@ def ListAnnualCompetitionResultsForRoster(
 
 
 def ListAnnualCompetitionPracticeResultsForRoster(
-    db: Session, *, EventId: str, StudentIdsFilter: list[str], CompetitionLevelCode: str | None = None
+    db: Session, *, StudentIdsFilter: list[str], CompetitionLevelCode: str | None = None
 ) -> dict[str, Any]:
     """Practice's own teacher-facing results surface (Phase E) -- the
     sibling of ListAnnualCompetitionResultsForRoster above, but practice has
@@ -336,23 +336,24 @@ def ListAnnualCompetitionPracticeResultsForRoster(
     module's own docstring on why the OFFICIAL-side functions above are
     assignment-keyed), so this is scoped directly off CompetitionEventResult
     rows for the teacher's own roster instead. Unlike OFFICIAL's one-row-
-    per-assignment shape, a student can have MANY practice results for one
-    event (one per consumed bank paper) -- every one of them is listed,
-    newest first, since practice is never ranked (Phase B keeps ranking
+    per-assignment shape, a student can have MANY practice results overall
+    (one per consumed bank paper) -- every one of them is listed, newest
+    first, since practice is never ranked (Phase B keeps ranking
     OFFICIAL-only) and is always released the instant it's computed
     (Phase D) -- so there is no rank to order by and no release gate to
     apply here, unlike _TeacherResultRow's own gate above.
+
+    2026-09-12 (Shailesh, decoupling): no event scope anymore -- there is no
+    event to look up, and results are no longer filtered by event_id.
 
     StudentIdsFilter follows this module's own convention (see docstring):
     an explicitly empty list is "this teacher has no students" and
     short-circuits without ever issuing an `IN ()` query.
     """
-    _GetEventOr404(db, EventId)
     if not StudentIdsFilter:
-        return {"eventId": EventId, "competitionLevelCode": CompetitionLevelCode, "totalResults": 0, "rows": []}
+        return {"competitionLevelCode": CompetitionLevelCode, "totalResults": 0, "rows": []}
 
     Query = db.query(CompetitionEventResult).filter(
-        CompetitionEventResult.event_id == EventId,
         CompetitionEventResult.attempt_type == "PRACTICE",
         CompetitionEventResult.student_id.in_(StudentIdsFilter),
     )
@@ -385,7 +386,7 @@ def ListAnnualCompetitionPracticeResultsForRoster(
             }
         )
 
-    return {"eventId": EventId, "competitionLevelCode": CompetitionLevelCode, "totalResults": len(Rows), "rows": Rows}
+    return {"competitionLevelCode": CompetitionLevelCode, "totalResults": len(Rows), "rows": Rows}
 
 
 def ListNonDraftAnnualCompetitionEvents(db: Session) -> dict[str, Any]:

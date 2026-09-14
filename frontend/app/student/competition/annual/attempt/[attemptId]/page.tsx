@@ -140,12 +140,16 @@ function AnnualCompetitionAttemptContent() {
   // Phase G (Competition Practice): this attempt can be OFFICIAL or
   // PRACTICE -- StartAnnualCompetitionPracticeAttempt is a different
   // endpoint that additionally requires the competition level code (it
-  // looks the practice paper up by event+level, not just event, even to
-  // resume). liveAttempt.competitionLevelCode is sourced by the backend's
+  // looks the practice paper up by level alone now -- fully decoupled from
+  // any event, 2026-09-12 -- so it no longer takes an eventId at all).
+  // liveAttempt.competitionLevelCode is sourced by the backend's
   // _AttemptPayload specifically so this resume call never needs a second
   // round trip to find it. If it's ever missing on a PRACTICE attempt
   // (should not happen -- see that backend comment), this fails loudly via
-  // bootstrapError rather than silently guessing an endpoint/argument.
+  // bootstrapError rather than silently guessing an endpoint/argument. An
+  // OFFICIAL attempt always carries a real eventId (only PRACTICE rows are
+  // ever event-less) -- if that's ever missing here, that's equally a
+  // data-integrity problem worth failing loudly on rather than guessing.
   const bootstrapRequestedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!liveAttempt || liveAttempt.status !== "IN_PROGRESS") return;
@@ -156,10 +160,14 @@ function AnnualCompetitionAttemptContent() {
         setBootstrapError(new Error("This practice attempt is missing its competition level code and cannot be resumed."));
         return;
       }
-      startAnnualCompetitionPracticeAttempt(liveAttempt.eventId, liveAttempt.competitionLevelCode)
+      startAnnualCompetitionPracticeAttempt(liveAttempt.competitionLevelCode)
         .then((data) => setSessionToken(data.sessionToken))
         .catch((error) => setBootstrapError(error));
     } else {
+      if (!liveAttempt.eventId) {
+        setBootstrapError(new Error("This official attempt is missing its event and cannot be resumed."));
+        return;
+      }
       startAnnualCompetitionAttempt(liveAttempt.eventId)
         .then((data) => setSessionToken(data.sessionToken))
         .catch((error) => setBootstrapError(error));
@@ -390,16 +398,31 @@ function AnnualCompetitionAttemptContent() {
 
   if (liveAttempt.status !== "IN_PROGRESS") {
     const result = resultQuery.data?.released ? resultQuery.data.result : null;
+    // Phase G (2026-09-12, Shailesh): "the practice attempt summary page
+    // currently shows Download Certificate which should not appear for
+    // practice attempts" -- practice papers are never ranked, never
+    // released as an event result, and the backend already rejects a
+    // certificate request for a PRACTICE attempt outright (see
+    // COMPETITION_CERTIFICATE_NOT_AVAILABLE_FOR_PRACTICE on
+    // annual_competition_certificate_service.py), so this is a frontend-only
+    // gap: the button, and the official-competition-specific copy around
+    // it, should simply never render for a practice attempt.
+    const isPractice = liveAttempt.attemptType === "PRACTICE";
     return (
       <AppShell title="Annual Competition">
         <div className="math-card p-6">
-          <div className="math-block-header mb-2"><Trophy size={14} /> Annual Competition</div>
-          <h1 className="text-2xl font-black text-slate-950 dark:text-white">Attempt Complete</h1>
+          <div className="math-block-header mb-2">
+            {isPractice ? <><Trophy size={14} /> Annual Competition Practice</> : <><Trophy size={14} /> Annual Competition</>}
+          </div>
+          <h1 className="text-2xl font-black text-slate-950 dark:text-white">
+            {isPractice ? "Practice Paper Complete" : "Attempt Complete"}
+          </h1>
           {result ? (
             <>
               <p className="math-subtitle max-w-none">
-                Your Annual Competition attempt has been scored. Your official rank and certificate will be released once
-                every student at your level has completed their slot.
+                {isPractice
+                  ? "This practice paper has been scored. Results below are yours alone -- practice is never ranked and has no certificate."
+                  : "Your Annual Competition attempt has been scored. Your official rank and certificate will be released once every student at your level has completed their slot."}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="math-card p-3">
@@ -414,7 +437,7 @@ function AnnualCompetitionAttemptContent() {
                   <div className="text-xs text-slate-500 dark:text-slate-400">Time Taken</div>
                   <div className="text-xl font-black text-slate-950 dark:text-white">{Math.round((result.timeTakenSeconds || 0) / 60)}m</div>
                 </div>
-                {result.rank ? (
+                {!isPractice && result.rank ? (
                   <div className="math-card p-3">
                     <div className="text-xs text-slate-500 dark:text-slate-400">Rank</div>
                     <div className="text-xl font-black text-slate-950 dark:text-white">#{result.rank}</div>
@@ -424,16 +447,16 @@ function AnnualCompetitionAttemptContent() {
             </>
           ) : (
             <p className="math-subtitle max-w-none">
-              Your Annual Competition attempt has been submitted and is now being scored. Ranked results and certificates
-              are released together once every student at your level has completed their slot -- check back after the
-              competition window closes.
+              {isPractice
+                ? "This practice paper has been submitted and is now being scored -- results appear here in just a moment."
+                : "Your Annual Competition attempt has been submitted and is now being scored. Ranked results and certificates are released together once every student at your level has completed their slot -- check back after the competition window closes."}
             </p>
           )}
           <div className="mt-5 flex flex-wrap gap-3">
             <button className="math-role-action-button px-4 py-2.5 text-sm" onClick={() => router.push("/student/competition/annual")}>
               Back To Annual Competition
             </button>
-            {result ? (
+            {result && !isPractice ? (
               <button
                 className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-950/60"
                 onClick={() => certificateMutation.mutate()}
@@ -444,7 +467,7 @@ function AnnualCompetitionAttemptContent() {
               </button>
             ) : null}
           </div>
-          {certificateMutation.isError ? (
+          {!isPractice && certificateMutation.isError ? (
             <p className="mt-2 text-xs font-bold text-rose-600 dark:text-rose-300">{apiErrorMessage(certificateMutation.error)}</p>
           ) : null}
         </div>
@@ -589,10 +612,12 @@ function AnnualCompetitionAttemptContent() {
                 ) : null}
               </div>
               <h1 className="mt-2 w-full text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
-                Annual Competition
+                {liveAttempt.attemptType === "PRACTICE" ? "Annual Competition Practice" : "Annual Competition"}
               </h1>
               <p className="math-subtitle !mt-3 w-full">
-                Stay connected -- your timer only pauses briefly on a genuine disconnect. Sections lock sequentially and cannot be revisited.
+                {liveAttempt.attemptType === "PRACTICE"
+                  ? "This is a practice paper leading up to the Annual Competition, not the event itself. Stay connected -- your timer only pauses briefly on a genuine disconnect. Sections lock sequentially and cannot be revisited."
+                  : "Stay connected -- your timer only pauses briefly on a genuine disconnect. Sections lock sequentially and cannot be revisited."}
               </p>
             </div>
           </div>

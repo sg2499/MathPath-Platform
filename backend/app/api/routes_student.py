@@ -123,7 +123,9 @@ class StartAnnualCompetitionAttemptRequest(BaseModel):
 
 
 class StartAnnualCompetitionPracticeAttemptRequest(BaseModel):
-    eventId: str
+    # 2026-09-12 (Shailesh, decoupling): "the practice papers should not be
+    # related to any event whatsoever" -- eventId dropped, practice is
+    # scoped purely by competition level now.
     competitionLevelCode: str
 
 
@@ -372,7 +374,7 @@ def student_start_annual_competition_attempt(
 def student_start_annual_competition_practice_attempt(
     payload: StartAnnualCompetitionPracticeAttemptRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
 ):
-    return StartAnnualCompetitionPracticeAttempt(db, student, payload.eventId, payload.competitionLevelCode)
+    return StartAnnualCompetitionPracticeAttempt(db, student, payload.competitionLevelCode)
 
 
 @router.get("/annual-competition/practice/scopes")
@@ -380,29 +382,30 @@ def student_annual_competition_practice_scopes(db: Session = Depends(get_db), st
     return ListMyAnnualCompetitionPracticeScopes(db, student)
 
 
-@router.get("/annual-competition/events/{event_id}/practice/bank")
+# 2026-09-12 (Shailesh, decoupling): dropped the {event_id} path segment --
+# practice has no event anymore.
+@router.get("/annual-competition/practice/bank")
 def student_annual_competition_practice_bank(
-    event_id: str,
     competitionLevelCode: str | None = None,
     db: Session = Depends(get_db),
     student: Student = Depends(get_current_student),
 ):
     return GetAnnualCompetitionPracticeBankForStudent(
-        db, EventId=event_id, StudentId=student.id, CompetitionLevelCode=competitionLevelCode
+        db, StudentId=student.id, CompetitionLevelCode=competitionLevelCode
     )
 
 
 # Phase E: "what have I already submitted, and how did I do" -- the sibling
 # of the bank endpoint just above (which only answers "how many are left").
-@router.get("/annual-competition/events/{event_id}/practice/attempts")
+# 2026-09-12 (Shailesh, decoupling): dropped the {event_id} path segment.
+@router.get("/annual-competition/practice/attempts")
 def student_annual_competition_practice_attempts(
-    event_id: str,
     competitionLevelCode: str | None = None,
     db: Session = Depends(get_db),
     student: Student = Depends(get_current_student),
 ):
     return ListMyAnnualCompetitionPracticeAttempts(
-        db, student, event_id, CompetitionLevelCode=competitionLevelCode
+        db, student, CompetitionLevelCode=competitionLevelCode
     )
 
 

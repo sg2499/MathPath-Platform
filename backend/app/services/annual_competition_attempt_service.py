@@ -656,7 +656,7 @@ def _BuildFreshAttempt(
 
 
 def _BuildFreshPracticeAttempt(
-    db: Session, EventId: str, LevelPaperRecord: CompetitionEventLevelPaper, StudentRecord: Student, NowUtc: datetime
+    db: Session, LevelPaperRecord: CompetitionEventLevelPaper, StudentRecord: Student, NowUtc: datetime
 ) -> CompetitionEventAttempt:
     """2026-09-11 (Shailesh, Competition Practice feature, Phase D):
     practice's own attempt-builder, parallel to (not sharing code with)
@@ -671,6 +671,10 @@ def _BuildFreshPracticeAttempt(
     oldest unconsumed bank paper) rather than looked up by event+level here
     -- there is no single "the" practice paper for an event+level the way
     there is for OFFICIAL.
+
+    2026-09-12 (Shailesh, decoupling): practice has no event at all anymore
+    -- EventId is no longer accepted here and event_id is simply left unset
+    (None) on the attempt, matching LevelPaperRecord's own event_id.
     """
     SectionTimers = (
         db.query(CompetitionEventSectionTimer)
@@ -682,7 +686,6 @@ def _BuildFreshPracticeAttempt(
         api_error(400, "COMPETITION_LEVEL_PAPER_NOT_READY", "This practice paper's section timers have not been set up yet.")
 
     AttemptRecord = CompetitionEventAttempt(
-        event_id=EventId,
         assignment_id=None,
         level_paper_id=LevelPaperRecord.id,
         student_id=StudentRecord.id,
@@ -791,20 +794,22 @@ def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: s
 
 
 def StartAnnualCompetitionPracticeAttempt(
-    db: Session, StudentRecord: Student, EventId: str, CompetitionLevelCode: str
+    db: Session, StudentRecord: Student, CompetitionLevelCode: str
 ) -> dict[str, Any]:
     """2026-09-11 (Shailesh, Competition Practice feature, Phase D): "Start
     Next Practice Paper" -- practice's own start/resume entry point,
     deliberately separate from StartCompetitionEventAttempt above rather
     than a branch inside it. Practice has no CompetitionEventAssignment, no
-    slot, and is never blocked once the event is marked COMPLETED
-    (Shailesh: "the students can attempt the practice papers anytime") --
-    _CheckEventNotCompleted is deliberately NOT called here. It still
-    respects an emergency suspension (_CheckEventNotSuspended) -- that is a
-    whole-event stop covering official and practice alike.
+    slot, and is never blocked by an event's status.
 
-    Resumes an already-IN_PROGRESS practice attempt on this event+level if
-    one exists -- the same reissue-token-and-lazily-self-correct resume
+    2026-09-12 (Shailesh, decoupling): "the practice papers should not be
+    related to any event whatsoever." Practice is no longer scoped to any
+    CompetitionEvent at all -- there is no event to look up, no suspension
+    check, and no EventId anywhere in this function anymore. The only scope
+    left is competition_level_code.
+
+    Resumes an already-IN_PROGRESS practice attempt on this level if one
+    exists -- the same reissue-token-and-lazily-self-correct resume
     StartCompetitionEventAttempt already does for OFFICIAL, so a half-done
     paper stays resumable rather than getting silently orphaned by a second
     "Start Next Practice Paper" click. Only when there is no in-progress
@@ -819,18 +824,12 @@ def StartAnnualCompetitionPracticeAttempt(
     still-IN_PROGRESS attempt does not burn its paper; only a genuine
     submission does.
     """
-    EventRecord = db.get(CompetitionEvent, EventId)
-    if not EventRecord:
-        api_error(404, "COMPETITION_EVENT_NOT_FOUND", "Annual Competition event not found.")
-    _CheckEventNotSuspended(EventRecord)
-
     NowUtc = _NowUtc()
 
     ExistingAttempt = (
         db.query(CompetitionEventAttempt)
         .join(CompetitionEventLevelPaper, CompetitionEventLevelPaper.id == CompetitionEventAttempt.level_paper_id)
         .filter(
-            CompetitionEventAttempt.event_id == EventId,
             CompetitionEventAttempt.student_id == StudentRecord.id,
             CompetitionEventAttempt.attempt_type == "PRACTICE",
             CompetitionEventAttempt.status == IN_PROGRESS_STATUS,
@@ -853,7 +852,6 @@ def StartAnnualCompetitionPracticeAttempt(
     LevelPaperRecord = (
         db.query(CompetitionEventLevelPaper)
         .filter(
-            CompetitionEventLevelPaper.event_id == EventId,
             CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode,
             CompetitionEventLevelPaper.paper_kind == "PRACTICE",
             CompetitionEventLevelPaper.assigned_student_id == StudentRecord.id,
@@ -869,7 +867,7 @@ def StartAnnualCompetitionPracticeAttempt(
             "You have no unused practice papers for this level yet -- ask your admin/teacher to assign more.",
         )
 
-    AttemptRecord = _BuildFreshPracticeAttempt(db, EventId, LevelPaperRecord, StudentRecord, NowUtc)
+    AttemptRecord = _BuildFreshPracticeAttempt(db, LevelPaperRecord, StudentRecord, NowUtc)
     db.commit()
     db.refresh(AttemptRecord)
     return _AttemptPayload(db, AttemptRecord, IncludeSessionToken=True)
@@ -1500,7 +1498,10 @@ def GetCompetitionEventAttemptReviewForAdmin(db: Session, *, AttemptId: str) -> 
     if not AttemptRecord:
         api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition attempt not found.")
 
-    EventRecord = db.get(CompetitionEvent, AttemptRecord.event_id)
+    # 2026-09-12 (Shailesh, decoupling): a PRACTICE attempt's event_id is now
+    # always None -- db.get() with a None pk both warns and is meaningless,
+    # so skip the lookup entirely rather than pass None through.
+    EventRecord = db.get(CompetitionEvent, AttemptRecord.event_id) if AttemptRecord.event_id else None
     AssignmentRecord = db.get(CompetitionEventAssignment, AttemptRecord.assignment_id) if AttemptRecord.assignment_id else None
     StudentRecord = db.get(Student, AttemptRecord.student_id)
     LevelPaperRecord = db.get(CompetitionEventLevelPaper, AttemptRecord.level_paper_id)
@@ -1574,26 +1575,26 @@ def GetCompetitionEventAttemptReviewForAdmin(db: Session, *, AttemptId: str) -> 
 # ---------------------------------------------------------------------------
 
 def ListMyAnnualCompetitionPracticeAttempts(
-    db: Session, StudentRecord: Student, EventId: str, CompetitionLevelCode: str | None = None
+    db: Session, StudentRecord: Student, CompetitionLevelCode: str | None = None
 ) -> dict[str, Any]:
     """Student-facing submitted-practice history (Phase E) -- the sibling of
     GetAnnualCompetitionPracticeBankForStudent (Phase C, "how many practice
     papers do I have left"): this answers "what have I already started or
     finished, and how did I do." One row per PRACTICE CompetitionEventAttempt
-    this student has ever started for this event, newest first --
-    IN_PROGRESS ones are included too (so a resumable half-done paper still
-    shows up, matching _AssignmentWithAttemptPayload's own NOT_STARTED ->
-    IN_PROGRESS -> ... -> FINALIZED shape for OFFICIAL) rather than only
-    ever listing finished ones."""
-    EventRecord = db.get(CompetitionEvent, EventId)
-    if not EventRecord:
-        api_error(404, "COMPETITION_EVENT_NOT_FOUND", "Annual Competition event not found.")
+    this student has ever started, newest first -- IN_PROGRESS ones are
+    included too (so a resumable half-done paper still shows up, matching
+    _AssignmentWithAttemptPayload's own NOT_STARTED -> IN_PROGRESS -> ... ->
+    FINALIZED shape for OFFICIAL) rather than only ever listing finished
+    ones.
 
+    2026-09-12 (Shailesh, decoupling): no event scope anymore -- this lists
+    every PRACTICE attempt this student has ever started, across all time,
+    optionally narrowed by competition_level_code only.
+    """
     Query = (
         db.query(CompetitionEventAttempt, CompetitionEventLevelPaper)
         .join(CompetitionEventLevelPaper, CompetitionEventLevelPaper.id == CompetitionEventAttempt.level_paper_id)
         .filter(
-            CompetitionEventAttempt.event_id == EventId,
             CompetitionEventAttempt.student_id == StudentRecord.id,
             CompetitionEventAttempt.attempt_type == "PRACTICE",
         )
@@ -1630,7 +1631,6 @@ def ListMyAnnualCompetitionPracticeAttempts(
         )
 
     return {
-        "eventId": EventId,
         "competitionLevelCode": CompetitionLevelCode,
         "totalAttempts": len(Attempts),
         "attempts": Attempts,

@@ -117,6 +117,7 @@ from app.services.annual_competition_studio_service import (
     LiftCompetitionEventSuspension,
     BatchAssignAnnualCompetitionPracticePapers,
     GetAnnualCompetitionPracticeBankForStudent,
+    ListStudentsForPracticeBank,
 )
 
 from app.services.annual_competition_attempt_service import (
@@ -240,7 +241,11 @@ class AnnualCompetitionVoidResultRequest(BaseModel):
     reason: str
 
 class AnnualCompetitionPracticeBatchAssignRequest(BaseModel):
-    studentId: str
+    # 2026-09-12 (Shailesh, decoupling + bulk assign): one call now assigns
+    # to any number of students at once (see
+    # BatchAssignAnnualCompetitionPracticePapers's own
+    # PRACTICE_BULK_MAX_STUDENTS_PER_CALL cap), not just one.
+    studentIds: list[str]
     competitionLevelCode: str
     quantity: int
 
@@ -6049,34 +6054,46 @@ def admin_override_annual_competition_assignment(
     )
 
 
-# --- Annual Competition (Competition Practice feature, Phase C): admin
-# batch-assigns a bank of freshly generated practice papers to one student
-# at a time. See BatchAssignAnnualCompetitionPracticePapers's own docstring
-# in annual_competition_studio_service.py for the full design.
-@router.post("/annual-competition/events/{event_id}/practice-bank/assign")
+# --- Annual Competition (Competition Practice feature, Phase C; bulk-assign
+# + full event decoupling 2026-09-12): admin batch-assigns a bank of
+# freshly generated practice papers to one, several, or all students at
+# once -- no event scope at all anymore ("the practice papers should not be
+# related to any event whatsoever"). See
+# BatchAssignAnnualCompetitionPracticePapers's own docstring in
+# annual_competition_studio_service.py for the full design, including the
+# PRACTICE_BULK_MAX_STUDENTS_PER_CALL cap the frontend chunks large
+# "assign to all" runs against.
+@router.post("/annual-competition/practice-bank/assign")
 def admin_batch_assign_annual_competition_practice_papers(
-    event_id: str, payload: AnnualCompetitionPracticeBatchAssignRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+    payload: AnnualCompetitionPracticeBatchAssignRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
 ):
     return BatchAssignAnnualCompetitionPracticePapers(
         db,
-        EventId=event_id,
         CompetitionLevelCode=payload.competitionLevelCode,
-        StudentId=payload.studentId,
+        StudentIds=payload.studentIds,
         Quantity=payload.quantity,
         AssignedBy=user,
     )
 
 
-@router.get("/annual-competition/events/{event_id}/practice-bank")
+# 2026-09-12 (Shailesh, bulk assign): the roster the admin's Practice Bank
+# student picker lists from -- every active student tagged with their
+# currently-eligible Annual Competition level, so the admin can select all,
+# many, or a filtered subset before assigning.
+@router.get("/annual-competition/practice-bank/students")
+def admin_list_students_for_annual_competition_practice_bank(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return ListStudentsForPracticeBank(db)
+
+
+@router.get("/annual-competition/practice-bank")
 def admin_get_annual_competition_practice_bank(
-    event_id: str,
     studentId: str,
     competitionLevelCode: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(admin_dep),
 ):
     return GetAnnualCompetitionPracticeBankForStudent(
-        db, EventId=event_id, StudentId=studentId, CompetitionLevelCode=competitionLevelCode
+        db, StudentId=studentId, CompetitionLevelCode=competitionLevelCode
     )
 
 
@@ -6133,17 +6150,17 @@ def admin_list_annual_competition_results(
 # Phase E: practice's own results surface -- deliberately separate from the
 # OFFICIAL list just above (see ListAnnualCompetitionPracticeResultsForAdmin's
 # own docstring). Not ranked, always released -- optional studentId narrows
-# to one student's own practice history.
-@router.get("/annual-competition/events/{event_id}/practice-results")
+# to one student's own practice history. 2026-09-12 (Shailesh, decoupling):
+# no event scope anymore.
+@router.get("/annual-competition/practice-results")
 def admin_list_annual_competition_practice_results(
-    event_id: str,
     competitionLevelCode: str | None = None,
     studentId: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(admin_dep),
 ):
     return ListAnnualCompetitionPracticeResultsForAdmin(
-        db, EventId=event_id, CompetitionLevelCode=competitionLevelCode, StudentId=studentId
+        db, CompetitionLevelCode=competitionLevelCode, StudentId=studentId
     )
 
 

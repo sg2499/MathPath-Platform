@@ -76,6 +76,10 @@ from app.models import (
 )
 from app.services.annual_competition_paper_generation_service import GenerateAnnualCompetitionLevelPaper
 from app.services.annual_competition_paper_registry import ANNUAL_COMPETITION_LEVEL_REGISTRY
+# ComputeAssignmentsForRoster (annual_competition_assignment_service) is
+# deliberately imported locally inside ListStudentsForPracticeBank below,
+# not at module level -- that module imports _ResolveSlotIdForLevelCode
+# from THIS module, so a top-level import here would be a circular import.
 
 # Level codes a student can actually be assigned to (Package 2). BM-L1 is
 # a current-position-only code and is never a valid target here.
@@ -523,7 +527,10 @@ def _IsLevelPaperLocked(db: Session, LevelPaperRecord: CompetitionEventLevelPape
         .first()
         is not None
     )
-    EventRecord = db.get(CompetitionEvent, LevelPaperRecord.event_id)
+    # 2026-09-12 (Shailesh, decoupling): a PRACTICE paper's event_id is now
+    # always None -- db.get() with a None pk both warns and is meaningless,
+    # so skip the lookup entirely rather than pass None through.
+    EventRecord = db.get(CompetitionEvent, LevelPaperRecord.event_id) if LevelPaperRecord.event_id else None
     HasReleaseLockedEvent = bool(EventRecord and EventRecord.results_release_at is not None)
     return HasAttempts or HasReleaseLockedEvent
 
@@ -900,6 +907,20 @@ def OverrideCompetitionEventAssignment(
 PRACTICE_BATCH_MIN_QUANTITY = 5
 PRACTICE_BATCH_MAX_QUANTITY = 25
 
+# 2026-09-12 (Shailesh, Competition Practice feature -- bulk assignment):
+# "assigning to all, numerous or selected students together relevant to
+# their respective levels" -- a caller can now pass many StudentIds in one
+# call instead of one HTTP round trip per student. Capped independently of
+# PRACTICE_BATCH_MAX_QUANTITY (papers per student) because the two multiply:
+# this function still generates every paper synchronously, in-request, with
+# no background job/queue infrastructure in this backend (same constraint
+# PRACTICE_BATCH_MAX_QUANTITY's own docstring already explains). 25 students
+# x 25 papers = 625 synchronous generations is already a lot for one HTTP
+# request/proxy timeout; the frontend chunks a larger selection ("assign to
+# all 200 students") into multiple sequential calls of this size rather than
+# ever sending all 200 at once.
+PRACTICE_BULK_MAX_STUDENTS_PER_CALL = 25
+
 
 def _ValidatePracticeBatchQuantity(Quantity: int) -> None:
     if not isinstance(Quantity, int) or isinstance(Quantity, bool) or Quantity < PRACTICE_BATCH_MIN_QUANTITY or Quantity % 5 != 0:
@@ -917,18 +938,75 @@ def _ValidatePracticeBatchQuantity(Quantity: int) -> None:
         )
 
 
+def _GeneratePracticePapersForOneStudent(
+    db: Session, *, LevelRecord: Level, CompetitionLevelCode: str, StudentRecord: Student, Quantity: int, AssignedBy: User, NowUtc: datetime
+) -> list[CompetitionEventLevelPaper]:
+    CreatedPapers: list[CompetitionEventLevelPaper] = []
+    for _Index in range(Quantity):
+        ExamPayload = GenerateAnnualCompetitionLevelPaper(
+            db,
+            LevelId=LevelRecord.id,
+            CreatedBy=AssignedBy,
+            Title=f"Annual Competition Practice -- {CompetitionLevelCode} for {StudentRecord.student_code}",
+            MockCode=f"ANNUAL-PRACTICE-{CompetitionLevelCode}-{uuid4().hex[:10].upper()}",
+            CompetitionScope="ANNUAL_COMPETITION_PRACTICE",
+            CompetitionLevelCode=CompetitionLevelCode,
+        )
+        # 2026-09-12 (Shailesh, full event decoupling): event_id is
+        # deliberately left unset -- practice papers no longer belong to any
+        # CompetitionEvent at all ("the practice papers should not be
+        # related to any event whatsoever, its only for practice leading to
+        # the main event"). See CompetitionEventLevelPaper.event_id's own
+        # model comment for why the column is nullable now.
+        PracticePaperRecord = CompetitionEventLevelPaper(
+            competition_level_code=CompetitionLevelCode,
+            mock_exam_id=ExamPayload["mockExamId"],
+            paper_kind="PRACTICE",
+            assigned_student_id=StudentRecord.id,
+            assigned_by_user_id=AssignedBy.id if AssignedBy else None,
+            assigned_at=NowUtc,
+        )
+        db.add(PracticePaperRecord)
+        db.flush()
+        _SeedDefaultSectionTimers(db, PracticePaperRecord)
+        db.flush()  # section timer rows must be visible to _RecomputeLevelPaperStatus's query
+        _RecomputeLevelPaperStatus(db, PracticePaperRecord)
+        CreatedPapers.append(PracticePaperRecord)
+    return CreatedPapers
+
+
 def BatchAssignAnnualCompetitionPracticePapers(
-    db: Session, *, EventId: str, CompetitionLevelCode: str, StudentId: str, Quantity: int, AssignedBy: User
+    db: Session, *, CompetitionLevelCode: str, StudentIds: list[str], Quantity: int, AssignedBy: User
 ) -> dict[str, Any]:
     """Admin action: generates Quantity fresh practice papers and adds them
-    to StudentId's bank for this event+level. Safe to call repeatedly for
-    the same student/level -- each call only ever ADDS new, additional bank
-    papers; it never touches, consumes, or removes any paper already in the
-    bank (existing rows are never queried here at all)."""
-    _GetEventOr404(db, EventId)
+    to EVERY listed student's bank for this level -- one, several, or up to
+    PRACTICE_BULK_MAX_STUDENTS_PER_CALL students at once. Safe to call
+    repeatedly for the same student/level -- each call only ever ADDS new,
+    additional bank papers; it never touches, consumes, or removes any
+    paper already in the bank (existing rows are never queried here at
+    all). Fully independent of any CompetitionEvent (2026-09-12 decoupling)
+    -- practice papers are keyed on student + level only.
+
+    Each student is processed independently and committed on its own: one
+    bad student id (e.g. already deleted) does not lose papers already
+    generated for students processed earlier in the same call. The
+    response reports both the students that succeeded and any that failed,
+    so a partial failure is never silently swallowed.
+    """
     _ValidateCompetitionLevelCode(CompetitionLevelCode)
     _ValidatePracticeBatchQuantity(Quantity)
-    StudentRecord = _ResolveStudentByIdOrCode(db, StudentId)
+
+    CleanedStudentIds = [Id for Id in dict.fromkeys([str(Item or "").strip() for Item in (StudentIds or [])]) if Id]
+    if not CleanedStudentIds:
+        api_error(400, "VALIDATION_ERROR", "At least one student is required.")
+    if len(CleanedStudentIds) > PRACTICE_BULK_MAX_STUDENTS_PER_CALL:
+        api_error(
+            400,
+            "PRACTICE_BULK_TOO_MANY_STUDENTS",
+            f"This action assigns to at most {PRACTICE_BULK_MAX_STUDENTS_PER_CALL} students per call -- "
+            "call it again for the remaining students.",
+            {"maxStudentsPerCall": PRACTICE_BULK_MAX_STUDENTS_PER_CALL},
+        )
 
     # Same curriculum-lookup override and "no curriculum Level yet" guard
     # GenerateAndLinkCompetitionEventLevelPaper already applies for the
@@ -947,64 +1025,55 @@ def BatchAssignAnnualCompetitionPracticePapers(
         )
 
     NowUtc = datetime.now(timezone.utc)
-    CreatedPapers: list[CompetitionEventLevelPaper] = []
-    for _Index in range(Quantity):
-        ExamPayload = GenerateAnnualCompetitionLevelPaper(
-            db,
-            LevelId=LevelRecord.id,
-            CreatedBy=AssignedBy,
-            Title=f"Annual Competition Practice -- {CompetitionLevelCode} for {StudentRecord.student_code}",
-            MockCode=f"ANNUAL-PRACTICE-{EventId[:8]}-{CompetitionLevelCode}-{uuid4().hex[:10].upper()}",
-            CompetitionScope="ANNUAL_COMPETITION_PRACTICE",
-            CompetitionLevelCode=CompetitionLevelCode,
-        )
-        PracticePaperRecord = CompetitionEventLevelPaper(
-            event_id=EventId,
-            competition_level_code=CompetitionLevelCode,
-            mock_exam_id=ExamPayload["mockExamId"],
-            paper_kind="PRACTICE",
-            assigned_student_id=StudentRecord.id,
-            assigned_by_user_id=AssignedBy.id if AssignedBy else None,
-            assigned_at=NowUtc,
-        )
-        db.add(PracticePaperRecord)
-        db.flush()
-        _SeedDefaultSectionTimers(db, PracticePaperRecord)
-        db.flush()  # section timer rows must be visible to _RecomputeLevelPaperStatus's query
-        _RecomputeLevelPaperStatus(db, PracticePaperRecord)
-        CreatedPapers.append(PracticePaperRecord)
-
-    db.commit()
-    for PracticePaperRecord in CreatedPapers:
-        db.refresh(PracticePaperRecord)
+    Succeeded: list[dict[str, Any]] = []
+    Failed: list[dict[str, Any]] = []
+    for StudentIdentifier in CleanedStudentIds:
+        try:
+            StudentRecord = _ResolveStudentByIdOrCode(db, StudentIdentifier)
+            CreatedPapers = _GeneratePracticePapersForOneStudent(
+                db,
+                LevelRecord=LevelRecord,
+                CompetitionLevelCode=CompetitionLevelCode,
+                StudentRecord=StudentRecord,
+                Quantity=Quantity,
+                AssignedBy=AssignedBy,
+                NowUtc=NowUtc,
+            )
+            db.commit()
+            for PracticePaperRecord in CreatedPapers:
+                db.refresh(PracticePaperRecord)
+            Succeeded.append(
+                {
+                    "studentId": StudentRecord.id,
+                    "studentCode": StudentRecord.student_code,
+                    "quantityAssigned": Quantity,
+                }
+            )
+        except Exception as Error:  # noqa: BLE001 -- one bad student must never abort the rest of the batch
+            db.rollback()
+            Failed.append({"studentIdentifier": StudentIdentifier, "reason": str(getattr(Error, "detail", None) or Error)})
 
     return {
-        "eventId": EventId,
         "competitionLevelCode": CompetitionLevelCode,
-        "studentId": StudentRecord.id,
-        "studentCode": StudentRecord.student_code,
-        "quantityAssigned": Quantity,
-        "levelPapers": [_LevelPaperPayload(db, PracticePaperRecord) for PracticePaperRecord in CreatedPapers],
+        "quantityPerStudent": Quantity,
+        "studentsRequested": len(CleanedStudentIds),
+        "studentsSucceeded": len(Succeeded),
+        "studentsFailed": len(Failed),
+        "totalPapersAssigned": len(Succeeded) * Quantity,
+        "succeeded": Succeeded,
+        "failed": Failed,
     }
 
 
 def ListMyAnnualCompetitionPracticeScopes(db: Session, StudentRecord: Student) -> dict[str, Any]:
-    """Student-facing discovery endpoint (Shailesh's Phase G correction,
-    2026-09-11): "the students should be able to practice any paper even if
-    they do not have any official competition attempts, that is the whole
-    point of this entire practice feature." The original Phase G student
-    frontend scoped the Practice tab off the student's OFFICIAL assignments
-    (there was no other list to scope it by), which meant a student with
-    practice papers batch-assigned but no official CompetitionEventAssignment
-    saw nothing -- confirmed as a real gap, not hypothetical, since
-    BatchAssignAnnualCompetitionPracticePapers has no dependency on an
-    official assignment existing (StudentId + CompetitionLevelCode is
-    enough). This function is the fix: it answers "which event+level combos
-    do I have ANY practice papers for," independent of official assignment,
-    so the frontend can enumerate practice panels correctly. Grouped by
-    (event_id, competition_level_code) -- one row per distinct scope, not
-    one row per paper (GetAnnualCompetitionPracticeBankForStudent below
-    stays the per-paper detail view once a scope is known).
+    """Student-facing discovery endpoint. Originally scoped by (event,
+    level) (Phase G); 2026-09-12 (Shailesh, full event decoupling): "the
+    practice papers should not be related to any event whatsoever" -- this
+    now answers "which levels do I have ANY practice papers for," grouped
+    by competition_level_code alone, independent of official assignment
+    AND independent of any event. One row per distinct level, not one row
+    per paper (GetAnnualCompetitionPracticeBankForStudent below stays the
+    per-paper detail view once a level is known).
     """
     Rows = (
         db.query(CompetitionEventLevelPaper)
@@ -1015,58 +1084,41 @@ def ListMyAnnualCompetitionPracticeScopes(db: Session, StudentRecord: Student) -
         .all()
     )
 
-    ScopesByKey: dict[tuple[str, str], dict[str, Any]] = {}
-    EventNameCache: dict[str, CompetitionEvent | None] = {}
+    ScopesByLevel: dict[str, dict[str, Any]] = {}
     for PaperRecord in Rows:
-        Key = (PaperRecord.event_id, PaperRecord.competition_level_code)
-        if Key not in ScopesByKey:
-            if PaperRecord.event_id not in EventNameCache:
-                EventNameCache[PaperRecord.event_id] = db.get(CompetitionEvent, PaperRecord.event_id)
-            EventRecord = EventNameCache[PaperRecord.event_id]
-            ScopesByKey[Key] = {
-                "eventId": PaperRecord.event_id,
-                "eventName": EventRecord.name if EventRecord else None,
-                "competitionDate": EventRecord.competition_date.isoformat() if EventRecord and EventRecord.competition_date else None,
+        Key = PaperRecord.competition_level_code
+        if Key not in ScopesByLevel:
+            ScopesByLevel[Key] = {
                 "competitionLevelCode": PaperRecord.competition_level_code,
                 "totalAssigned": 0,
                 "consumedCount": 0,
             }
-        ScopesByKey[Key]["totalAssigned"] += 1
+        ScopesByLevel[Key]["totalAssigned"] += 1
         if PaperRecord.consumed_at is not None:
-            ScopesByKey[Key]["consumedCount"] += 1
+            ScopesByLevel[Key]["consumedCount"] += 1
 
-    Scopes = list(ScopesByKey.values())
+    Scopes = list(ScopesByLevel.values())
     for Scope in Scopes:
         Scope["remainingCount"] = Scope["totalAssigned"] - Scope["consumedCount"]
-    # Stable, predictable ordering -- newest competition first, then level
-    # code ascending within the same event -- rather than dict-insertion
-    # order (which would depend on CompetitionEventLevelPaper's own row
-    # order, an implementation detail no client should rely on). Two
-    # stable sorts (secondary key first) rather than a single reverse=True
-    # tuple sort, since reversing the tuple would also reverse level code
-    # alphabetically, which is not the intent.
     Scopes.sort(key=lambda S: S["competitionLevelCode"])
-    Scopes.sort(key=lambda S: S["competitionDate"] or "", reverse=True)
 
     return {"scopes": Scopes}
 
 
 def GetAnnualCompetitionPracticeBankForStudent(
-    db: Session, *, EventId: str, StudentId: str, CompetitionLevelCode: str | None = None
+    db: Session, *, StudentId: str, CompetitionLevelCode: str | None = None
 ) -> dict[str, Any]:
     """Admin's bank-status/history view: every practice paper ever assigned
-    to this student on this event (optionally scoped to one level),
-    consumed or not, oldest-assigned first -- so an admin can see at a
-    glance how many are left before deciding whether to top up the bank.
-    consumed_at (set by the practice attempt-submit flow, a later phase) is
-    the source of truth for "done"; this function only ever reads it, never
-    infers or recomputes it.
+    to this student (optionally scoped to one level), consumed or not,
+    oldest-assigned first -- so an admin can see at a glance how many are
+    left before deciding whether to top up the bank. consumed_at (set by
+    the practice attempt-submit flow) is the source of truth for "done";
+    this function only ever reads it, never infers or recomputes it. Fully
+    independent of any CompetitionEvent (2026-09-12 decoupling).
     """
-    _GetEventOr404(db, EventId)
     StudentRecord = _ResolveStudentByIdOrCode(db, StudentId)
 
     Query = db.query(CompetitionEventLevelPaper).filter(
-        CompetitionEventLevelPaper.event_id == EventId,
         CompetitionEventLevelPaper.paper_kind == "PRACTICE",
         CompetitionEventLevelPaper.assigned_student_id == StudentRecord.id,
     )
@@ -1092,7 +1144,6 @@ def GetAnnualCompetitionPracticeBankForStudent(
         )
 
     return {
-        "eventId": EventId,
         "studentId": StudentRecord.id,
         "studentCode": StudentRecord.student_code,
         "competitionLevelCode": CompetitionLevelCode,
@@ -1101,6 +1152,51 @@ def GetAnnualCompetitionPracticeBankForStudent(
         "remainingCount": len(Rows) - ConsumedCount,
         "papers": Rows,
     }
+
+
+def ListStudentsForPracticeBank(db: Session) -> dict[str, Any]:
+    """2026-09-12 (Shailesh, Competition Practice feature -- bulk
+    assignment): the roster the admin's new Practice Bank student picker
+    lists from -- every active student, tagged with the Annual Competition
+    level they are CURRENTLY eligible for, computed via the same pure,
+    already-tested assignment-engine function the OFFICIAL preview/run flow
+    uses (ComputeAssignmentsForRoster) -- reused rather than re-derived, so
+    "eligible level" can never quietly drift between the OFFICIAL assignment
+    engine and this practice picker. This is a live computation, not a
+    stored assignment: a student with no rule match yet (no_rule_matched)
+    is still listed, just with eligibleCompetitionLevelCode=None, so the
+    admin can see them and decide manually rather than have them silently
+    disappear from the list.
+    """
+    # Local import: see the module-level note above the import block on why
+    # this cannot be a top-level import (annual_competition_assignment_
+    # service.py imports back from this module).
+    from app.services.annual_competition_assignment_service import ComputeAssignmentsForRoster
+
+    Students = db.query(Student).filter(Student.is_active == True).order_by(Student.student_code.asc()).all()  # noqa: E712
+    Computations = ComputeAssignmentsForRoster(db, Students)
+    ComputationByStudentId = {Computation.student_id: Computation for Computation in Computations}
+
+    Rows: list[dict[str, Any]] = []
+    for StudentRecord in Students:
+        Computation = ComputationByStudentId.get(StudentRecord.id)
+        EligibleLevelCode = (
+            Computation.assigned_level_code
+            if Computation and not Computation.no_rule_matched and Computation.assigned_level_code in VALID_COMPETITION_LEVEL_CODES
+            else None
+        )
+        Rows.append(
+            {
+                "studentId": StudentRecord.id,
+                "studentCode": StudentRecord.student_code,
+                "studentName": StudentRecord.user.full_name if StudentRecord.user else None,
+                "currentModuleCode": Computation.current_module_code if Computation else None,
+                "currentLevelCode": Computation.current_level_code if Computation else None,
+                "eligibleCompetitionLevelCode": EligibleLevelCode,
+            }
+        )
+
+    return {"totalStudents": len(Rows), "students": Rows}
 
 
 def GetCompetitionEventStudioOverview(db: Session, EventId: str) -> dict[str, Any]:

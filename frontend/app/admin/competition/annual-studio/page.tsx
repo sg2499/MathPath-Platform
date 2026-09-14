@@ -8,14 +8,34 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
+  ANNUAL_COMPETITION_LEVEL_CODES,
+  PRACTICE_BATCH_QUANTITY_OPTIONS,
+  PRACTICE_BULK_MAX_STUDENTS_PER_CALL,
+  batchAssignAnnualCompetitionPracticePapers,
   createAnnualCompetitionEvent,
   deleteAnnualCompetitionEvent,
   listAnnualCompetitionEvents,
+  listAnnualCompetitionPracticeResults,
+  listStudentsForAnnualCompetitionPracticeBank,
   updateAnnualCompetitionEvent,
   type AnnualCompetitionEvent,
+  type AnnualCompetitionPracticeBatchAssignFailedRow,
+  type AnnualCompetitionPracticeResultRow,
 } from "@/lib/api/admin";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, CheckCircle2, PlusCircle, Pencil, Trash2, Trophy, X } from "lucide-react";
+import {
+  CalendarClock,
+  CheckCircle2,
+  ClipboardList,
+  Medal,
+  Pencil,
+  PlusCircle,
+  Search,
+  Sparkles,
+  Trash2,
+  Trophy,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
 
@@ -51,6 +71,14 @@ function FormatEventDate(Value: string | null) {
   }
 }
 
+function FormatSecondsAsMinSec(Value: number | null): string {
+  if (Value == null) return "-";
+  const Total = Math.max(0, Math.round(Value));
+  const Minutes = Math.floor(Total / 60);
+  const Seconds = Total % 60;
+  return `${Minutes}:${String(Seconds).padStart(2, "0")}`;
+}
+
 // Mirrors the identically-named helper on the per-event detail page
 // ([eventId]/page.tsx) -- converts an ISO string into the value a
 // datetime-local input expects, so the edit form can be pre-filled with
@@ -63,19 +91,44 @@ function ToLocalInputValue(IsoValue: string | null): string {
   return `${D.getFullYear()}-${Pad(D.getMonth() + 1)}-${Pad(D.getDate())}T${Pad(D.getHours())}:${Pad(D.getMinutes())}`;
 }
 
+// 2026-09-12 (Shailesh, full event decoupling): "there are 2 sub tabs in
+// the annual competition studio, one practice ... and the other sub tab
+// for the official competition ... just like the student tab has 2 sub
+// tabs exactly like that the admin should also see it." Official mirrors
+// this page's own pre-existing content (create event + events list, each
+// event drilling into its own slots/papers/assignments/monitoring/results);
+// Practice is fully event-independent -- see PracticeSubTabList below.
+const TopTabList = ["OFFICIAL", "PRACTICE"] as const;
+type TopTabKey = (typeof TopTabList)[number];
+
+// "the practice tab must have 2 sub tabs within, one for the practice bank
+// with the list of all students where they can be assigned papers
+// simultaneously and the second sub tab for the practice results."
+const PracticeSubTabList = ["BANK", "RESULTS"] as const;
+type PracticeSubTabKey = (typeof PracticeSubTabList)[number];
+
 export default function AdminAnnualCompetitionStudioPage() {
   const Ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const QueryClient = useQueryClient();
 
+  const [TopTab, SetTopTab] = useState<TopTabKey>("OFFICIAL");
+  const [PracticeSubTab, SetPracticeSubTab] = useState<PracticeSubTabKey>("BANK");
+  const [LastMessage, SetLastMessage] = useState<string | null>(null);
+
+  // ---------------------------------------------------------------------
+  // Official (unchanged from before the Official/Practice split -- create
+  // event form + events list, each event drilling into its own detail page
+  // for slots/papers/assignments/monitoring/results).
+  // ---------------------------------------------------------------------
+
   const [EventName, SetEventName] = useState("");
   const [CompetitionDateInput, SetCompetitionDateInput] = useState("");
   const [ResultsReleaseInput, SetResultsReleaseInput] = useState("");
-  const [LastMessage, SetLastMessage] = useState<string | null>(null);
 
   const EventsQuery = useQuery({
     queryKey: ["admin", "annual-competition", "events"],
     queryFn: listAnnualCompetitionEvents,
-    enabled: Ready,
+    enabled: Ready && TopTab === "OFFICIAL",
     placeholderData: keepPreviousData,
   });
   const Events = EventsQuery.data || [];
@@ -152,14 +205,145 @@ export default function AdminAnnualCompetitionStudioPage() {
     },
   });
 
+  // ---------------------------------------------------------------------
+  // Practice -- Bank (2026-09-12, bulk assignment): "let the admin just
+  // assign papers to all the students and let them practice instead of
+  // creating unnecessary events." Fully event-independent -- the roster
+  // below is every active student, tagged with the level they're currently
+  // eligible for, so the admin can select all, many, or a filtered subset
+  // and assign in one action. A selection larger than
+  // PRACTICE_BULK_MAX_STUDENTS_PER_CALL is chunked into sequential calls
+  // client-side (this backend has no background job queue -- see that
+  // constant's own comment in lib/api/admin.ts) with progress shown below.
+  // ---------------------------------------------------------------------
+
+  const [PracticeSearchText, SetPracticeSearchText] = useState("");
+  const [PracticeModuleFilter, SetPracticeModuleFilter] = useState<string>("ALL");
+  const [PracticeEligibleOnly, SetPracticeEligibleOnly] = useState(false);
+  const [SelectedStudentIdsForPractice, SetSelectedStudentIdsForPractice] = useState<Set<string>>(new Set());
+  const [PracticeAssignLevelCode, SetPracticeAssignLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
+  const [PracticeAssignQuantity, SetPracticeAssignQuantity] = useState<number>(PRACTICE_BATCH_QUANTITY_OPTIONS[0]);
+  const [BulkAssignProgress, SetBulkAssignProgress] = useState<{ Done: number; Total: number } | null>(null);
+  const [BulkAssignSummary, SetBulkAssignSummary] = useState<{
+    StudentsSucceeded: number;
+    StudentsFailed: number;
+    TotalPapersAssigned: number;
+    FailedRows: AnnualCompetitionPracticeBatchAssignFailedRow[];
+  } | null>(null);
+
+  const StudentsQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "practice-bank-students"],
+    queryFn: listStudentsForAnnualCompetitionPracticeBank,
+    enabled: Ready && TopTab === "PRACTICE" && PracticeSubTab === "BANK",
+  });
+  const StudentRows = StudentsQuery.data?.students || [];
+
+  const PracticeModuleOptions = Array.from(
+    new Set(StudentRows.map((Row) => Row.currentModuleCode).filter((Value): Value is string => Boolean(Value)))
+  ).sort();
+
+  const PracticeSearchLower = PracticeSearchText.trim().toLowerCase();
+  const FilteredStudentRows = StudentRows.filter((Row) => {
+    if (PracticeModuleFilter !== "ALL" && Row.currentModuleCode !== PracticeModuleFilter) return false;
+    if (PracticeEligibleOnly && Row.eligibleCompetitionLevelCode !== PracticeAssignLevelCode) return false;
+    if (PracticeSearchLower) {
+      const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
+      if (!Haystack.includes(PracticeSearchLower)) return false;
+    }
+    return true;
+  });
+
+  const AllFilteredStudentRowsSelected =
+    FilteredStudentRows.length > 0 && FilteredStudentRows.every((Row) => SelectedStudentIdsForPractice.has(Row.studentId));
+  const ToggleSelectAllFilteredStudentRows = () => {
+    SetSelectedStudentIdsForPractice((Prev) => {
+      const Next = new Set(Prev);
+      if (AllFilteredStudentRowsSelected) {
+        FilteredStudentRows.forEach((Row) => Next.delete(Row.studentId));
+      } else {
+        FilteredStudentRows.forEach((Row) => Next.add(Row.studentId));
+      }
+      return Next;
+    });
+  };
+  const ToggleOneStudentRowSelected = (StudentId: string) => {
+    SetSelectedStudentIdsForPractice((Prev) => {
+      const Next = new Set(Prev);
+      if (Next.has(StudentId)) Next.delete(StudentId);
+      else Next.add(StudentId);
+      return Next;
+    });
+  };
+
+  const InvalidatePracticeResults = () =>
+    QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "practice-results"] });
+
+  const BulkAssignMutation = useMutation({
+    mutationFn: async () => {
+      const StudentIds = Array.from(SelectedStudentIdsForPractice);
+      const Chunks: string[][] = [];
+      for (let Index = 0; Index < StudentIds.length; Index += PRACTICE_BULK_MAX_STUDENTS_PER_CALL) {
+        Chunks.push(StudentIds.slice(Index, Index + PRACTICE_BULK_MAX_STUDENTS_PER_CALL));
+      }
+      SetBulkAssignProgress({ Done: 0, Total: Chunks.length });
+      let StudentsSucceeded = 0;
+      let StudentsFailed = 0;
+      let TotalPapersAssigned = 0;
+      const FailedRows: AnnualCompetitionPracticeBatchAssignFailedRow[] = [];
+      for (let Index = 0; Index < Chunks.length; Index++) {
+        const Result = await batchAssignAnnualCompetitionPracticePapers({
+          studentIds: Chunks[Index],
+          competitionLevelCode: PracticeAssignLevelCode,
+          quantity: PracticeAssignQuantity,
+        });
+        StudentsSucceeded += Result.studentsSucceeded;
+        StudentsFailed += Result.studentsFailed;
+        TotalPapersAssigned += Result.totalPapersAssigned;
+        FailedRows.push(...Result.failed);
+        SetBulkAssignProgress({ Done: Index + 1, Total: Chunks.length });
+      }
+      return { StudentsSucceeded, StudentsFailed, TotalPapersAssigned, FailedRows };
+    },
+    onSuccess: (Result) => {
+      SetLastMessage(
+        `Assigned ${PracticeAssignQuantity} practice paper${PracticeAssignQuantity === 1 ? "" : "s"} of ${PracticeAssignLevelCode} to ${Result.StudentsSucceeded} student${Result.StudentsSucceeded === 1 ? "" : "s"}` +
+          (Result.StudentsFailed > 0 ? `, ${Result.StudentsFailed} failed.` : ".")
+      );
+      SetBulkAssignSummary(Result);
+      SetSelectedStudentIdsForPractice(new Set());
+      SetBulkAssignProgress(null);
+      InvalidatePracticeResults();
+    },
+    onError: () => SetBulkAssignProgress(null),
+  });
+
+  // ---------------------------------------------------------------------
+  // Practice -- Results. Never ranked, and always released to the student
+  // the instant it's computed -- a separate surface from any OFFICIAL
+  // event's own Rank & Release list, never mixed with it, and no longer
+  // scoped to any one event either.
+  // ---------------------------------------------------------------------
+
+  const [PracticeResultsLevelFilter, SetPracticeResultsLevelFilter] = useState<string>("ALL");
+
+  const PracticeResultsQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "practice-results", PracticeResultsLevelFilter],
+    queryFn: () =>
+      listAnnualCompetitionPracticeResults({
+        competitionLevelCode: PracticeResultsLevelFilter === "ALL" ? undefined : PracticeResultsLevelFilter,
+      }),
+    enabled: Ready && TopTab === "PRACTICE" && PracticeSubTab === "RESULTS",
+  });
+
   if (!Ready) return null;
-  if (EventsQuery.isLoading) {
-    return (
-      <AppShell title="Annual Competition Studio">
-        <LoadingState label="Loading Annual Competition Studio..." />
-      </AppShell>
-    );
-  }
+
+  const AnyError =
+    EventsQuery.error ||
+    CreateMutation.error ||
+    UpdateEventMutation.error ||
+    DeleteEventMutation.error ||
+    (TopTab === "PRACTICE" && PracticeSubTab === "BANK" ? StudentsQuery.error || BulkAssignMutation.error : null) ||
+    (TopTab === "PRACTICE" && PracticeSubTab === "RESULTS" ? PracticeResultsQuery.error : null);
 
   return (
     <AppShell title="Annual Competition Studio">
@@ -168,184 +352,482 @@ export default function AdminAnnualCompetitionStudioPage() {
           <p className="math-block-header"><Trophy size={14} />Annual Competition</p>
           <h1 className="math-title">Annual Competition Studio</h1>
           <p className="mt-3 max-w-none text-sm font-semibold leading-relaxed text-slate-600 dark:text-slate-300">
-            Stand up the real, scheduled Annual Competition event end to end -- slots, each level&apos;s official
-            paper, and student assignments -- fully separate from Competition Mock practice. Nothing here affects
-            practice mocks; a locked official paper is enforced by the same guard that protects real attempts.
+            Official runs the real, scheduled Annual Competition event end to end -- slots, each level&apos;s official
+            paper, and student assignments. Practice is fully separate and never tied to any event -- assign practice
+            papers to any number of students at once so they can prepare for the mega event, independent of any
+            official assignment.
           </p>
         </div>
 
-        {(EventsQuery.error || CreateMutation.error || DeleteEventMutation.error) && (
-          <ErrorState message={apiErrorMessage(EventsQuery.error || CreateMutation.error || DeleteEventMutation.error)} />
-        )}
-
+        {AnyError && <ErrorState message={apiErrorMessage(AnyError)} />}
         {LastMessage && (
           <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-black text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
             {LastMessage}
           </div>
         )}
 
-        <div className="math-card p-5">
-          <SectionTitle
-            icon={<PlusCircle size={14} />}
-            kicker="New Event"
-            title="Create Annual Competition Event"
-            description="One event per real competition date. Results Release Date can be left blank until MathPath confirms it -- setting it later locks every linked level paper."
-          />
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200 sm:col-span-2">
-              Event Name
-              <input
-                value={EventName}
-                onChange={(EventValue) => SetEventName(EventValue.target.value)}
-                placeholder="Example: MathPath Annual Competition 2026"
-                className="math-input"
-              />
-            </label>
-            <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-              Competition Date &amp; Time
-              <input
-                type="datetime-local"
-                value={CompetitionDateInput}
-                onChange={(EventValue) => SetCompetitionDateInput(EventValue.target.value)}
-                className="math-input"
-              />
-            </label>
-            <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-              Results Release Date &amp; Time (optional)
-              <input
-                type="datetime-local"
-                value={ResultsReleaseInput}
-                onChange={(EventValue) => SetResultsReleaseInput(EventValue.target.value)}
-                className="math-input"
-              />
-              <span className="block text-xs font-bold text-slate-400 dark:text-slate-500">
-                Formal Results &amp; Prize Distribution date, once confirmed. Leave blank for now.
-              </span>
-            </label>
-          </div>
-          <div className="mt-5">
-            <button
-              type="button"
-              disabled={!CanCreate || CreateMutation.isPending}
-              onClick={() => CreateMutation.mutate()}
-              className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <PlusCircle size={16} />
-              {CreateMutation.isPending ? "Creating..." : "Create Event"}
-            </button>
+        <div className="math-card p-3">
+          <div className="flex flex-wrap gap-3">
+            {TopTabList.map((Tab) => (
+              <button
+                key={Tab}
+                type="button"
+                onClick={() => SetTopTab(Tab)}
+                aria-selected={TopTab === Tab}
+                className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${TopTab === Tab ? "is-active math-admin-tab-force-selected" : ""}`}
+              >
+                {Tab === "OFFICIAL" ? "Official" : "Practice"}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="math-card p-5">
-          <SectionTitle icon={<CalendarClock size={14} />} kicker="Events" title="Annual Competition Events" description="Open an event to manage its slots, official papers, and assignments." />
-          {Events.length === 0 ? (
-            <div className="mt-5">
-              <EmptyState title="No Annual Competition events yet" description="Create the first one above." />
+        {TopTab === "OFFICIAL" && (
+          <div className="space-y-6">
+            <div className="math-card p-5">
+              <SectionTitle
+                icon={<PlusCircle size={14} />}
+                kicker="New Event"
+                title="Create Annual Competition Event"
+                description="One event per real competition date. Results Release Date can be left blank until MathPath confirms it -- setting it later locks every linked level paper."
+              />
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200 sm:col-span-2">
+                  Event Name
+                  <input
+                    value={EventName}
+                    onChange={(EventValue) => SetEventName(EventValue.target.value)}
+                    placeholder="Example: MathPath Annual Competition 2026"
+                    className="math-input"
+                  />
+                </label>
+                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                  Competition Date &amp; Time
+                  <input
+                    type="datetime-local"
+                    value={CompetitionDateInput}
+                    onChange={(EventValue) => SetCompetitionDateInput(EventValue.target.value)}
+                    className="math-input"
+                  />
+                </label>
+                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                  Results Release Date &amp; Time (optional)
+                  <input
+                    type="datetime-local"
+                    value={ResultsReleaseInput}
+                    onChange={(EventValue) => SetResultsReleaseInput(EventValue.target.value)}
+                    className="math-input"
+                  />
+                  <span className="block text-xs font-bold text-slate-400 dark:text-slate-500">
+                    Formal Results &amp; Prize Distribution date, once confirmed. Leave blank for now.
+                  </span>
+                </label>
+              </div>
+              <div className="mt-5">
+                <button
+                  type="button"
+                  disabled={!CanCreate || CreateMutation.isPending}
+                  onClick={() => CreateMutation.mutate()}
+                  className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <PlusCircle size={16} />
+                  {CreateMutation.isPending ? "Creating..." : "Create Event"}
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="mt-5 grid gap-3">
-              {Events.map((EventItem: AnnualCompetitionEvent) =>
-                EditingEventId === EventItem.eventId ? (
-                  <div key={EventItem.eventId} className="rounded-2xl border border-[color:var(--mp-role-border-strong)] bg-white p-4 dark:bg-slate-950/40">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200 sm:col-span-2">
-                        Event Name
-                        <input value={EditEventName} onChange={(EventValue) => SetEditEventName(EventValue.target.value)} className="math-input" />
-                      </label>
-                      <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                        Competition Date &amp; Time
-                        <input
-                          type="datetime-local"
-                          value={EditCompetitionDateInput}
-                          onChange={(EventValue) => SetEditCompetitionDateInput(EventValue.target.value)}
-                          className="math-input"
-                        />
-                      </label>
-                      <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                        Results Release Date &amp; Time (optional)
-                        <input
-                          type="datetime-local"
-                          value={EditResultsReleaseInput}
-                          onChange={(EventValue) => SetEditResultsReleaseInput(EventValue.target.value)}
-                          className="math-input"
-                        />
-                        <span className="block text-xs font-bold text-slate-400 dark:text-slate-500">Leave blank to keep it unset.</span>
-                      </label>
-                    </div>
-                    {UpdateEventMutation.isError && (
-                      <p className="mt-3 text-xs font-bold text-rose-600 dark:text-rose-300">{apiErrorMessage(UpdateEventMutation.error)}</p>
-                    )}
-                    <div className="mt-5 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        disabled={!EditEventName.trim() || !EditCompetitionDateInput || UpdateEventMutation.isPending}
-                        onClick={() => UpdateEventMutation.mutate(EventItem.eventId)}
-                        className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+
+            <div className="math-card p-5">
+              <SectionTitle icon={<CalendarClock size={14} />} kicker="Events" title="Annual Competition Events" description="Open an event to manage its slots, official papers, and assignments." />
+              {EventsQuery.isLoading ? (
+                <div className="mt-5"><LoadingState label="Loading events..." /></div>
+              ) : Events.length === 0 ? (
+                <div className="mt-5">
+                  <EmptyState title="No Annual Competition events yet" description="Create the first one above." />
+                </div>
+              ) : (
+                <div className="mt-5 grid gap-3">
+                  {Events.map((EventItem: AnnualCompetitionEvent) =>
+                    EditingEventId === EventItem.eventId ? (
+                      <div key={EventItem.eventId} className="rounded-2xl border border-[color:var(--mp-role-border-strong)] bg-white p-4 dark:bg-slate-950/40">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200 sm:col-span-2">
+                            Event Name
+                            <input value={EditEventName} onChange={(EventValue) => SetEditEventName(EventValue.target.value)} className="math-input" />
+                          </label>
+                          <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                            Competition Date &amp; Time
+                            <input
+                              type="datetime-local"
+                              value={EditCompetitionDateInput}
+                              onChange={(EventValue) => SetEditCompetitionDateInput(EventValue.target.value)}
+                              className="math-input"
+                            />
+                          </label>
+                          <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                            Results Release Date &amp; Time (optional)
+                            <input
+                              type="datetime-local"
+                              value={EditResultsReleaseInput}
+                              onChange={(EventValue) => SetEditResultsReleaseInput(EventValue.target.value)}
+                              className="math-input"
+                            />
+                            <span className="block text-xs font-bold text-slate-400 dark:text-slate-500">Leave blank to keep it unset.</span>
+                          </label>
+                        </div>
+                        {UpdateEventMutation.isError && (
+                          <p className="mt-3 text-xs font-bold text-rose-600 dark:text-rose-300">{apiErrorMessage(UpdateEventMutation.error)}</p>
+                        )}
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            disabled={!EditEventName.trim() || !EditCompetitionDateInput || UpdateEventMutation.isPending}
+                            onClick={() => UpdateEventMutation.mutate(EventItem.eventId)}
+                            className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <CheckCircle2 size={16} />
+                            {UpdateEventMutation.isPending ? "Saving..." : "Save Changes"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={CancelEditingEvent}
+                            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-5 py-2.5 text-sm font-black text-slate-600 transition hover:-translate-y-px dark:bg-slate-950/40 dark:text-slate-300"
+                          >
+                            <X size={16} />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        key={EventItem.eventId}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-5 py-4 shadow-sm transition hover:-translate-y-px hover:shadow-md dark:bg-slate-950/40"
                       >
-                        <CheckCircle2 size={16} />
-                        {UpdateEventMutation.isPending ? "Saving..." : "Save Changes"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={CancelEditingEvent}
-                        className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-5 py-2.5 text-sm font-black text-slate-600 transition hover:-translate-y-px dark:bg-slate-950/40 dark:text-slate-300"
-                      >
-                        <X size={16} />
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    key={EventItem.eventId}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-5 py-4 shadow-sm transition hover:-translate-y-px hover:shadow-md dark:bg-slate-950/40"
-                  >
-                    <Link href={`/admin/competition/annual-studio/${EventItem.eventId}`} className="min-w-0 flex-1">
-                      <p className="text-base font-black text-slate-950 dark:text-white">{EventItem.name}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                        {FormatEventDate(EventItem.competitionDate)}
-                      </p>
-                    </Link>
-                    <div className="flex items-center gap-3">
-                      <StatusChip status={EventItem.status} />
-                      <button
-                        type="button"
-                        title="Edit event"
-                        aria-label="Edit event"
-                        onClick={(ClickEvent) => {
-                          ClickEvent.preventDefault();
-                          StartEditingEvent(EventItem);
-                        }}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--mp-role-border)] text-slate-500 transition hover:-translate-y-px hover:border-[color:var(--mp-role-border-strong)] hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        title="Delete event"
-                        aria-label="Delete event"
-                        disabled={DeleteEventMutation.isPending}
-                        onClick={(ClickEvent) => {
-                          ClickEvent.preventDefault();
-                          if (
-                            window.confirm(
-                              `Delete "${EventItem.name}"? This removes the event and everything under it -- slots, papers, assignments, and ALL student attempts, answers, and results, even if results have already been released and certificates issued. This can't be undone.`
-                            )
-                          ) {
-                            DeleteEventMutation.mutate(EventItem.eventId);
-                          }
-                        }}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-300 text-rose-600 transition hover:-translate-y-px hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-700/70 dark:text-rose-300"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                )
+                        <Link href={`/admin/competition/annual-studio/${EventItem.eventId}`} className="min-w-0 flex-1">
+                          <p className="text-base font-black text-slate-950 dark:text-white">{EventItem.name}</p>
+                          <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+                            {FormatEventDate(EventItem.competitionDate)}
+                          </p>
+                        </Link>
+                        <div className="flex items-center gap-3">
+                          <StatusChip status={EventItem.status} />
+                          <button
+                            type="button"
+                            title="Edit event"
+                            aria-label="Edit event"
+                            onClick={(ClickEvent) => {
+                              ClickEvent.preventDefault();
+                              StartEditingEvent(EventItem);
+                            }}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--mp-role-border)] text-slate-500 transition hover:-translate-y-px hover:border-[color:var(--mp-role-border-strong)] hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            title="Delete event"
+                            aria-label="Delete event"
+                            disabled={DeleteEventMutation.isPending}
+                            onClick={(ClickEvent) => {
+                              ClickEvent.preventDefault();
+                              if (
+                                window.confirm(
+                                  `Delete "${EventItem.name}"? This removes the event and everything under it -- slots, papers, assignments, and ALL student attempts, answers, and results, even if results have already been released and certificates issued. This can't be undone.`
+                                )
+                              ) {
+                                DeleteEventMutation.mutate(EventItem.eventId);
+                              }
+                            }}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-300 text-rose-600 transition hover:-translate-y-px hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-700/70 dark:text-rose-300"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {TopTab === "PRACTICE" && (
+          <div className="space-y-6">
+            <div className="math-card p-3">
+              <div className="flex flex-wrap gap-3">
+                {PracticeSubTabList.map((Tab) => (
+                  <button
+                    key={Tab}
+                    type="button"
+                    onClick={() => SetPracticeSubTab(Tab)}
+                    aria-selected={PracticeSubTab === Tab}
+                    className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${PracticeSubTab === Tab ? "is-active math-admin-tab-force-selected" : ""}`}
+                  >
+                    {Tab === "BANK" ? "Practice Bank" : "Practice Results"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {PracticeSubTab === "BANK" && (
+              <div className="math-card p-5">
+                <SectionTitle
+                  icon={<Sparkles size={14} />}
+                  kicker="Practice Bank"
+                  title="Assign Practice Papers"
+                  description="Generates fresh, always-different practice papers and adds them to every selected student's bank for a level -- safe to call repeatedly, it never touches or consumes a paper already there. Select all, many, or a filtered subset of students below. Quantity must be a multiple of 5, up to 25 per batch."
+                />
+
+                <div className="mt-4 flex flex-wrap items-end gap-3">
+                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                    Level To Assign
+                    <select
+                      value={PracticeAssignLevelCode}
+                      onChange={(EventValue) => SetPracticeAssignLevelCode(EventValue.target.value)}
+                      className="math-input"
+                    >
+                      {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                        <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                    Quantity Per Student
+                    <select
+                      value={PracticeAssignQuantity}
+                      onChange={(EventValue) => SetPracticeAssignQuantity(Number(EventValue.target.value))}
+                      className="math-input"
+                    >
+                      {PRACTICE_BATCH_QUANTITY_OPTIONS.map((Quantity) => (
+                        <option key={Quantity} value={Quantity}>{Quantity}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={SelectedStudentIdsForPractice.size === 0 || BulkAssignMutation.isPending}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Assign ${PracticeAssignQuantity} ${PracticeAssignLevelCode} practice paper${PracticeAssignQuantity === 1 ? "" : "s"} to ${SelectedStudentIdsForPractice.size} student${SelectedStudentIdsForPractice.size === 1 ? "" : "s"}?`
+                        )
+                      ) {
+                        SetBulkAssignSummary(null);
+                        BulkAssignMutation.mutate();
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <PlusCircle size={16} />
+                    {BulkAssignMutation.isPending
+                      ? BulkAssignProgress
+                        ? `Assigning batch ${BulkAssignProgress.Done}/${BulkAssignProgress.Total}...`
+                        : "Assigning..."
+                      : `Assign To ${SelectedStudentIdsForPractice.size || 0} Selected`}
+                  </button>
+                  {SelectedStudentIdsForPractice.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => SetSelectedStudentIdsForPractice(new Set())}
+                      className="inline-flex items-center gap-1 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-xs font-black text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
+                    >
+                      <X size={13} />
+                      Deselect All ({SelectedStudentIdsForPractice.size})
+                    </button>
+                  )}
+                </div>
+
+                {BulkAssignSummary && (
+                  <div className="mt-4 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-3 text-xs font-bold dark:bg-slate-950/40">
+                    <div className="flex flex-wrap gap-4">
+                      <span className="text-emerald-600 dark:text-emerald-300">{BulkAssignSummary.StudentsSucceeded} succeeded</span>
+                      <span>{BulkAssignSummary.TotalPapersAssigned} papers assigned</span>
+                      {BulkAssignSummary.StudentsFailed > 0 && (
+                        <span className="text-rose-600 dark:text-rose-300">{BulkAssignSummary.StudentsFailed} failed</span>
+                      )}
+                    </div>
+                    {BulkAssignSummary.FailedRows.length > 0 && (
+                      <ul className="mt-2 space-y-1 text-rose-600 dark:text-rose-300">
+                        {BulkAssignSummary.FailedRows.map((Row, Index) => (
+                          <li key={`${Row.studentIdentifier}-${Index}`}>{Row.studentIdentifier}: {Row.reason}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
+                {StudentRows.length > 0 && (
+                  <div className="mt-5 flex flex-wrap items-center gap-3">
+                    <div className="relative">
+                      <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        value={PracticeSearchText}
+                        onChange={(EventValue) => SetPracticeSearchText(EventValue.target.value)}
+                        placeholder="Search by name or student code..."
+                        className="math-input !py-2 !pl-9 !text-xs w-64"
+                      />
+                    </div>
+                    <select
+                      value={PracticeModuleFilter}
+                      onChange={(EventValue) => SetPracticeModuleFilter(EventValue.target.value)}
+                      className="math-input !py-2 !text-xs w-auto"
+                      aria-label="Filter by module"
+                    >
+                      <option value="ALL">All Modules</option>
+                      {PracticeModuleOptions.map((ModuleCode) => (
+                        <option key={ModuleCode} value={ModuleCode}>{ModuleCode}</option>
+                      ))}
+                    </select>
+                    <label className="inline-flex items-center gap-2 text-xs font-black text-slate-600 dark:text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={PracticeEligibleOnly}
+                        onChange={(EventValue) => SetPracticeEligibleOnly(EventValue.target.checked)}
+                        className="h-3.5 w-3.5"
+                      />
+                      Only show students eligible for {PracticeAssignLevelCode}
+                    </label>
+                    {(PracticeSearchText || PracticeModuleFilter !== "ALL" || PracticeEligibleOnly) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          SetPracticeSearchText("");
+                          SetPracticeModuleFilter("ALL");
+                          SetPracticeEligibleOnly(false);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-2 text-xs font-black text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
+                      >
+                        <X size={12} />
+                        Clear Filters
+                      </button>
+                    )}
+                    <span className="text-xs font-bold text-slate-400">
+                      {FilteredStudentRows.length} of {StudentRows.length} shown
+                    </span>
+                  </div>
+                )}
+
+                {StudentsQuery.isLoading ? (
+                  <div className="mt-5"><LoadingState label="Loading students..." /></div>
+                ) : FilteredStudentRows.length > 0 ? (
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full min-w-[760px] text-left text-xs font-bold">
+                      <thead>
+                        <tr className="text-slate-500 dark:text-slate-400">
+                          <th className="px-2 py-1.5">
+                            <input
+                              type="checkbox"
+                              checked={AllFilteredStudentRowsSelected}
+                              onChange={ToggleSelectAllFilteredStudentRows}
+                              aria-label="Select all shown students"
+                              className="h-3.5 w-3.5"
+                            />
+                          </th>
+                          <th className="px-2 py-1.5">Student</th>
+                          <th className="px-2 py-1.5">Current Level</th>
+                          <th className="px-2 py-1.5">Eligible Competition Level</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {FilteredStudentRows.map((Row) => (
+                          <tr key={Row.studentId} className="border-t border-[color:var(--mp-role-border)]">
+                            <td className="px-2 py-2">
+                              <input
+                                type="checkbox"
+                                checked={SelectedStudentIdsForPractice.has(Row.studentId)}
+                                onChange={() => ToggleOneStudentRowSelected(Row.studentId)}
+                                aria-label={`Select ${Row.studentName || Row.studentCode || Row.studentId}`}
+                                className="h-3.5 w-3.5"
+                              />
+                            </td>
+                            <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                            <td className="px-2 py-2">{Row.currentLevelCode || "--"}</td>
+                            <td className="px-2 py-2">
+                              {Row.eligibleCompetitionLevelCode ? (
+                                <span className="text-emerald-600 dark:text-emerald-300">{Row.eligibleCompetitionLevelCode}</span>
+                              ) : (
+                                <span className="text-slate-400">Not matched</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="mt-5">
+                    <EmptyState title="No students found" description="Adjust the search or filters above." />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {PracticeSubTab === "RESULTS" && (
+              <div className="math-card p-5">
+                <SectionTitle
+                  icon={<Medal size={14} />}
+                  kicker="Practice Results"
+                  title="Recent Practice Activity"
+                  description="Never ranked, and always released to the student the instant it's computed -- a separate surface from any OFFICIAL event's own Rank &amp; Release list, and never scoped to any one event."
+                />
+                <div className="mt-4 flex flex-wrap items-end gap-3">
+                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                    Filter by Level
+                    <select value={PracticeResultsLevelFilter} onChange={(EventValue) => SetPracticeResultsLevelFilter(EventValue.target.value)} className="math-input">
+                      <option value="ALL">All Levels</option>
+                      {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                        <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                {PracticeResultsQuery.isLoading ? (
+                  <div className="mt-5"><LoadingState label="Loading practice results..." /></div>
+                ) : PracticeResultsQuery.data && PracticeResultsQuery.data.rows.length > 0 ? (
+                  <div className="mt-5 overflow-x-auto">
+                    <table className="w-full min-w-[820px] text-left text-xs font-bold">
+                      <thead>
+                        <tr className="text-slate-500 dark:text-slate-400">
+                          <th className="px-2 py-1.5">Student</th>
+                          <th className="px-2 py-1.5">Level</th>
+                          <th className="px-2 py-1.5">Accuracy</th>
+                          <th className="px-2 py-1.5">Score</th>
+                          <th className="px-2 py-1.5">Time Taken</th>
+                          <th className="px-2 py-1.5">Attempt</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {PracticeResultsQuery.data.rows.map((Row: AnnualCompetitionPracticeResultRow) => (
+                          <tr key={Row.resultId} className="border-t border-[color:var(--mp-role-border)]">
+                            <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                            <td className="px-2 py-2">{Row.competitionLevelCode}</td>
+                            <td className="px-2 py-2">{Row.accuracyPercentage}%</td>
+                            <td className="px-2 py-2">{Row.score}/{Row.maxScore}</td>
+                            <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
+                            <td className="px-2 py-2">
+                              <Link
+                                href={`/admin/competition/annual-result/${Row.attemptId}`}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+                              >
+                                <ClipboardList size={12} />
+                                View
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="mt-5">
+                    <EmptyState title="No practice activity yet" description="Practice results appear automatically once a student finishes a practice paper." />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </section>
     </AppShell>
   );

@@ -669,7 +669,7 @@ def ListCompetitionEventResultsForAdmin(db: Session, *, EventId: str, Competitio
 
 
 def ListAnnualCompetitionPracticeResultsForAdmin(
-    db: Session, *, EventId: str, CompetitionLevelCode: str | None = None, StudentId: str | None = None
+    db: Session, *, CompetitionLevelCode: str | None = None, StudentId: str | None = None
 ) -> dict[str, Any]:
     """Practice's own admin results surface (Phase E) -- deliberately
     separate from ListCompetitionEventResultsForAdmin above, exactly as
@@ -682,17 +682,17 @@ def ListAnnualCompetitionPracticeResultsForAdmin(
     (Phase B) -- so there is no rank to sort by here; newest-first
     (computed_at desc) reads naturally for "recent practice activity"
     instead of a competitive standings order. A student can also have MANY
-    practice results for one event (one per consumed bank paper, unlike
-    OFFICIAL's single result per assignment) -- StudentId optionally narrows
-    to one student's own history, e.g. from a student detail page in the
-    admin Studio.
-    """
-    EventRecord = db.get(CompetitionEvent, EventId)
-    if not EventRecord:
-        api_error(404, "COMPETITION_EVENT_NOT_FOUND", "The selected Annual Competition event was not found.")
+    practice results overall (one per consumed bank paper, unlike OFFICIAL's
+    single result per assignment) -- StudentId optionally narrows to one
+    student's own history, e.g. from a student detail page in the admin
+    Studio.
 
+    2026-09-12 (Shailesh, decoupling): "the practice papers should not be
+    related to any event whatsoever." No event scope anymore -- this lists
+    every PRACTICE result across all students/all time, optionally narrowed
+    by competition_level_code and/or studentId only.
+    """
     Query = db.query(CompetitionEventResult).filter(
-        CompetitionEventResult.event_id == EventId,
         CompetitionEventResult.attempt_type == "PRACTICE",
     )
     if CompetitionLevelCode:
@@ -715,7 +715,6 @@ def ListAnnualCompetitionPracticeResultsForAdmin(
         )
 
     return {
-        "eventId": EventId,
         "competitionLevelCode": CompetitionLevelCode,
         "studentId": StudentId,
         "totalResults": len(Rows),

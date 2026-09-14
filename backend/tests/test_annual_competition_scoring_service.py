@@ -1017,10 +1017,13 @@ def test_unvoid_unknown_attempt_raises_404():
 # once practice attempts exist.
 # ---------------------------------------------------------------------------
 
-def _practice_result(db, event_id, student_id, level_code, is_released=True, accuracy=100.0, time_taken=30):
+def _practice_result(db, student_id, level_code, is_released=True, accuracy=100.0, time_taken=30):
+    """2026-09-12 (Shailesh, decoupling): event_id is always None now --
+    practice never belongs to any event, so this helper no longer accepts
+    one at all."""
     practice_paper = CompetitionEventLevelPaper(
         id=f"practice-paper-{student_id}",
-        event_id=event_id,
+        event_id=None,
         competition_level_code=level_code,
         paper_kind="PRACTICE",
         status="READY",
@@ -1030,7 +1033,7 @@ def _practice_result(db, event_id, student_id, level_code, is_released=True, acc
     db.flush()
     attempt = CompetitionEventAttempt(
         id=f"practice-attempt-{student_id}",
-        event_id=event_id,
+        event_id=None,
         assignment_id=None,
         level_paper_id=practice_paper.id,
         student_id=student_id,
@@ -1043,7 +1046,7 @@ def _practice_result(db, event_id, student_id, level_code, is_released=True, acc
     result = CompetitionEventResult(
         id=f"practice-result-{student_id}",
         attempt_id=attempt.id,
-        event_id=event_id,
+        event_id=None,
         assignment_id=None,
         student_id=student_id,
         attempt_type="PRACTICE",
@@ -1075,7 +1078,7 @@ def test_practice_result_excluded_from_ranking():
     _submit_full_attempt(db, student_b, event.id, {"q-1-1": True, "q-1-2": False})  # 50% accuracy
     # A practice result with a perfect, instant score on the SAME level --
     # if it leaked into ranking it would outrank both official students.
-    _practice_result(db, event.id, "sPractice", "PM-L2", accuracy=100.0, time_taken=1)
+    _practice_result(db, "sPractice", "PM-L2", accuracy=100.0, time_taken=1)
     db.commit()
 
     outcome = scoring.RankCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode="PM-L2")
@@ -1100,7 +1103,7 @@ def test_practice_result_excluded_from_release():
     # Already is_released=True from creation (mirrors the real practice
     # auto-release design) -- this proves ReleaseCompetitionEventResults
     # never touches it, not just that it "stays released" by coincidence.
-    _practice_result(db, event.id, "sPractice", "PM-L2", is_released=True)
+    _practice_result(db, "sPractice", "PM-L2", is_released=True)
     db.commit()
 
     outcome = scoring.ReleaseCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode="PM-L2", ReleasedBy=admin)
@@ -1121,7 +1124,7 @@ def test_practice_result_excluded_from_admin_results_list():
     _student(db, "sPractice")
     db.commit()
     _submit_full_attempt(db, student, event.id, {"q-1-1": True})
-    _practice_result(db, event.id, "sPractice", "PM-L2")
+    _practice_result(db, "sPractice", "PM-L2")
     db.commit()
 
     listing = scoring.ListCompetitionEventResultsForAdmin(db, EventId=event.id)
@@ -1143,12 +1146,13 @@ def test_practice_result_excluded_from_admin_results_list():
 # source bank paper's consumed_at gets stamped exactly once.
 # ---------------------------------------------------------------------------
 
-def _setup_student_with_practice_questions(db, student_id, event_id, section_seconds, questions_per_section, level_code="PM-L2", exam_id=None, level_paper_id=None):
+def _setup_student_with_practice_questions(db, student_id, section_seconds, questions_per_section, level_code="PM-L2", exam_id=None, level_paper_id=None):
     """Practice sibling of _setup_student_with_questions above -- no
-    CompetitionEventAssignment (practice has none), and the level paper is
-    paper_kind="PRACTICE" with assigned_student_id set (a practice bank row
-    is always specifically assigned to one student, never generically
-    discovered the way an OFFICIAL level paper is)."""
+    CompetitionEventAssignment (practice has none), no event_id at all
+    (2026-09-12 decoupling), and the level paper is paper_kind="PRACTICE"
+    with assigned_student_id set (a practice bank row is always specifically
+    assigned to one student, never generically discovered the way an
+    OFFICIAL level paper is)."""
     student = _student(db, student_id)
     m, l = _module_and_level(db, level_code=level_code)
     exam_id = exam_id or f"practice-exam-{level_code}"
@@ -1162,7 +1166,7 @@ def _setup_student_with_practice_questions(db, student_id, event_id, section_sec
     level_paper_id = level_paper_id or f"practice-flow-paper-{level_code}"
     if not db.get(CompetitionEventLevelPaper, level_paper_id):
         p = CompetitionEventLevelPaper(
-            id=level_paper_id, event_id=event_id, competition_level_code=level_code,
+            id=level_paper_id, event_id=None, competition_level_code=level_code,
             mock_exam_id=exam_id, status="READY", paper_kind="PRACTICE",
             assigned_student_id=student.id, assigned_at=datetime.now(timezone.utc),
         )
@@ -1180,14 +1184,13 @@ def _setup_student_with_practice_questions(db, student_id, event_id, section_sec
 
 def test_practice_finalize_tags_attempt_type_and_auto_releases_and_consumes_paper():
     db = _session()
-    event = _event(db)
     student = _setup_student_with_practice_questions(
-        db, "sPracticeFlow", event.id, section_seconds=(600,), questions_per_section=[2],
+        db, "sPracticeFlow", section_seconds=(600,), questions_per_section=[2],
         level_paper_id="practice-flow-paper",
     )
     db.commit()
 
-    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
     attempt_id, token = started["attemptId"], started["sessionToken"]
     _answer(db, student, attempt_id, token, 1, "practice-q-1-1", correct=True)
     _answer(db, student, attempt_id, token, 1, "practice-q-1-2", correct=False)
@@ -1197,9 +1200,11 @@ def test_practice_finalize_tags_attempt_type_and_auto_releases_and_consumes_pape
     attempt = db.get(CompetitionEventAttempt, attempt_id)
     assert attempt.status == "FINALIZED"
     assert attempt.attempt_type == "PRACTICE"
+    assert attempt.event_id is None  # decoupled: never carries an event_id
 
     result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
     assert result.attempt_type == "PRACTICE"  # guards the model-default mis-tagging bug
+    assert result.event_id is None
     assert result.correct_count == 1
     assert result.wrong_count == 1
     assert result.is_released is True
@@ -1222,14 +1227,13 @@ def test_practice_finalize_does_not_double_stamp_consumed_at_on_recompute():
     second time, so consumed_at (already stamped) is left exactly as it
     was, never bumped to a later timestamp."""
     db = _session()
-    event = _event(db)
     student = _setup_student_with_practice_questions(
-        db, "sPracticeRecompute", event.id, section_seconds=(600,), questions_per_section=[1],
+        db, "sPracticeRecompute", section_seconds=(600,), questions_per_section=[1],
         level_paper_id="practice-recompute-paper",
     )
     db.commit()
 
-    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
     attempt_id, token = started["attemptId"], started["sessionToken"]
     _answer(db, student, attempt_id, token, 1, "practice-q-1-1", correct=True)
     attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
@@ -1247,10 +1251,11 @@ def test_practice_finalize_does_not_double_stamp_consumed_at_on_recompute():
 
 
 # ---------------------------------------------------------------------------
-# Practice's own admin results surface (Phase E) --
-# ListAnnualCompetitionPracticeResultsForAdmin. Deliberately separate from
-# ListCompetitionEventResultsForAdmin (attempt_type == "OFFICIAL"-only,
-# Phase B) -- see that function's own docstring promising this split.
+# Practice's own admin results surface (Phase E; fully decoupled from any
+# event, 2026-09-12) -- ListAnnualCompetitionPracticeResultsForAdmin.
+# Deliberately separate from ListCompetitionEventResultsForAdmin
+# (attempt_type == "OFFICIAL"-only, Phase B) -- see that function's own
+# docstring promising this split.
 # ---------------------------------------------------------------------------
 
 def test_admin_practice_results_list_never_mixes_in_an_official_result():
@@ -1260,44 +1265,52 @@ def test_admin_practice_results_list_never_mixes_in_an_official_result():
     _student(db, "sPractice")
     db.commit()
     _submit_full_attempt(db, student, event.id, {"q-1-1": True})
-    _practice_result(db, event.id, "sPractice", "PM-L2")
+    _practice_result(db, "sPractice", "PM-L2")
     db.commit()
 
-    result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, EventId=event.id)
+    result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db)
     assert result["totalResults"] == 1
     assert result["rows"][0]["studentId"] == "sPractice"
 
 
 def test_admin_practice_results_list_filters_by_level_code():
     db = _session()
-    event = _event(db)
     _student(db, "sPractice")
     db.commit()
-    _practice_result(db, event.id, "sPractice", "PM-L2")
+    _practice_result(db, "sPractice", "PM-L2")
     db.commit()
 
-    matching = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, EventId=event.id, CompetitionLevelCode="PM-L2")
+    matching = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, CompetitionLevelCode="PM-L2")
     assert matching["totalResults"] == 1
-    non_matching = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, EventId=event.id, CompetitionLevelCode="IM-L1")
+    non_matching = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, CompetitionLevelCode="IM-L1")
     assert non_matching["totalResults"] == 0
 
 
 def test_admin_practice_results_list_filters_by_student_id():
     db = _session()
-    event = _event(db)
     _student(db, "sPracticeA")
     _student(db, "sPracticeB")
     db.commit()
-    _practice_result(db, event.id, "sPracticeA", "PM-L2")
-    _practice_result(db, event.id, "sPracticeB", "PM-L2")
+    _practice_result(db, "sPracticeA", "PM-L2")
+    _practice_result(db, "sPracticeB", "PM-L2")
     db.commit()
 
-    result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, EventId=event.id, StudentId="sPracticeA")
+    result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, StudentId="sPracticeA")
     assert result["totalResults"] == 1
     assert result["rows"][0]["studentId"] == "sPracticeA"
 
 
-def test_admin_practice_results_list_unknown_event_is_404():
+def test_admin_practice_results_list_spans_students_with_no_event_in_common():
+    """2026-09-12 (Shailesh, decoupling): "the practice papers should not be
+    related to any event whatsoever" -- confirms the admin list is a single,
+    global surface, not scoped to any one event."""
     db = _session()
-    with pytest.raises(HTTPException):
-        scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, EventId="does-not-exist")
+    _student(db, "sPracticeA")
+    _student(db, "sPracticeB")
+    db.commit()
+    _practice_result(db, "sPracticeA", "PM-L2")
+    _practice_result(db, "sPracticeB", "IM-L1")
+    db.commit()
+
+    result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db)
+    assert result["totalResults"] == 2

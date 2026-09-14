@@ -475,7 +475,14 @@ class CompetitionEventSlot(Base):
 class CompetitionEventLevelPaper(Base):
     __tablename__ = "competition_event_level_papers"
     id = Column(String, primary_key=True, default=uuid_str)
-    event_id = Column(String, ForeignKey("competition_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    # 2026-09-12 (Shailesh, Competition Practice feature -- full event
+    # decoupling): nullable, not just optional-by-convention -- a PRACTICE
+    # row now genuinely has no event at all ("the practice papers should not
+    # be related to any event whatsoever, its only for practice leading to
+    # the main event"). Always non-null for paper_kind == "OFFICIAL" (still
+    # enforced at the service layer, same as every other OFFICIAL/PRACTICE
+    # split in this table -- see paper_kind below).
+    event_id = Column(String, ForeignKey("competition_events.id", ondelete="CASCADE"), nullable=True, index=True)
     competition_level_code = Column(String(50), nullable=False)
     # FK into the existing, already-shipped Competition Mock paper-generation
     # engine (GenerateCompetitionMockDraft) -- the frozen, ordered question
@@ -562,7 +569,11 @@ class CompetitionEventAssignment(Base):
 class CompetitionEventAttempt(Base):
     __tablename__ = "competition_event_attempts"
     id = Column(String, primary_key=True, default=uuid_str)
-    event_id = Column(String, ForeignKey("competition_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    # 2026-09-12 (Shailesh, Competition Practice feature -- full event
+    # decoupling): nullable for the same reason as CompetitionEventLevelPaper
+    # .event_id above -- a PRACTICE attempt has no event at all now. Always
+    # non-null for attempt_type == "OFFICIAL".
+    event_id = Column(String, ForeignKey("competition_events.id", ondelete="CASCADE"), nullable=True, index=True)
     # 2026-09-11 (Shailesh, Competition Practice feature): nullable because a
     # PRACTICE attempt (see attempt_type below) has no CompetitionEventAssignment
     # at all -- practice access is granted via a bank of
@@ -633,7 +644,12 @@ class CompetitionEventResult(Base):
     __tablename__ = "competition_event_results"
     id = Column(String, primary_key=True, default=uuid_str)
     attempt_id = Column(String, ForeignKey("competition_event_attempts.id", ondelete="CASCADE"), unique=True, nullable=False)
-    event_id = Column(String, ForeignKey("competition_events.id"), nullable=False, index=True)
+    # 2026-09-12 (Shailesh, Competition Practice feature -- full event
+    # decoupling): nullable for the same reason as CompetitionEventAttempt
+    # .event_id above -- mirrors AttemptRecord.event_id (see
+    # ComputeAndFinalizeCompetitionEventResult), which is now None for every
+    # PRACTICE attempt. Always non-null for attempt_type == "OFFICIAL".
+    event_id = Column(String, ForeignKey("competition_events.id"), nullable=True, index=True)
     # 2026-09-11 (Shailesh, Competition Practice feature): nullable for the
     # same reason as CompetitionEventAttempt.assignment_id above -- a
     # PRACTICE result's attempt has no assignment to denormalize here.

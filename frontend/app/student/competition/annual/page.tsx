@@ -28,6 +28,49 @@ function FormatDateTime(value?: string | null) {
   return date.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+// Reused verbatim from app/student/competition/mock-exams/page.tsx's own
+// RoundHalfUp/FormatScore/AccuracyChipTone/ScoreChipTone -- same rounding
+// and color-band rules, so a practice paper's score/accuracy chip reads
+// identically to a Mock/DPS sheet's, per Shailesh's requirement that
+// "Submitted Practice History" look like those, not plain text.
+function RoundHalfUp(value: number) {
+  return Math.floor(Number(value) + 0.5);
+}
+
+function FormatScore(value?: number | null, maxScore?: number | null) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+  const formattedScore = String(RoundHalfUp(Number(value)));
+  if (maxScore !== null && maxScore !== undefined && !Number.isNaN(Number(maxScore))) {
+    return `${formattedScore}/${String(RoundHalfUp(Number(maxScore)))}`;
+  }
+  return formattedScore;
+}
+
+function FormatDuration(seconds?: number | null) {
+  if (seconds === null || seconds === undefined) return "-";
+  const total = Math.max(0, Number(seconds || 0));
+  const minutes = Math.floor(total / 60);
+  const secs = total % 60;
+  if (minutes && secs) {
+    return `${minutes} Min${minutes !== 1 ? "s" : ""} ${secs} Sec${secs !== 1 ? "s" : ""}`;
+  }
+  if (minutes) {
+    return `${minutes} Min${minutes !== 1 ? "s" : ""}`;
+  }
+  return `${secs} Sec${secs !== 1 ? "s" : ""}`;
+}
+
+function AccuracyChipTone(value: number | null): "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple" {
+  if (value === null) return "slate";
+  if (value < 60) return "red";
+  if (value < 80) return "amber";
+  return "green";
+}
+
+function ScoreChipTone(value: number | null) {
+  return AccuracyChipTone(value);
+}
+
 function StatusChip({ assignment }: { assignment: AnnualCompetitionAssignmentForStudent }) {
   // Root-cause fix (Shailesh, 2026-09-09): a Grant Retry on the admin side
   // never changes latestAttemptStatus (it's a separate, additive grant
@@ -97,28 +140,30 @@ function AssignmentCard({
   return (
     <div className="math-card p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="math-block-header mb-2"><Trophy size={14} /> Annual Competition</div>
           <h2 className="text-xl font-black text-slate-950 dark:text-white">{assignment.eventName}</h2>
           <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
-            <div className="flex items-center gap-2">
-              <CalendarClock size={16} className="text-orange-600 dark:text-orange-300" />
-              Competition Date: {FormatDateTime(assignment.competitionDate)}
+            <div className="flex flex-wrap items-center gap-2">
+              <CalendarClock size={16} className="shrink-0 text-orange-600 dark:text-orange-300" />
+              <span className="whitespace-nowrap">Competition Date: {FormatDateTime(assignment.competitionDate)}</span>
             </div>
             {assignment.slot ? (
-              <div className="flex items-center gap-2">
-                <MapPin size={16} className="text-orange-600 dark:text-orange-300" />
-                Your Slot: {assignment.slot.slotLabel || assignment.slot.mode} · {FormatDateTime(assignment.slot.scheduledStartAt)}
+              <div className="flex flex-wrap items-center gap-2">
+                <MapPin size={16} className="shrink-0 text-orange-600 dark:text-orange-300" />
+                <span className="whitespace-nowrap">
+                  Your Slot: {assignment.slot.slotLabel || assignment.slot.mode} · {FormatDateTime(assignment.slot.scheduledStartAt)}
+                </span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                <Hourglass size={16} />
-                No specific slot assigned yet -- you can start once the paper is ready.
+              <div className="flex flex-wrap items-center gap-2 text-slate-500 dark:text-slate-400">
+                <Hourglass size={16} className="shrink-0" />
+                <span>No specific slot assigned yet -- you can start once the paper is ready.</span>
               </div>
             )}
           </div>
         </div>
-        <div className="flex flex-col items-start gap-3 lg:items-end">
+        <div className="flex shrink-0 flex-col items-start gap-3 lg:items-end">
           <div className="flex flex-wrap items-center gap-2">
             <Chip tone="blue">{assignment.assignedLevelCode}</Chip>
             <StatusChip assignment={assignment} />
@@ -200,35 +245,41 @@ function TabButton({ active, label, icon, onClick }: { active: boolean; label: s
   );
 }
 
-// One panel per practice SCOPE (a distinct event+level the student has any
-// practice papers for -- see getMyAnnualCompetitionPracticeScopes's own
-// comment on lib/api/student.ts). Fixed 2026-09-11 (Shailesh): this used to
-// be scoped off the student's OFFICIAL assignments, which meant a student
-// with practice papers batch-assigned but no official assignment saw
-// nothing -- "the students should be able to practice any paper even if
-// they do not have any official competition attempts, that is the whole
-// point of this entire practice feature." Scopes are now the source of
-// truth for both which panels exist AND their remaining-paper count (no
-// separate per-panel bank fetch needed -- ListMyAnnualCompetitionPractice
-// Scopes already returns totalAssigned/consumedCount/remainingCount per
-// scope), so starting a paper just invalidates the parent scopes query
-// (see AnnualCompetitionContent) to pick up any count change.
-function PracticeEventPanel({ scope }: { scope: AnnualCompetitionPracticeScope }) {
+// One panel per practice LEVEL the student has any practice papers for --
+// see getMyAnnualCompetitionPracticeScopes's own comment on
+// lib/api/student.ts. Fixed 2026-09-11 (Shailesh): this used to be scoped
+// off the student's OFFICIAL assignments, which meant a student with
+// practice papers batch-assigned but no official assignment saw nothing --
+// "the students should be able to practice any paper even if they do not
+// have any official competition attempts, that is the whole point of this
+// entire practice feature." Then fully decoupled from any event (2026-09-12,
+// Shailesh): "the practice papers should not be related to any event
+// whatsoever, its only for practice leading to the main event." So this
+// panel is keyed purely by competitionLevelCode now -- no event name is
+// shown anywhere here, and the copy below is deliberately explicit that
+// these are practice papers preparing a student for the real, scheduled
+// Annual Competition (the Official tab), not the Annual Competition itself.
+// Scopes are the source of truth for both which panels exist AND their
+// remaining-paper count (no separate per-panel bank fetch needed --
+// ListMyAnnualCompetitionPracticeScopes already returns
+// totalAssigned/consumedCount/remainingCount per scope), so starting a
+// paper just invalidates the parent scopes query (see
+// AnnualCompetitionContent) to pick up any count change.
+function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const eventId = scope.eventId;
   const levelCode = scope.competitionLevelCode;
 
   const attemptsQuery = useQuery({
-    queryKey: ["student-annual-competition-practice-attempts", eventId, levelCode],
-    queryFn: () => getMyAnnualCompetitionPracticeAttempts(eventId, levelCode),
+    queryKey: ["student-annual-competition-practice-attempts", levelCode],
+    queryFn: () => getMyAnnualCompetitionPracticeAttempts(levelCode),
   });
 
   const startMutation = useMutation({
-    mutationFn: () => startAnnualCompetitionPracticeAttempt(eventId, levelCode),
+    mutationFn: () => startAnnualCompetitionPracticeAttempt(levelCode),
     onSuccess: (attempt) => {
       queryClient.invalidateQueries({ queryKey: ["student-annual-competition-practice-scopes"] });
-      queryClient.invalidateQueries({ queryKey: ["student-annual-competition-practice-attempts", eventId, levelCode] });
+      queryClient.invalidateQueries({ queryKey: ["student-annual-competition-practice-attempts", levelCode] });
       router.push(`/student/competition/annual/attempt/${attempt.attemptId}`);
     },
   });
@@ -240,9 +291,9 @@ function PracticeEventPanel({ scope }: { scope: AnnualCompetitionPracticeScope }
   return (
     <div className="math-card p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <div className="math-block-header mb-2"><Repeat size={14} /> Competition Practice</div>
-          <h2 className="text-xl font-black text-slate-950 dark:text-white">{scope.eventName || "Annual Competition"}</h2>
+        <div className="min-w-0 flex-1">
+          <div className="math-block-header mb-2"><Repeat size={14} /> Annual Competition Practice</div>
+          <h2 className="text-xl font-black text-slate-950 dark:text-white">{levelCode} Practice Papers</h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Chip tone="blue">{levelCode}</Chip>
             <Chip tone={remainingCount > 0 ? "green" : "slate"}>
@@ -250,11 +301,12 @@ function PracticeEventPanel({ scope }: { scope: AnnualCompetitionPracticeScope }
             </Chip>
           </div>
           <p className="mt-3 max-w-2xl text-sm font-bold text-slate-600 dark:text-slate-300">
-            Freshly generated practice papers for this level -- always different, no retakes once submitted, and results are
-            visible to you immediately.
+            Practice papers to help you prepare for the Annual Competition -- not the Annual Competition itself, and not
+            tied to any specific event. Always freshly generated, no retakes once submitted, and results are visible to
+            you immediately.
           </p>
         </div>
-        <div className="flex flex-col items-start gap-2 lg:items-end">
+        <div className="flex shrink-0 flex-col items-start gap-2 lg:items-end">
           {inProgressAttempt ? (
             <button
               className="math-role-action-button h-10 px-4 text-sm"
@@ -290,29 +342,59 @@ function PracticeEventPanel({ scope }: { scope: AnnualCompetitionPracticeScope }
         ) : submittedAttempts.length === 0 ? (
           <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No practice papers submitted yet.</p>
         ) : (
-          <div className="grid gap-2">
-            {submittedAttempts.map((row) => (
-              <div
-                key={row.attemptId}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/30"
-              >
-                <div className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                  {FormatDateTime(row.submittedAt || row.startedAt)}
-                  {row.result ? (
-                    <span className="ml-2 text-slate-950 dark:text-white">
-                      {row.result.correctCount}/{row.result.maxScore} correct · {Math.round(row.result.percentage)}%
-                    </span>
-                  ) : null}
-                </div>
-                <button
-                  className="math-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
-                  onClick={() => router.push(`/student/competition/annual/attempt/${row.attemptId}`)}
-                >
-                  <Eye size={13} />
-                  View
-                </button>
-              </div>
-            ))}
+          <div className="math-table overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
+                <tr>
+                  <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Status</th>
+                  <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Score</th>
+                  <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Accuracy</th>
+                  <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Time Taken</th>
+                  <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Submitted</th>
+                  <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {submittedAttempts.map((row) => {
+                  const result = row.result;
+                  const accuracy = result ? Number(result.accuracyPercentage ?? result.percentage) : null;
+                  return (
+                    <tr key={row.attemptId}>
+                      <td className="px-4 py-4">
+                        <Chip tone={row.status === "SUBMITTED" || row.status === "FINALIZED" ? "green" : "slate"}>
+                          {row.status === "SUBMITTED" || row.status === "FINALIZED" ? "Submitted" : row.status}
+                        </Chip>
+                      </td>
+                      <td className="px-4 py-4 font-black">
+                        <Chip tone={ScoreChipTone(accuracy)}>
+                          {result ? FormatScore(result.score, result.maxScore) : "-"}
+                        </Chip>
+                      </td>
+                      <td className="px-4 py-4 font-black">
+                        <Chip tone={AccuracyChipTone(accuracy)}>
+                          {accuracy === null || Number.isNaN(accuracy) ? "-" : `${FormatScore(accuracy)}%`}
+                        </Chip>
+                      </td>
+                      <td className="px-4 py-4 font-black text-slate-950 dark:text-white">
+                        {FormatDuration(result?.timeTakenSeconds)}
+                      </td>
+                      <td className="px-4 py-4 font-black text-slate-950 dark:text-white">
+                        {FormatDateTime(row.submittedAt || row.startedAt)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <button
+                          className="math-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                          onClick={() => router.push(`/student/competition/annual/attempt/${row.attemptId}`)}
+                        >
+                          <Eye size={13} />
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -427,7 +509,7 @@ function AnnualCompetitionContent() {
         ) : (
           <div className="grid gap-4">
             {scopes.map((scope) => (
-              <PracticeEventPanel key={`${scope.eventId}:${scope.competitionLevelCode}`} scope={scope} />
+              <PracticeLevelPanel key={scope.competitionLevelCode} scope={scope} />
             ))}
           </div>
         )}
