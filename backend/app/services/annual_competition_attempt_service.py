@@ -1249,6 +1249,114 @@ def GetCompetitionEventInstructions(db: Session, StudentRecord: Student, EventId
     }
 
 
+def GetAnnualCompetitionPracticeInstructions(db: Session, StudentRecord: Student, CompetitionLevelCode: str) -> dict[str, Any]:
+    """2026-09-14 (Shailesh): "the student must see the instructions page for
+    the practice papers as well ... this will enable them and make them
+    used to whatever is gonna come on the day of the official event."
+    Before this, StartAnnualCompetitionPracticeAttempt (the practice
+    "Start" button) took a student straight from click to live questions --
+    the OFFICIAL flow's own pre-start instructions screen
+    (GetCompetitionEventInstructions above) was never built for practice at
+    all, since practice was later fully decoupled from any event (2026-09-12)
+    and this screen never got its own equivalent.
+
+    Deliberately a SEPARATE function, not a branch inside
+    GetCompetitionEventInstructions, for the same reason
+    StartAnnualCompetitionPracticeAttempt is its own function rather than a
+    branch inside StartCompetitionEventAttempt: practice has no
+    CompetitionEvent, no CompetitionEventAssignment, and no slot to gate on
+    -- trying to share one function would mean threading None-checks for all
+    three through the official path for no benefit.
+
+    Read-only -- mirrors exactly the same "which paper would Start actually
+    hand back" selection StartAnnualCompetitionPracticeAttempt itself uses
+    (resume an IN_PROGRESS practice attempt on this level if one exists,
+    else the oldest unconsumed bank paper assigned to this student), so the
+    sections/timing shown here always describe the same paper that a
+    subsequent Start call on this same level will actually start. This
+    function itself starts nothing and writes nothing.
+    """
+    ExistingAttempt = (
+        db.query(CompetitionEventAttempt)
+        .join(CompetitionEventLevelPaper, CompetitionEventLevelPaper.id == CompetitionEventAttempt.level_paper_id)
+        .filter(
+            CompetitionEventAttempt.student_id == StudentRecord.id,
+            CompetitionEventAttempt.attempt_type == "PRACTICE",
+            CompetitionEventAttempt.status == IN_PROGRESS_STATUS,
+            CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode,
+        )
+        .order_by(CompetitionEventAttempt.started_at.desc())
+        .first()
+    )
+    if ExistingAttempt:
+        LevelPaperRecord = db.get(CompetitionEventLevelPaper, ExistingAttempt.level_paper_id)
+    else:
+        LevelPaperRecord = (
+            db.query(CompetitionEventLevelPaper)
+            .filter(
+                CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode,
+                CompetitionEventLevelPaper.paper_kind == "PRACTICE",
+                CompetitionEventLevelPaper.assigned_student_id == StudentRecord.id,
+                CompetitionEventLevelPaper.consumed_at.is_(None),
+            )
+            .order_by(CompetitionEventLevelPaper.assigned_at.asc())
+            .first()
+        )
+    if not LevelPaperRecord or not LevelPaperRecord.mock_exam_id:
+        api_error(
+            404,
+            "COMPETITION_PRACTICE_BANK_EMPTY",
+            "You have no unused practice papers for this level yet -- ask your admin/teacher to assign more.",
+        )
+
+    SectionTimers = (
+        db.query(CompetitionEventSectionTimer)
+        .filter(CompetitionEventSectionTimer.level_paper_id == LevelPaperRecord.id)
+        .order_by(CompetitionEventSectionTimer.display_order.asc(), CompetitionEventSectionTimer.section_number.asc())
+        .all()
+    )
+    if not SectionTimers:
+        api_error(400, "COMPETITION_LEVEL_PAPER_NOT_READY", "This practice paper's section timers have not been set up yet.")
+
+    QuestionRecords = (
+        db.query(CompetitionMockQuestion).filter(CompetitionMockQuestion.mock_exam_id == LevelPaperRecord.mock_exam_id).all()
+    )
+    QuestionCountBySection: dict[int, int] = {}
+    ConceptFamilyBySection: dict[int, str] = {}
+    for QuestionRecord in QuestionRecords:
+        SectionNum = QuestionRecord.section_number or 1
+        QuestionCountBySection[SectionNum] = QuestionCountBySection.get(SectionNum, 0) + 1
+        if SectionNum not in ConceptFamilyBySection:
+            ConceptFamilyBySection[SectionNum] = QuestionRecord.concept_family or "Mixed Concepts"
+
+    SectionsPayload = [
+        {
+            "sectionNumber": Timer.section_number,
+            "sectionTitle": Timer.section_title or f"Section {Timer.section_number}",
+            "mode": Timer.mode,
+            "timeLimitSeconds": Timer.time_limit_seconds,
+            "questionCount": QuestionCountBySection.get(Timer.section_number, 0),
+            "conceptFamily": ConceptFamilyBySection.get(Timer.section_number, "Mixed Concepts"),
+        }
+        for Timer in SectionTimers
+    ]
+
+    return {
+        "competitionLevelCode": CompetitionLevelCode,
+        "totalDurationSeconds": sum(Timer.time_limit_seconds for Timer in SectionTimers),
+        "sections": SectionsPayload,
+        "isResume": ExistingAttempt is not None,
+        "instructions": [
+            "This is a PRACTICE paper -- not the Annual Competition itself, and not tied to any specific event.",
+            "It's split into timed sections, shown one at a time, exactly like the real competition day.",
+            "Each section has its own time limit -- once it ends (or you submit it), you move to the next section and cannot go back.",
+            "Stay connected while a section is active -- your timer only pauses briefly on a genuine disconnect, it does not stop just because you look away.",
+            "Results are visible to you immediately after you submit, and this paper cannot be retaken once submitted.",
+            "Click Start below when you are ready to begin.",
+        ],
+    }
+
+
 def ReconcileExpiredCompetitionEventAttempts(db: Session, *, EventId: str) -> dict[str, Any]:
     """Admin-triggered safety net -- see module docstring. Only ever acts
     on an attempt that is IN_PROGRESS *and* currently paused (no heartbeat

@@ -762,6 +762,25 @@ export async function startAnnualCompetitionPracticeAttempt(competitionLevelCode
   return data;
 }
 
+// 2026-09-14 (Shailesh): practice-equivalent of AnnualCompetitionInstructions
+// above -- shown before Start, same as the official flow, so practice gets
+// students used to what the real competition day looks like. No eventId/
+// slot/competitionDate/isRetry here -- practice has none of those; isResume
+// tells the page it's describing an already-started (not yet finished)
+// practice attempt rather than a fresh one.
+export type AnnualCompetitionPracticeInstructions = {
+  competitionLevelCode: string;
+  totalDurationSeconds: number;
+  sections: AnnualCompetitionInstructionsSection[];
+  isResume: boolean;
+  instructions: string[];
+};
+
+export async function getAnnualCompetitionPracticeInstructions(competitionLevelCode: string): Promise<AnnualCompetitionPracticeInstructions> {
+  const { data } = await api.get<AnnualCompetitionPracticeInstructions>(`/student/annual-competition/practice/${competitionLevelCode}/instructions`);
+  return data;
+}
+
 // Mirrors AnnualCompetitionPracticeBank/-BankPaper in lib/api/admin.ts field
 // for field -- same GetAnnualCompetitionPracticeBankForStudent shape, just
 // reached via the student-scoped route (no studentId param needed, it's
