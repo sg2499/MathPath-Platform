@@ -150,7 +150,14 @@ export default function TeacherAnnualCompetitionAttemptReviewPage() {
                 <p className="mt-1 text-4xl font-black text-slate-950 dark:text-white">
                   {FormatNumber(Result.score)}/{FormatNumber(Result.maxScore)}
                 </p>
-                <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">{FormatNumber(Result.percentage)}%</p>
+                {/* 2026-09-14 (Shailesh): see the matching comment on the
+                    admin review page (annual-result/[attemptId]/page.tsx)
+                    -- this headline "%" must be the student's actual
+                    accuracy against what they attempted, not
+                    Result.percentage (score ÷ the whole paper's question
+                    count), on both Official and Practice attempts. This
+                    screen already serves both. */}
+                <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">{FormatNumber(Result.accuracyPercentage)}%</p>
               </div>
             ) : null}
           </div>

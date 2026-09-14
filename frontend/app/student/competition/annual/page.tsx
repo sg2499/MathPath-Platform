@@ -13,12 +13,11 @@ import {
   getMyAnnualCompetitionPracticeAttempts,
   getMyAnnualCompetitionPracticeScopes,
   startAnnualCompetitionAttempt,
-  startAnnualCompetitionPracticeAttempt,
   type AnnualCompetitionAssignmentForStudent,
   type AnnualCompetitionPracticeAttemptRow,
   type AnnualCompetitionPracticeScope,
 } from "@/lib/api/student";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { CalendarClock, Eye, History, Hourglass, MapPin, PlayCircle, Repeat, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -306,7 +305,6 @@ function TabButton({ active, label, onClick }: { active: boolean; label: string;
 // a different paper than the one clicked.
 function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }) {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const levelCode = scope.competitionLevelCode;
 
   const bankQuery = useQuery({
@@ -319,15 +317,17 @@ function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }
     queryFn: () => getMyAnnualCompetitionPracticeAttempts(levelCode),
   });
 
-  const startMutation = useMutation({
-    mutationFn: () => startAnnualCompetitionPracticeAttempt(levelCode),
-    onSuccess: (attempt) => {
-      queryClient.invalidateQueries({ queryKey: ["student-annual-competition-practice-scopes"] });
-      queryClient.invalidateQueries({ queryKey: ["student-annual-competition-practice-attempts", levelCode] });
-      queryClient.invalidateQueries({ queryKey: ["student-annual-competition-practice-bank", levelCode] });
-      router.push(`/student/competition/annual/attempt/${attempt.attemptId}`);
-    },
-  });
+  // 2026-09-14 (Shailesh): "the student must see the instructions page for
+  // the practice papers as well." Starting a fresh practice paper used to
+  // call startAnnualCompetitionPracticeAttempt directly from this Start
+  // button and jump straight into live questions -- exactly mirroring the
+  // OFFICIAL flow's own "View Instructions" button (further up this file,
+  // AssignmentCard's onStart), this now just navigates to the practice
+  // instructions screen; that screen's own "Start Practice" button is what
+  // actually calls startAnnualCompetitionPracticeAttempt. Resuming an
+  // already IN_PROGRESS paper (the "Resume" button below) still goes
+  // straight to the attempt, unchanged -- same as official, instructions
+  // are shown once before a fresh start, never again on resume.
 
   const remainingCount = scope.remainingCount;
   const attemptsByLevelPaperId = new Map<string, AnnualCompetitionPracticeAttemptRow>(
@@ -373,8 +373,6 @@ function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }
           </div>
         ) : null}
       </div>
-
-      {startMutation.error ? <div className="mt-4"><ErrorState message={apiErrorMessage(startMutation.error)} /></div> : null}
 
       <div className="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
         <p className="math-block-header mb-3"><History size={14} /> Practice Papers</p>
@@ -449,11 +447,10 @@ function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }
                         ) : isNextToStart ? (
                           <button
                             className="math-role-action-button h-8 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                            disabled={startMutation.isPending}
-                            onClick={() => startMutation.mutate()}
+                            onClick={() => router.push(`/student/competition/annual/practice/${levelCode}/instructions`)}
                           >
                             <Repeat size={13} />
-                            {startMutation.isPending ? "Starting..." : "Start"}
+                            Start
                           </button>
                         ) : (
                           <span className="text-xs font-bold text-slate-400 dark:text-slate-500">--</span>

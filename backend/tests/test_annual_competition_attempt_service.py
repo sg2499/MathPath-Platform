@@ -895,6 +895,107 @@ def test_practice_start_empty_bank_is_404():
     assert exc_info.value.detail["code"] == "COMPETITION_PRACTICE_BANK_EMPTY"
 
 
+# ---------------------------------------------------------------------------
+# GetAnnualCompetitionPracticeInstructions -- 2026-09-14 (Shailesh): "the
+# student must see the instructions page for the practice papers as well
+# ... this will enable them and make them used to whatever is gonna come on
+# the day of the official event." Before this, Start jumped straight from
+# click to live questions for practice -- this is the read-only pre-start
+# screen that now sits in between, mirroring GetCompetitionEventInstructions
+# above but sourced from the practice bank instead of an event+assignment.
+# ---------------------------------------------------------------------------
+
+def test_practice_instructions_describe_the_next_unconsumed_bank_paper():
+    db = _session()
+    student = _student(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id, exam_id="exam-practice-instructions")
+    _practice_bank_paper(db, "PM-L2", exam.id, [300, 180], student.id)
+    db.commit()
+
+    instructions = engine.GetAnnualCompetitionPracticeInstructions(db, student, "PM-L2")
+
+    assert instructions["competitionLevelCode"] == "PM-L2"
+    assert instructions["isResume"] is False
+    assert instructions["totalDurationSeconds"] == 480
+    assert [s["timeLimitSeconds"] for s in instructions["sections"]] == [300, 180]
+    assert [s["sectionNumber"] for s in instructions["sections"]] == [1, 2]
+    assert any("practice" in line.lower() for line in instructions["instructions"])
+
+    # Read-only: must not have started, consumed, or otherwise mutated anything.
+    assert db.query(CompetitionEventAttempt).count() == 0
+    untouched_paper = db.get(CompetitionEventLevelPaper, "practice-paper-1")
+    assert untouched_paper.consumed_at is None
+
+
+def test_practice_instructions_describe_the_same_paper_start_will_actually_start():
+    """The whole point of a pre-start instructions screen: what it shows
+    must match what clicking Start actually hands back -- oldest unconsumed
+    bank paper, same tie-break Start itself uses."""
+    db = _session()
+    student = _student(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam_old = _mock_exam(db, l.id, m.id, exam_id="exam-old")
+    exam_new = _mock_exam(db, l.id, m.id, exam_id="exam-new")
+    _practice_bank_paper(
+        db, "PM-L2", exam_old.id, [300], student.id,
+        level_paper_id="practice-old", assigned_at=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+    _practice_bank_paper(
+        db, "PM-L2", exam_new.id, [180], student.id,
+        level_paper_id="practice-new", assigned_at=datetime.now(timezone.utc),
+    )
+    db.commit()
+
+    instructions = engine.GetAnnualCompetitionPracticeInstructions(db, student, "PM-L2")
+    assert instructions["sections"][0]["timeLimitSeconds"] == 300  # the older paper, not the newer one
+
+    started = engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
+    attempt = db.get(CompetitionEventAttempt, started["attemptId"])
+    assert attempt.level_paper_id == "practice-old"  # confirms the instructions screen guessed right
+
+
+def test_practice_instructions_reflect_an_in_progress_attempt_as_a_resume():
+    db = _session()
+    student = _student(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id, exam_id="exam-practice-resume")
+    _practice_bank_paper(db, "PM-L2", exam.id, [300], student.id)
+    db.commit()
+    engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
+
+    instructions = engine.GetAnnualCompetitionPracticeInstructions(db, student, "PM-L2")
+    assert instructions["isResume"] is True
+    assert instructions["sections"][0]["timeLimitSeconds"] == 300
+
+
+def test_practice_instructions_empty_bank_is_404():
+    db = _session()
+    student = _student(db)
+    _module_and_level(db, level_code="PM-L2")
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        engine.GetAnnualCompetitionPracticeInstructions(db, student, "PM-L2")
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail["code"] == "COMPETITION_PRACTICE_BANK_EMPTY"
+
+
+def test_practice_instructions_do_not_require_any_event_at_all():
+    """Same key differentiator as test_practice_start_allowed_even_when_an_
+    unrelated_event_is_suspended_or_completed -- practice's instructions
+    screen must work with zero CompetitionEvent rows in the database."""
+    db = _session()
+    student = _student(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id)
+    _practice_bank_paper(db, "PM-L2", exam.id, [300], student.id)
+    db.commit()
+
+    instructions = engine.GetAnnualCompetitionPracticeInstructions(db, student, "PM-L2")
+    assert instructions["totalDurationSeconds"] == 300
+
+
 def test_practice_start_allowed_even_when_an_unrelated_event_is_suspended_or_completed():
     """The key official/practice differentiator this phase's design turns
     on: StartAnnualCompetitionPracticeAttempt no longer looks up, checks, or

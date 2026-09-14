@@ -721,6 +721,40 @@ def test_generate_for_mm_l2_fails_cleanly_when_mm_l1_also_missing():
     assert exc_info.value.detail["code"] == "NO_CURRICULUM_LEVEL_FOR_CODE"
 
 
+def test_regenerating_an_unlocked_paper_does_not_collide_on_mock_code():
+    """Bug fix (Shailesh, 2026-09-14): "Regenerate Official Paper" used to
+    build a fixed, non-unique MockCode (ANNUAL-{eventId}-{levelCode}) on
+    every call. CompetitionMockExam has a UNIQUE(level_id, mock_code)
+    constraint, so a first generate always succeeded but a second generate
+    against the same still-unlocked level paper (exactly what "Regenerate"
+    is -- and exactly the "delete the old papers and regenerate" workflow
+    this feature exists for) always raised an uncaught IntegrityError,
+    surfaced to the admin as a generic 500 "Something went wrong." Confirmed
+    via direct reproduction against the pre-fix code before writing this
+    test. Regenerating a LOCKED paper is covered separately by
+    test_locked_level_paper_blocks_regeneration_and_relinking -- this test
+    is deliberately about the unlocked case, which used to crash instead of
+    cleanly succeeding."""
+    db = _session()
+    admin = _admin(db)
+    _module_and_level(db, "PM", "PM-L3", "Preparatory Level 3")
+    _event(db)
+    db.commit()
+
+    first = studio.GenerateAndLinkCompetitionEventLevelPaper(
+        db, EventId="event-1", CompetitionLevelCode="PM-L3", CreatedBy=admin
+    )
+    assert first["status"] == "READY"
+
+    # No attempts exist against this paper -- still unlocked -- so this must
+    # succeed cleanly, not raise sqlalchemy.exc.IntegrityError.
+    second = studio.GenerateAndLinkCompetitionEventLevelPaper(
+        db, EventId="event-1", CompetitionLevelCode="PM-L3", CreatedBy=admin
+    )
+    assert second["status"] == "READY"
+    assert second["mockExamId"] != first["mockExamId"]  # a genuinely new exam, not a no-op
+
+
 def test_locked_level_paper_blocks_regeneration_and_relinking():
     db = _session()
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")

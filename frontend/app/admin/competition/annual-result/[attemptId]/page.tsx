@@ -147,7 +147,21 @@ export default function AdminAnnualCompetitionAttemptReviewPage() {
                 <p className="mt-1 text-4xl font-black text-slate-950 dark:text-white">
                   {FormatNumber(Result.score)}/{FormatNumber(Result.maxScore)}
                 </p>
-                <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">{FormatNumber(Result.percentage)}%</p>
+                {/* 2026-09-14 (Shailesh): this line used to show
+                    Result.percentage (score ÷ the paper's full question
+                    count, e.g. 57/450 -- deliberately left as a completion-
+                    style figure by an earlier fix that day). Against a
+                    paper far larger than anyone can attempt inside a timed
+                    section, that always reads as a very low, alarming
+                    number sitting right next to a correct, high accuracy
+                    figure below -- Shailesh confirmed this headline number
+                    should be the student's actual accuracy against what
+                    they attempted, not against the whole paper, on both the
+                    Official and Practice flows (this screen already serves
+                    both -- Phase E). Result.score/Result.maxScore just
+                    above is untouched -- that raw fraction stays meaningful
+                    on its own; only the derived "%" reads as accuracy. */}
+                <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">{FormatNumber(Result.accuracyPercentage)}%</p>
               </div>
             ) : null}
           </div>

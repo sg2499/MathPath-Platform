@@ -672,12 +672,29 @@ def GenerateAndLinkCompetitionEventLevelPaper(
             "existing mock exam instead, or add the curriculum/registry content first.",
         )
 
+    # Bug fix (Shailesh, 2026-09-14): MockCode used to be a fixed, purely
+    # deterministic string (ANNUAL-{eventId}-{levelCode}), with zero
+    # per-call uniqueness. CompetitionMockExam has a UNIQUE(level_id,
+    # mock_code) constraint, so the first generate for a level always
+    # succeeded but clicking "Regenerate Official Paper" a second time on
+    # that same level -- exactly the "delete the old papers and regenerate"
+    # workflow this feature exists for -- always raised an uncaught
+    # IntegrityError, surfaced to the admin as a generic "Something went
+    # wrong. Please try again." (main.py's global_exception_handler catches
+    # it since it's a raw SQLAlchemy error, not an api_error HTTPException).
+    # Reproduced directly against this exact code path before this fix.
+    # GenerateAnnualCompetitionLevelPaper's own MockCode-omitted fallback
+    # already builds a timestamp+uuid-suffixed code for exactly this
+    # reason -- this caller was overriding that safety net with a
+    # non-unique value. Keeping the event/level prefix (for admin
+    # traceability in the DB) but appending the same kind of unique suffix
+    # fixes regeneration without losing that context.
     ExamPayload = GenerateAnnualCompetitionLevelPaper(
         db,
         LevelId=LevelRecord.id,
         CreatedBy=CreatedBy,
         Title=f"Annual Competition -- {CompetitionLevelCode} Official Paper",
-        MockCode=f"ANNUAL-{EventId[:8]}-{CompetitionLevelCode}",
+        MockCode=f"ANNUAL-{EventId[:8]}-{CompetitionLevelCode}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:6].upper()}",
         CompetitionScope="ANNUAL_COMPETITION",
         CompetitionLevelCode=CompetitionLevelCode,
     )

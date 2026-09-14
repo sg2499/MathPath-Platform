@@ -42,6 +42,7 @@ from app.services.annual_competition_attempt_service import (
     SaveCompetitionEventAnswer,
     ListMyAnnualCompetitionAssignments,
     GetCompetitionEventInstructions,
+    GetAnnualCompetitionPracticeInstructions,
     StartAnnualCompetitionPracticeAttempt,
     ListMyAnnualCompetitionPracticeAttempts,
     GetCompetitionEventAttemptReviewForStudent,
@@ -375,6 +376,19 @@ def student_start_annual_competition_practice_attempt(
     payload: StartAnnualCompetitionPracticeAttemptRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
 ):
     return StartAnnualCompetitionPracticeAttempt(db, student, payload.competitionLevelCode)
+
+
+# 2026-09-14 (Shailesh): "the student must see the instructions page for the
+# practice papers as well ... according to the level assigned for practice
+# for that student." Mirrors the OFFICIAL instructions route above --
+# read-only, shown before Start -- see GetAnnualCompetitionPracticeInstructions's
+# own docstring for why this is a separate function/route rather than a
+# branch on the official one.
+@router.get("/annual-competition/practice/{level_code}/instructions")
+def student_annual_competition_practice_instructions(
+    level_code: str, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
+):
+    return GetAnnualCompetitionPracticeInstructions(db, student, level_code)
 
 
 @router.get("/annual-competition/practice/scopes")
