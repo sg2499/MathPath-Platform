@@ -473,11 +473,12 @@ def test_practice_roster_results_surfaces_a_practice_result_for_a_rostered_stude
 
     result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, StudentIdsFilter=[student.id])
 
-    assert result["totalResults"] == 1
-    row = result["rows"][0]
-    assert row["studentId"] == student.id
+    assert result["totalStudents"] == 1
+    bucket = result["students"][0]
+    assert bucket["studentId"] == student.id
+    row = bucket["papers"][0]
     assert row["competitionLevelCode"] == "PM-L2"
-    assert row["correctCount"] == 1
+    assert row["result"]["correctCount"] == 1
     assert row["attemptId"] == f"practice-attempt-{student.id}"
 
 
@@ -489,7 +490,7 @@ def test_practice_roster_results_excludes_a_student_outside_the_roster():
     db.commit()
 
     result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, StudentIdsFilter=[other_student.id])
-    assert result["totalResults"] == 0
+    assert result["totalStudents"] == 0
 
 
 def test_practice_roster_results_empty_filter_short_circuits_without_a_query():
@@ -499,8 +500,8 @@ def test_practice_roster_results_empty_filter_short_circuits_without_a_query():
     db.commit()
 
     result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, StudentIdsFilter=[])
-    assert result["totalResults"] == 0
-    assert result["rows"] == []
+    assert result["totalStudents"] == 0
+    assert result["students"] == []
 
 
 def test_practice_roster_results_filters_by_level_code():
@@ -512,12 +513,12 @@ def test_practice_roster_results_filters_by_level_code():
     matching = engine.ListAnnualCompetitionPracticeResultsForRoster(
         db, StudentIdsFilter=[student.id], CompetitionLevelCode="PM-L2"
     )
-    assert matching["totalResults"] == 1
+    assert matching["totalStudents"] == 1
 
     non_matching = engine.ListAnnualCompetitionPracticeResultsForRoster(
         db, StudentIdsFilter=[student.id], CompetitionLevelCode="IM-L1"
     )
-    assert non_matching["totalResults"] == 0
+    assert non_matching["totalStudents"] == 0
 
 
 def test_practice_roster_results_carries_level_paper_id_and_paper_label():
@@ -530,7 +531,7 @@ def test_practice_roster_results_carries_level_paper_id_and_paper_label():
     db.commit()
 
     result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, StudentIdsFilter=[student.id])
-    row = result["rows"][0]
+    row = result["students"][0]["papers"][0]
     assert row["levelPaperId"] == f"practice-paper-{student.id}"
     assert row["paperOrdinal"] == 1
     assert row["paperLabel"] == "Practice Paper 1"
@@ -547,9 +548,38 @@ def test_practice_roster_results_lists_every_result_for_a_student_not_just_the_l
     _practice_attempt_with_result(db, student.id, suffix="-2")
 
     result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, StudentIdsFilter=[student.id])
-    assert result["totalResults"] == 2
-    attempt_ids = {row["attemptId"] for row in result["rows"]}
+    assert result["totalStudents"] == 1
+    papers = result["students"][0]["papers"]
+    assert len(papers) == 2
+    attempt_ids = {row["attemptId"] for row in papers}
     assert attempt_ids == {f"practice-attempt-{student.id}", f"practice-attempt-{student.id}-2"}
+
+
+def test_practice_roster_results_includes_pending_papers_not_just_submitted():
+    # 2026-09-14 (Shailesh): "the teacher should see all the papers
+    # assigned to a student on expanding a student block, not only the
+    # submitted ones but also the pending ones just as the student sees
+    # them." Mirrors the admin-side equivalent test exactly.
+    db = _session()
+    student = _student(db)
+    _practice_attempt_with_result(db, student.id)  # paper 1: submitted
+    db.commit()
+
+    pending_paper = CompetitionEventLevelPaper(
+        id=f"pending-paper-{student.id}", event_id=None, competition_level_code="PM-L2", paper_kind="PRACTICE",
+        status="READY", assigned_student_id=student.id,
+        assigned_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+    )
+    db.add(pending_paper)
+    db.commit()
+
+    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, StudentIdsFilter=[student.id])
+    papers = result["students"][0]["papers"]
+    assert len(papers) == 2
+    assert [p["paperLabel"] for p in papers] == ["Practice Paper 1", "Practice Paper 2"]
+    assert papers[1]["attemptId"] is None
+    assert papers[1]["result"] is None
+    assert papers[1]["status"] == "NOT_STARTED"
 
 
 # ---------------------------------------------------------------------------

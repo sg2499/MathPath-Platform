@@ -475,6 +475,12 @@ function AnnualCompetitionContent() {
   const ready = useProtectedPage(["STUDENT"]);
   const router = useRouter();
   const [ActiveTab, SetActiveTab] = useState<AnnualCompetitionTab>("OFFICIAL");
+  // 2026-09-14 (Shailesh): a student's Annual Competition level can change
+  // between competition years, so a student who has practice papers from
+  // more than one level needs to be able to narrow the view down to just
+  // one -- "ALL" (the default, matching this view's behavior before the
+  // filter existed) shows every level's papers stacked, same as today.
+  const [PracticeLevelFilter, SetPracticeLevelFilter] = useState<string>("ALL");
 
   const query = useQuery({
     queryKey: ["student-annual-competition-assignments"],
@@ -576,10 +582,34 @@ function AnnualCompetitionContent() {
             message="Practice papers appear here as soon as your teacher/admin assigns you some -- no official competition assignment required."
           />
         ) : (
-          <div className="grid gap-4">
-            {scopes.map((scope) => (
-              <PracticeLevelPanel key={scope.competitionLevelCode} scope={scope} />
-            ))}
+          <div className="space-y-4">
+            {scopes.length > 1 ? (
+              <div className="math-card flex flex-wrap items-center gap-3 p-4">
+                <label htmlFor="student-practice-level-filter" className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                  Level
+                </label>
+                <select
+                  id="student-practice-level-filter"
+                  value={PracticeLevelFilter}
+                  onChange={(event) => SetPracticeLevelFilter(event.target.value)}
+                  className="math-input w-auto min-w-[160px] text-sm font-bold"
+                >
+                  <option value="ALL">All Levels</option>
+                  {scopes.map((scope) => (
+                    <option key={scope.competitionLevelCode} value={scope.competitionLevelCode}>
+                      {scope.competitionLevelCode}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+            <div className="grid gap-4">
+              {scopes
+                .filter((scope) => PracticeLevelFilter === "ALL" || scope.competitionLevelCode === PracticeLevelFilter)
+                .map((scope) => (
+                  <PracticeLevelPanel key={scope.competitionLevelCode} scope={scope} />
+                ))}
+            </div>
           </div>
         )}
       </section>

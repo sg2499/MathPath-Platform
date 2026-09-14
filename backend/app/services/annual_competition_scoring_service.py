@@ -214,7 +214,19 @@ def _RawMetricsForAttempt(db: Session, AttemptRecord: CompetitionEventAttempt) -
 
     TotalQuestions = len(QuestionRecords)
     Percentage = round((Score / MaxScore) * 100, 2) if MaxScore else 0.0
-    AccuracyPercentage = round((CorrectCount / TotalQuestions) * 100, 2) if TotalQuestions else 0.0
+    # Accuracy fix (Shailesh, 2026-09-14): the denominator is questions
+    # ATTEMPTED (correct + wrong), never TotalQuestions (every question in
+    # the paper, attempted or not). Shailesh's own example: a student who
+    # scores 100/400 but only attempted 100 questions, all correct, should
+    # read 100% accuracy -- nobody genuinely solving problems (as opposed to
+    # guessing) attempts anywhere near a full 400-question paper inside one
+    # 35-minute section, so scoring accuracy against the whole paper instead
+    # of what was actually attempted punishes a student for the questions
+    # they never got to, not for any mistake. `percentage` (Score/MaxScore,
+    # just above) stays completion-based on purpose -- this fix is scoped to
+    # accuracyPercentage only, exactly as requested.
+    AttemptedCount = CorrectCount + WrongCount
+    AccuracyPercentage = round((CorrectCount / AttemptedCount) * 100, 2) if AttemptedCount else 0.0
 
     # SectionStates already fetched above, before the QuestionRecords query
     # -- reused here rather than re-queried, so the same attempt-scoped
@@ -239,6 +251,7 @@ def _RawMetricsForAttempt(db: Session, AttemptRecord: CompetitionEventAttempt) -
         "correctCount": CorrectCount,
         "wrongCount": WrongCount,
         "unansweredCount": UnansweredCount,
+        "attemptedCount": AttemptedCount,
         "totalQuestions": TotalQuestions,
         "score": round(Score, 2),
         "maxScore": round(MaxScore, 2),
@@ -321,7 +334,7 @@ def ComputeAndFinalizeCompetitionEventResult(db: Session, AttemptRecord: Competi
     return ResultRecord
 
 
-def RecomputeAnnualCompetitionResults(db: Session, *, EventId: str, CompetitionLevelCode: str | None = None) -> dict[str, Any]:
+def RecomputeAnnualCompetitionResults(db: Session, *, EventId: str | None = None, CompetitionLevelCode: str | None = None) -> dict[str, Any]:
     """Admin action (Point 10, Shailesh, 2026-09-08): refreshes already-
     finalized results under whatever the current scoring formula is.
     Exists because CompetitionEventResult is computed once and frozen at
@@ -335,13 +348,62 @@ def RecomputeAnnualCompetitionResults(db: Session, *, EventId: str, CompetitionL
     is never silently un-released or un-ranked as a side effect. Voided
     results are skipped entirely, matching _RankResultsForLevel's own
     "never touch a voided row" rule.
+
+    2026-09-14 (Shailesh, accuracy-formula backfill): EventId is now
+    optional -- omitting it recomputes every OFFICIAL result across every
+    event in one call, so a platform-wide formula fix (like the
+    attempted-questions accuracy fix landing alongside this change) can be
+    backfilled in one shot instead of the caller enumerating every event ID
+    by hand. Explicitly attempt_type == "OFFICIAL" now that the event_id
+    filter can no longer be relied on by itself to exclude PRACTICE rows
+    (which always have event_id=None) -- see
+    RecomputeAnnualCompetitionPracticeResults below for practice's own,
+    deliberately separate sibling (this module's own "practice gets its own
+    surface" rule, ListAnnualCompetitionPracticeResultsForAdmin's docstring).
     """
-    EventRecord = db.get(CompetitionEvent, EventId)
-    if not EventRecord:
-        api_error(404, "COMPETITION_EVENT_NOT_FOUND", "Annual Competition event not found.")
+    if EventId:
+        EventRecord = db.get(CompetitionEvent, EventId)
+        if not EventRecord:
+            api_error(404, "COMPETITION_EVENT_NOT_FOUND", "Annual Competition event not found.")
 
     Query = db.query(CompetitionEventResult).filter(
-        CompetitionEventResult.event_id == EventId,
+        CompetitionEventResult.attempt_type == "OFFICIAL",
+        CompetitionEventResult.is_voided == False,  # noqa: E712
+    )
+    if EventId:
+        Query = Query.filter(CompetitionEventResult.event_id == EventId)
+    if CompetitionLevelCode:
+        Query = Query.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
+    ResultRecords = Query.all()
+
+    RecomputedCount = 0
+    for ResultRecord in ResultRecords:
+        AttemptRecord = db.get(CompetitionEventAttempt, ResultRecord.attempt_id)
+        if not AttemptRecord:
+            continue
+        ComputeAndFinalizeCompetitionEventResult(db, AttemptRecord)
+        RecomputedCount += 1
+
+    db.commit()
+    return {"eventId": EventId, "competitionLevelCode": CompetitionLevelCode, "recomputedCount": RecomputedCount}
+
+
+def RecomputeAnnualCompetitionPracticeResults(db: Session, *, CompetitionLevelCode: str | None = None) -> dict[str, Any]:
+    """Practice's own sibling of RecomputeAnnualCompetitionResults above --
+    same idempotent reuse of ComputeAndFinalizeCompetitionEventResult (see
+    that function's own "never touch is_released/consumed_at on a later
+    recompute" rules), just scoped to attempt_type == PRACTICE with no
+    event_id at all (practice results are never event-scoped -- 2026-09-12
+    decoupling), so there is no EventId parameter here to omit or supply.
+
+    2026-09-14 (Shailesh): built alongside the accuracy-formula fix
+    specifically so every already-computed practice result can be
+    backfilled under the corrected (attempted-questions) formula in one
+    call, exactly like RecomputeAnnualCompetitionResults now does for
+    OFFICIAL results platform-wide.
+    """
+    Query = db.query(CompetitionEventResult).filter(
+        CompetitionEventResult.attempt_type == "PRACTICE",
         CompetitionEventResult.is_voided == False,  # noqa: E712
     )
     if CompetitionLevelCode:
@@ -357,7 +419,7 @@ def RecomputeAnnualCompetitionResults(db: Session, *, EventId: str, CompetitionL
         RecomputedCount += 1
 
     db.commit()
-    return {"eventId": EventId, "competitionLevelCode": CompetitionLevelCode, "recomputedCount": RecomputedCount}
+    return {"competitionLevelCode": CompetitionLevelCode, "recomputedCount": RecomputedCount}
 
 
 def _FirstMistakeQuestionNumberForAttempt(db: Session, AttemptId: str) -> int | None:
@@ -679,74 +741,105 @@ def ListAnnualCompetitionPracticeResultsForAdmin(
     results get their own, separately-scoped admin surface in a later
     phase, never mixed into this one").
 
+    2026-09-14 (Shailesh, "show all papers, not just submitted, on
+    expanding a student block"): this used to be sourced entirely from
+    CompetitionEventResult -- i.e. only SUBMITTED practice attempts, since a
+    result only exists once an attempt is finalized. That made every
+    still-pending (unconsumed) bank paper invisible to admin, unlike the
+    student's own Practice view, which always shows the full bank. Rewired
+    to be driven by CompetitionEventLevelPaper (the bank itself) instead,
+    one bucket per student, each paper carrying its matching
+    CompetitionEventResult (via the attempt it was consumed by) when one
+    exists, and a plain NOT_STARTED status when it doesn't. Papers list
+    ascending by assignment order within each student (paperOrdinal 1, 2,
+    3...), matching ComputePracticePaperOrdinals/the student's own bank
+    listing exactly -- this is also the ordering-tie-break fix (2026-09-14):
+    GetAnnualCompetitionPracticeBankForStudent's own query docstring
+    explains the assigned_at+id tie-break this mirrors.
+
     Practice is never ranked -- RankCompetitionEventResults/
     ReleaseCompetitionEventResults both stay attempt_type == "OFFICIAL"-only
-    (Phase B) -- so there is no rank to sort by here; newest-first
-    (computed_at desc) reads naturally for "recent practice activity"
-    instead of a competitive standings order. A student can also have MANY
-    practice results overall (one per consumed bank paper, unlike OFFICIAL's
-    single result per assignment) -- StudentId optionally narrows to one
-    student's own history, e.g. from a student detail page in the admin
-    Studio.
+    (Phase B) -- there is no rank on these rows, same as before. StudentId
+    optionally narrows to one student's own bank+history, e.g. from a
+    student detail page in the admin Studio.
 
     2026-09-12 (Shailesh, decoupling): "the practice papers should not be
-    related to any event whatsoever." No event scope anymore -- this lists
-    every PRACTICE result across all students/all time, optionally narrowed
-    by competition_level_code and/or studentId only.
+    related to any event whatsoever." No event scope -- every PRACTICE
+    paper across all students/all time, optionally narrowed by
+    competition_level_code and/or studentId only.
     """
-    Query = db.query(CompetitionEventResult).filter(
-        CompetitionEventResult.attempt_type == "PRACTICE",
+    PaperQuery = db.query(CompetitionEventLevelPaper).filter(
+        CompetitionEventLevelPaper.paper_kind == "PRACTICE",
     )
     if CompetitionLevelCode:
-        Query = Query.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
+        PaperQuery = PaperQuery.filter(CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode)
     if StudentId:
-        Query = Query.filter(CompetitionEventResult.student_id == StudentId)
-    ResultRecords = Query.order_by(CompetitionEventResult.computed_at.desc()).all()
+        PaperQuery = PaperQuery.filter(CompetitionEventLevelPaper.assigned_student_id == StudentId)
+    PracticePapers = PaperQuery.order_by(
+        CompetitionEventLevelPaper.assigned_at.asc(), CompetitionEventLevelPaper.id.asc()
+    ).all()
 
-    # levelPaperId isn't stored directly on CompetitionEventResult -- it
-    # lives on the attempt this result was computed from (see
-    # CompetitionEventAttempt.level_paper_id) -- one bulk fetch avoids an
-    # N+1 query per row.
-    AttemptIds = [ResultRecord.attempt_id for ResultRecord in ResultRecords]
-    AttemptRecordsById = (
+    if not PracticePapers:
+        return {"competitionLevelCode": CompetitionLevelCode, "studentId": StudentId, "totalStudents": 0, "students": []}
+
+    Ordinals = ComputePracticePaperOrdinals(
+        db, {(PaperRecord.assigned_student_id, PaperRecord.competition_level_code) for PaperRecord in PracticePapers}
+    )
+
+    PaperIds = [PaperRecord.id for PaperRecord in PracticePapers]
+    AttemptsByLevelPaperId = {
+        AttemptRecord.level_paper_id: AttemptRecord
+        for AttemptRecord in db.query(CompetitionEventAttempt)
+        .filter(CompetitionEventAttempt.level_paper_id.in_(PaperIds), CompetitionEventAttempt.attempt_type == "PRACTICE")
+        .all()
+    }
+    AttemptIds = [AttemptRecord.id for AttemptRecord in AttemptsByLevelPaperId.values()]
+    ResultsByAttemptId = (
         {
-            AttemptRecord.id: AttemptRecord
-            for AttemptRecord in db.query(CompetitionEventAttempt).filter(CompetitionEventAttempt.id.in_(AttemptIds)).all()
+            ResultRecord.attempt_id: ResultRecord
+            for ResultRecord in db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id.in_(AttemptIds)).all()
         }
         if AttemptIds
         else {}
     )
-    # 2026-09-14 (Shailesh, admin/teacher Practice Results "Paper Name"
-    # column): same "Practice Paper N" ordinal every other practice surface
-    # uses -- see ComputePracticePaperOrdinals's own docstring. Scoped here
-    # to exactly the (student, level) pairs present among these results, not
-    # the whole platform.
-    Ordinals = ComputePracticePaperOrdinals(
-        db, {(ResultRecord.student_id, ResultRecord.competition_level_code) for ResultRecord in ResultRecords}
-    )
 
-    Rows: list[dict[str, Any]] = []
-    for ResultRecord in ResultRecords:
-        StudentRecord = db.get(Student, ResultRecord.student_id)
-        AttemptRecord = AttemptRecordsById.get(ResultRecord.attempt_id)
-        LevelPaperId = AttemptRecord.level_paper_id if AttemptRecord else None
-        Ordinal = Ordinals.get(LevelPaperId) if LevelPaperId else None
-        Rows.append(
+    StudentIds = {PaperRecord.assigned_student_id for PaperRecord in PracticePapers}
+    StudentsById = {StudentRecord.id: StudentRecord for StudentRecord in db.query(Student).filter(Student.id.in_(StudentIds)).all()}
+
+    StudentBuckets: dict[str, dict[str, Any]] = {}
+    for PaperRecord in PracticePapers:
+        StudentRecord = StudentsById.get(PaperRecord.assigned_student_id)
+        if not StudentRecord:
+            continue
+        Bucket = StudentBuckets.setdefault(
+            StudentRecord.id,
             {
-                **_ResultPayload(ResultRecord),
-                "attemptId": ResultRecord.attempt_id,
-                "levelPaperId": LevelPaperId,
+                "studentId": StudentRecord.id,
+                "studentCode": StudentRecord.student_code,
+                "studentName": StudentRecord.user.full_name if StudentRecord.user else StudentRecord.student_code,
+                "papers": [],
+            },
+        )
+        Ordinal = Ordinals.get(PaperRecord.id)
+        AttemptRecord = AttemptsByLevelPaperId.get(PaperRecord.id)
+        ResultRecord = ResultsByAttemptId.get(AttemptRecord.id) if AttemptRecord else None
+        Bucket["papers"].append(
+            {
+                "levelPaperId": PaperRecord.id,
+                "attemptId": AttemptRecord.id if AttemptRecord else None,
+                "competitionLevelCode": PaperRecord.competition_level_code,
                 "paperOrdinal": Ordinal,
                 "paperLabel": f"Practice Paper {Ordinal}" if Ordinal else "Practice Paper",
-                "studentId": ResultRecord.student_id,
-                "studentCode": StudentRecord.student_code if StudentRecord else None,
-                "studentName": (StudentRecord.user.full_name if StudentRecord and StudentRecord.user else None),
+                "status": AttemptRecord.status if AttemptRecord else "NOT_STARTED",
+                "assignedAt": PaperRecord.assigned_at.isoformat() if PaperRecord.assigned_at else None,
+                "submittedAt": AttemptRecord.submitted_at.isoformat() if AttemptRecord and AttemptRecord.submitted_at else None,
+                "result": _ResultPayload(ResultRecord) if ResultRecord else None,
             }
         )
 
     return {
         "competitionLevelCode": CompetitionLevelCode,
         "studentId": StudentId,
-        "totalResults": len(Rows),
-        "rows": Rows,
+        "totalStudents": len(StudentBuckets),
+        "students": list(StudentBuckets.values()),
     }

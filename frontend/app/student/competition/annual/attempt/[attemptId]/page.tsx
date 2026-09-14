@@ -818,6 +818,8 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
   }));
   const totalQuestions = rows.reduce((sum, row) => sum + row.totalQuestions, 0);
   const totalMarksObtained = rows.reduce((sum, row) => sum + row.correctCount, 0);
+  const resultForBreakdown = review.result;
+  const attemptedCountForBreakdown = resultForBreakdown ? resultForBreakdown.correctCount + resultForBreakdown.wrongCount : 0;
 
   return (
     <div className="math-card p-5">
@@ -871,6 +873,41 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
           {totalMarksObtained}/{totalQuestions}
         </p>
       </div>
+
+      {/* 2026-09-14 (Shailesh, accuracy-formula fix): accuracy is CORRECT /
+          ATTEMPTED, never correct-out-of-every-question-in-the-paper -- an
+          unanswered question is excluded from this ratio entirely, unlike
+          "Total Marks Obtained" above (which stays completion-based, out of
+          every question). This breakdown makes that distinction visible
+          rather than just stating the percentage. Reuses review.result --
+          the same stored, backend-computed values already shown elsewhere
+          on this page -- never recomputed client-side. */}
+      {resultForBreakdown ? (
+        <div className="mt-4 rounded-[22px] border border-emerald-500/25 bg-emerald-500/5 p-5 dark:border-emerald-400/25 dark:bg-emerald-400/10">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Accuracy Breakdown</p>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Attempted</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{attemptedCountForBreakdown}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Correct</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{resultForBreakdown.correctCount}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Wrong</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{resultForBreakdown.wrongCount}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Unanswered</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{resultForBreakdown.unansweredCount}</p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+            Accuracy = Correct ÷ Attempted = {resultForBreakdown.correctCount}/{attemptedCountForBreakdown} = {resultForBreakdown.accuracyPercentage}%
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
