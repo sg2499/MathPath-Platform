@@ -396,15 +396,19 @@ def test_roster_results_empty_filter_short_circuits():
 # assignment).
 # ---------------------------------------------------------------------------
 
-def _practice_attempt_with_result(db, student_id, event_id, level_code="PM-L2"):
+def _practice_attempt_with_result(db, student_id, level_code="PM-L2", suffix=""):
+    """2026-09-12 (Shailesh, decoupling): event_id is always None now --
+    practice never belongs to any event, so this helper no longer accepts
+    one at all. `suffix` disambiguates ids when a test needs more than one
+    practice result for the same student."""
     practice_paper = CompetitionEventLevelPaper(
-        id=f"practice-paper-{student_id}", event_id=event_id, competition_level_code=level_code,
+        id=f"practice-paper-{student_id}{suffix}", event_id=None, competition_level_code=level_code,
         paper_kind="PRACTICE", status="READY", assigned_student_id=student_id,
     )
     db.add(practice_paper)
     db.flush()
     attempt = CompetitionEventAttempt(
-        id=f"practice-attempt-{student_id}", event_id=event_id, assignment_id=None,
+        id=f"practice-attempt-{student_id}{suffix}", event_id=None, assignment_id=None,
         level_paper_id=practice_paper.id, student_id=student_id, attempt_number=1,
         attempt_type="PRACTICE", status="FINALIZED",
         started_at=datetime.now(timezone.utc), submitted_at=datetime.now(timezone.utc),
@@ -412,7 +416,7 @@ def _practice_attempt_with_result(db, student_id, event_id, level_code="PM-L2"):
     db.add(attempt)
     db.flush()
     result = CompetitionEventResult(
-        id=f"practice-result-{student_id}", attempt_id=attempt.id, event_id=event_id, assignment_id=None,
+        id=f"practice-result-{student_id}{suffix}", attempt_id=attempt.id, event_id=None, assignment_id=None,
         student_id=student_id, attempt_type="PRACTICE", competition_level_code=level_code,
         score=1, max_score=1, percentage=100, accuracy_percentage=100,
         correct_count=1, wrong_count=0, unanswered_count=0, time_taken_seconds=30,
@@ -426,7 +430,7 @@ def _practice_attempt_with_result(db, student_id, event_id, level_code="PM-L2"):
 def test_live_monitoring_never_shows_a_practice_attempt():
     db = _session()
     student, event = _full_setup(db)  # OFFICIAL assignment, no attempt started yet
-    _practice_attempt_with_result(db, student.id, event.id)
+    _practice_attempt_with_result(db, student.id)
 
     result = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event.id)
 
@@ -440,7 +444,7 @@ def test_live_monitoring_never_shows_a_practice_attempt():
 def test_roster_results_never_shows_a_practice_result():
     db = _session()
     student, event = _full_setup(db)
-    _practice_attempt_with_result(db, student.id, event.id)
+    _practice_attempt_with_result(db, student.id)
 
     result = engine.ListAnnualCompetitionResultsForRoster(db, EventId=event.id, StudentIdsFilter=[student.id])
 
@@ -452,18 +456,22 @@ def test_roster_results_never_shows_a_practice_result():
 
 
 # ---------------------------------------------------------------------------
-# Practice's own teacher-facing results surface (Phase E) --
-# ListAnnualCompetitionPracticeResultsForRoster. Deliberately scoped off
-# CompetitionEventResult directly rather than CompetitionEventAssignment,
-# since practice has none -- see that function's own docstring.
+# Practice's own teacher-facing results surface (Phase E; fully decoupled
+# from any event, 2026-09-12) -- ListAnnualCompetitionPracticeResultsForRoster.
+# Deliberately scoped off CompetitionEventResult directly rather than
+# CompetitionEventAssignment, since practice has none -- see that function's
+# own docstring. None of these tests create (or reference) a CompetitionEvent
+# for the practice data itself -- a rostered student is identified purely by
+# StudentIdsFilter now.
 # ---------------------------------------------------------------------------
 
 def test_practice_roster_results_surfaces_a_practice_result_for_a_rostered_student():
     db = _session()
-    student, event = _full_setup(db)
-    _practice_attempt_with_result(db, student.id, event.id)
+    student = _student(db)
+    _practice_attempt_with_result(db, student.id)
+    db.commit()
 
-    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, EventId=event.id, StudentIdsFilter=[student.id])
+    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, StudentIdsFilter=[student.id])
 
     assert result["totalResults"] == 1
     row = result["rows"][0]
@@ -475,83 +483,57 @@ def test_practice_roster_results_surfaces_a_practice_result_for_a_rostered_stude
 
 def test_practice_roster_results_excludes_a_student_outside_the_roster():
     db = _session()
-    student, event = _full_setup(db)
-    _practice_attempt_with_result(db, student.id, event.id)
+    student = _student(db)
+    _practice_attempt_with_result(db, student.id)
     other_student = _student(db, sid="student-2")
     db.commit()
 
-    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, EventId=event.id, StudentIdsFilter=[other_student.id])
+    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, StudentIdsFilter=[other_student.id])
     assert result["totalResults"] == 0
 
 
 def test_practice_roster_results_empty_filter_short_circuits_without_a_query():
     db = _session()
-    student, event = _full_setup(db)
-    _practice_attempt_with_result(db, student.id, event.id)
+    student = _student(db)
+    _practice_attempt_with_result(db, student.id)
+    db.commit()
 
-    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, EventId=event.id, StudentIdsFilter=[])
+    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, StudentIdsFilter=[])
     assert result["totalResults"] == 0
     assert result["rows"] == []
 
 
 def test_practice_roster_results_filters_by_level_code():
     db = _session()
-    student, event = _full_setup(db)
-    _practice_attempt_with_result(db, student.id, event.id, level_code="PM-L2")
+    student = _student(db)
+    _practice_attempt_with_result(db, student.id, level_code="PM-L2")
+    db.commit()
 
     matching = engine.ListAnnualCompetitionPracticeResultsForRoster(
-        db, EventId=event.id, StudentIdsFilter=[student.id], CompetitionLevelCode="PM-L2"
+        db, StudentIdsFilter=[student.id], CompetitionLevelCode="PM-L2"
     )
     assert matching["totalResults"] == 1
 
     non_matching = engine.ListAnnualCompetitionPracticeResultsForRoster(
-        db, EventId=event.id, StudentIdsFilter=[student.id], CompetitionLevelCode="IM-L1"
+        db, StudentIdsFilter=[student.id], CompetitionLevelCode="IM-L1"
     )
     assert non_matching["totalResults"] == 0
 
 
 def test_practice_roster_results_lists_every_result_for_a_student_not_just_the_latest():
     """Unlike OFFICIAL's one-row-per-assignment shape, a student can have
-    MANY practice results for one event (one per consumed bank paper) --
-    all of them must show up here, not just the most recent."""
+    MANY practice results overall (one per consumed bank paper) -- all of
+    them must show up here, not just the most recent."""
     db = _session()
-    student, event = _full_setup(db)
-    _practice_attempt_with_result(db, student.id, event.id)
-    # A second practice paper/attempt/result for the SAME student+event.
-    second_paper = CompetitionEventLevelPaper(
-        id="practice-paper-2", event_id=event.id, competition_level_code="PM-L2",
-        paper_kind="PRACTICE", status="READY", assigned_student_id=student.id,
-    )
-    db.add(second_paper)
-    db.flush()
-    second_attempt = CompetitionEventAttempt(
-        id="practice-attempt-2", event_id=event.id, assignment_id=None,
-        level_paper_id=second_paper.id, student_id=student.id, attempt_number=1,
-        attempt_type="PRACTICE", status="FINALIZED",
-        started_at=datetime.now(timezone.utc), submitted_at=datetime.now(timezone.utc),
-    )
-    db.add(second_attempt)
-    db.flush()
-    second_result = CompetitionEventResult(
-        id="practice-result-2", attempt_id=second_attempt.id, event_id=event.id, assignment_id=None,
-        student_id=student.id, attempt_type="PRACTICE", competition_level_code="PM-L2",
-        score=1, max_score=2, percentage=50, accuracy_percentage=50,
-        correct_count=1, wrong_count=1, unanswered_count=0, time_taken_seconds=45,
-        is_released=True,
-    )
-    db.add(second_result)
-    db.commit()
+    student = _student(db)
+    _practice_attempt_with_result(db, student.id)
+    # A second practice paper/attempt/result for the SAME student.
+    _practice_attempt_with_result(db, student.id, suffix="-2")
 
-    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, EventId=event.id, StudentIdsFilter=[student.id])
+    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, StudentIdsFilter=[student.id])
     assert result["totalResults"] == 2
     attempt_ids = {row["attemptId"] for row in result["rows"]}
-    assert attempt_ids == {f"practice-attempt-{student.id}", "practice-attempt-2"}
-
-
-def test_practice_roster_results_unknown_event_is_404():
-    db = _session()
-    with pytest.raises(HTTPException):
-        engine.ListAnnualCompetitionPracticeResultsForRoster(db, EventId="does-not-exist", StudentIdsFilter=["s1"])
+    assert attempt_ids == {f"practice-attempt-{student.id}", f"practice-attempt-{student.id}-2"}
 
 
 # ---------------------------------------------------------------------------

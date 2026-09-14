@@ -1406,6 +1406,42 @@ def ensure_annual_competition_practice_bank_columns() -> None:
                 connection.execute(text("ALTER TABLE competition_event_results ALTER COLUMN assignment_id DROP NOT NULL"))
 
 
+def ensure_annual_competition_practice_event_decoupling() -> None:
+    """Self-heal safety net matching Alembic migration
+    d4f81a2c9e17_decouple_annual_competition_practice_from_event.py --
+    same "production deploys don't reliably run alembic upgrade head" gap
+    class as every other ensure_*() in this file.
+
+    2026-09-12 (Shailesh, Competition Practice feature): practice papers/
+    attempts/results no longer belong to any CompetitionEvent at all. The
+    ORM model's event_id columns on the three affected tables are now
+    nullable (see CompetitionEventLevelPaper/CompetitionEventAttempt/
+    CompetitionEventResult's own model comments), but a real deploy that
+    already created these tables under the OLD NOT NULL shape would reject
+    the very first PRACTICE row that tries to leave event_id unset with a
+    raw IntegrityError -- the same failure mode this file's other
+    ALTER COLUMN ... DROP NOT NULL self-heals already guard against
+    (ensure_annual_competition_practice_bank_columns's assignment_id,
+    ensure_assessment_questions_lesson_id_nullable's lesson_id).
+
+    Postgres-only, same reasoning as every other DROP NOT NULL branch in
+    this file: SQLite is always a fresh test database built from today's
+    ORM model (already nullable), and SQLite's ALTER COLUMN cannot drop a
+    NOT NULL constraint without a full table rebuild.
+    """
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    is_sqlite = engine.dialect.name == "sqlite"
+    if is_sqlite:
+        return
+
+    for table_name in ("competition_event_level_papers", "competition_event_attempts", "competition_event_results"):
+        if table_name not in tables:
+            continue
+        with engine.begin() as connection:
+            connection.execute(text(f"ALTER TABLE {table_name} ALTER COLUMN event_id DROP NOT NULL"))
+
+
 def ensure_mock_notifications_fixed() -> None:
     import re
     from app.database import SessionLocal

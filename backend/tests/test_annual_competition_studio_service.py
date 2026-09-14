@@ -1150,7 +1150,14 @@ def test_delete_competition_mock_exam_still_allowed_when_not_locked():
 
 
 # ---------------------------------------------------------------------------
-# Practice bank (Competition Practice feature, Phase C)
+# Practice bank (Competition Practice feature, Phase C; full event
+# decoupling + bulk assignment, 2026-09-12): "the practice papers should not
+# be related to any event whatsoever ... it allows the admin to just assign
+# papers to all the students." Every practice test below deliberately never
+# creates (or references) a CompetitionEvent for the practice call itself --
+# that omission IS the point being tested. BatchAssignAnnualCompetitionPractice
+# Papers now takes StudentIds (a list) instead of a single StudentId, and
+# returns a bulk-shaped outcome (succeeded/failed per student).
 # ---------------------------------------------------------------------------
 
 def test_batch_assign_creates_n_fresh_practice_papers_with_distinct_content():
@@ -1158,22 +1165,24 @@ def test_batch_assign_creates_n_fresh_practice_papers_with_distinct_content():
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
     admin = _admin(db)
     student = _student(db, "s1", module_id=module.id, level_id=level.id)
-    _event(db)
     db.commit()
 
     outcome = studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=5, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
     )
-    assert outcome["quantityAssigned"] == 5
-    assert len(outcome["levelPapers"]) == 5
+    assert outcome["studentsSucceeded"] == 1
+    assert outcome["studentsFailed"] == 0
+    assert outcome["totalPapersAssigned"] == 5
+    assert outcome["succeeded"][0]["quantityAssigned"] == 5
 
     practice_papers = (
         db.query(CompetitionEventLevelPaper)
-        .filter_by(event_id="event-1", paper_kind="PRACTICE", assigned_student_id=student.id)
+        .filter_by(paper_kind="PRACTICE", assigned_student_id=student.id)
         .all()
     )
     assert len(practice_papers) == 5
     for paper in practice_papers:
+        assert paper.event_id is None  # decoupled: practice never carries an event_id
         assert paper.competition_level_code == "PM-L2"
         assert paper.status == "READY"
         assert paper.assigned_by_user_id == admin.id
@@ -1199,24 +1208,106 @@ def test_batch_assign_creates_n_fresh_practice_papers_with_distinct_content():
     assert all(q is not None for q in first_questions)
 
 
+def test_batch_assign_creates_papers_for_every_student_in_one_call():
+    """2026-09-12 (Shailesh, bulk assignment): "let the admin just assign
+    papers to all the students" -- one call, several students."""
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    student_a = _student(db, "s1", module_id=module.id, level_id=level.id)
+    student_b = _student(db, "s2", module_id=module.id, level_id=level.id)
+    student_c = _student(db, "s3", module_id=module.id, level_id=level.id)
+    db.commit()
+
+    outcome = studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student_a.id, student_b.id, student_c.id], Quantity=5, AssignedBy=admin,
+    )
+    assert outcome["studentsRequested"] == 3
+    assert outcome["studentsSucceeded"] == 3
+    assert outcome["studentsFailed"] == 0
+    assert outcome["totalPapersAssigned"] == 15
+
+    for student in (student_a, student_b, student_c):
+        count = (
+            db.query(CompetitionEventLevelPaper)
+            .filter_by(paper_kind="PRACTICE", assigned_student_id=student.id)
+            .count()
+        )
+        assert count == 5
+
+
+def test_batch_assign_partial_failure_still_commits_the_students_that_succeeded():
+    """One bad student id in the batch must not lose papers already
+    generated and committed for the good ones."""
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    student = _student(db, "s1", module_id=module.id, level_id=level.id)
+    db.commit()
+
+    outcome = studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id, "does-not-exist"], Quantity=5, AssignedBy=admin,
+    )
+    assert outcome["studentsRequested"] == 2
+    assert outcome["studentsSucceeded"] == 1
+    assert outcome["studentsFailed"] == 1
+    assert outcome["totalPapersAssigned"] == 5
+    assert outcome["succeeded"][0]["studentId"] == student.id
+    assert outcome["failed"][0]["studentIdentifier"] == "does-not-exist"
+
+    count = (
+        db.query(CompetitionEventLevelPaper)
+        .filter_by(paper_kind="PRACTICE", assigned_student_id=student.id)
+        .count()
+    )
+    assert count == 5
+
+
+def test_batch_assign_rejects_more_students_than_the_per_call_cap():
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    student_ids = []
+    for index in range(studio.PRACTICE_BULK_MAX_STUDENTS_PER_CALL + 1):
+        student = _student(db, f"s{index}", module_id=module.id, level_id=level.id)
+        student_ids.append(student.id)
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        studio.BatchAssignAnnualCompetitionPracticePapers(
+            db, CompetitionLevelCode="PM-L2", StudentIds=student_ids, Quantity=5, AssignedBy=admin,
+        )
+    assert exc_info.value.detail["code"] == "PRACTICE_BULK_TOO_MANY_STUDENTS"
+
+
+def test_batch_assign_rejects_empty_student_list():
+    db = _session()
+    admin = _admin(db)
+    db.commit()
+
+    with pytest.raises(HTTPException):
+        studio.BatchAssignAnnualCompetitionPracticePapers(
+            db, CompetitionLevelCode="PM-L2", StudentIds=[], Quantity=5, AssignedBy=admin,
+        )
+
+
 def test_batch_assign_repeated_calls_only_ever_add_to_the_bank():
     db = _session()
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
     admin = _admin(db)
     student = _student(db, "s1", module_id=module.id, level_id=level.id)
-    _event(db)
     db.commit()
 
     studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=5, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
     )
     studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=10, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=10, AssignedBy=admin,
     )
 
     total = (
         db.query(CompetitionEventLevelPaper)
-        .filter_by(event_id="event-1", paper_kind="PRACTICE", assigned_student_id=student.id)
+        .filter_by(paper_kind="PRACTICE", assigned_student_id=student.id)
         .count()
     )
     assert total == 15  # 5 + 10, nothing from the first call touched or removed
@@ -1228,12 +1319,11 @@ def test_batch_assign_rejects_invalid_quantities(bad_quantity):
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
     admin = _admin(db)
     student = _student(db, "s1", module_id=module.id, level_id=level.id)
-    _event(db)
     db.commit()
 
     with pytest.raises(HTTPException):
         studio.BatchAssignAnnualCompetitionPracticePapers(
-            db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=bad_quantity, AssignedBy=admin,
+            db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=bad_quantity, AssignedBy=admin,
         )
 
 
@@ -1241,37 +1331,29 @@ def test_batch_assign_rejects_invalid_level_code():
     db = _session()
     admin = _admin(db)
     student = _student(db, "s1")
-    _event(db)
     db.commit()
 
     with pytest.raises(HTTPException):
         studio.BatchAssignAnnualCompetitionPracticePapers(
-            db, EventId="event-1", CompetitionLevelCode="BM-L1", StudentId=student.id, Quantity=5, AssignedBy=admin,
+            db, CompetitionLevelCode="BM-L1", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
         )
 
 
-def test_batch_assign_unknown_event_is_404():
+def test_batch_assign_unknown_student_lands_in_failed_not_a_raised_error():
+    """Each student is processed in its own try/except (see
+    BatchAssignAnnualCompetitionPracticePapers's own docstring) -- an unknown
+    student id is reported back in `failed`, never aborts the whole call."""
     db = _session()
+    _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
     admin = _admin(db)
-    student = _student(db, "s1")
     db.commit()
 
-    with pytest.raises(HTTPException):
-        studio.BatchAssignAnnualCompetitionPracticePapers(
-            db, EventId="does-not-exist", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=5, AssignedBy=admin,
-        )
-
-
-def test_batch_assign_unknown_student_is_404():
-    db = _session()
-    admin = _admin(db)
-    _event(db)
-    db.commit()
-
-    with pytest.raises(HTTPException):
-        studio.BatchAssignAnnualCompetitionPracticePapers(
-            db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId="does-not-exist", Quantity=5, AssignedBy=admin,
-        )
+    outcome = studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="PM-L2", StudentIds=["does-not-exist"], Quantity=5, AssignedBy=admin,
+    )
+    assert outcome["studentsSucceeded"] == 0
+    assert outcome["studentsFailed"] == 1
+    assert outcome["failed"][0]["studentIdentifier"] == "does-not-exist"
 
 
 def test_batch_assign_accepts_student_code_too():
@@ -1279,28 +1361,27 @@ def test_batch_assign_accepts_student_code_too():
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
     admin = _admin(db)
     student = _student(db, "s1", student_code="MP-ST-777", module_id=module.id, level_id=level.id)
-    _event(db)
     db.commit()
 
     outcome = studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId="mp-st-777", Quantity=5, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L2", StudentIds=["mp-st-777"], Quantity=5, AssignedBy=admin,
     )
-    assert outcome["studentId"] == student.id
+    assert outcome["succeeded"][0]["studentId"] == student.id
 
 
 def test_batch_assign_fails_cleanly_when_no_curriculum_level_exists():
     """PM-L2 with no _module_and_level call at all -- no curriculum Level
     row exists for it, mirroring the known MM-L2 gap the OFFICIAL generate
-    path already guards against."""
+    path already guards against. This check runs before the per-student
+    loop, so it still raises rather than landing in `failed`."""
     db = _session()
     admin = _admin(db)
     student = _student(db, "s1")
-    _event(db)
     db.commit()
 
     with pytest.raises(HTTPException) as exc_info:
         studio.BatchAssignAnnualCompetitionPracticePapers(
-            db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=5, AssignedBy=admin,
+            db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
         )
     assert exc_info.value.detail["code"] == "NO_CURRICULUM_LEVEL_FOR_CODE"
 
@@ -1310,7 +1391,8 @@ def test_practice_bank_never_appears_in_the_official_level_papers_list():
     ListCompetitionEventLevelPapers now filters paper_kind == "OFFICIAL" --
     confirms a freshly batch-assigned practice bank never floods the admin
     Studio's PAPERS tab (which assumes one row per level) or its derived
-    missingLevelPapers/overview computation."""
+    missingLevelPapers/overview computation. The OFFICIAL side still belongs
+    to a real event; practice (assigned below) deliberately does not."""
     db = _session()
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
     exam = _mock_exam(db, level.id, module.id)
@@ -1321,7 +1403,7 @@ def test_practice_bank_never_appears_in_the_official_level_papers_list():
 
     studio.LinkExistingCompetitionEventLevelPaper(db, EventId="event-1", CompetitionLevelCode="PM-L2", MockExamId=exam.id)
     studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=10, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=10, AssignedBy=admin,
     )
 
     level_papers = studio.ListCompetitionEventLevelPapers(db, "event-1")
@@ -1338,14 +1420,13 @@ def test_get_practice_bank_returns_assigned_papers_with_correct_counts():
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
     admin = _admin(db)
     student = _student(db, "s1", module_id=module.id, level_id=level.id)
-    _event(db)
     db.commit()
 
     studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=5, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
     )
 
-    bank = studio.GetAnnualCompetitionPracticeBankForStudent(db, EventId="event-1", StudentId=student.id)
+    bank = studio.GetAnnualCompetitionPracticeBankForStudent(db, StudentId=student.id)
     assert bank["totalAssigned"] == 5
     assert bank["consumedCount"] == 0
     assert bank["remainingCount"] == 5
@@ -1361,22 +1442,21 @@ def test_get_practice_bank_reflects_consumed_papers():
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
     admin = _admin(db)
     student = _student(db, "s1", module_id=module.id, level_id=level.id)
-    _event(db)
     db.commit()
 
     studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=5, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
     )
     first_paper = (
         db.query(CompetitionEventLevelPaper)
-        .filter_by(event_id="event-1", paper_kind="PRACTICE", assigned_student_id=student.id)
+        .filter_by(paper_kind="PRACTICE", assigned_student_id=student.id)
         .order_by(CompetitionEventLevelPaper.assigned_at.asc())
         .first()
     )
     first_paper.consumed_at = datetime.now(timezone.utc)
     db.commit()
 
-    bank = studio.GetAnnualCompetitionPracticeBankForStudent(db, EventId="event-1", StudentId=student.id)
+    bank = studio.GetAnnualCompetitionPracticeBankForStudent(db, StudentId=student.id)
     assert bank["totalAssigned"] == 5
     assert bank["consumedCount"] == 1
     assert bank["remainingCount"] == 4
@@ -1388,21 +1468,20 @@ def test_get_practice_bank_scoped_to_one_level_when_specified():
     module_im, level_im = _module_and_level(db, "IM", "IM-L1", "Intermediate Level 1")
     admin = _admin(db)
     student = _student(db, "s1", module_id=module_pm.id, level_id=level_pm.id)
-    _event(db)
     db.commit()
 
     studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=5, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
     )
     studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="IM-L1", StudentId=student.id, Quantity=10, AssignedBy=admin,
+        db, CompetitionLevelCode="IM-L1", StudentIds=[student.id], Quantity=10, AssignedBy=admin,
     )
 
-    bank_all = studio.GetAnnualCompetitionPracticeBankForStudent(db, EventId="event-1", StudentId=student.id)
+    bank_all = studio.GetAnnualCompetitionPracticeBankForStudent(db, StudentId=student.id)
     assert bank_all["totalAssigned"] == 15
 
     bank_pm_only = studio.GetAnnualCompetitionPracticeBankForStudent(
-        db, EventId="event-1", StudentId=student.id, CompetitionLevelCode="PM-L2"
+        db, StudentId=student.id, CompetitionLevelCode="PM-L2"
     )
     assert bank_pm_only["totalAssigned"] == 5
     assert all(row["competitionLevelCode"] == "PM-L2" for row in bank_pm_only["papers"])
@@ -1411,10 +1490,9 @@ def test_get_practice_bank_scoped_to_one_level_when_specified():
 def test_get_practice_bank_empty_for_a_student_with_none_assigned():
     db = _session()
     student = _student(db, "s1")
-    _event(db)
     db.commit()
 
-    bank = studio.GetAnnualCompetitionPracticeBankForStudent(db, EventId="event-1", StudentId=student.id)
+    bank = studio.GetAnnualCompetitionPracticeBankForStudent(db, StudentId=student.id)
     assert bank["totalAssigned"] == 0
     assert bank["consumedCount"] == 0
     assert bank["remainingCount"] == 0
@@ -1422,11 +1500,42 @@ def test_get_practice_bank_empty_for_a_student_with_none_assigned():
 
 
 # ---------------------------------------------------------------------------
+# ListStudentsForPracticeBank (2026-09-12, bulk assignment): the roster the
+# admin's Practice Bank student picker lists from.
+# ---------------------------------------------------------------------------
+
+def test_list_students_for_practice_bank_lists_every_active_student():
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    student_a = _student(db, "s1", module_id=module.id, level_id=level.id)
+    student_b = _student(db, "s2", module_id=module.id, level_id=level.id)
+    db.commit()
+
+    result = studio.ListStudentsForPracticeBank(db)
+    assert result["totalStudents"] == 2
+    student_ids = {row["studentId"] for row in result["students"]}
+    assert student_ids == {student_a.id, student_b.id}
+
+
+def test_list_students_for_practice_bank_excludes_inactive_students():
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    student = _student(db, "s1", module_id=module.id, level_id=level.id)
+    student.is_active = False
+    db.commit()
+
+    result = studio.ListStudentsForPracticeBank(db)
+    assert result["totalStudents"] == 0
+
+
+# ---------------------------------------------------------------------------
 # ListMyAnnualCompetitionPracticeScopes (Shailesh's Phase G correction,
-# 2026-09-11): "the students should be able to practice any paper even if
-# they do not have any official competition attempts." Every test below
-# deliberately never creates a CompetitionEventAssignment for the student --
-# that omission IS the point being tested, not an oversight.
+# 2026-09-11, then fully decoupled from any event 2026-09-12): "the students
+# should be able to practice any paper even if they do not have any official
+# competition attempts" -- and now, practice has no event scope at all.
+# Every test below deliberately never creates a CompetitionEventAssignment
+# (or a CompetitionEvent) for the student -- that omission IS the point
+# being tested, not an oversight.
 # ---------------------------------------------------------------------------
 
 def test_practice_scopes_visible_with_zero_official_assignment():
@@ -1434,46 +1543,43 @@ def test_practice_scopes_visible_with_zero_official_assignment():
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
     admin = _admin(db)
     student = _student(db, "s1", module_id=module.id, level_id=level.id)
-    _event(db)
     db.commit()
 
     studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=5, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
     )
 
     scopes = studio.ListMyAnnualCompetitionPracticeScopes(db, student)["scopes"]
     assert len(scopes) == 1
-    assert scopes[0]["eventId"] == "event-1"
     assert scopes[0]["competitionLevelCode"] == "PM-L2"
     assert scopes[0]["totalAssigned"] == 5
     assert scopes[0]["remainingCount"] == 5
-    assert scopes[0]["eventName"] == "Annual Competition 2026"
+    assert "eventId" not in scopes[0]
+    assert "eventName" not in scopes[0]
 
 
 def test_practice_scopes_empty_for_a_student_with_no_practice_papers_at_all():
     db = _session()
     student = _student(db, "s1")
-    _event(db)
     db.commit()
 
     scopes = studio.ListMyAnnualCompetitionPracticeScopes(db, student)["scopes"]
     assert scopes == []
 
 
-def test_practice_scopes_groups_by_event_and_level_not_by_paper():
+def test_practice_scopes_groups_by_level_not_by_paper():
     db = _session()
     module_pm, level_pm = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
     module_im, level_im = _module_and_level(db, "IM", "IM-L1", "Intermediate Level 1")
     admin = _admin(db)
     student = _student(db, "s1", module_id=module_pm.id, level_id=level_pm.id)
-    _event(db)
     db.commit()
 
     studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=5, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
     )
     studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="IM-L1", StudentId=student.id, Quantity=10, AssignedBy=admin,
+        db, CompetitionLevelCode="IM-L1", StudentIds=[student.id], Quantity=10, AssignedBy=admin,
     )
 
     scopes = studio.ListMyAnnualCompetitionPracticeScopes(db, student)["scopes"]
@@ -1488,15 +1594,14 @@ def test_practice_scopes_reflects_consumed_count():
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
     admin = _admin(db)
     student = _student(db, "s1", module_id=module.id, level_id=level.id)
-    _event(db)
     db.commit()
 
     studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student.id, Quantity=5, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
     )
     first_paper = (
         db.query(CompetitionEventLevelPaper)
-        .filter_by(event_id="event-1", paper_kind="PRACTICE", assigned_student_id=student.id)
+        .filter_by(paper_kind="PRACTICE", assigned_student_id=student.id)
         .order_by(CompetitionEventLevelPaper.assigned_at.asc())
         .first()
     )
@@ -1515,11 +1620,10 @@ def test_practice_scopes_never_includes_another_students_papers():
     admin = _admin(db)
     student_a = _student(db, "s1", module_id=module.id, level_id=level.id)
     student_b = _student(db, "s2", module_id=module.id, level_id=level.id)
-    _event(db)
     db.commit()
 
     studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, EventId="event-1", CompetitionLevelCode="PM-L2", StudentId=student_a.id, Quantity=5, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student_a.id], Quantity=5, AssignedBy=admin,
     )
 
     assert studio.ListMyAnnualCompetitionPracticeScopes(db, student_a)["scopes"][0]["totalAssigned"] == 5

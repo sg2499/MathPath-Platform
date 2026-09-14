@@ -607,7 +607,10 @@ export type AnnualCompetitionQuestion = {
 
 export type AnnualCompetitionAttempt = {
   attemptId: string;
-  eventId: string;
+  // null for a PRACTICE attempt -- practice is fully decoupled from any
+  // event (2026-09-12: "the practice papers should not be related to any
+  // event whatsoever").
+  eventId: string | null;
   // null for a PRACTICE attempt -- practice papers are batch-assigned
   // directly to a student with no CompetitionEventAssignment involved.
   assignmentId: string | null;
@@ -731,23 +734,16 @@ export async function downloadAnnualCompetitionCertificate(attemptId: string): P
 
 // Shailesh's Phase G correction (2026-09-11): "the students should be able
 // to practice any paper even if they do not have any official competition
-// attempts, that is the whole point of this entire practice feature." The
-// first Phase G pass scoped the Practice tab off the student's OFFICIAL
-// assignments (getMyAnnualCompetitionAssignments above), since there was no
-// other list of event+level combos to enumerate -- but practice papers are
-// batch-assigned directly (see BatchAssignAnnualCompetitionPracticePapers's
-// own signature, no CompetitionEventAssignment dependency), so a student
-// with practice papers but zero official assignments legitimately exists
-// and needs to see them too. This is the discovery endpoint that fixes it:
-// every distinct event+level scope this student has ANY practice papers
-// for, independent of official assignment, with the same
+// attempts, that is the whole point of this entire practice feature." Then
+// fully decoupled from any event (2026-09-12): "the practice papers should
+// not be related to any event whatsoever, its only for practice leading to
+// the main event." This is the discovery endpoint: every distinct
+// competition level this student has ANY practice papers for, independent
+// of official assignment AND independent of any event, with the same
 // totalAssigned/consumedCount/remainingCount summary the bank endpoint
 // gives per-paper -- see ListMyAnnualCompetitionPracticeScopes's own
 // docstring on the backend.
 export type AnnualCompetitionPracticeScope = {
-  eventId: string;
-  eventName: string | null;
-  competitionDate: string | null;
   competitionLevelCode: string;
   totalAssigned: number;
   consumedCount: number;
@@ -759,12 +755,8 @@ export async function getMyAnnualCompetitionPracticeScopes(): Promise<AnnualComp
   return data.scopes;
 }
 
-export async function startAnnualCompetitionPracticeAttempt(
-  eventId: string,
-  competitionLevelCode: string
-): Promise<AnnualCompetitionAttempt> {
+export async function startAnnualCompetitionPracticeAttempt(competitionLevelCode: string): Promise<AnnualCompetitionAttempt> {
   const { data } = await api.post<AnnualCompetitionAttempt>("/student/annual-competition/practice/attempts/start", {
-    eventId,
     competitionLevelCode,
   });
   return data;
@@ -784,7 +776,6 @@ export type AnnualCompetitionPracticeBankPaper = {
 };
 
 export type AnnualCompetitionPracticeBank = {
-  eventId: string;
   studentId: string;
   studentCode: string | null;
   competitionLevelCode: string | null;
@@ -794,11 +785,8 @@ export type AnnualCompetitionPracticeBank = {
   papers: AnnualCompetitionPracticeBankPaper[];
 };
 
-export async function getAnnualCompetitionPracticeBank(
-  eventId: string,
-  competitionLevelCode?: string | null
-): Promise<AnnualCompetitionPracticeBank> {
-  const { data } = await api.get<AnnualCompetitionPracticeBank>(`/student/annual-competition/events/${eventId}/practice/bank`, {
+export async function getAnnualCompetitionPracticeBank(competitionLevelCode?: string | null): Promise<AnnualCompetitionPracticeBank> {
+  const { data } = await api.get<AnnualCompetitionPracticeBank>(`/student/annual-competition/practice/bank`, {
     params: { competitionLevelCode: competitionLevelCode || undefined },
   });
   return data;
@@ -808,7 +796,9 @@ export async function getAnnualCompetitionPracticeBank(
 // (which only answers "how many are left") -- one row per PRACTICE attempt
 // ever started, newest first, IN_PROGRESS ones included so a resumable
 // half-done paper still shows up (see the backend's own docstring on
-// ListMyAnnualCompetitionPracticeAttempts).
+// ListMyAnnualCompetitionPracticeAttempts). 2026-09-12 (decoupling): no
+// event scope anymore -- this is every practice attempt this student has
+// ever started, across all time.
 export type AnnualCompetitionPracticeAttemptResult = {
   score: number;
   maxScore: number;
@@ -830,20 +820,17 @@ export type AnnualCompetitionPracticeAttemptRow = {
 };
 
 export type AnnualCompetitionPracticeAttemptsList = {
-  eventId: string;
   competitionLevelCode: string | null;
   totalAttempts: number;
   attempts: AnnualCompetitionPracticeAttemptRow[];
 };
 
 export async function getMyAnnualCompetitionPracticeAttempts(
-  eventId: string,
   competitionLevelCode?: string | null
 ): Promise<AnnualCompetitionPracticeAttemptsList> {
-  const { data } = await api.get<AnnualCompetitionPracticeAttemptsList>(
-    `/student/annual-competition/events/${eventId}/practice/attempts`,
-    { params: { competitionLevelCode: competitionLevelCode || undefined } }
-  );
+  const { data } = await api.get<AnnualCompetitionPracticeAttemptsList>(`/student/annual-competition/practice/attempts`, {
+    params: { competitionLevelCode: competitionLevelCode || undefined },
+  });
   return data;
 }
 

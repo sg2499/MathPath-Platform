@@ -238,3 +238,36 @@ def test_ensure_annual_competition_practice_bank_columns_noop_when_tables_absent
     monkeypatch.setattr(schema_migration, "engine", test_engine)
 
     schema_migration.ensure_annual_competition_practice_bank_columns()  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# ensure_annual_competition_practice_event_decoupling() -- 2026-09-12
+# (Shailesh): "the practice papers should not be related to any event
+# whatsoever." Matches Alembic migration
+# d4f81a2c9e17_decouple_annual_competition_practice_from_event.py, which
+# drops the NOT NULL constraint on event_id across the three tables that
+# carry it. This function is a deliberate no-op on SQLite (see its own
+# docstring/comment -- SQLite is always a fresh test DB built directly from
+# the current, already-nullable ORM model via Base.metadata.create_all(), so
+# there is nothing to backfill there); the Postgres-only ALTER COLUMN ...
+# DROP NOT NULL branch can only be verified against a real Postgres
+# instance, same deliberate scope limit the practice-bank-columns tests
+# above already accept for their own Postgres-only branches.
+# ---------------------------------------------------------------------------
+
+def test_ensure_annual_competition_practice_event_decoupling_is_a_noop_on_sqlite(monkeypatch):
+    test_engine = _isolated_engine()
+    monkeypatch.setattr(schema_migration, "engine", test_engine)
+
+    schema_migration.ensure_annual_competition_tables()
+    schema_migration.ensure_annual_competition_practice_bank_columns()
+    schema_migration.ensure_annual_competition_practice_event_decoupling()  # must not raise
+
+
+def test_ensure_annual_competition_practice_event_decoupling_noop_when_tables_absent(monkeypatch):
+    """Fresh install where ensure_annual_competition_tables() hasn't been
+    called first -- must not raise just because the tables don't exist."""
+    test_engine = _isolated_engine()
+    monkeypatch.setattr(schema_migration, "engine", test_engine)
+
+    schema_migration.ensure_annual_competition_practice_event_decoupling()  # must not raise

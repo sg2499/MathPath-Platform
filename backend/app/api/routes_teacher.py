@@ -323,13 +323,15 @@ def teacher_list_annual_competition_results(
 # CompetitionEventAssignment to scope a roster through (see
 # ListAnnualCompetitionPracticeResultsForRoster's own docstring), so this is
 # a separate endpoint from /results above rather than a query param on it.
-@router.get("/competition/annual/events/{event_id}/practice-results")
+# 2026-09-12 (Shailesh, decoupling): dropped the {event_id} path segment --
+# practice has no event anymore.
+@router.get("/competition/annual/practice-results")
 def teacher_list_annual_competition_practice_results(
-    event_id: str, competitionLevelCode: str | None = None, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)
+    competitionLevelCode: str | None = None, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)
 ):
     student_ids = [student.id for student in own_students_query(db, teacher).filter(Student.is_active == True).all()]
     return ListAnnualCompetitionPracticeResultsForRoster(
-        db, EventId=event_id, StudentIdsFilter=student_ids, CompetitionLevelCode=competitionLevelCode
+        db, StudentIdsFilter=student_ids, CompetitionLevelCode=competitionLevelCode
     )
 
 

@@ -6,6 +6,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
+import { ANNUAL_COMPETITION_LEVEL_CODES } from "@/lib/api/admin";
 import {
   getTeacherAnnualCompetitionEvents,
   getTeacherAnnualCompetitionLive,
@@ -57,7 +58,17 @@ function LiveStatusChip({ status }: { status: TeacherAnnualCompetitionLiveRow["l
 // (see ListAnnualCompetitionPracticeResultsForRoster's own docstring on the
 // backend, and Phase B's original "practice results get their own,
 // separately-scoped admin surface" comment this whole feature has followed
-// on the admin and student sides alike).
+// on the admin and student sides alike). 2026-09-14 (full event decoupling,
+// point 9): PRACTICE used to share the one Event dropdown with LIVE/RESULTS,
+// which meant it silently passed an eventId into
+// getTeacherAnnualCompetitionPracticeResults as if it were a level-code
+// filter (wrong value, and a no-op filter since practice results carry no
+// event at all -- see that function's own docstring on lib/api/teacher.ts),
+// and made the whole Practice tab unreachable whenever no OFFICIAL event
+// existed yet. PRACTICE is now fully independent: its own level-code filter,
+// gated on nothing but the tab being active, and the tab switcher itself no
+// longer lives inside the "Events.length > 0" gate that only LIVE/RESULTS
+// actually need.
 const TabList = ["LIVE", "RESULTS", "PRACTICE"] as const;
 type TabKey = (typeof TabList)[number];
 
@@ -65,6 +76,7 @@ export default function TeacherAnnualCompetitionMonitorPage() {
   const Ready = useProtectedPage(["TEACHER"]);
   const [SelectedEventId, SetSelectedEventId] = useState<string>("");
   const [ActiveTab, SetActiveTab] = useState<TabKey>("LIVE");
+  const [PracticeLevelFilter, SetPracticeLevelFilter] = useState<string>("ALL");
 
   const EventsQuery = useQuery({
     queryKey: ["teacher", "annual-competition", "events"],
@@ -92,10 +104,13 @@ export default function TeacherAnnualCompetitionMonitorPage() {
     enabled: Ready && Boolean(SelectedEventId) && ActiveTab === "RESULTS",
   });
 
+  // Fully independent of SelectedEventId/Events -- practice is never scoped
+  // to any event, so this tab works even before Admin has created a single
+  // OFFICIAL event.
   const PracticeQuery = useQuery({
-    queryKey: ["teacher", "annual-competition", "practice-results", SelectedEventId],
-    queryFn: () => getTeacherAnnualCompetitionPracticeResults(SelectedEventId),
-    enabled: Ready && Boolean(SelectedEventId) && ActiveTab === "PRACTICE",
+    queryKey: ["teacher", "annual-competition", "practice-results", PracticeLevelFilter],
+    queryFn: () => getTeacherAnnualCompetitionPracticeResults(PracticeLevelFilter === "ALL" ? undefined : PracticeLevelFilter),
+    enabled: Ready && ActiveTab === "PRACTICE",
   });
 
   if (!Ready) return null;
@@ -112,45 +127,64 @@ export default function TeacherAnnualCompetitionMonitorPage() {
           </p>
         </div>
 
-        {EventsQuery.isLoading ? (
-          <LoadingState label="Loading Annual Competition events..." />
-        ) : EventsQuery.error ? (
-          <ErrorState message={apiErrorMessage(EventsQuery.error)} />
-        ) : Events.length === 0 ? (
-          <div className="math-card p-6">
-            <EmptyState title="No Annual Competition events yet" description="Once Admin schedules an event, it will appear here." />
-          </div>
-        ) : (
-          <>
-            <div className="math-card p-5">
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                  Event
-                  <select value={SelectedEventId} onChange={(EventValue) => SetSelectedEventId(EventValue.target.value)} className="math-input min-w-[280px]">
-                    {Events.map((EventItem) => (
-                      <option key={EventItem.eventId} value={EventItem.eventId}>
-                        {EventItem.name} -- {FormatEventDate(EventItem.competitionDate)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  {TabList.map((Tab) => (
-                    <button
-                      key={Tab}
-                      type="button"
-                      onClick={() => SetActiveTab(Tab)}
-                      aria-selected={ActiveTab === Tab}
-                      className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${ActiveTab === Tab ? "is-active" : ""}`}
-                    >
-                      {Tab === "LIVE" ? "Live Status" : Tab === "RESULTS" ? "Results" : "Practice"}
-                    </button>
+        <div className="math-card p-5">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            {ActiveTab === "PRACTICE" ? (
+              <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                Level
+                <select
+                  value={PracticeLevelFilter}
+                  onChange={(EventValue) => SetPracticeLevelFilter(EventValue.target.value)}
+                  className="math-input min-w-[200px]"
+                >
+                  <option value="ALL">All Levels</option>
+                  {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                    <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
                   ))}
-                </div>
-              </div>
+                </select>
+              </label>
+            ) : Events.length > 0 ? (
+              <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                Event
+                <select value={SelectedEventId} onChange={(EventValue) => SetSelectedEventId(EventValue.target.value)} className="math-input min-w-[280px]">
+                  {Events.map((EventItem) => (
+                    <option key={EventItem.eventId} value={EventItem.eventId}>
+                      {EventItem.name} -- {FormatEventDate(EventItem.competitionDate)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <span />
+            )}
+            <div className="flex flex-wrap gap-3">
+              {TabList.map((Tab) => (
+                <button
+                  key={Tab}
+                  type="button"
+                  onClick={() => SetActiveTab(Tab)}
+                  aria-selected={ActiveTab === Tab}
+                  className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${ActiveTab === Tab ? "is-active" : ""}`}
+                >
+                  {Tab === "LIVE" ? "Live Status" : Tab === "RESULTS" ? "Results" : "Practice"}
+                </button>
+              ))}
             </div>
+          </div>
+        </div>
 
-            {ActiveTab === "LIVE" && (
+        {(ActiveTab === "LIVE" || ActiveTab === "RESULTS") && (
+          EventsQuery.isLoading ? (
+            <LoadingState label="Loading Annual Competition events..." />
+          ) : EventsQuery.error ? (
+            <ErrorState message={apiErrorMessage(EventsQuery.error)} />
+          ) : Events.length === 0 ? (
+            <div className="math-card p-6">
+              <EmptyState title="No Annual Competition events yet" description="Once Admin schedules an event, it will appear here." />
+            </div>
+          ) : (
+            <>
+              {ActiveTab === "LIVE" && (
               <div className="math-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="math-block-header"><Activity size={14} />Live Status</p>
@@ -265,14 +299,17 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                 )}
               </div>
             )}
+            </>
+          )
+        )}
 
-            {ActiveTab === "PRACTICE" && (
+        {ActiveTab === "PRACTICE" && (
               <div className="math-card p-5">
                 <p className="math-block-header"><Repeat size={14} />Practice</p>
                 <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                  Every practice paper your students have completed for this event -- results are visible to them the
-                  instant they're scored (no release gate, unlike Official). Not ranked -- practice papers are for
-                  building confidence and speed, never for competing against classmates.
+                  Every practice paper your students have completed -- not tied to any Annual Competition event, results
+                  are visible to them the instant they're scored (no release gate, unlike Official). Not ranked --
+                  practice papers are for building confidence and speed, never for competing against classmates.
                 </p>
 
                 {PracticeQuery.data ? (
@@ -318,8 +355,6 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                   </div>
                 )}
               </div>
-            )}
-          </>
         )}
       </section>
     </AppShell>

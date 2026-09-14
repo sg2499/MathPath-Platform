@@ -403,7 +403,9 @@ def test_review_prefers_selected_value_over_legacy_option_when_both_somehow_pres
 # practice fixture convention in this codebase.
 # ---------------------------------------------------------------------------
 
-def _setup_student_with_practice_questions(db, student_id, event_id, section_seconds, questions_per_section, level_code="PM-L2"):
+def _setup_student_with_practice_questions(db, student_id, section_seconds, questions_per_section, level_code="PM-L2"):
+    """2026-09-12 (Shailesh, decoupling): no event_id at all -- practice
+    never belongs to any event."""
     student = _student(db, student_id)
     m, l = _module_and_level(db, level_code=level_code)
     exam = _mock_exam(db, l.id, m.id, exam_id=f"practice-exam-{level_code}-{student_id}")
@@ -414,7 +416,7 @@ def _setup_student_with_practice_questions(db, student_id, event_id, section_sec
 
     level_paper_id = f"practice-paper-{student_id}"
     paper = CompetitionEventLevelPaper(
-        id=level_paper_id, event_id=event_id, competition_level_code=level_code,
+        id=level_paper_id, event_id=None, competition_level_code=level_code,
         mock_exam_id=exam.id, status="READY", paper_kind="PRACTICE",
         assigned_student_id=student.id, assigned_at=datetime.now(timezone.utc),
     )
@@ -440,11 +442,10 @@ def test_admin_review_shows_the_correct_level_code_for_a_practice_attempt():
     LevelPaperRecord.competition_level_code instead, which exists for
     both kinds."""
     db = _session()
-    event = _event(db)
-    student = _setup_student_with_practice_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    student = _setup_student_with_practice_questions(db, "s1", section_seconds=(600,), questions_per_section=[1])
     db.commit()
 
-    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
     attempt_id, token = started["attemptId"], started["sessionToken"]
     attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
 
@@ -535,11 +536,10 @@ def test_student_review_instantly_available_for_a_practice_attempt_no_release_ne
     attempt's review reads as immediately available purely because
     is_released is already True the moment it's computed."""
     db = _session()
-    event = _event(db)
-    student = _setup_student_with_practice_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    student = _setup_student_with_practice_questions(db, "s1", section_seconds=(600,), questions_per_section=[1])
     db.commit()
 
-    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, event.id, "PM-L2")
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
     attempt_id, token = started["attemptId"], started["sessionToken"]
     attempt_engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, f"practice-q-s1-1-1", "4")
     attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
