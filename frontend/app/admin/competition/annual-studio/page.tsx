@@ -26,6 +26,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import {
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   ClipboardList,
   Medal,
   Pencil,
@@ -325,6 +327,8 @@ export default function AdminAnnualCompetitionStudioPage() {
   // ---------------------------------------------------------------------
 
   const [PracticeResultsLevelFilter, SetPracticeResultsLevelFilter] = useState<string>("ALL");
+  const [PracticeResultsSearchText, SetPracticeResultsSearchText] = useState("");
+  const [ExpandedPracticeStudents, SetExpandedPracticeStudents] = useState<Set<string>>(new Set());
 
   const PracticeResultsQuery = useQuery({
     queryKey: ["admin", "annual-competition", "practice-results", PracticeResultsLevelFilter],
@@ -334,6 +338,43 @@ export default function AdminAnnualCompetitionStudioPage() {
       }),
     enabled: Ready && TopTab === "PRACTICE" && PracticeSubTab === "RESULTS",
   });
+
+  // 2026-09-14 (Shailesh): "if a single student will have multiple attempts,
+  // then how will the data here be handled? ... we need to figure a way out
+  // where we can see the data cleanly." Agreed fix: group by student
+  // (mirrors the Competition Mock Tracker's own StudentMockGroup pattern in
+  // admin/competition/mock-tracker/page.tsx), so every attempt a student has
+  // ever submitted collapses under one row instead of repeating their name.
+  // Practice never needs the Mock Tracker's extra Module/Level nesting --
+  // an Annual Competition level code (e.g. "PM-L2") is already the finest
+  // grain, there's no module/level split underneath it here.
+  const PracticeResultsFiltered = (PracticeResultsQuery.data?.rows || []).filter((Row) => {
+    const Term = PracticeResultsSearchText.trim().toLowerCase();
+    if (!Term) return true;
+    const Haystack = [Row.studentName, Row.studentCode, Row.competitionLevelCode, Row.paperLabel].join(" ").toLowerCase();
+    return Haystack.includes(Term);
+  });
+  const GroupedPracticeResults = (() => {
+    const StudentMap = new Map<string, { key: string; studentId: string; studentCode: string | null; studentName: string | null; rows: AnnualCompetitionPracticeResultRow[] }>();
+    PracticeResultsFiltered.forEach((Row) => {
+      const Key = Row.studentId;
+      if (!StudentMap.has(Key)) {
+        StudentMap.set(Key, { key: Key, studentId: Row.studentId, studentCode: Row.studentCode, studentName: Row.studentName, rows: [] });
+      }
+      StudentMap.get(Key)!.rows.push(Row);
+    });
+    return Array.from(StudentMap.values()).sort((Left, Right) =>
+      (Left.studentName || Left.studentCode || "").localeCompare(Right.studentName || Right.studentCode || "")
+    );
+  })();
+  function TogglePracticeStudentExpanded(Key: string) {
+    SetExpandedPracticeStudents((Prev) => {
+      const Next = new Set(Prev);
+      if (Next.has(Key)) Next.delete(Key);
+      else Next.add(Key);
+      return Next;
+    });
+  }
 
   if (!Ready) return null;
 
@@ -711,9 +752,9 @@ export default function AdminAnnualCompetitionStudioPage() {
                   <div className="mt-5"><LoadingState label="Loading students..." /></div>
                 ) : FilteredStudentRows.length > 0 ? (
                   <div className="mt-4 overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-left text-xs font-bold">
+                    <table className="w-full min-w-[760px] text-left text-sm font-bold">
                       <thead>
-                        <tr className="text-slate-500 dark:text-slate-400">
+                        <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                           <th className="px-2 py-1.5">
                             <input
                               type="checkbox"
@@ -771,6 +812,15 @@ export default function AdminAnnualCompetitionStudioPage() {
                   description="Never ranked, and always released to the student the instant it's computed -- a separate surface from any OFFICIAL event's own Rank &amp; Release list, and never scoped to any one event."
                 />
                 <div className="mt-4 flex flex-wrap items-end gap-3">
+                  <label className="flex items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
+                    <Search size={16} className="text-[color:var(--mp-role-primary)]" />
+                    <input
+                      value={PracticeResultsSearchText}
+                      onChange={(EventValue) => SetPracticeResultsSearchText(EventValue.target.value)}
+                      placeholder="Search student name or code"
+                      className="w-64 bg-transparent outline-none placeholder:text-slate-400"
+                    />
+                  </label>
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     Filter by Level
                     <select value={PracticeResultsLevelFilter} onChange={(EventValue) => SetPracticeResultsLevelFilter(EventValue.target.value)} className="math-input">
@@ -784,40 +834,79 @@ export default function AdminAnnualCompetitionStudioPage() {
 
                 {PracticeResultsQuery.isLoading ? (
                   <div className="mt-5"><LoadingState label="Loading practice results..." /></div>
-                ) : PracticeResultsQuery.data && PracticeResultsQuery.data.rows.length > 0 ? (
-                  <div className="mt-5 overflow-x-auto">
-                    <table className="w-full min-w-[820px] text-left text-xs font-bold">
-                      <thead>
-                        <tr className="text-slate-500 dark:text-slate-400">
-                          <th className="px-2 py-1.5">Student</th>
-                          <th className="px-2 py-1.5">Level</th>
-                          <th className="px-2 py-1.5">Accuracy</th>
-                          <th className="px-2 py-1.5">Score</th>
-                          <th className="px-2 py-1.5">Time Taken</th>
-                          <th className="px-2 py-1.5">Attempt</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {PracticeResultsQuery.data.rows.map((Row: AnnualCompetitionPracticeResultRow) => (
-                          <tr key={Row.resultId} className="border-t border-[color:var(--mp-role-border)]">
-                            <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                            <td className="px-2 py-2">{Row.competitionLevelCode}</td>
-                            <td className="px-2 py-2">{Row.accuracyPercentage}%</td>
-                            <td className="px-2 py-2">{Row.score}/{Row.maxScore}</td>
-                            <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
-                            <td className="px-2 py-2">
-                              <Link
-                                href={`/admin/competition/annual-result/${Row.attemptId}`}
-                                className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
-                              >
-                                <ClipboardList size={12} />
-                                View
-                              </Link>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                ) : GroupedPracticeResults.length > 0 ? (
+                  <div className="mt-5 space-y-3">
+                    {GroupedPracticeResults.map((StudentGroup) => {
+                      const StudentOpen = ExpandedPracticeStudents.has(StudentGroup.key);
+                      return (
+                        <div key={StudentGroup.key} className="overflow-hidden rounded-3xl border border-[#2563eb]/15 bg-white shadow-sm ring-1 ring-cyan-100/70 dark:border-cyan-300/15 dark:bg-slate-950/35 dark:ring-white/10">
+                          <button
+                            type="button"
+                            onClick={() => TogglePracticeStudentExpanded(StudentGroup.key)}
+                            className="flex w-full flex-col gap-3 bg-[#2563eb]/[0.025] px-4 py-4 text-left transition hover:bg-[#2563eb]/[0.055] sm:flex-row sm:items-center sm:justify-between dark:bg-cyan-400/5 dark:hover:bg-cyan-500/25"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#2563eb]/25 bg-white text-[#2563eb] shadow-sm ring-1 ring-[#2563eb]/10 dark:border-cyan-300/30 dark:bg-slate-950/50 dark:text-cyan-100 dark:ring-cyan-300/10">
+                                {StudentOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
+                              </span>
+                              <div className="min-w-0">
+                                <h3 className="truncate text-base font-black text-slate-950 dark:text-white">
+                                  {StudentGroup.studentName || StudentGroup.studentCode || StudentGroup.studentId}
+                                </h3>
+                                {StudentGroup.studentCode ? (
+                                  <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">{StudentGroup.studentCode}</p>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs font-black">
+                              <span className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
+                                {StudentGroup.rows.length} Attempt{StudentGroup.rows.length === 1 ? "" : "s"}
+                              </span>
+                            </div>
+                          </button>
+
+                          {StudentOpen ? (
+                            <div className="border-t border-[#2563eb]/10 p-3 dark:border-cyan-300/10">
+                              <div className="overflow-hidden rounded-2xl border border-[#2563eb]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
+                                <div className="math-admin-light-student-summary-header grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+                                  <span>Paper Name</span>
+                                  <span>Level</span>
+                                  <span>Accuracy</span>
+                                  <span>Score</span>
+                                  <span>Time Taken</span>
+                                  <span>Completed</span>
+                                  <span>Attempt</span>
+                                </div>
+                                <div className="divide-y divide-slate-100 dark:divide-white/10">
+                                  {StudentGroup.rows.map((Row) => (
+                                    <div
+                                      key={Row.resultId}
+                                      className="math-admin-light-student-summary-row grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr] items-center gap-3 px-5 py-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50/50 dark:text-slate-100 dark:hover:bg-slate-800/40"
+                                    >
+                                      <div className="font-black text-slate-950 dark:text-white">{Row.paperLabel}</div>
+                                      <div>{Row.competitionLevelCode}</div>
+                                      <div>{Row.accuracyPercentage}%</div>
+                                      <div>{Row.score}/{Row.maxScore}</div>
+                                      <div>{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</div>
+                                      <div>{FormatEventDate(Row.computedAt)}</div>
+                                      <div>
+                                        <Link
+                                          href={`/admin/competition/annual-result/${Row.attemptId}`}
+                                          className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+                                        >
+                                          <ClipboardList size={12} />
+                                          View
+                                        </Link>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="mt-5">

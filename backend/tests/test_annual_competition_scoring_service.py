@@ -1300,6 +1300,76 @@ def test_admin_practice_results_list_filters_by_student_id():
     assert result["rows"][0]["studentId"] == "sPracticeA"
 
 
+def test_admin_practice_results_list_carries_level_paper_id_and_paper_label():
+    # Shailesh, 2026-09-14: the admin Practice Results table needs a "Paper
+    # Name" column so multiple attempts by the same student read cleanly --
+    # this is the field it reads from.
+    db = _session()
+    _student(db, "sPractice")
+    db.commit()
+    _practice_result(db, "sPractice", "PM-L2")
+    db.commit()
+
+    result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db)
+    row = result["rows"][0]
+    assert row["levelPaperId"] == "practice-paper-sPractice"
+    assert row["paperOrdinal"] == 1
+    assert row["paperLabel"] == "Practice Paper 1"
+
+
+def test_admin_practice_results_list_labels_multiple_results_in_assignment_order():
+    # Two practice results for the SAME student -- must read "Practice
+    # Paper 1" / "Practice Paper 2" in the order their underlying papers
+    # were assigned (assigned_at ascending), regardless of which one the
+    # student happened to finish/get scored on first.
+    db = _session()
+    student = _student(db, "sPractice")
+    db.commit()
+
+    paper_1 = CompetitionEventLevelPaper(
+        id="paper-1", event_id=None, competition_level_code="PM-L2", paper_kind="PRACTICE",
+        status="READY", assigned_student_id=student.id,
+        assigned_at=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+    paper_2 = CompetitionEventLevelPaper(
+        id="paper-2", event_id=None, competition_level_code="PM-L2", paper_kind="PRACTICE",
+        status="READY", assigned_student_id=student.id,
+        assigned_at=datetime.now(timezone.utc),
+    )
+    db.add_all([paper_1, paper_2])
+    db.flush()
+
+    # Result for the SECOND (newer) paper gets computed/submitted first --
+    # computed_at order must not drive the paper label, only assigned_at.
+    attempt_2 = CompetitionEventAttempt(
+        id="attempt-2", event_id=None, assignment_id=None, level_paper_id=paper_2.id,
+        student_id=student.id, attempt_number=1, attempt_type="PRACTICE", status="FINALIZED",
+    )
+    attempt_1 = CompetitionEventAttempt(
+        id="attempt-1", event_id=None, assignment_id=None, level_paper_id=paper_1.id,
+        student_id=student.id, attempt_number=1, attempt_type="PRACTICE", status="FINALIZED",
+    )
+    db.add_all([attempt_2, attempt_1])
+    db.flush()
+
+    def _result(result_id, attempt_id):
+        return CompetitionEventResult(
+            id=result_id, attempt_id=attempt_id, event_id=None, assignment_id=None,
+            student_id=student.id, attempt_type="PRACTICE", competition_level_code="PM-L2",
+            score=1, max_score=1, percentage=100.0, accuracy_percentage=100.0,
+            correct_count=1, wrong_count=0, unanswered_count=0, time_taken_seconds=30, is_released=True,
+        )
+
+    db.add(_result("result-2", attempt_2.id))
+    db.add(_result("result-1", attempt_1.id))
+    db.commit()
+
+    result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db)
+    assert result["totalResults"] == 2
+    by_level_paper = {row["levelPaperId"]: row["paperLabel"] for row in result["rows"]}
+    assert by_level_paper == {"paper-1": "Practice Paper 1", "paper-2": "Practice Paper 2"}
+
+
 def test_admin_practice_results_list_spans_students_with_no_event_in_common():
     """2026-09-12 (Shailesh, decoupling): "the practice papers should not be
     related to any event whatsoever" -- confirms the admin list is a single,

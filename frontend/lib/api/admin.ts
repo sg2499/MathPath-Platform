@@ -2063,11 +2063,20 @@ export type AnnualCompetitionPracticeResultRow = {
   timeTakenSeconds: number | null;
   perSectionTime: Array<Record<string, unknown>>;
   rank: number | null;
+  computedAt: string | null;
   releasedAt: string | null;
   isVoided: boolean;
   voidedReason: string | null;
   voidedAt: string | null;
   attemptId: string;
+  // levelPaperId/paperOrdinal/paperLabel (2026-09-14, Shailesh -- "Practice
+  // Paper 1, 2 and so on"): stable per (student, competitionLevelCode)
+  // numbering computed server-side by ComputePracticePaperOrdinals, so it
+  // reads identically here and in the student/teacher surfaces -- never
+  // recompute this client-side.
+  levelPaperId: string | null;
+  paperOrdinal: number | null;
+  paperLabel: string;
   studentId: string;
   studentCode: string | null;
   studentName: string | null;

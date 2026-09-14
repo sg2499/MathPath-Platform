@@ -77,6 +77,7 @@ from app.models import (
     User,
 )
 from app.services.annual_competition_attempt_service import HEARTBEAT_GRACE_SECONDS
+from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals
 
 LIVE_STATUS_NOT_STARTED = "NOT_STARTED"
 LIVE_STATUS_IN_PROGRESS = "IN_PROGRESS"
@@ -361,15 +362,38 @@ def ListAnnualCompetitionPracticeResultsForRoster(
         Query = Query.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
     ResultRecords = Query.order_by(CompetitionEventResult.computed_at.desc()).all()
 
+    # Mirrors ListAnnualCompetitionPracticeResultsForAdmin's own levelPaperId
+    # lookup + ComputePracticePaperOrdinals call (annual_competition_scoring_
+    # service.py) exactly, so the "Paper Name" column reads identically for
+    # a teacher and an admin looking at the same student's practice history.
+    AttemptIds = [ResultRecord.attempt_id for ResultRecord in ResultRecords]
+    AttemptRecordsById = (
+        {
+            AttemptRecord.id: AttemptRecord
+            for AttemptRecord in db.query(CompetitionEventAttempt).filter(CompetitionEventAttempt.id.in_(AttemptIds)).all()
+        }
+        if AttemptIds
+        else {}
+    )
+    Ordinals = ComputePracticePaperOrdinals(
+        db, {(ResultRecord.student_id, ResultRecord.competition_level_code) for ResultRecord in ResultRecords}
+    )
+
     Rows: list[dict[str, Any]] = []
     for ResultRecord in ResultRecords:
         StudentRecord = db.get(Student, ResultRecord.student_id)
         if not StudentRecord:
             continue
         UserRecord = db.get(User, StudentRecord.user_id) if StudentRecord.user_id else None
+        AttemptRecord = AttemptRecordsById.get(ResultRecord.attempt_id)
+        LevelPaperId = AttemptRecord.level_paper_id if AttemptRecord else None
+        Ordinal = Ordinals.get(LevelPaperId) if LevelPaperId else None
         Rows.append(
             {
                 "attemptId": ResultRecord.attempt_id,
+                "levelPaperId": LevelPaperId,
+                "paperOrdinal": Ordinal,
+                "paperLabel": f"Practice Paper {Ordinal}" if Ordinal else "Practice Paper",
                 "studentId": StudentRecord.id,
                 "studentCode": StudentRecord.student_code,
                 "studentName": UserRecord.full_name if UserRecord else StudentRecord.student_code,

@@ -683,6 +683,13 @@ export async function getTeacherAnnualCompetitionResults(eventId: string, compet
 // the way the OFFICIAL row has, and no event scope either.
 export type TeacherAnnualCompetitionPracticeResultRow = {
   attemptId: string;
+  // levelPaperId/paperOrdinal/paperLabel (2026-09-14, Shailesh -- teacher
+  // Practice tab restructure): same stable "Practice Paper N" numbering the
+  // admin and student surfaces use, computed server-side -- see
+  // ComputePracticePaperOrdinals's own docstring on the backend.
+  levelPaperId: string | null;
+  paperOrdinal: number | null;
+  paperLabel: string;
   studentId: string;
   studentCode: string | null;
   studentName: string | null;

@@ -142,6 +142,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
 from app.services.answer_matching import answers_match
+from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals
 from app.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
@@ -1603,13 +1604,24 @@ def ListMyAnnualCompetitionPracticeAttempts(
         Query = Query.filter(CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode)
     Rows = Query.order_by(CompetitionEventAttempt.started_at.desc()).all()
 
+    # See ComputePracticePaperOrdinals's own docstring -- same "Practice
+    # Paper N" numbering every other practice surface uses, computed from
+    # every (student, level) scope actually present among these attempts.
+    Ordinals = ComputePracticePaperOrdinals(
+        db, {(StudentRecord.id, LevelPaperRecord.competition_level_code) for _, LevelPaperRecord in Rows}
+    )
+
     Attempts: list[dict[str, Any]] = []
     for AttemptRecord, LevelPaperRecord in Rows:
         ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).first()
+        Ordinal = Ordinals.get(LevelPaperRecord.id)
         Attempts.append(
             {
                 "attemptId": AttemptRecord.id,
+                "levelPaperId": LevelPaperRecord.id,
                 "competitionLevelCode": LevelPaperRecord.competition_level_code,
+                "paperOrdinal": Ordinal,
+                "paperLabel": f"Practice Paper {Ordinal}" if Ordinal else "Practice Paper",
                 "status": AttemptRecord.status,
                 "startedAt": AttemptRecord.started_at.isoformat() if AttemptRecord.started_at else None,
                 "submittedAt": AttemptRecord.submitted_at.isoformat() if AttemptRecord.submitted_at else None,

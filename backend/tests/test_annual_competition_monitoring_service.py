@@ -520,6 +520,22 @@ def test_practice_roster_results_filters_by_level_code():
     assert non_matching["totalResults"] == 0
 
 
+def test_practice_roster_results_carries_level_paper_id_and_paper_label():
+    # Shailesh, 2026-09-14 (teacher restructure): the teacher's grouped
+    # Practice table needs the same "Practice Paper N" column the admin one
+    # has -- must read identically for the two roles.
+    db = _session()
+    student = _student(db)
+    _practice_attempt_with_result(db, student.id)
+    db.commit()
+
+    result = engine.ListAnnualCompetitionPracticeResultsForRoster(db, StudentIdsFilter=[student.id])
+    row = result["rows"][0]
+    assert row["levelPaperId"] == f"practice-paper-{student.id}"
+    assert row["paperOrdinal"] == 1
+    assert row["paperLabel"] == "Practice Paper 1"
+
+
 def test_practice_roster_results_lists_every_result_for_a_student_not_just_the_latest():
     """Unlike OFFICIAL's one-row-per-assignment shape, a student can have
     MANY practice results overall (one per consumed bank paper) -- all of
