@@ -1045,9 +1045,9 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 <div className="mt-4"><LoadingState label="Computing preview..." /></div>
               ) : PreviewQuery.data && FilteredAssignmentRows.length > 0 ? (
                 <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[980px] text-left text-xs font-bold">
+                  <table className="w-full min-w-[980px] text-left text-sm font-bold">
                     <thead>
-                      <tr className="text-slate-500 dark:text-slate-400">
+                      <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                         <th className="px-2 py-1.5">
                           <input
                             type="checkbox"
@@ -1240,9 +1240,9 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 <div className="mt-4"><LoadingState label="Loading live status..." /></div>
               ) : LiveMonitoringQuery.data && LiveMonitoringQuery.data.rows.length > 0 ? (
                 <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[860px] text-left text-xs font-bold">
+                  <table className="w-full min-w-[860px] text-left text-sm font-bold">
                     <thead>
-                      <tr className="text-slate-500 dark:text-slate-400">
+                      <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                         <th className="px-2 py-1.5">Student</th>
                         <th className="px-2 py-1.5">Level</th>
                         <th className="px-2 py-1.5">Slot</th>
@@ -1363,7 +1363,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                       colgroup, not the browser's default auto-sizing, so every
                       header lines up with its column's cell content -- including
                       the pill buttons -- instead of drifting per row. */}
-                  <table className="w-full min-w-[1060px] table-fixed text-left text-xs font-bold">
+                  <table className="w-full min-w-[1060px] table-fixed text-left text-sm font-bold">
                     <colgroup>
                       <col className="w-[7%]" />
                       <col className="w-[15%]" />
@@ -1377,7 +1377,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                       <col className="w-[10%]" />
                     </colgroup>
                     <thead>
-                      <tr className="text-slate-500 dark:text-slate-400">
+                      <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                         <th className="px-2 py-1.5">Rank</th>
                         <th className="px-2 py-1.5">Student</th>
                         <th className="px-2 py-1.5">Level</th>

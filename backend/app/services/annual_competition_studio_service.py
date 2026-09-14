@@ -49,7 +49,7 @@ test_annual_competition_studio_service.py, not just eyeballed.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -958,13 +958,27 @@ def _GeneratePracticePapersForOneStudent(
         # related to any event whatsoever, its only for practice leading to
         # the main event"). See CompetitionEventLevelPaper.event_id's own
         # model comment for why the column is nullable now.
+        #
+        # 2026-09-14 (Shailesh, paper-naming stability fix): every paper
+        # created within ONE batch call used to share the exact same NowUtc
+        # value verbatim, which made assigned_at ties across a batch
+        # possible/likely -- fine for the bank's own "oldest first" FIFO
+        # consumption order (a stable DB row order still applies even on a
+        # tie), but not stable enough to be a numbering key, which is what
+        # "Practice Paper N" needs (see ComputePracticePaperOrdinals below --
+        # ties would make the assigned displayed number able to differ
+        # between two reads of the same data). Staggering by microseconds
+        # within the batch loop makes assigned_at itself a fully unique,
+        # deterministic, always-increasing sort key with no schema change
+        # and no behavior change to FIFO consumption (which already reads as
+        # "oldest assigned_at first").
         PracticePaperRecord = CompetitionEventLevelPaper(
             competition_level_code=CompetitionLevelCode,
             mock_exam_id=ExamPayload["mockExamId"],
             paper_kind="PRACTICE",
             assigned_student_id=StudentRecord.id,
             assigned_by_user_id=AssignedBy.id if AssignedBy else None,
-            assigned_at=NowUtc,
+            assigned_at=NowUtc + timedelta(microseconds=_Index),
         )
         db.add(PracticePaperRecord)
         db.flush()
@@ -973,6 +987,58 @@ def _GeneratePracticePapersForOneStudent(
         _RecomputeLevelPaperStatus(db, PracticePaperRecord)
         CreatedPapers.append(PracticePaperRecord)
     return CreatedPapers
+
+
+def ComputePracticePaperOrdinals(db: Session, Scopes: set[tuple[str, str]]) -> dict[str, int]:
+    """Shared, single source of truth for the "Practice Paper N" label
+    (Shailesh, 2026-09-14): "the consistency in naming must be followed and
+    it should not appear absurdly and without context" -- if a student gets
+    assigned 10 papers in one batch, then 15 more in a later batch, the
+    second batch must continue 11, 12, ... not restart at 1. That requires
+    numbering every paper by its position across ALL practice papers ever
+    assigned to that (student, competitionLevelCode) pair, ordered by
+    assigned_at ascending (now a fully stable, unique key -- see the
+    microsecond-stagger fix in _GeneratePracticePapersForOneStudent above),
+    never by anything scoped to one call/page/batch.
+
+    Scopes is a set of (assigned_student_id, competition_level_code) pairs
+    to compute ordinals for. Returns {level_paper_id: ordinal} (1-based)
+    covering every PRACTICE paper in each requested scope. Every surface
+    that shows a practice paper/attempt/result to a student, teacher, or
+    admin calls this same function (GetAnnualCompetitionPracticeBankForStudent
+    below, ListMyAnnualCompetitionPracticeAttempts, ListAnnualCompetitionPracticeResultsForAdmin,
+    ListAnnualCompetitionPracticeResultsForRoster) so the numbering can never
+    drift between them -- there is deliberately no per-caller numbering
+    logic anywhere else.
+    """
+    if not Scopes:
+        return {}
+    StudentIds = {StudentId for StudentId, _ in Scopes}
+    LevelCodes = {LevelCode for _, LevelCode in Scopes}
+    Rows = (
+        db.query(CompetitionEventLevelPaper)
+        .filter(
+            CompetitionEventLevelPaper.paper_kind == "PRACTICE",
+            CompetitionEventLevelPaper.assigned_student_id.in_(StudentIds),
+            CompetitionEventLevelPaper.competition_level_code.in_(LevelCodes),
+        )
+        .order_by(CompetitionEventLevelPaper.assigned_at.asc(), CompetitionEventLevelPaper.id.asc())
+        .all()
+    )
+    # The two .in_() filters above are an (any student in Scopes) x (any
+    # level in Scopes) superset -- e.g. asking for (StudentA, YLM-L1) can
+    # also pull back (StudentB, YLM-L1) rows. Re-checking exact scope
+    # membership here is what narrows it back down to precisely what was
+    # asked for.
+    Counters: dict[tuple[str, str], int] = {}
+    Ordinals: dict[str, int] = {}
+    for PaperRecord in Rows:
+        Scope = (PaperRecord.assigned_student_id, PaperRecord.competition_level_code)
+        if Scope not in Scopes:
+            continue
+        Counters[Scope] = Counters.get(Scope, 0) + 1
+        Ordinals[PaperRecord.id] = Counters[Scope]
+    return Ordinals
 
 
 def BatchAssignAnnualCompetitionPracticePapers(
@@ -1126,12 +1192,22 @@ def GetAnnualCompetitionPracticeBankForStudent(
         Query = Query.filter(CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode)
     PracticePapers = Query.order_by(CompetitionEventLevelPaper.assigned_at.asc()).all()
 
+    # See ComputePracticePaperOrdinals's own docstring -- computed here from
+    # every distinct (student, level) scope actually present in this
+    # listing (usually just one, since this function is normally called for
+    # one student, but a level-agnostic call still numbers each level
+    # independently, correctly).
+    Ordinals = ComputePracticePaperOrdinals(
+        db, {(PaperRecord.assigned_student_id, PaperRecord.competition_level_code) for PaperRecord in PracticePapers}
+    )
+
     Rows: list[dict[str, Any]] = []
     ConsumedCount = 0
     for PaperRecord in PracticePapers:
         IsConsumed = PaperRecord.consumed_at is not None
         if IsConsumed:
             ConsumedCount += 1
+        Ordinal = Ordinals.get(PaperRecord.id)
         Rows.append(
             {
                 "levelPaperId": PaperRecord.id,
@@ -1140,6 +1216,8 @@ def GetAnnualCompetitionPracticeBankForStudent(
                 "assignedAt": PaperRecord.assigned_at.isoformat() if PaperRecord.assigned_at else None,
                 "consumedAt": PaperRecord.consumed_at.isoformat() if PaperRecord.consumed_at else None,
                 "isConsumed": IsConsumed,
+                "paperOrdinal": Ordinal,
+                "paperLabel": f"Practice Paper {Ordinal}" if Ordinal else "Practice Paper",
             }
         )
 

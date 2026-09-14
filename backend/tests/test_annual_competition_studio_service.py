@@ -1437,6 +1437,64 @@ def test_get_practice_bank_returns_assigned_papers_with_correct_counts():
         assert row["competitionLevelCode"] == "PM-L2"
 
 
+def test_practice_bank_papers_are_numbered_practice_paper_n_in_assignment_order():
+    # Shailesh, 2026-09-14: "Practice Paper 1, 2 and so on" -- and a second
+    # batch assigned later to the same student/level must continue the
+    # numbering (11, 12, ...), never restart at 1. This also exercises the
+    # microsecond-stagger fix in _GeneratePracticePapersForOneStudent: every
+    # paper in ONE batch used to share byte-identical assigned_at, which
+    # would make this numbering unstable/non-deterministic without it.
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    student = _student(db, "s1", module_id=module.id, level_id=level.id)
+    db.commit()
+
+    studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=10, AssignedBy=admin,
+    )
+    studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
+    )
+
+    bank = studio.GetAnnualCompetitionPracticeBankForStudent(db, StudentId=student.id)
+    assert bank["totalAssigned"] == 15
+    ordinals = [row["paperOrdinal"] for row in bank["papers"]]
+    assert ordinals == list(range(1, 16)), ordinals
+    labels = [row["paperLabel"] for row in bank["papers"]]
+    assert labels == [f"Practice Paper {n}" for n in range(1, 16)]
+
+    # Re-reading must be stable -- the same paper always gets the same
+    # number, not just "a" 1..15 permutation.
+    bank_again = studio.GetAnnualCompetitionPracticeBankForStudent(db, StudentId=student.id)
+    assert [row["levelPaperId"] for row in bank_again["papers"]] == [row["levelPaperId"] for row in bank["papers"]]
+    assert [row["paperOrdinal"] for row in bank_again["papers"]] == ordinals
+
+
+def test_practice_paper_numbering_is_independent_per_level():
+    # Two different competition levels for the same student must each start
+    # their own numbering at 1 -- levels are entirely separate scopes.
+    db = _session()
+    module_pm, level_pm = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    module_im, level_im = _module_and_level(db, "IM", "IM-L1", "Intermediate Level 1")
+    admin = _admin(db)
+    student = _student(db, "s1", module_id=module_pm.id, level_id=level_pm.id)
+    db.commit()
+
+    studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
+    )
+    studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="IM-L1", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
+    )
+
+    bank = studio.GetAnnualCompetitionPracticeBankForStudent(db, StudentId=student.id)
+    pm_ordinals = sorted(row["paperOrdinal"] for row in bank["papers"] if row["competitionLevelCode"] == "PM-L2")
+    im_ordinals = sorted(row["paperOrdinal"] for row in bank["papers"] if row["competitionLevelCode"] == "IM-L1")
+    assert pm_ordinals == [1, 2, 3, 4, 5]
+    assert im_ordinals == [1, 2, 3, 4, 5]
+
+
 def test_get_practice_bank_reflects_consumed_papers():
     db = _session()
     module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")

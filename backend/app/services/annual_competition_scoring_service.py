@@ -78,6 +78,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
+from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals
 from app.models import (
     CompetitionEvent,
     CompetitionEventAttempt,
@@ -508,6 +509,7 @@ def _ResultPayload(ResultRecord: CompetitionEventResult) -> dict[str, Any]:
         "timeTakenSeconds": ResultRecord.time_taken_seconds,
         "perSectionTime": json.loads(ResultRecord.per_section_time_json) if ResultRecord.per_section_time_json else [],
         "rank": ResultRecord.rank,
+        "computedAt": ResultRecord.computed_at.isoformat() if ResultRecord.computed_at else None,
         "releasedAt": ResultRecord.released_at.isoformat() if ResultRecord.released_at else None,
         "isVoided": ResultRecord.is_voided,
         "voidedReason": ResultRecord.voided_reason,
@@ -701,13 +703,41 @@ def ListAnnualCompetitionPracticeResultsForAdmin(
         Query = Query.filter(CompetitionEventResult.student_id == StudentId)
     ResultRecords = Query.order_by(CompetitionEventResult.computed_at.desc()).all()
 
+    # levelPaperId isn't stored directly on CompetitionEventResult -- it
+    # lives on the attempt this result was computed from (see
+    # CompetitionEventAttempt.level_paper_id) -- one bulk fetch avoids an
+    # N+1 query per row.
+    AttemptIds = [ResultRecord.attempt_id for ResultRecord in ResultRecords]
+    AttemptRecordsById = (
+        {
+            AttemptRecord.id: AttemptRecord
+            for AttemptRecord in db.query(CompetitionEventAttempt).filter(CompetitionEventAttempt.id.in_(AttemptIds)).all()
+        }
+        if AttemptIds
+        else {}
+    )
+    # 2026-09-14 (Shailesh, admin/teacher Practice Results "Paper Name"
+    # column): same "Practice Paper N" ordinal every other practice surface
+    # uses -- see ComputePracticePaperOrdinals's own docstring. Scoped here
+    # to exactly the (student, level) pairs present among these results, not
+    # the whole platform.
+    Ordinals = ComputePracticePaperOrdinals(
+        db, {(ResultRecord.student_id, ResultRecord.competition_level_code) for ResultRecord in ResultRecords}
+    )
+
     Rows: list[dict[str, Any]] = []
     for ResultRecord in ResultRecords:
         StudentRecord = db.get(Student, ResultRecord.student_id)
+        AttemptRecord = AttemptRecordsById.get(ResultRecord.attempt_id)
+        LevelPaperId = AttemptRecord.level_paper_id if AttemptRecord else None
+        Ordinal = Ordinals.get(LevelPaperId) if LevelPaperId else None
         Rows.append(
             {
                 **_ResultPayload(ResultRecord),
                 "attemptId": ResultRecord.attempt_id,
+                "levelPaperId": LevelPaperId,
+                "paperOrdinal": Ordinal,
+                "paperLabel": f"Practice Paper {Ordinal}" if Ordinal else "Practice Paper",
                 "studentId": ResultRecord.student_id,
                 "studentCode": StudentRecord.student_code if StudentRecord else None,
                 "studentName": (StudentRecord.user.full_name if StudentRecord and StudentRecord.user else None),

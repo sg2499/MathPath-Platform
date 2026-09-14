@@ -773,6 +773,13 @@ export type AnnualCompetitionPracticeBankPaper = {
   assignedAt: string | null;
   consumedAt: string | null;
   isConsumed: boolean;
+  // paperOrdinal/paperLabel (2026-09-14, Shailesh -- "Practice Paper 1, 2
+  // and so on... it should not appear absurdly and without context"):
+  // stable position of this paper among every practice paper ever assigned
+  // to this student for this level, computed server-side so it can never
+  // drift from the same paper's label once it's later consumed/attempted.
+  paperOrdinal: number | null;
+  paperLabel: string;
 };
 
 export type AnnualCompetitionPracticeBank = {
@@ -812,7 +819,14 @@ export type AnnualCompetitionPracticeAttemptResult = {
 
 export type AnnualCompetitionPracticeAttemptRow = {
   attemptId: string;
+  // levelPaperId is the join key back to a bank paper (see
+  // AnnualCompetitionPracticeBankPaper.levelPaperId above) -- what lets the
+  // unified practice-papers table merge "still pending" bank rows with
+  // "already attempted" rows into one assignment-ordered list.
+  levelPaperId: string;
   competitionLevelCode: string;
+  paperOrdinal: number | null;
+  paperLabel: string;
   status: string;
   startedAt: string | null;
   submittedAt: string | null;

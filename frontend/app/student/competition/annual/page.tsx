@@ -8,12 +8,14 @@ import { Chip } from "@/components/common/DetailWorkspaceViews";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
+  getAnnualCompetitionPracticeBank,
   getMyAnnualCompetitionAssignments,
   getMyAnnualCompetitionPracticeAttempts,
   getMyAnnualCompetitionPracticeScopes,
   startAnnualCompetitionAttempt,
   startAnnualCompetitionPracticeAttempt,
   type AnnualCompetitionAssignmentForStudent,
+  type AnnualCompetitionPracticeAttemptRow,
   type AnnualCompetitionPracticeScope,
 } from "@/lib/api/student";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -236,10 +238,17 @@ function AssignmentCard({
 // history, no slot/no retake-blocking), not a variant of the official flow.
 type AnnualCompetitionTab = "OFFICIAL" | "PRACTICE";
 
-function TabButton({ active, label, icon, onClick }: { active: boolean; label: string; icon: React.ReactNode; onClick: () => void }) {
+// 2026-09-14 (Shailesh): "the icon and wordings look crammed and weird
+// instead of clean and professional just like all the other tabs in the
+// student login" -- confirmed root cause: .math-role-tab (globals.css) is a
+// plain rounded pill with no `gap` defined, and every other consumer of
+// this class (ReviewTabButton on this same attempt page, ResultTabButton in
+// the admin/teacher mock-result pages) passes plain text only, never an
+// icon+label pair. Dropping the icon here brings this tab pair in line with
+// that same convention instead of inventing a one-off crammed layout.
+function TabButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className={active ? "math-role-tab math-role-tab-active" : "math-role-tab"}>
-      {icon}
       {label}
     </button>
   );
@@ -265,10 +274,45 @@ function TabButton({ active, label, icon, onClick }: { active: boolean; label: s
 // totalAssigned/consumedCount/remainingCount per scope), so starting a
 // paper just invalidates the parent scopes query (see
 // AnnualCompetitionContent) to pick up any count change.
+//
+// 2026-09-14 (Shailesh, unified practice table): "show all the assigned
+// papers to a particular student order wise just like they see for mocks
+// and dps papers... with the start button and status set to pending and
+// once completed it should show the status as submitted and the action
+// button should be view instead of start." Built by merging two already-
+// existing lists on levelPaperId: getAnnualCompetitionPracticeBank (every
+// paper ever assigned, oldest first, each carrying its stable "Practice
+// Paper N" label) and getMyAnnualCompetitionPracticeAttempts (every attempt
+// ever started against one of those papers). A bank paper with no matching
+// attempt is Pending; IN_PROGRESS -> Resume; SUBMITTED/FINALIZED ->
+// Submitted/View.
+//
+// One real constraint this table has to respect honestly: unlike Mock/DPS
+// (where each row is its own independently startable paper),
+// startAnnualCompetitionPracticeAttempt has no "start THIS specific paper"
+// parameter -- it always resumes the one in-progress attempt if one exists,
+// otherwise draws whichever unconsumed bank paper has the oldest
+// assigned_at (FIFO -- see that function's own docstring on the backend).
+// Since a student can only ever have at most one open (unsubmitted)
+// practice attempt at a time (starting again just resumes it rather than
+// drawing a second paper -- confirmed via
+// test_practice_abandoned_in_progress_attempt_is_not_consumed_and_still_
+// resumes), the row order guarantees every row before that "current" one is
+// already Submitted and every row after it is genuinely untouched. So the
+// Start action only ever needs to appear on ONE row -- the in-progress one
+// if there is one (as Resume), otherwise the single earliest Pending row --
+// with every other Pending row shown as a queued "Pending" row with no
+// button, rather than a misleading Start button that would silently start
+// a different paper than the one clicked.
 function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const levelCode = scope.competitionLevelCode;
+
+  const bankQuery = useQuery({
+    queryKey: ["student-annual-competition-practice-bank", levelCode],
+    queryFn: () => getAnnualCompetitionPracticeBank(levelCode),
+  });
 
   const attemptsQuery = useQuery({
     queryKey: ["student-annual-competition-practice-attempts", levelCode],
@@ -280,13 +324,21 @@ function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }
     onSuccess: (attempt) => {
       queryClient.invalidateQueries({ queryKey: ["student-annual-competition-practice-scopes"] });
       queryClient.invalidateQueries({ queryKey: ["student-annual-competition-practice-attempts", levelCode] });
+      queryClient.invalidateQueries({ queryKey: ["student-annual-competition-practice-bank", levelCode] });
       router.push(`/student/competition/annual/attempt/${attempt.attemptId}`);
     },
   });
 
-  const inProgressAttempt = attemptsQuery.data?.attempts.find((row) => row.status === "IN_PROGRESS");
   const remainingCount = scope.remainingCount;
-  const submittedAttempts = (attemptsQuery.data?.attempts || []).filter((row) => row.status !== "IN_PROGRESS");
+  const attemptsByLevelPaperId = new Map<string, AnnualCompetitionPracticeAttemptRow>(
+    (attemptsQuery.data?.attempts || []).map((row) => [row.levelPaperId, row])
+  );
+  const bankPapers = bankQuery.data?.papers || [];
+  const inProgressAttempt = attemptsQuery.data?.attempts.find((row) => row.status === "IN_PROGRESS");
+  const firstUntouchedIndex = inProgressAttempt
+    ? -1
+    : bankPapers.findIndex((paper) => !attemptsByLevelPaperId.has(paper.levelPaperId));
+  const isLoading = bankQuery.isLoading || attemptsQuery.isLoading;
 
   return (
     <div className="math-card p-6">
@@ -300,52 +352,42 @@ function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }
               {remainingCount} Paper{remainingCount === 1 ? "" : "s"} Remaining
             </Chip>
           </div>
-          <p className="mt-3 max-w-2xl text-sm font-bold text-slate-600 dark:text-slate-300">
+          {/* 2026-09-14 (Shailesh): "the text there again appears where it
+              goes to the next line while having ample space on the same" --
+              root cause was this max-w-2xl artificially narrowing the
+              paragraph well short of the card's real width; math-subtitle
+              elsewhere on this same page uses max-w-none for exactly this
+              reason, so this paragraph now matches that convention instead
+              of wrapping early. */}
+          <p className="mt-3 max-w-none text-sm font-bold text-slate-600 dark:text-slate-300">
             Practice papers to help you prepare for the Annual Competition -- not the Annual Competition itself, and not
             tied to any specific event. Always freshly generated, no retakes once submitted, and results are visible to
             you immediately.
           </p>
         </div>
-        <div className="flex shrink-0 flex-col items-start gap-2 lg:items-end">
-          {inProgressAttempt ? (
-            <button
-              className="math-role-action-button h-10 px-4 text-sm"
-              onClick={() => router.push(`/student/competition/annual/attempt/${inProgressAttempt.attemptId}`)}
-            >
-              <PlayCircle size={16} />
-              Resume Practice Attempt
-            </button>
-          ) : (
-            <button
-              className="math-role-action-button h-10 px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={startMutation.isPending || !remainingCount}
-              onClick={() => startMutation.mutate()}
-            >
-              <Repeat size={16} />
-              {startMutation.isPending ? "Starting..." : "Start Next Practice Paper"}
-            </button>
-          )}
-          {!remainingCount ? (
+        {!remainingCount && !inProgressAttempt ? (
+          <div className="flex shrink-0 flex-col items-start gap-2 lg:items-end">
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
               No practice papers left -- ask your teacher/admin to assign more.
             </p>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
 
       {startMutation.error ? <div className="mt-4"><ErrorState message={apiErrorMessage(startMutation.error)} /></div> : null}
 
       <div className="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
-        <p className="math-block-header mb-3"><History size={14} /> Submitted Practice History</p>
-        {attemptsQuery.isLoading ? (
-          <LoadingState label="Loading practice history..." />
-        ) : submittedAttempts.length === 0 ? (
-          <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No practice papers submitted yet.</p>
+        <p className="math-block-header mb-3"><History size={14} /> Practice Papers</p>
+        {isLoading ? (
+          <LoadingState label="Loading your practice papers..." />
+        ) : bankPapers.length === 0 ? (
+          <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No practice papers assigned yet.</p>
         ) : (
           <div className="math-table overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead className="border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
                 <tr>
+                  <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Paper Name</th>
                   <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Status</th>
                   <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Score</th>
                   <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Accuracy</th>
@@ -355,40 +397,67 @@ function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {submittedAttempts.map((row) => {
-                  const result = row.result;
+                {bankPapers.map((paper, index) => {
+                  const attempt = attemptsByLevelPaperId.get(paper.levelPaperId);
+                  const isInProgress = attempt?.status === "IN_PROGRESS";
+                  const isSubmitted = attempt && !isInProgress;
+                  const isNextToStart = !attempt && index === firstUntouchedIndex;
+                  const result = attempt?.result;
                   const accuracy = result ? Number(result.accuracyPercentage ?? result.percentage) : null;
+
                   return (
-                    <tr key={row.attemptId}>
+                    <tr key={paper.levelPaperId}>
+                      <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{paper.paperLabel}</td>
                       <td className="px-4 py-4">
-                        <Chip tone={row.status === "SUBMITTED" || row.status === "FINALIZED" ? "green" : "slate"}>
-                          {row.status === "SUBMITTED" || row.status === "FINALIZED" ? "Submitted" : row.status}
+                        <Chip tone={isSubmitted ? "green" : isInProgress ? "amber" : "slate"}>
+                          {isSubmitted ? "Submitted" : isInProgress ? "In Progress" : "Pending"}
                         </Chip>
                       </td>
                       <td className="px-4 py-4 font-black">
                         <Chip tone={ScoreChipTone(accuracy)}>
-                          {result ? FormatScore(result.score, result.maxScore) : "-"}
+                          {isSubmitted && result ? FormatScore(result.score, result.maxScore) : "-"}
                         </Chip>
                       </td>
                       <td className="px-4 py-4 font-black">
                         <Chip tone={AccuracyChipTone(accuracy)}>
-                          {accuracy === null || Number.isNaN(accuracy) ? "-" : `${FormatScore(accuracy)}%`}
+                          {isSubmitted && accuracy !== null && !Number.isNaN(accuracy) ? `${FormatScore(accuracy)}%` : "-"}
                         </Chip>
                       </td>
                       <td className="px-4 py-4 font-black text-slate-950 dark:text-white">
-                        {FormatDuration(result?.timeTakenSeconds)}
+                        {isSubmitted ? FormatDuration(result?.timeTakenSeconds) : "-"}
                       </td>
                       <td className="px-4 py-4 font-black text-slate-950 dark:text-white">
-                        {FormatDateTime(row.submittedAt || row.startedAt)}
+                        {isSubmitted ? FormatDateTime(attempt?.submittedAt || attempt?.startedAt) : "-"}
                       </td>
                       <td className="px-4 py-4">
-                        <button
-                          className="math-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
-                          onClick={() => router.push(`/student/competition/annual/attempt/${row.attemptId}`)}
-                        >
-                          <Eye size={13} />
-                          View
-                        </button>
+                        {isSubmitted ? (
+                          <button
+                            className="math-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                            onClick={() => router.push(`/student/competition/annual/attempt/${attempt!.attemptId}`)}
+                          >
+                            <Eye size={13} />
+                            View
+                          </button>
+                        ) : isInProgress ? (
+                          <button
+                            className="math-role-action-button h-8 px-3 text-xs"
+                            onClick={() => router.push(`/student/competition/annual/attempt/${attempt!.attemptId}`)}
+                          >
+                            <PlayCircle size={13} />
+                            Resume
+                          </button>
+                        ) : isNextToStart ? (
+                          <button
+                            className="math-role-action-button h-8 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={startMutation.isPending}
+                            onClick={() => startMutation.mutate()}
+                          >
+                            <Repeat size={13} />
+                            {startMutation.isPending ? "Starting..." : "Start"}
+                          </button>
+                        ) : (
+                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500">--</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -465,8 +534,8 @@ function AnnualCompetitionContent() {
 
         <div className="math-card p-2">
           <div className="flex flex-wrap gap-2">
-            <TabButton active={ActiveTab === "OFFICIAL"} label="Official" icon={<Trophy size={14} />} onClick={() => SetActiveTab("OFFICIAL")} />
-            <TabButton active={ActiveTab === "PRACTICE"} label="Practice" icon={<Repeat size={14} />} onClick={() => SetActiveTab("PRACTICE")} />
+            <TabButton active={ActiveTab === "OFFICIAL"} label="Official" onClick={() => SetActiveTab("OFFICIAL")} />
+            <TabButton active={ActiveTab === "PRACTICE"} label="Practice" onClick={() => SetActiveTab("PRACTICE")} />
           </div>
         </div>
 

@@ -17,7 +17,7 @@ import {
   type TeacherAnnualCompetitionResultRow,
 } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, CalendarClock, Medal, Repeat, RefreshCcw, Trophy } from "lucide-react";
+import { Activity, CalendarClock, ChevronDown, ChevronRight, Medal, Repeat, RefreshCcw, Search, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
 
 // Read-only by design -- Teacher: monitor/review only, no assign/rank/
@@ -53,30 +53,41 @@ function LiveStatusChip({ status }: { status: TeacherAnnualCompetitionLiveRow["l
   return <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${LiveStatusTone[status]}`}>{status.replace("_", " ")}</span>;
 }
 
-// Phase H: PRACTICE added as its own tab -- practice results are always a
-// separately-scoped surface, never mixed into the OFFICIAL Results tab
-// (see ListAnnualCompetitionPracticeResultsForRoster's own docstring on the
-// backend, and Phase B's original "practice results get their own,
-// separately-scoped admin surface" comment this whole feature has followed
-// on the admin and student sides alike). 2026-09-14 (full event decoupling,
-// point 9): PRACTICE used to share the one Event dropdown with LIVE/RESULTS,
-// which meant it silently passed an eventId into
-// getTeacherAnnualCompetitionPracticeResults as if it were a level-code
-// filter (wrong value, and a no-op filter since practice results carry no
-// event at all -- see that function's own docstring on lib/api/teacher.ts),
-// and made the whole Practice tab unreachable whenever no OFFICIAL event
-// existed yet. PRACTICE is now fully independent: its own level-code filter,
-// gated on nothing but the tab being active, and the tab switcher itself no
-// longer lives inside the "Events.length > 0" gate that only LIVE/RESULTS
-// actually need.
-const TabList = ["LIVE", "RESULTS", "PRACTICE"] as const;
-type TabKey = (typeof TabList)[number];
+// 2026-09-14 (Shailesh, Official/Practice restructure): "it should also
+// have the proper separation that is it should have 2 tabs just like the
+// student login which will say official and practice. under the official
+// tab it should have the sub tabs Live Status and Results ... and the
+// second sub tab should be Practice under which the teacher should see the
+// same grouped student table." Mirrors the student page's top-level
+// Official/Practice split (app/student/competition/annual/page.tsx) exactly
+// -- same plain-text .math-role-tab convention, no icons -- with LIVE/
+// RESULTS demoted to sub-tabs of Official (unchanged content, just nested
+// one level down) and PRACTICE promoted to its own top-level tab instead of
+// sitting flat alongside them.
+//
+// Practice results are always a separately-scoped surface, never mixed
+// into the OFFICIAL Results tab (see ListAnnualCompetitionPracticeResultsForRoster's
+// own docstring on the backend, and Phase B's original "practice results
+// get their own, separately-scoped admin surface" comment this whole
+// feature has followed on the admin and student sides alike). It is fully
+// independent of SelectedEventId/Events -- practice is never scoped to any
+// event, so this tab works even before Admin has created a single OFFICIAL
+// event, and its own level-code filter is gated on nothing but the tab
+// being active.
+const TopTabList = ["OFFICIAL", "PRACTICE"] as const;
+type TopTabKey = (typeof TopTabList)[number];
+
+const OfficialSubTabList = ["LIVE", "RESULTS"] as const;
+type OfficialSubTabKey = (typeof OfficialSubTabList)[number];
 
 export default function TeacherAnnualCompetitionMonitorPage() {
   const Ready = useProtectedPage(["TEACHER"]);
   const [SelectedEventId, SetSelectedEventId] = useState<string>("");
-  const [ActiveTab, SetActiveTab] = useState<TabKey>("LIVE");
+  const [TopTab, SetTopTab] = useState<TopTabKey>("OFFICIAL");
+  const [ActiveTab, SetActiveTab] = useState<OfficialSubTabKey>("LIVE");
   const [PracticeLevelFilter, SetPracticeLevelFilter] = useState<string>("ALL");
+  const [PracticeSearchText, SetPracticeSearchText] = useState("");
+  const [ExpandedPracticeStudents, SetExpandedPracticeStudents] = useState<Set<string>>(new Set());
 
   const EventsQuery = useQuery({
     queryKey: ["teacher", "annual-competition", "events"],
@@ -94,14 +105,14 @@ export default function TeacherAnnualCompetitionMonitorPage() {
   const LiveQuery = useQuery({
     queryKey: ["teacher", "annual-competition", "live", SelectedEventId],
     queryFn: () => getTeacherAnnualCompetitionLive(SelectedEventId),
-    enabled: Ready && Boolean(SelectedEventId) && ActiveTab === "LIVE",
-    refetchInterval: ActiveTab === "LIVE" ? 15000 : false,
+    enabled: Ready && Boolean(SelectedEventId) && TopTab === "OFFICIAL" && ActiveTab === "LIVE",
+    refetchInterval: TopTab === "OFFICIAL" && ActiveTab === "LIVE" ? 15000 : false,
   });
 
   const ResultsQuery = useQuery({
     queryKey: ["teacher", "annual-competition", "results", SelectedEventId],
     queryFn: () => getTeacherAnnualCompetitionResults(SelectedEventId),
-    enabled: Ready && Boolean(SelectedEventId) && ActiveTab === "RESULTS",
+    enabled: Ready && Boolean(SelectedEventId) && TopTab === "OFFICIAL" && ActiveTab === "RESULTS",
   });
 
   // Fully independent of SelectedEventId/Events -- practice is never scoped
@@ -110,8 +121,43 @@ export default function TeacherAnnualCompetitionMonitorPage() {
   const PracticeQuery = useQuery({
     queryKey: ["teacher", "annual-competition", "practice-results", PracticeLevelFilter],
     queryFn: () => getTeacherAnnualCompetitionPracticeResults(PracticeLevelFilter === "ALL" ? undefined : PracticeLevelFilter),
-    enabled: Ready && ActiveTab === "PRACTICE",
+    enabled: Ready && TopTab === "PRACTICE",
   });
+
+  // 2026-09-14 (Shailesh): same student-grouped view as the admin Practice
+  // Results tab (admin/competition/annual-studio/page.tsx) -- "the teacher
+  // should see the same grouped student table with all their practice
+  // attempts in one place along with the search bar and module-level
+  // filters." Level filtering happens server-side (PracticeLevelFilter,
+  // above); search is client-side across the already-fetched page, same as
+  // admin's.
+  const PracticeFiltered = (PracticeQuery.data?.rows || []).filter((Row) => {
+    const Term = PracticeSearchText.trim().toLowerCase();
+    if (!Term) return true;
+    const Haystack = [Row.studentName, Row.studentCode, Row.competitionLevelCode, Row.paperLabel].join(" ").toLowerCase();
+    return Haystack.includes(Term);
+  });
+  const GroupedPracticeResults = (() => {
+    const StudentMap = new Map<string, { key: string; studentId: string; studentCode: string | null; studentName: string | null; rows: TeacherAnnualCompetitionPracticeResultRow[] }>();
+    PracticeFiltered.forEach((Row) => {
+      const Key = Row.studentId;
+      if (!StudentMap.has(Key)) {
+        StudentMap.set(Key, { key: Key, studentId: Row.studentId, studentCode: Row.studentCode, studentName: Row.studentName, rows: [] });
+      }
+      StudentMap.get(Key)!.rows.push(Row);
+    });
+    return Array.from(StudentMap.values()).sort((Left, Right) =>
+      (Left.studentName || Left.studentCode || "").localeCompare(Right.studentName || Right.studentCode || "")
+    );
+  })();
+  function TogglePracticeStudentExpanded(Key: string) {
+    SetExpandedPracticeStudents((Prev) => {
+      const Next = new Set(Prev);
+      if (Next.has(Key)) Next.delete(Key);
+      else Next.add(Key);
+      return Next;
+    });
+  }
 
   if (!Ready) return null;
 
@@ -127,22 +173,51 @@ export default function TeacherAnnualCompetitionMonitorPage() {
           </p>
         </div>
 
+        {/* Top-level Official/Practice split -- mirrors the student page's
+            own .math-role-tab convention exactly (plain text, no icon). */}
+        <div className="math-card p-2">
+          <div className="flex flex-wrap gap-2">
+            {TopTabList.map((Tab) => (
+              <button
+                key={Tab}
+                type="button"
+                onClick={() => SetTopTab(Tab)}
+                aria-selected={TopTab === Tab}
+                className={TopTab === Tab ? "math-role-tab math-role-tab-active" : "math-role-tab"}
+              >
+                {Tab === "OFFICIAL" ? "Official" : "Practice"}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="math-card p-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
-            {ActiveTab === "PRACTICE" ? (
-              <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                Level
-                <select
-                  value={PracticeLevelFilter}
-                  onChange={(EventValue) => SetPracticeLevelFilter(EventValue.target.value)}
-                  className="math-input min-w-[200px]"
-                >
-                  <option value="ALL">All Levels</option>
-                  {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                    <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
-                  ))}
-                </select>
-              </label>
+            {TopTab === "PRACTICE" ? (
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="flex items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
+                  <Search size={16} className="text-[color:var(--mp-role-primary)]" />
+                  <input
+                    value={PracticeSearchText}
+                    onChange={(EventValue) => SetPracticeSearchText(EventValue.target.value)}
+                    placeholder="Search student name or code"
+                    className="w-64 bg-transparent outline-none placeholder:text-slate-400"
+                  />
+                </label>
+                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                  Level
+                  <select
+                    value={PracticeLevelFilter}
+                    onChange={(EventValue) => SetPracticeLevelFilter(EventValue.target.value)}
+                    className="math-input min-w-[200px]"
+                  >
+                    <option value="ALL">All Levels</option>
+                    {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             ) : Events.length > 0 ? (
               <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                 Event
@@ -157,23 +232,25 @@ export default function TeacherAnnualCompetitionMonitorPage() {
             ) : (
               <span />
             )}
-            <div className="flex flex-wrap gap-3">
-              {TabList.map((Tab) => (
-                <button
-                  key={Tab}
-                  type="button"
-                  onClick={() => SetActiveTab(Tab)}
-                  aria-selected={ActiveTab === Tab}
-                  className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${ActiveTab === Tab ? "is-active" : ""}`}
-                >
-                  {Tab === "LIVE" ? "Live Status" : Tab === "RESULTS" ? "Results" : "Practice"}
-                </button>
-              ))}
-            </div>
+            {TopTab === "OFFICIAL" ? (
+              <div className="flex flex-wrap gap-3">
+                {OfficialSubTabList.map((Tab) => (
+                  <button
+                    key={Tab}
+                    type="button"
+                    onClick={() => SetActiveTab(Tab)}
+                    aria-selected={ActiveTab === Tab}
+                    className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${ActiveTab === Tab ? "is-active" : ""}`}
+                  >
+                    {Tab === "LIVE" ? "Live Status" : "Results"}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
 
-        {(ActiveTab === "LIVE" || ActiveTab === "RESULTS") && (
+        {TopTab === "OFFICIAL" && (ActiveTab === "LIVE" || ActiveTab === "RESULTS") && (
           EventsQuery.isLoading ? (
             <LoadingState label="Loading Annual Competition events..." />
           ) : EventsQuery.error ? (
@@ -215,9 +292,9 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                   <div className="mt-4"><ErrorState message={apiErrorMessage(LiveQuery.error)} /></div>
                 ) : LiveQuery.data && LiveQuery.data.rows.length > 0 ? (
                   <div className="mt-4 overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-left text-xs font-bold">
+                    <table className="w-full min-w-[760px] text-left text-sm font-bold">
                       <thead>
-                        <tr className="text-slate-500 dark:text-slate-400">
+                        <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                           <th className="px-2 py-1.5">Student</th>
                           <th className="px-2 py-1.5">Level</th>
                           <th className="px-2 py-1.5">Slot</th>
@@ -261,9 +338,9 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                   <div className="mt-4"><ErrorState message={apiErrorMessage(ResultsQuery.error)} /></div>
                 ) : ResultsQuery.data && ResultsQuery.data.rows.length > 0 ? (
                   <div className="mt-4 overflow-x-auto">
-                    <table className="w-full min-w-[680px] text-left text-xs font-bold">
+                    <table className="w-full min-w-[680px] text-left text-sm font-bold">
                       <thead>
-                        <tr className="text-slate-500 dark:text-slate-400">
+                        <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                           <th className="px-2 py-1.5">Student</th>
                           <th className="px-2 py-1.5">Level</th>
                           <th className="px-2 py-1.5">Rank</th>
@@ -303,7 +380,7 @@ export default function TeacherAnnualCompetitionMonitorPage() {
           )
         )}
 
-        {ActiveTab === "PRACTICE" && (
+        {TopTab === "PRACTICE" && (
               <div className="math-card p-5">
                 <p className="math-block-header"><Repeat size={14} />Practice</p>
                 <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -322,32 +399,75 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                   <div className="mt-4"><LoadingState label="Loading practice results..." /></div>
                 ) : PracticeQuery.error ? (
                   <div className="mt-4"><ErrorState message={apiErrorMessage(PracticeQuery.error)} /></div>
-                ) : PracticeQuery.data && PracticeQuery.data.rows.length > 0 ? (
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="w-full min-w-[680px] text-left text-xs font-bold">
-                      <thead>
-                        <tr className="text-slate-500 dark:text-slate-400">
-                          <th className="px-2 py-1.5">Student</th>
-                          <th className="px-2 py-1.5">Level</th>
-                          <th className="px-2 py-1.5">Accuracy</th>
-                          <th className="px-2 py-1.5">Score</th>
-                          <th className="px-2 py-1.5">Time Taken</th>
-                          <th className="px-2 py-1.5">Completed</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {PracticeQuery.data.rows.map((Row: TeacherAnnualCompetitionPracticeResultRow) => (
-                          <tr key={Row.attemptId} className="border-t border-[color:var(--mp-role-border)]">
-                            <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                            <td className="px-2 py-2">{Row.competitionLevelCode}</td>
-                            <td className="px-2 py-2">{Row.accuracyPercentage}%</td>
-                            <td className="px-2 py-2">{Row.score}/{Row.maxScore}</td>
-                            <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
-                            <td className="px-2 py-2">{FormatEventDate(Row.computedAt)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                ) : GroupedPracticeResults.length > 0 ? (
+                  <div className="mt-4 space-y-3">
+                    {/* 2026-09-14 (Shailesh): "the teacher should see the same
+                        grouped student table with all their practice attempts
+                        in one place" -- same collapsible-by-student pattern as
+                        the admin Practice Results tab
+                        (admin/competition/annual-studio/page.tsx), just
+                        without the View-attempt link (teacher's Annual
+                        Competition monitor is review-only, same as every
+                        other table on this page). */}
+                    {GroupedPracticeResults.map((StudentGroup) => {
+                      const StudentOpen = ExpandedPracticeStudents.has(StudentGroup.key);
+                      return (
+                        <div key={StudentGroup.key} className="overflow-hidden rounded-3xl border border-[color:var(--mp-role-border)] bg-white shadow-sm dark:bg-slate-950/35">
+                          <button
+                            type="button"
+                            onClick={() => TogglePracticeStudentExpanded(StudentGroup.key)}
+                            className="flex w-full flex-col gap-3 bg-slate-50/60 px-4 py-4 text-left transition hover:bg-slate-100/70 sm:flex-row sm:items-center sm:justify-between dark:bg-white/5 dark:hover:bg-white/10"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[color:var(--mp-role-border)] bg-white text-[color:var(--mp-role-primary)] shadow-sm dark:bg-slate-950/50">
+                                {StudentOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
+                              </span>
+                              <div className="min-w-0">
+                                <h3 className="truncate text-base font-black text-slate-950 dark:text-white">
+                                  {StudentGroup.studentName || StudentGroup.studentCode || StudentGroup.studentId}
+                                </h3>
+                                {StudentGroup.studentCode ? (
+                                  <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[color:var(--mp-role-primary)]">{StudentGroup.studentCode}</p>
+                                ) : null}
+                              </div>
+                            </div>
+                            <span className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
+                              {StudentGroup.rows.length} Attempt{StudentGroup.rows.length === 1 ? "" : "s"}
+                            </span>
+                          </button>
+
+                          {StudentOpen ? (
+                            <div className="border-t border-[color:var(--mp-role-border)] p-3">
+                              <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)] bg-white shadow-sm dark:bg-slate-950/35">
+                                <div className="grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+                                  <span>Paper Name</span>
+                                  <span>Level</span>
+                                  <span>Accuracy</span>
+                                  <span>Score</span>
+                                  <span>Time Taken</span>
+                                  <span>Completed</span>
+                                </div>
+                                <div className="divide-y divide-slate-100 dark:divide-white/10">
+                                  {StudentGroup.rows.map((Row) => (
+                                    <div
+                                      key={Row.attemptId}
+                                      className="grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr] items-center gap-3 px-5 py-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50/50 dark:text-slate-100 dark:hover:bg-slate-800/40"
+                                    >
+                                      <div className="font-black text-slate-950 dark:text-white">{Row.paperLabel}</div>
+                                      <div>{Row.competitionLevelCode}</div>
+                                      <div>{Row.accuracyPercentage}%</div>
+                                      <div>{Row.score}/{Row.maxScore}</div>
+                                      <div>{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</div>
+                                      <div>{FormatEventDate(Row.computedAt)}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="mt-4">

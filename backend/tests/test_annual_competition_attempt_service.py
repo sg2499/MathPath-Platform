@@ -1029,6 +1029,52 @@ def test_practice_history_includes_a_still_in_progress_attempt():
     assert row["result"] is None
 
 
+def test_practice_history_row_carries_stable_paper_label_matching_the_bank():
+    # Shailesh, 2026-09-14: the practice history table needs a paper-name
+    # column ("right now it only shows the details for the paper and not
+    # the name which will become very confusing to the child") -- and that
+    # label has to be the exact same "Practice Paper N" a still-pending bank
+    # paper would show, computed by the shared
+    # annual_competition_studio_service.ComputePracticePaperOrdinals.
+    import app.services.annual_competition_studio_service as studio
+
+    db = _session()
+    student = _student(db)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam_1 = _mock_exam(db, l.id, m.id, exam_id="exam-1")
+    exam_2 = _mock_exam(db, l.id, m.id, exam_id="exam-2")
+    exam_3 = _mock_exam(db, l.id, m.id, exam_id="exam-3")
+    _practice_bank_paper(
+        db, "PM-L2", exam_1.id, [600], student.id,
+        level_paper_id="practice-1", assigned_at=datetime.now(timezone.utc) - timedelta(days=2),
+    )
+    _practice_bank_paper(
+        db, "PM-L2", exam_2.id, [600], student.id,
+        level_paper_id="practice-2", assigned_at=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+    _practice_bank_paper(
+        db, "PM-L2", exam_3.id, [600], student.id,
+        level_paper_id="practice-3", assigned_at=datetime.now(timezone.utc),
+    )
+    db.commit()
+
+    # FIFO consumption pulls practice-1 first (oldest assigned_at) -- that
+    # should be numbered "Practice Paper 1", even though two newer,
+    # still-unconsumed papers exist in the same bank.
+    started = engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
+    engine.SubmitCompetitionEventSection(db, student, started["attemptId"], started["sessionToken"], 1)
+
+    history = engine.ListMyAnnualCompetitionPracticeAttempts(db, student)
+    row = history["attempts"][0]
+    assert row["levelPaperId"] == "practice-1"
+    assert row["paperOrdinal"] == 1
+    assert row["paperLabel"] == "Practice Paper 1"
+
+    bank = studio.GetAnnualCompetitionPracticeBankForStudent(db, StudentId=student.id)
+    consumed_row = next(r for r in bank["papers"] if r["levelPaperId"] == "practice-1")
+    assert consumed_row["paperLabel"] == row["paperLabel"]  # numbering never drifts between the two surfaces
+
+
 def test_practice_history_lists_newest_attempt_first():
     db = _session()
     student = _student(db)
