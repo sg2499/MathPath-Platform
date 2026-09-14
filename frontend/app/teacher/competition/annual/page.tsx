@@ -17,7 +17,8 @@ import {
   type TeacherAnnualCompetitionResultRow,
 } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, CalendarClock, ChevronDown, ChevronRight, Medal, Repeat, RefreshCcw, Search, Trophy } from "lucide-react";
+import { Activity, CalendarClock, ChevronDown, ChevronRight, Eye, Medal, Repeat, RefreshCcw, Search, Trophy } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 // Read-only by design -- Teacher: monitor/review only, no assign/rank/
@@ -82,6 +83,7 @@ type OfficialSubTabKey = (typeof OfficialSubTabList)[number];
 
 export default function TeacherAnnualCompetitionMonitorPage() {
   const Ready = useProtectedPage(["TEACHER"]);
+  const Router = useRouter();
   const [SelectedEventId, SetSelectedEventId] = useState<string>("");
   const [TopTab, SetTopTab] = useState<TopTabKey>("OFFICIAL");
   const [ActiveTab, SetActiveTab] = useState<OfficialSubTabKey>("LIVE");
@@ -353,6 +355,7 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                           <th className="px-2 py-1.5">Accuracy</th>
                           <th className="px-2 py-1.5">Score</th>
                           <th className="px-2 py-1.5">Time Taken</th>
+                          <th className="px-2 py-1.5">Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -366,9 +369,20 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                                 <td className="px-2 py-2">{Row.result.accuracyPercentage}%</td>
                                 <td className="px-2 py-2">{Row.result.score}/{Row.result.maxScore}</td>
                                 <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.result.timeTakenSeconds)}</td>
+                                <td className="px-2 py-2">
+                                  {Row.attemptId ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => Router.push(`/teacher/competition/annual-result/${Row.attemptId}`)}
+                                      className="inline-flex items-center gap-1 rounded-full border border-[color:var(--mp-role-border)] px-3 py-1 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:bg-slate-50 dark:hover:bg-white/10"
+                                    >
+                                      <Eye size={13} /> View
+                                    </button>
+                                  ) : null}
+                                </td>
                               </>
                             ) : (
-                              <td className="px-2 py-2 text-slate-400" colSpan={4}>Not released yet</td>
+                              <td className="px-2 py-2 text-slate-400" colSpan={5}>Not released yet</td>
                             )}
                           </tr>
                         ))}
@@ -414,10 +428,11 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                         grouped student table with all their practice attempts
                         in one place" -- same collapsible-by-student pattern as
                         the admin Practice Results tab
-                        (admin/competition/annual-studio/page.tsx), just
-                        without the View-attempt link (teacher's Annual
-                        Competition monitor is review-only, same as every
-                        other table on this page). */}
+                        (admin/competition/annual-studio/page.tsx). Now also
+                        carries a View action per completed paper (2026-09-14
+                        batch, "have the view button for the teacher login for
+                        both the flows") -- still read-only otherwise, no
+                        assign/rank/release path exists here. */}
                     {GroupedPracticeResults.map((StudentGroup: TeacherAnnualCompetitionPracticeRosterStudent) => {
                       const StudentOpen = ExpandedPracticeStudents.has(StudentGroup.studentId);
                       const PendingCount = StudentGroup.papers.filter((Paper) => Paper.status === "NOT_STARTED").length;
@@ -450,13 +465,14 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                           {StudentOpen ? (
                             <div className="border-t border-[color:var(--mp-role-border)] p-3">
                               <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)] bg-white shadow-sm dark:bg-slate-950/35">
-                                <div className="grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+                                <div className="grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
                                   <span>Paper Name</span>
                                   <span>Level</span>
                                   <span>Accuracy</span>
                                   <span>Score</span>
                                   <span>Time Taken</span>
                                   <span>Completed</span>
+                                  <span>Action</span>
                                 </div>
                                 <div className="divide-y divide-slate-100 dark:divide-white/10">
                                   {StudentGroup.papers.map((Paper) => {
@@ -464,7 +480,7 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                                     return (
                                       <div
                                         key={Paper.levelPaperId}
-                                        className="grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr] items-center gap-3 px-5 py-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50/50 dark:text-slate-100 dark:hover:bg-slate-800/40"
+                                        className="grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr] items-center gap-3 px-5 py-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50/50 dark:text-slate-100 dark:hover:bg-slate-800/40"
                                       >
                                         <div className="font-black text-slate-950 dark:text-white">{Paper.paperLabel}</div>
                                         <div>{Paper.competitionLevelCode}</div>
@@ -472,6 +488,17 @@ export default function TeacherAnnualCompetitionMonitorPage() {
                                         <div>{IsPending ? "-" : `${Paper.result!.score}/${Paper.result!.maxScore}`}</div>
                                         <div>{IsPending ? "-" : FormatSecondsAsMinSec(Paper.result!.timeTakenSeconds)}</div>
                                         <div>{IsPending ? "Pending" : FormatEventDate(Paper.result!.computedAt)}</div>
+                                        <div>
+                                          {!IsPending && Paper.attemptId ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => Router.push(`/teacher/competition/annual-result/${Paper.attemptId}`)}
+                                              className="inline-flex items-center gap-1 rounded-full border border-[color:var(--mp-role-border)] px-3 py-1 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:bg-slate-50 dark:hover:bg-white/10"
+                                            >
+                                              <Eye size={13} /> View
+                                            </button>
+                                          ) : null}
+                                        </div>
                                       </div>
                                     );
                                   })}

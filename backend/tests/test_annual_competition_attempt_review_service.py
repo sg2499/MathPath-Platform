@@ -573,3 +573,126 @@ def test_student_review_unknown_attempt_raises_404():
     with pytest.raises(HTTPException) as exc_info:
         attempt_engine.GetCompetitionEventAttemptReviewForStudent(db, student, "does-not-exist")
     assert exc_info.value.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# GetCompetitionEventAttemptReviewForTeacher (2026-09-14 batch, Shailesh:
+# "have the view button for the teacher login for both the flows, for
+# practice they can see as soon as the student submits and for the official
+# competition attempt they can see it when the results are released"). Same
+# is_released gate as the student version above -- these tests mirror that
+# section's own release/ownership coverage, just scoped by a StudentIdsFilter
+# list (own_students_query's output) instead of a single StudentRecord.
+# ---------------------------------------------------------------------------
+
+def test_teacher_review_locked_before_official_result_is_released():
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[2])
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "q-1-1", "4")
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    review = attempt_engine.GetCompetitionEventAttemptReviewForTeacher(db, attempt_id, StudentIdsFilter=[student.id])
+    assert review["released"] is False
+    assert review["result"] is None
+    assert review["sections"] is None
+
+
+def test_teacher_review_shows_full_detail_once_official_result_is_released():
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[2])
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "q-1-1", "4")   # correct
+    _answer(db, student, attempt_id, token, 1, "q-1-2", "5")   # wrong
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    from app.services import annual_competition_scoring_service as scoring
+    admin = User(id="admin-1", full_name="Admin", email="admin-1@example.test", password_hash="x", role="ADMIN", is_active=True)
+    db.add(admin)
+    db.commit()
+    scoring.ReleaseCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode="PM-L2", ReleasedBy=admin)
+
+    review = attempt_engine.GetCompetitionEventAttemptReviewForTeacher(db, attempt_id, StudentIdsFilter=[student.id])
+    assert review["released"] is True
+    assert review["attemptType"] == "OFFICIAL"
+    assert review["competitionLevelCode"] == "PM-L2"
+    assert review["studentId"] == student.id
+    assert review["studentCode"] == "MP-s1"
+    assert review["studentName"] == "Ravi Kumar"
+    assert review["result"]["correctCount"] == 1
+    assert review["result"]["wrongCount"] == 1
+    section = review["sections"][0]
+    q1 = next(q for q in section["questions"] if q["questionId"] == "q-1-1")
+    assert q1["isCorrect"] is True
+    assert q1["correctAnswer"] == "4"
+
+
+def test_teacher_review_instantly_available_for_a_practice_attempt_no_release_needed():
+    """Matches the student version's own "instant feedback" behavior for
+    PRACTICE exactly -- same is_released gate, no separate teacher-side
+    delay or extra confirmation step."""
+    db = _session()
+    student = _setup_student_with_practice_questions(db, "s1", section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    attempt_engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, "practice-q-s1-1-1", "4")
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    review = attempt_engine.GetCompetitionEventAttemptReviewForTeacher(db, attempt_id, StudentIdsFilter=[student.id])
+    assert review["released"] is True
+    assert review["attemptType"] == "PRACTICE"
+    assert review["result"]["correctCount"] == 1
+
+
+def test_teacher_review_before_submission_has_no_result_yet():
+    """A practice attempt not yet submitted has no CompetitionEventResult at
+    all -- the teacher's View action (only shown once a paper has a result
+    on the frontend roster) still resolves to a safe "not released" shape
+    rather than erroring if called anyway."""
+    db = _session()
+    student = _setup_student_with_practice_questions(db, "s1", section_seconds=(600,), questions_per_section=[1])
+    db.commit()
+
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
+    attempt_id = started["attemptId"]
+
+    review = attempt_engine.GetCompetitionEventAttemptReviewForTeacher(db, attempt_id, StudentIdsFilter=[student.id])
+    assert review["released"] is False
+    assert review["result"] is None
+
+
+def test_teacher_review_ownership_is_enforced():
+    """A teacher can only review an attempt belonging to a student in their
+    own StudentIdsFilter (own_students_query's output) -- not just any
+    attempt id."""
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    other_student = _student(db, "s2", name="Someone Else")
+    db.commit()
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+
+    with pytest.raises(HTTPException) as exc_info:
+        attempt_engine.GetCompetitionEventAttemptReviewForTeacher(
+            db, started["attemptId"], StudentIdsFilter=[other_student.id]
+        )
+    assert exc_info.value.status_code == 404
+
+
+def test_teacher_review_unknown_attempt_raises_404():
+    db = _session()
+    student = _student(db)
+    db.commit()
+    with pytest.raises(HTTPException) as exc_info:
+        attempt_engine.GetCompetitionEventAttemptReviewForTeacher(db, "does-not-exist", StudentIdsFilter=[student.id])
+    assert exc_info.value.status_code == 404

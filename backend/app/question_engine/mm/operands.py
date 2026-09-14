@@ -2619,7 +2619,67 @@ def _CompactDisplay(Value: int | Decimal) -> str:
     return str(Value)
 
 
+def _SquareTitleText(Config: MMConfig) -> str:
+    return " ".join(
+        f" {Config.DpsTitle or ''} {Config.LessonTitle or ''} "
+        .lower()
+        .replace("-", " ")
+        .replace("_", " ")
+        .replace("&", " and ")
+        .split()
+    )
+
+
+def _SquareBaseDigitTargets(Config: MMConfig) -> list[int] | None:
+    """Return exact workbook base-number digit targets from the active
+    title, mirroring _SquareRootRadicandDigitTargets's own title-parsing
+    convention below -- just applied to the plain Squares concept, where
+    the constrained value is the number being squared (the base), not a
+    radicand. A title such as "Squares - 2 & 3 Digit Number" must generate
+    2-digit and 3-digit base numbers only (e.g. (45)^2 or (123)^2). This
+    intentionally keys off the active title so later generic difficulty-band
+    tuning of _SquareBaseRange can never leak into an explicit workbook
+    sheet. Guards against "square root" titles matching too (those go
+    through _SquareRootRadicandDigitTargets instead).
+    """
+    Text = _SquareTitleText(Config)
+    if "square" not in Text or "root" in Text:
+        return None
+
+    RangeMatch = re.search(r"\b([1-6])\s*(?:and|to|/)\s*([1-6])\s*digit", Text)
+    if RangeMatch:
+        Start = int(RangeMatch.group(1))
+        End = int(RangeMatch.group(2))
+        Lower, Upper = sorted((Start, End))
+        return list(range(Lower, Upper + 1))
+
+    DigitMatches = []
+    for Match in re.finditer(r"\b([1-6])\s*digit", Text):
+        DigitValue = int(Match.group(1))
+        if DigitValue not in DigitMatches:
+            DigitMatches.append(DigitValue)
+    if len(DigitMatches) >= 2:
+        return DigitMatches
+
+    SingleMatch = re.search(r"\b([1-6])\s*digit", Text)
+    if SingleMatch:
+        return [int(SingleMatch.group(1))]
+
+    return None
+
+
+def _BaseRangeForDigits(DigitCount: int) -> tuple[int, int]:
+    Lower = 10 ** (DigitCount - 1) if DigitCount > 1 else 1
+    Upper = (10 ** DigitCount) - 1
+    return Lower, Upper
+
+
 def _SquareBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
+    ExplicitTargets = _SquareBaseDigitTargets(Config)
+    if ExplicitTargets:
+        MinimumsAndMaximums = [_BaseRangeForDigits(Target) for Target in ExplicitTargets]
+        return min(Minimum for Minimum, _ in MinimumsAndMaximums), max(Maximum for _, Maximum in MinimumsAndMaximums)
+
     Band = _LessonBand(Config)
     if Band <= 2:
         Ranges = {
@@ -2856,7 +2916,18 @@ def _CubeRootBaseRange(Config: MMConfig, Stage: str) -> tuple[int, int]:
 
 def GenerateSquares(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float | str], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
-    Minimum, Maximum = _SquareBaseRange(Config, Stage)
+    ExplicitTargets = _SquareBaseDigitTargets(Config)
+    TargetDigits = None
+    if ExplicitTargets:
+        TargetDigits = ExplicitTargets[(QuestionNumber - 1) % len(ExplicitTargets)]
+        Minimum, Maximum = _BaseRangeForDigits(TargetDigits)
+    else:
+        Minimum, Maximum = _SquareBaseRange(Config, Stage)
+
+    # Unlike GenerateSquareRoot/GenerateCubeRoot below, no defensive re-roll
+    # loop is needed here: Base is drawn directly from the exact digit-count
+    # band, with no squaring/rooting transformation in between that could
+    # push it outside that band the way a root's radicand can.
     Base = Rng.randint(Minimum, Maximum)
     CorrectAnswer = Decimal(Base * Base)
     QuestionText = f"({Base})²"
@@ -2866,6 +2937,7 @@ def GenerateSquares(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
         "question_text": QuestionText,
         "base_value": Base,
         "lesson_band": _LessonBand(Config),
+        "base_digit_target": TargetDigits,
     }
 
 

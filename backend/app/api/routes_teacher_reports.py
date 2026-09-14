@@ -34,12 +34,16 @@ from app.services.parent_report_notification_service import ResolveStudentTeache
 router = APIRouter(prefix="/api/teacher", tags=["teacher"])
 
 
+def _teacher_owns_student(db: Session, teacher: Teacher, student: Student | None) -> bool:
+    resolved_teacher = ResolveStudentTeacher(db, student)
+    return bool(resolved_teacher and resolved_teacher.id == teacher.id)
+
+
 def _teacher_owns_log(db: Session, teacher: Teacher, log: ParentReportEmailLog) -> bool:
     if not log.student_id:
         return False
     student = db.get(Student, log.student_id)
-    resolved_teacher = ResolveStudentTeacher(db, student)
-    return bool(resolved_teacher and resolved_teacher.id == teacher.id)
+    return _teacher_owns_student(db, teacher, student)
 
 
 @router.get("/results/parent-report-deliveries")
@@ -53,14 +57,29 @@ def teacher_list_parent_report_deliveries(
         ParentReportEmailLog.published_to_teacher_at.isnot(None)
     )
     Logs = QueryValue.order_by(ParentReportEmailLog.published_to_teacher_at.desc()).all()
+
+    # Bulk-prefetch every Student/User these logs could reference in two
+    # round trips instead of up to 2 per row (db.get(Student, ...) was
+    # previously called once inside the ownership check and again here, plus
+    # a db.get(User, ...) per row) over every published log platform-wide --
+    # this endpoint has no LIMIT, so the row count only grows over time.
+    StudentIds = {LogValue.student_id for LogValue in Logs if LogValue.student_id}
+    StudentsById: dict[str, Student] = {}
+    if StudentIds:
+        StudentsById = {s.id: s for s in db.query(Student).filter(Student.id.in_(StudentIds)).all()}
+    UserIds = {s.user_id for s in StudentsById.values() if s.user_id}
+    UsersById: dict[str, User] = {}
+    if UserIds:
+        UsersById = {u.id: u for u in db.query(User).filter(User.id.in_(UserIds)).all()}
+
     Payload = []
     for LogValue in Logs:
-        if not _teacher_owns_log(db, teacher, LogValue):
+        StudentValue = StudentsById.get(LogValue.student_id) if LogValue.student_id else None
+        if not _teacher_owns_student(db, teacher, StudentValue):
             continue
-        StudentValue = db.get(Student, LogValue.student_id) if LogValue.student_id else None
         if studentCode and (not StudentValue or StudentValue.student_code != studentCode):
             continue
-        StudentUser = db.get(User, StudentValue.user_id) if StudentValue and StudentValue.user_id else None
+        StudentUser = UsersById.get(StudentValue.user_id) if StudentValue and StudentValue.user_id else None
         StudentName = StudentUser.full_name if StudentUser and StudentUser.full_name else (LogValue.student_code or "Student")
         ModuleName, ModuleLabel = _admin_parent_report_module_label(db, LogValue.module_code)
         LevelName, LevelLabel = _admin_parent_report_level_label(db, LogValue.module_code, LogValue.level_code)

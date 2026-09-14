@@ -19,6 +19,8 @@ import {
   listAnnualCompetitionEvents,
   listAnnualCompetitionPracticeResults,
   listStudentsForAnnualCompetitionPracticeBank,
+  recomputeAllAnnualCompetitionOfficialResults,
+  recomputeAnnualCompetitionPracticeResults,
   updateAnnualCompetitionEvent,
   type AnnualCompetitionEvent,
   type AnnualCompetitionPracticeBatchAssignFailedRow,
@@ -34,6 +36,7 @@ import {
   Medal,
   Pencil,
   PlusCircle,
+  RefreshCcw,
   Search,
   Sparkles,
   Trash2,
@@ -392,6 +395,35 @@ export default function AdminAnnualCompetitionStudioPage() {
     onSuccess: () => InvalidatePracticeResults(),
   });
 
+  // 2026-09-14 batch (Shailesh: "for accuracy breakdown part if possible
+  // lets backfill the existing attempts as well"). The backend recompute
+  // routes (RecomputeAnnualCompetitionResults/RecomputeAnnualCompetition-
+  // PracticeResults) already existed API-only with no UI trigger anywhere
+  // -- these two buttons are that trigger. Idempotent and safe to run more
+  // than once: never touches is_released/rank/consumed_at, only refreshes
+  // score/accuracy/correct/wrong/unanswered under whatever the current
+  // scoring formula is (see RecomputeAnnualCompetitionResults's own
+  // docstring). Both mutations invalidate the same query keys the results
+  // tables themselves use, so a refreshed row shows up immediately.
+  const RecomputeOfficialMutation = useMutation({
+    mutationFn: () => recomputeAllAnnualCompetitionOfficialResults(),
+    onSuccess: (Result) => {
+      SetLastMessage(`Recomputed ${Result.recomputedCount} official result${Result.recomputedCount === 1 ? "" : "s"}.`);
+      // Matches the per-event results query key from
+      // annual-studio/[eventId]/page.tsx (["admin", "annual-competition",
+      // "results", EventId, ...]) as a prefix, so any such query already in
+      // the cache is marked stale and refetches next time that page mounts.
+      QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "results"] });
+    },
+  });
+  const RecomputePracticeMutation = useMutation({
+    mutationFn: () => recomputeAnnualCompetitionPracticeResults(),
+    onSuccess: (Result) => {
+      SetLastMessage(`Recomputed ${Result.recomputedCount} practice result${Result.recomputedCount === 1 ? "" : "s"}.`);
+      InvalidatePracticeResults();
+    },
+  });
+
   if (!Ready) return null;
 
   const AnyError =
@@ -399,6 +431,8 @@ export default function AdminAnnualCompetitionStudioPage() {
     CreateMutation.error ||
     UpdateEventMutation.error ||
     DeleteEventMutation.error ||
+    RecomputeOfficialMutation.error ||
+    RecomputePracticeMutation.error ||
     (TopTab === "PRACTICE" && PracticeSubTab === "BANK" ? StudentsQuery.error || BulkAssignMutation.error : null) ||
     (TopTab === "PRACTICE" && PracticeSubTab === "RESULTS" ? PracticeResultsQuery.error : null);
 
@@ -422,6 +456,39 @@ export default function AdminAnnualCompetitionStudioPage() {
             {LastMessage}
           </div>
         )}
+
+        {/* 2026-09-14 batch: one-time (and repeatable) accuracy backfill
+            trigger -- see the mutations above for what this actually calls.
+            Safe to click more than once; only refreshes already-finalized
+            results under the current formula, never touches release/rank
+            state. */}
+        <div className="math-card p-5">
+          <p className="math-block-header"><RefreshCcw size={14} />Accuracy Backfill</p>
+          <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+            Recomputes score/accuracy/correct/wrong/unanswered for every already-finalized result under the current
+            formula. Never touches release status, rank, or certificates -- safe to run again anytime.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => RecomputeOfficialMutation.mutate()}
+              disabled={RecomputeOfficialMutation.isPending}
+              className="math-button-secondary inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-60"
+            >
+              <RefreshCcw size={14} className={RecomputeOfficialMutation.isPending ? "animate-spin" : ""} />
+              {RecomputeOfficialMutation.isPending ? "Recomputing..." : "Recompute Official Results"}
+            </button>
+            <button
+              type="button"
+              onClick={() => RecomputePracticeMutation.mutate()}
+              disabled={RecomputePracticeMutation.isPending}
+              className="math-button-secondary inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-60"
+            >
+              <RefreshCcw size={14} className={RecomputePracticeMutation.isPending ? "animate-spin" : ""} />
+              {RecomputePracticeMutation.isPending ? "Recomputing..." : "Recompute Practice Results"}
+            </button>
+          </div>
+        </div>
 
         <div className="math-card p-3">
           <div className="flex flex-wrap gap-3">

@@ -33,6 +33,7 @@ from app.services.annual_competition_monitoring_service import (
     ListAnnualCompetitionPracticeResultsForRoster,
     ListNonDraftAnnualCompetitionEvents,
 )
+from app.services.annual_competition_attempt_service import GetCompetitionEventAttemptReviewForTeacher
 from app.services.route_harmonization_service import EmptyTeacherAssignmentOptionsResponse, EmptyTeacherDpsOptionsResponse
 from app.services.assessment_feedback_service import upsert_assessment_remark, assessment_feedback_payload, active_assessment_remark
 from app.services.auth_service import public_profile_photo_url
@@ -333,6 +334,22 @@ def teacher_list_annual_competition_practice_results(
     return ListAnnualCompetitionPracticeResultsForRoster(
         db, StudentIdsFilter=student_ids, CompetitionLevelCode=competitionLevelCode
     )
+
+
+# 2026-09-14 batch (Shailesh): the teacher-facing "View" action on both the
+# Practice and Official results tables above -- same Answer Sheet + Scorecard
+# review screen admin/student already see, gated the same way for both flows
+# (see GetCompetitionEventAttemptReviewForTeacher's own docstring): a
+# PRACTICE attempt is visible the instant the student submits it, an
+# OFFICIAL attempt only once an admin releases results. One endpoint, no
+# attempt_type query param -- the frontend just needs an attemptId, which
+# both roster tables already carry.
+@router.get("/competition/annual/attempts/{attempt_id}/review")
+def teacher_get_annual_competition_attempt_review(
+    attempt_id: str, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)
+):
+    student_ids = [student.id for student in own_students_query(db, teacher).filter(Student.is_active == True).all()]
+    return GetCompetitionEventAttemptReviewForTeacher(db, attempt_id, StudentIdsFilter=student_ids)
 
 
 @router.get("/dashboard")
