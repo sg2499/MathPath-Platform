@@ -226,6 +226,14 @@ export default function AdminAnnualCompetitionStudioPage() {
 
   const [PracticeSearchText, SetPracticeSearchText] = useState("");
   const [PracticeModuleFilter, SetPracticeModuleFilter] = useState<string>("ALL");
+  // 2026-09-14 (Shailesh): "implement the level filter as well in the
+  // practice bank tab ... so that we can filter both modules and levels and
+  // then assign papers to the students in those levels." Scoped to the
+  // currently selected module (like a normal module -> level drill-down)
+  // rather than every level across every module at once -- currentLevelCode
+  // was already returned by the roster endpoint and shown as a table
+  // column, just never filterable until now.
+  const [PracticeLevelFilter, SetPracticeLevelFilter] = useState<string>("ALL");
   const [PracticeEligibleOnly, SetPracticeEligibleOnly] = useState(false);
   const [SelectedStudentIdsForPractice, SetSelectedStudentIdsForPractice] = useState<Set<string>>(new Set());
   const [PracticeAssignLevelCode, SetPracticeAssignLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
@@ -249,9 +257,22 @@ export default function AdminAnnualCompetitionStudioPage() {
     new Set(StudentRows.map((Row) => Row.currentModuleCode).filter((Value): Value is string => Boolean(Value)))
   ).sort();
 
+  // 2026-09-14 (Shailesh): "implement the level filter as well in the
+  // practice bank tab ... so that we can filter both modules and levels."
+  // Scoped to the currently selected module (a normal module -> level
+  // drill-down) rather than every level across every module at once.
+  const PracticeLevelOptions = Array.from(
+    new Set(
+      StudentRows.filter((Row) => PracticeModuleFilter === "ALL" || Row.currentModuleCode === PracticeModuleFilter)
+        .map((Row) => Row.currentLevelCode)
+        .filter((Value): Value is string => Boolean(Value))
+    )
+  ).sort();
+
   const PracticeSearchLower = PracticeSearchText.trim().toLowerCase();
   const FilteredStudentRows = StudentRows.filter((Row) => {
     if (PracticeModuleFilter !== "ALL" && Row.currentModuleCode !== PracticeModuleFilter) return false;
+    if (PracticeLevelFilter !== "ALL" && Row.currentLevelCode !== PracticeLevelFilter) return false;
     if (PracticeEligibleOnly && Row.eligibleCompetitionLevelCode !== PracticeAssignLevelCode) return false;
     if (PracticeSearchLower) {
       const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
@@ -793,13 +814,30 @@ export default function AdminAnnualCompetitionStudioPage() {
                     </div>
                     <select
                       value={PracticeModuleFilter}
-                      onChange={(EventValue) => SetPracticeModuleFilter(EventValue.target.value)}
+                      onChange={(EventValue) => {
+                        // Reset the level filter whenever the module changes
+                        // so a stale level selection that no longer belongs
+                        // to the newly selected module can't linger invisibly.
+                        SetPracticeModuleFilter(EventValue.target.value);
+                        SetPracticeLevelFilter("ALL");
+                      }}
                       className="math-input !py-2 !text-xs w-auto"
                       aria-label="Filter by module"
                     >
                       <option value="ALL">All Modules</option>
                       {PracticeModuleOptions.map((ModuleCode) => (
                         <option key={ModuleCode} value={ModuleCode}>{ModuleCode}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={PracticeLevelFilter}
+                      onChange={(EventValue) => SetPracticeLevelFilter(EventValue.target.value)}
+                      className="math-input !py-2 !text-xs w-auto"
+                      aria-label="Filter by current level"
+                    >
+                      <option value="ALL">All Levels</option>
+                      {PracticeLevelOptions.map((LevelCode) => (
+                        <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
                       ))}
                     </select>
                     <label className="inline-flex items-center gap-2 text-xs font-black text-slate-600 dark:text-slate-300">
@@ -811,12 +849,13 @@ export default function AdminAnnualCompetitionStudioPage() {
                       />
                       Only show students eligible for {PracticeAssignLevelCode}
                     </label>
-                    {(PracticeSearchText || PracticeModuleFilter !== "ALL" || PracticeEligibleOnly) && (
+                    {(PracticeSearchText || PracticeModuleFilter !== "ALL" || PracticeLevelFilter !== "ALL" || PracticeEligibleOnly) && (
                       <button
                         type="button"
                         onClick={() => {
                           SetPracticeSearchText("");
                           SetPracticeModuleFilter("ALL");
+                          SetPracticeLevelFilter("ALL");
                           SetPracticeEligibleOnly(false);
                         }}
                         className="inline-flex items-center gap-1 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-2 text-xs font-black text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
