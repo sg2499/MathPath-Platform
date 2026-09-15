@@ -110,6 +110,13 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   const [PracticeLevelFilter, SetPracticeLevelFilter] = useState<string>("ALL");
   const [PracticeSearchText, SetPracticeSearchText] = useState("");
   const [ExpandedPracticeStudents, SetExpandedPracticeStudents] = useState<Set<string>>(new Set());
+  // 2026-09-15 (Shailesh): "the individual student block must contain the
+  // different level blocks under it which should be expandable and
+  // collapseable and by default collapsed" -- same fix as the admin
+  // Practice Results tab, see that page's own comment. Keyed by
+  // `${studentId}::${levelCode}` so one student's expanded level never
+  // leaks into another's.
+  const [ExpandedPracticeLevelGroups, SetExpandedPracticeLevelGroups] = useState<Set<string>>(new Set());
 
   const EventsQuery = useQuery({
     queryKey: ["teacher", "annual-competition", "events"],
@@ -178,6 +185,14 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   })();
   function TogglePracticeStudentExpanded(Key: string) {
     SetExpandedPracticeStudents((Prev) => {
+      const Next = new Set(Prev);
+      if (Next.has(Key)) Next.delete(Key);
+      else Next.add(Key);
+      return Next;
+    });
+  }
+  function TogglePracticeLevelGroupExpanded(Key: string) {
+    SetExpandedPracticeLevelGroups((Prev) => {
       const Next = new Set(Prev);
       if (Next.has(Key)) Next.delete(Key);
       else Next.add(Key);
@@ -502,16 +517,36 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                                   for both teacher and admin login" -- one
                                   sub-table per level instead of every paper
                                   across every level mixed into one long
-                                  flat list. */}
+                                  flat list. Each level group is now its own
+                                  expand/collapse toggle, collapsed by
+                                  default -- same fix as the admin Practice
+                                  Results tab, see that page's own comment. */}
                               <div className="space-y-3">
-                                {GroupPracticePapersByLevel(StudentGroup.papers).map((LevelGroup) => (
+                                {GroupPracticePapersByLevel(StudentGroup.papers).map((LevelGroup) => {
+                                  const LevelKey = `${StudentGroup.studentId}::${LevelGroup.LevelCode}`;
+                                  const LevelOpen = ExpandedPracticeLevelGroups.has(LevelKey);
+                                  const LevelPendingCount = LevelGroup.Papers.filter((Paper) => Paper.status === "NOT_STARTED").length;
+                                  return (
                                   <div
                                     key={LevelGroup.LevelCode}
                                     className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)] bg-white shadow-sm dark:bg-slate-950/35"
                                   >
-                                    <div className="border-b border-[color:var(--mp-role-border)] bg-slate-50/80 px-5 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-[color:var(--mp-role-primary)] dark:bg-white/5">
-                                      {FormatCompetitionLevelLabel(LevelGroup.LevelCode)}
-                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => TogglePracticeLevelGroupExpanded(LevelKey)}
+                                      className="flex w-full items-center justify-between gap-3 border-b border-[color:var(--mp-role-border)] bg-slate-50/80 px-5 py-2.5 text-left transition hover:bg-slate-100/80 dark:bg-white/5 dark:hover:bg-white/10"
+                                    >
+                                      <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-[color:var(--mp-role-primary)]">
+                                        {LevelOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                        {FormatCompetitionLevelLabel(LevelGroup.LevelCode)}
+                                      </span>
+                                      <span className="text-xs font-black text-slate-500 dark:text-slate-400">
+                                        {LevelGroup.Papers.length} Paper{LevelGroup.Papers.length === 1 ? "" : "s"}
+                                        {LevelPendingCount > 0 ? ` (${LevelPendingCount} pending)` : ""}
+                                      </span>
+                                    </button>
+                                    {LevelOpen ? (
+                                    <>
                                     <div className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
                                       <span>Paper Name</span>
                                       <span>Accuracy</span>
@@ -548,8 +583,11 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                                         );
                                       })}
                                     </div>
+                                    </>
+                                    ) : null}
                                   </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           ) : null}

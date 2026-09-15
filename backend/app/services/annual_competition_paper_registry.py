@@ -596,7 +596,7 @@ def GetAnnualCompetitionLevelConfig(LevelCode: str) -> dict[str, Any] | None:
 # relevant ... nothing should showcase the old name wherever it is being
 # seen by the human eyes, underneath the system in the backend use whatever
 # that is comfortable for you." Every other level code (PM-L1, IM-L2, ...)
-# is still shown to admin/teacher/student exactly as-is -- only these two
+# is still shown to admin/teacher/student exactly as-is -- only these four
 # codes get a human-facing display label. Kept as a single small dict
 # (rather than touching the codes themselves) so no existing
 # CompetitionEventLevelPaper/CompetitionEventAttempt/CompetitionEventResult
@@ -606,15 +606,34 @@ def GetAnnualCompetitionLevelConfig(LevelCode: str) -> dict[str, Any] | None:
 # FormatCompetitionLevelLabel) for the same reason -- see that function's
 # comment. Keep both in sync if this ever changes.
 # ---------------------------------------------------------------------------
+# 2026-09-15 (Shailesh): "lets rename MM-L1 to MM-1 because that is the
+# paper and wherever relevant we need to show MM-2 and not MM-L2." Same
+# mechanism as YLM-L0/YLM-L1 above -- MM-L1/MM-L2 stay the internal codes
+# everywhere (curriculum Level row, CompetitionEventLevelPaper rows,
+# _CURRICULUM_LOOKUP_LEVEL_CODE_OVERRIDES's MM-L2->MM-L1 fallback, tests),
+# only the human-facing label changes. Deliberately does NOT touch the
+# "Current Level" column anywhere (still shows the real curriculum code
+# "MM-L1", confirmed: "the current level should remain as is because the
+# actual level is MM-L1, MM-1 and MM-2 shown in the competition eligibility
+# is the segregation between students, students btw lessons 1 to 15 sit for
+# IM-L4, students between lesson 16-30 sit for MM-1 and students that have
+# completed the course and are alumnis sit for MM-2") -- this dict is only
+# ever consulted for a competition-facing level display (eligible/assigned
+# level, dropdowns, notifications, results), never for a curriculum-position
+# field, so "MM-L1" as a real Level name elsewhere in the app (Level Mastery
+# badges, Competition Mock Studio) is completely unaffected.
 ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS: dict[str, str] = {
     "YLM-L0": "Bloomers (Below 8 Years)",
     "YLM-L1": "Beginners (Above 8 Years)",
+    "MM-L1": "MM-1",
+    "MM-L2": "MM-2",
 }
 
 
 def FormatCompetitionLevelLabel(LevelCode: str | None) -> str:
     """Human-facing label for a competition level code. Every code besides
-    YLM-L0/YLM-L1 renders as itself (e.g. "PM-L1" stays "PM-L1")."""
+    YLM-L0/YLM-L1/MM-L1/MM-L2 renders as itself (e.g. "PM-L1" stays
+    "PM-L1")."""
     if not LevelCode:
         return ""
     return ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS.get(LevelCode, LevelCode)

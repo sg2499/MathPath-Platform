@@ -374,6 +374,32 @@ def ComputeAssignmentsForRoster(db: Session, students: list[Student]) -> list[As
         )
         for StudentRecord in MasterStudents:
             Progress = MasterProgress.get(StudentRecord.id) or {}
+            # 2026-09-15 (Shailesh): "if you see the MM-L1 students whose
+            # current levels are MM-L1 and their eligible competition is
+            # also MM-L1 which is confusing at times ... we need to have
+            # the current lesson number for the MM students as well."
+            # Master has exactly one curriculum Level row (MM-L1), so
+            # current_level_code and the post-lesson-16 competition target
+            # are literally the same string -- the lesson number is the
+            # only thing that actually distinguishes students within it.
+            # This was already computed below (to decide the lesson-16
+            # branch) but previously discarded once the branch was picked;
+            # now threaded through `extra` so both call sites that read
+            # this computation (ListStudentsForPracticeBank's Practice Bank
+            # roster and PreviewAnnualCompetitionAssignments' Official
+            # preview) can surface it next to the Current Level cell,
+            # exactly as confirmed: "students between lesson 1-15 sit for
+            # IM-L4, students between lesson 16-30 sit for MM-1, and
+            # students that have completed the course and are alumnis sit
+            # for MM-2." currentLevelCode itself is deliberately left
+            # untouched everywhere (still "MM-L1") -- only the competition-
+            # facing MM-1/MM-2 labels are new (see
+            # ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS).
+            MasterLessonExtra = {
+                "currentLessonNumber": Progress.get("currentLessonNumber"),
+                "masterLevelComplete": bool(Progress.get("levelComplete")),
+                "previousLessonNumber": Progress.get("previousLessonNumber"),
+            }
             if Progress.get("levelComplete"):
                 Results.append(
                     AssignmentComputation(
@@ -383,7 +409,7 @@ def ComputeAssignmentsForRoster(db: Session, students: list[Student]) -> list[As
                         assigned_level_code=MASTER_FULL_COMPLETION_TARGET,
                         rule_applied="MASTER_MILESTONE:FULL_COMPLETION",
                         no_rule_matched=False,
-                        extra={"requiresNewPaperRegistryEntry": True},
+                        extra={"requiresNewPaperRegistryEntry": True, **MasterLessonExtra},
                     )
                 )
                 continue
@@ -409,6 +435,7 @@ def ComputeAssignmentsForRoster(db: Session, students: list[Student]) -> list[As
                     assigned_level_code=Target,
                     rule_applied=Rule,
                     no_rule_matched=False,
+                    extra=MasterLessonExtra,
                 )
             )
 
@@ -494,6 +521,13 @@ def PreviewAnnualCompetitionAssignments(
                 "studentName": (StudentRecord.user.full_name if StudentRecord and StudentRecord.user else None),
                 "currentModuleCode": Computation.current_module_code,
                 "currentLevelCode": Computation.current_level_code,
+                # 2026-09-15 (Shailesh): Master-module-only lesson info, so
+                # the Official assignment table can show e.g. "MM-L1 -- Lesson
+                # 22" instead of a bare "MM-L1" that gives no clue why this
+                # student computed to MM-1 rather than MM-2 or IM-4. None for
+                # every non-Master row.
+                "currentLessonNumber": Computation.extra.get("currentLessonNumber"),
+                "masterLevelComplete": Computation.extra.get("masterLevelComplete"),
                 "computedAssignedLevelCode": Computation.assigned_level_code,
                 "ruleApplied": Computation.rule_applied,
                 "noRuleMatched": Computation.no_rule_matched,

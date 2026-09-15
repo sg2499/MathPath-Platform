@@ -10,6 +10,7 @@ import { apiErrorMessage } from "@/lib/api";
 import {
   ANNUAL_COMPETITION_LEVEL_CODES,
   FormatCompetitionLevelLabel,
+  FormatMasterCurrentLevelSuffix,
   createAnnualCompetitionSlot,
   downloadAnnualCompetitionCertificate,
   generateAnnualCompetitionLevelPaper,
@@ -1093,14 +1094,24 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                               />
                             </td>
                             <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                            <td className="px-2 py-2">{Row.currentLevelCode || "--"}</td>
                             <td className="px-2 py-2">
-                              {Row.computedAssignedLevelCode || "--"}
+                              {Row.currentLevelCode || "--"}
+                              {/* 2026-09-15 (Shailesh): same Master lesson-
+                                  number clarification as the Practice Bank
+                                  tab -- see that tab's own comment. */}
+                              {Row.currentModuleCode === "MM" && (Row.currentLessonNumber != null || Row.masterLevelComplete) ? (
+                                <span className="ml-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500">
+                                  ({FormatMasterCurrentLevelSuffix(Row.currentLessonNumber, Row.masterLevelComplete)})
+                                </span>
+                              ) : null}
+                            </td>
+                            <td className="px-2 py-2">
+                              {Row.computedAssignedLevelCode ? FormatCompetitionLevelLabel(Row.computedAssignedLevelCode) : "--"}
                               {Row.requiresNewPaperRegistryEntry && Row.computedAssignedLevelCode && (
                                 <ShieldAlert size={12} className="ml-1.5 inline text-amber-500" aria-label="No paper registry entry yet" />
                               )}
                             </td>
-                            <td className="px-2 py-2">{Row.existingAssignedLevelCode || "--"} {Row.existingAssignmentSource === "ADMIN_OVERRIDE" && <span className="text-slate-400">(override)</span>}</td>
+                            <td className="px-2 py-2">{Row.existingAssignedLevelCode ? FormatCompetitionLevelLabel(Row.existingAssignedLevelCode) : "--"} {Row.existingAssignmentSource === "ADMIN_OVERRIDE" && <span className="text-slate-400">(override)</span>}</td>
                             <td className="px-2 py-2">
                               {Row.noRuleMatched ? (
                                 <span className="text-amber-600 dark:text-amber-300">{Row.reason}</span>

@@ -1568,6 +1568,12 @@ export type AnnualCompetitionAssignmentPreviewRow = {
   studentName: string | null;
   currentModuleCode: string | null;
   currentLevelCode: string | null;
+  // 2026-09-15 (Shailesh): Master-module-only lesson info -- see
+  // FormatCompetitionLevelLabel's comment for why Current Level itself
+  // stays the raw "MM-L1" curriculum code and this is shown alongside it
+  // instead. Always null for every non-Master row.
+  currentLessonNumber: number | null;
+  masterLevelComplete: boolean | null;
   computedAssignedLevelCode: string | null;
   ruleApplied: string | null;
   noRuleMatched: boolean;
@@ -1603,7 +1609,7 @@ export type AnnualCompetitionAssignmentRunResult = {
 // BM-L1 is deliberately excluded (see that module's docstring). YLM-L0
 // ("Bloomers") added 2026-09-15 alongside YLM-L1 ("Beginners") -- see
 // ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS below for why both show a
-// different name than their code.
+// different name than their code (MM-L1/MM-L2 -> MM-1/MM-2 likewise).
 export const ANNUAL_COMPETITION_LEVEL_CODES = [
   "YLM-L0", "YLM-L1",
   "PM-L1", "PM-L2", "PM-L3", "PM-L4",
@@ -1621,14 +1627,39 @@ export const ANNUAL_COMPETITION_LEVEL_CODES = [
 // the backend's own copy of this exact mapping
 // (annual_competition_paper_registry.py's ANNUAL_COMPETITION_LEVEL_DISPLAY_
 // LABELS) -- keep both in sync if this ever changes.
+// 2026-09-15 (Shailesh): "lets rename MM-L1 to MM-1 because that is the
+// paper and wherever relevant we need to show MM-2 and not MM-L2." Same
+// swap-the-label-not-the-code approach as YLM-L0/YLM-L1. Deliberately does
+// NOT apply to the "Current Level" column anywhere -- confirmed: "the
+// current level should remain as is because the actual level is MM-L1,
+// MM-1 and MM-2 shown in the competition eligibility is the segregation
+// between students, students btw lessons 1 to 15 sit for IM-L4, students
+// between lesson 16-30 sit for MM-1 and students that have completed the
+// course and are alumnis sit for MM-2" -- so Current Level cells read
+// `Row.currentLevelCode` raw, never through this function.
 const ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS: Record<string, string> = {
   "YLM-L0": "Bloomers (Below 8 Years)",
   "YLM-L1": "Beginners (Above 8 Years)",
+  "MM-L1": "MM-1",
+  "MM-L2": "MM-2",
 };
 
 export function FormatCompetitionLevelLabel(levelCode: string | null | undefined): string {
   if (!levelCode) return "";
   return ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS[levelCode] || levelCode;
+}
+
+// 2026-09-15 (Shailesh): Master-module-only "which lesson are they on"
+// caption for a Current Level cell, e.g. "MM-L1 -- Lesson 22" or
+// "MM-L1 -- Course Complete". Only ever called for currentModuleCode ===
+// "MM" rows; every other module's Current Level cell stays a bare code.
+export function FormatMasterCurrentLevelSuffix(
+  currentLessonNumber: number | null | undefined,
+  masterLevelComplete: boolean | null | undefined
+): string {
+  if (masterLevelComplete) return "Course Complete";
+  if (currentLessonNumber != null) return `Lesson ${currentLessonNumber}`;
+  return "";
 }
 
 export async function listAnnualCompetitionEvents(): Promise<AnnualCompetitionEvent[]> {
@@ -2029,6 +2060,10 @@ export type AnnualCompetitionPracticeBankStudentRow = {
   studentName: string | null;
   currentModuleCode: string | null;
   currentLevelCode: string | null;
+  // 2026-09-15 (Shailesh): same Master-module lesson info as
+  // AnnualCompetitionAssignmentPreviewRow above -- see that type's comment.
+  currentLessonNumber: number | null;
+  masterLevelComplete: boolean | null;
   eligibleCompetitionLevelCode: string | null;
 };
 

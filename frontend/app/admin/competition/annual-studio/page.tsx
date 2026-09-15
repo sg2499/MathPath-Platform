@@ -10,6 +10,7 @@ import { apiErrorMessage } from "@/lib/api";
 import {
   ANNUAL_COMPETITION_LEVEL_CODES,
   FormatCompetitionLevelLabel,
+  FormatMasterCurrentLevelSuffix,
   PRACTICE_BATCH_QUANTITY_OPTIONS,
   PRACTICE_BULK_MAX_STUDENTS_PER_CALL,
   batchAssignAnnualCompetitionPracticePapers,
@@ -382,6 +383,16 @@ function AdminAnnualCompetitionStudioPageContent() {
   );
   const [PracticeResultsSearchText, SetPracticeResultsSearchText] = useState("");
   const [ExpandedPracticeStudents, SetExpandedPracticeStudents] = useState<Set<string>>(new Set());
+  // 2026-09-15 (Shailesh): "the individual student block must contain the
+  // different level blocks under it which should be expandable and
+  // collapseable and by default collapsed ... right now everything is
+  // expanded ... which makes the page look very clumsy and weird." Keyed by
+  // `${studentId}::${levelCode}` (not just levelCode) so one student's
+  // expanded level never leaks into another student's block. Empty by
+  // default -- every level starts collapsed, mirroring the same collapsed-
+  // by-default pattern already used for the student's own per-level blocks
+  // on student/competition/annual/page.tsx.
+  const [ExpandedPracticeLevelGroups, SetExpandedPracticeLevelGroups] = useState<Set<string>>(new Set());
   const DeepLinkStudentAppliedRef = useRef(false);
 
   const PracticeResultsQuery = useQuery({
@@ -424,6 +435,14 @@ function AdminAnnualCompetitionStudioPageContent() {
   })();
   function TogglePracticeStudentExpanded(Key: string) {
     SetExpandedPracticeStudents((Prev) => {
+      const Next = new Set(Prev);
+      if (Next.has(Key)) Next.delete(Key);
+      else Next.add(Key);
+      return Next;
+    });
+  }
+  function TogglePracticeLevelGroupExpanded(Key: string) {
+    SetExpandedPracticeLevelGroups((Prev) => {
       const Next = new Set(Prev);
       if (Next.has(Key)) Next.delete(Key);
       else Next.add(Key);
@@ -961,7 +980,22 @@ function AdminAnnualCompetitionStudioPageContent() {
                               />
                             </td>
                             <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                            <td className="px-2 py-2">{Row.currentLevelCode || "--"}</td>
+                            <td className="px-2 py-2">
+                              {Row.currentLevelCode || "--"}
+                              {/* 2026-09-15 (Shailesh): "we need to have the
+                                  current lesson number for the MM students as
+                                  well ... so that it is clear why the student
+                                  is gonna sit for MM-L1" -- Master has exactly
+                                  one curriculum level (MM-L1), so this is the
+                                  only thing that actually distinguishes
+                                  students within it. Current Level itself
+                                  stays the real code, never renamed. */}
+                              {Row.currentModuleCode === "MM" && (Row.currentLessonNumber != null || Row.masterLevelComplete) ? (
+                                <span className="ml-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500">
+                                  ({FormatMasterCurrentLevelSuffix(Row.currentLessonNumber, Row.masterLevelComplete)})
+                                </span>
+                              ) : null}
+                            </td>
                             <td className="px-2 py-2">
                               {Row.eligibleCompetitionLevelCode ? (
                                 <span className="text-emerald-600 dark:text-emerald-300">{FormatCompetitionLevelLabel(Row.eligibleCompetitionLevelCode)}</span>
@@ -1080,19 +1114,40 @@ function AdminAnnualCompetitionStudioPageContent() {
                                   for both teacher and admin login" -- one
                                   sub-table per level instead of every paper
                                   across every level mixed into one long
-                                  flat list. See GroupPracticePapersByLevel's
-                                  own comment for why this stays a simple
-                                  grouped section rather than another nested
-                                  accordion. */}
+                                  flat list. Each level group is now its own
+                                  expand/collapse toggle, collapsed by
+                                  default: "the individual student block must
+                                  contain the different level blocks under it
+                                  which should be expandable and collapseable
+                                  and by default collapsed ... right now
+                                  everything is expanded ... which makes the
+                                  page look very clumsy and weird." */}
                               <div className="space-y-3">
-                                {GroupPracticePapersByLevel(StudentGroup.papers).map((LevelGroup) => (
+                                {GroupPracticePapersByLevel(StudentGroup.papers).map((LevelGroup) => {
+                                  const LevelKey = `${StudentGroup.studentId}::${LevelGroup.LevelCode}`;
+                                  const LevelOpen = ExpandedPracticeLevelGroups.has(LevelKey);
+                                  const LevelPendingCount = LevelGroup.Papers.filter((Paper) => Paper.status === "NOT_STARTED").length;
+                                  return (
                                   <div
                                     key={LevelGroup.LevelCode}
                                     className="overflow-hidden rounded-2xl border border-[#2563eb]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35"
                                   >
-                                    <div className="border-b border-[#2563eb]/10 bg-[#2563eb]/[0.04] px-5 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:border-cyan-300/10 dark:bg-cyan-400/5 dark:text-cyan-100">
-                                      {FormatCompetitionLevelLabel(LevelGroup.LevelCode)}
-                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => TogglePracticeLevelGroupExpanded(LevelKey)}
+                                      className="flex w-full items-center justify-between gap-3 border-b border-[#2563eb]/10 bg-[#2563eb]/[0.04] px-5 py-2.5 text-left transition hover:bg-[#2563eb]/[0.07] dark:border-cyan-300/10 dark:bg-cyan-400/5 dark:hover:bg-cyan-400/10"
+                                    >
+                                      <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">
+                                        {LevelOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                        {FormatCompetitionLevelLabel(LevelGroup.LevelCode)}
+                                      </span>
+                                      <span className="text-xs font-black text-slate-500 dark:text-slate-400">
+                                        {LevelGroup.Papers.length} Paper{LevelGroup.Papers.length === 1 ? "" : "s"}
+                                        {LevelPendingCount > 0 ? ` (${LevelPendingCount} pending)` : ""}
+                                      </span>
+                                    </button>
+                                    {LevelOpen ? (
+                                    <>
                                     <div className="math-admin-light-student-summary-header grid grid-cols-[1.4fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr_0.5fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
                                       <span>Paper Name</span>
                                       <span>Accuracy</span>
@@ -1160,8 +1215,11 @@ function AdminAnnualCompetitionStudioPageContent() {
                                         );
                                       })}
                                     </div>
+                                    </>
+                                    ) : null}
                                   </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           ) : null}
