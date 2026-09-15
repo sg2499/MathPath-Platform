@@ -455,13 +455,26 @@ function AdminAnnualCompetitionStudioPageContent() {
   // so this waits for GroupedPracticeResults to have real rows to match
   // against. Applied at most once per page load (the ref guard) so it never
   // fights a student the admin has since manually collapsed.
+  //
+  // 2026-09-15 (Shailesh): "on clicking it, it should take them to the
+  // correct page with the student's level block expanded for whichever
+  // level the notification was assigned." DeepLinkLevelCode above already
+  // pre-selects PracticeResultsLevelFilter to this level, but the level
+  // group itself still starts collapsed by default like every other level
+  // block, so it also needs the explicit expand here -- same
+  // `${studentId}::${levelCode}` key the level-group toggle/render below
+  // already uses, gated behind the same DeepLinkStudentAppliedRef so it
+  // only ever applies once per page load.
   useEffect(() => {
     if (!DeepLinkStudentCode || DeepLinkStudentAppliedRef.current) return;
     const Match = GroupedPracticeResults.find((StudentGroup) => StudentGroup.studentCode === DeepLinkStudentCode);
     if (!Match) return;
     DeepLinkStudentAppliedRef.current = true;
     SetExpandedPracticeStudents((Prev) => new Set(Prev).add(Match.studentId));
-  }, [DeepLinkStudentCode, GroupedPracticeResults]);
+    if (DeepLinkLevelCode) {
+      SetExpandedPracticeLevelGroups((Prev) => new Set(Prev).add(`${Match.studentId}::${DeepLinkLevelCode}`));
+    }
+  }, [DeepLinkStudentCode, DeepLinkLevelCode, GroupedPracticeResults]);
 
   // 2026-09-14 (Shailesh): per-row and per-student-block delete icons in
   // the admin Practice view. Both mutations invalidate the same query key

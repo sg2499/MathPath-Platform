@@ -392,6 +392,58 @@ def test_mm_l1_cube_roots_section_is_digit_targeted_4_5_6():
     assert len(signatures) == len(questions)  # all 50 unique
 
 
+# 2026-09-15 (Shailesh): "while we are assigning practice papers to
+# students for the competition we see the following error:
+# ANNUAL_COMPETITION_SECTION_GENERATION_INCOMPLETE ... sectionKey: SEC5,
+# slotIndex: 47, required: 50 ... this is shown and when we refresh it and
+# try again it works ... we need to make sure this never happens ...
+# whether we assign 5 or 25 sheets everything should work at once without
+# any kind of issues." Root cause: IM-L3/IM-L4 Section 5 ("Squares
+# (Visual)") is a single-concept pool (_IM_L3_SQUARES_POOL/
+# _IM_L4_SQUARES_POOL -- no fallback-to-another-concept possible) drawing
+# 50 unique values from GenerateSquares's 89-value domain
+# (app/question_engine/im/operands.py, Base = randint(11, 99)). At
+# ANNUAL_COMPETITION_SLOT_MAX_RETRIES = 10 the tightest slot (49 of 89
+# already used) had a real, non-negligible chance of exhausting its retry
+# budget before finding a fresh value. Raised to 50 (see the constant's own
+# comment in annual_competition_paper_generation_service.py for the exact
+# probability math). This test regenerates both levels' full papers
+# repeatedly -- each run draws all the way to the same 49-of-89 tightest
+# slot the bug report hit -- to give this fix real, repeated exercise
+# rather than relying on a single lucky/unlucky random seed.
+@pytest.mark.parametrize("level_code,module_code", [("IM-L3", "IM"), ("IM-L4", "IM")])
+def test_im_squares_section_generates_reliably_across_many_runs(level_code, module_code):
+    for _run in range(15):
+        db = _session()
+        admin = _admin(db)
+        _module, level = _module_and_level(db, module_code, level_code, level_code)
+        db.commit()
+
+        payload = GenerateAnnualCompetitionLevelPaper(db, LevelId=level.id, CreatedBy=admin)
+        squares_questions = (
+            db.query(CompetitionMockQuestion)
+            .filter(
+                CompetitionMockQuestion.mock_exam_id == payload["mockExamId"],
+                CompetitionMockQuestion.section_number == 5,
+            )
+            .all()
+        )
+        assert len(squares_questions) == 50
+        signatures = {(q.operands_json, q.correct_answer) for q in squares_questions}
+        assert len(signatures) == 50  # every one of the 50 is a genuinely fresh, unique square
+
+
+def test_slot_max_retries_raised_to_survive_single_concept_pool_exhaustion():
+    """Locks in the deliberate 10 -> 50 change with a visible test failure if
+    it's ever accidentally lowered again -- see the constant's own comment
+    for the full probability rationale."""
+    from app.services.annual_competition_paper_generation_service import (
+        ANNUAL_COMPETITION_SLOT_MAX_RETRIES,
+    )
+
+    assert ANNUAL_COMPETITION_SLOT_MAX_RETRIES >= 50
+
+
 def test_generate_fails_cleanly_for_inactive_level():
     db = _session()
     admin = _admin(db)
