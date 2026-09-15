@@ -88,6 +88,24 @@ _YLM_L1_DIRECT_POOL: list[dict[str, Any]] = [
 ]
 
 # ---------------------------------------------------------------------------
+# 2026-09-15 (Shailesh): "Bloomers (Below 8 Years)" / "Beginners (Above 8
+# Years)" split. YLM-L1 (this file's existing entry below) is the age-8-and-
+# above bracket, publicly labelled "Beginners (Above 8 Years)" -- its
+# content, code, and every existing row referencing it are untouched. The
+# new "Bloomers (Below 8 Years)" bracket is a pure content clone of YLM-L1
+# under its own code, YLM-L0 -- same _YLM_L1_DIRECT_POOL object, same single
+# "Direct Sums (Abacus)" section shape, so the two papers are guaranteed to
+# never drift apart in content, only in who they're assigned to. YLM-L0 has
+# no curriculum Level row of its own (same shape as MM-L2 -- see
+# annual_competition_studio_service.py's _CURRICULUM_LOOKUP_LEVEL_CODE_
+# OVERRIDES, which resolves YLM-L0's curriculum linkage through YLM-L1).
+# Explicitly NOT age/DOB-driven: the admin assigns Beginners vs Bloomers
+# manually (practice batches and the official event day alike), same as
+# every other level -- see annual_competition_assignment_service.py's own
+# docstring on why Student.dob is deliberately unused there.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Level 2 -> PM-L1 -- "all concepts covered in Level 1" read as PM-L1's full
 # existing Addition + Subtraction + Add/Less pool combined into one section
 # (PM-L1 has no Abacus/Visual split of its own -- it's a single-technique
@@ -390,6 +408,16 @@ _MM_L1_CUBE_ROOTS_POOL: list[dict[str, Any]] = [
 ANNUAL_COMPETITION_MARKS_PER_QUESTION = 1
 
 ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
+    # "Bloomers (Below 8 Years)" -- content-identical clone of YLM-L1 below,
+    # see the comment above _YLM_L1_DIRECT_POOL for why.
+    "YLM-L0": {
+        "sections": [
+            {"key": "SEC1", "number": 1, "title": "Direct Sums (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 600},
+        ],
+        "sectionConceptPools": {"SEC1": _YLM_L1_DIRECT_POOL},
+    },
+    # "Beginners (Above 8 Years)" -- publicly-displayed name only, see
+    # ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS below. Code/content unchanged.
     "YLM-L1": {
         "sections": [
             {"key": "SEC1", "number": 1, "title": "Direct Sums (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 600},
@@ -561,3 +589,32 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
 
 def GetAnnualCompetitionLevelConfig(LevelCode: str) -> dict[str, Any] | None:
     return ANNUAL_COMPETITION_LEVEL_REGISTRY.get(LevelCode)
+
+
+# ---------------------------------------------------------------------------
+# 2026-09-15 (Shailesh): "the wordings need to be updated everywhere
+# relevant ... nothing should showcase the old name wherever it is being
+# seen by the human eyes, underneath the system in the backend use whatever
+# that is comfortable for you." Every other level code (PM-L1, IM-L2, ...)
+# is still shown to admin/teacher/student exactly as-is -- only these two
+# codes get a human-facing display label. Kept as a single small dict
+# (rather than touching the codes themselves) so no existing
+# CompetitionEventLevelPaper/CompetitionEventAttempt/CompetitionEventResult
+# row, generated question, or test needs to change -- this is purely a
+# label swapped in wherever a level code is rendered for a person to read.
+# The frontend keeps its own copy of this exact mapping (lib/api/admin.ts's
+# FormatCompetitionLevelLabel) for the same reason -- see that function's
+# comment. Keep both in sync if this ever changes.
+# ---------------------------------------------------------------------------
+ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS: dict[str, str] = {
+    "YLM-L0": "Bloomers (Below 8 Years)",
+    "YLM-L1": "Beginners (Above 8 Years)",
+}
+
+
+def FormatCompetitionLevelLabel(LevelCode: str | None) -> str:
+    """Human-facing label for a competition level code. Every code besides
+    YLM-L0/YLM-L1 renders as itself (e.g. "PM-L1" stays "PM-L1")."""
+    if not LevelCode:
+        return ""
+    return ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS.get(LevelCode, LevelCode)

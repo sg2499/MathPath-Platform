@@ -1598,15 +1598,38 @@ export type AnnualCompetitionAssignmentRunResult = {
   noRuleMatched: number;
 };
 
-// The 11 real assignment-target level codes, in display order -- mirrors
+// The 12 real assignment-target level codes, in display order -- mirrors
 // VALID_COMPETITION_LEVEL_CODES (annual_competition_studio_service.py).
-// BM-L1 is deliberately excluded (see that module's docstring).
+// BM-L1 is deliberately excluded (see that module's docstring). YLM-L0
+// ("Bloomers") added 2026-09-15 alongside YLM-L1 ("Beginners") -- see
+// ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS below for why both show a
+// different name than their code.
 export const ANNUAL_COMPETITION_LEVEL_CODES = [
-  "YLM-L1",
+  "YLM-L0", "YLM-L1",
   "PM-L1", "PM-L2", "PM-L3", "PM-L4",
   "IM-L1", "IM-L2", "IM-L3", "IM-L4",
   "MM-L1", "MM-L2",
 ] as const;
+
+// 2026-09-15 (Shailesh): "the wordings need to be updated everywhere
+// relevant ... nothing should showcase the old name wherever it is being
+// seen by the human eyes." Every level code except these two renders as
+// itself unchanged (e.g. "PM-L1" stays "PM-L1"); YLM-L1 and YLM-L0 keep
+// their existing/new internal codes (so no stored data, attempt, or result
+// needs to change) but always display under these names to admin, teacher,
+// and student alike, across both the Official and Practice flows. Mirrors
+// the backend's own copy of this exact mapping
+// (annual_competition_paper_registry.py's ANNUAL_COMPETITION_LEVEL_DISPLAY_
+// LABELS) -- keep both in sync if this ever changes.
+const ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS: Record<string, string> = {
+  "YLM-L0": "Bloomers (Below 8 Years)",
+  "YLM-L1": "Beginners (Above 8 Years)",
+};
+
+export function FormatCompetitionLevelLabel(levelCode: string | null | undefined): string {
+  if (!levelCode) return "";
+  return ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS[levelCode] || levelCode;
+}
 
 export async function listAnnualCompetitionEvents(): Promise<AnnualCompetitionEvent[]> {
   const { data } = await api.get<{ events: AnnualCompetitionEvent[] }>("/admin/annual-competition/events");

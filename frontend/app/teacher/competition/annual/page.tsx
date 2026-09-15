@@ -6,7 +6,8 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
-import { ANNUAL_COMPETITION_LEVEL_CODES } from "@/lib/api/admin";
+import { ANNUAL_COMPETITION_LEVEL_CODES, FormatCompetitionLevelLabel } from "@/lib/api/admin";
+import { GroupPracticePapersByLevel } from "@/lib/annualCompetitionPracticeGrouping";
 import {
   getTeacherAnnualCompetitionEvents,
   getTeacherAnnualCompetitionLive,
@@ -254,7 +255,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                 >
                   <option value="ALL">All Levels</option>
                   {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                    <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                    <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
                   ))}
                 </select>
               </div>
@@ -347,7 +348,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                         {LiveQuery.data.rows.map((Row: TeacherAnnualCompetitionLiveRow) => (
                           <tr key={Row.assignmentId} className="border-t border-[color:var(--mp-role-border)]">
                             <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                            <td className="px-2 py-2">{Row.assignedLevelCode}</td>
+                            <td className="px-2 py-2">{FormatCompetitionLevelLabel(Row.assignedLevelCode)}</td>
                             <td className="px-2 py-2">{Row.slot?.slotLabel || Row.slot?.mode || "--"}</td>
                             <td className="px-2 py-2"><LiveStatusChip status={Row.liveStatus} /></td>
                             <td className="px-2 py-2">{Row.currentSectionNumber ?? "--"}</td>
@@ -394,7 +395,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                         {ResultsQuery.data.rows.map((Row: TeacherAnnualCompetitionResultRow) => (
                           <tr key={Row.assignmentId} className="border-t border-[color:var(--mp-role-border)]">
                             <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                            <td className="px-2 py-2">{Row.assignedLevelCode}</td>
+                            <td className="px-2 py-2">{FormatCompetitionLevelLabel(Row.assignedLevelCode)}</td>
                             {Row.released && Row.result ? (
                               <>
                                 <td className="px-2 py-2">{Row.result.rank ?? "--"}</td>
@@ -496,45 +497,59 @@ function TeacherAnnualCompetitionMonitorPageContent() {
 
                           {StudentOpen ? (
                             <div className="border-t border-[color:var(--mp-role-border)] p-3">
-                              <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)] bg-white shadow-sm dark:bg-slate-950/35">
-                                <div className="grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
-                                  <span>Paper Name</span>
-                                  <span>Level</span>
-                                  <span>Accuracy</span>
-                                  <span>Score</span>
-                                  <span>Time Taken</span>
-                                  <span>Completed</span>
-                                  <span>Action</span>
-                                </div>
-                                <div className="divide-y divide-slate-100 dark:divide-white/10">
-                                  {StudentGroup.papers.map((Paper) => {
-                                    const IsPending = Paper.status === "NOT_STARTED" || !Paper.result;
-                                    return (
-                                      <div
-                                        key={Paper.levelPaperId}
-                                        className="grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr] items-center gap-3 px-5 py-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50/50 dark:text-slate-100 dark:hover:bg-slate-800/40"
-                                      >
-                                        <div className="font-black text-slate-950 dark:text-white">{Paper.paperLabel}</div>
-                                        <div>{Paper.competitionLevelCode}</div>
-                                        <div>{IsPending ? "-" : `${Paper.result!.accuracyPercentage}%`}</div>
-                                        <div>{IsPending ? "-" : `${Paper.result!.score}/${Paper.result!.maxScore}`}</div>
-                                        <div>{IsPending ? "-" : FormatSecondsAsMinSec(Paper.result!.timeTakenSeconds)}</div>
-                                        <div>{IsPending ? "Pending" : FormatEventDate(Paper.result!.computedAt)}</div>
-                                        <div>
-                                          {!IsPending && Paper.attemptId ? (
-                                            <button
-                                              type="button"
-                                              onClick={() => Router.push(`/teacher/competition/annual-result/${Paper.attemptId}`)}
-                                              className="inline-flex items-center gap-1 rounded-full border border-[color:var(--mp-role-border)] px-3 py-1 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:bg-slate-50 dark:hover:bg-white/10"
-                                            >
-                                              <Eye size={13} /> View
-                                            </button>
-                                          ) : null}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                              {/* 2026-09-15 (Shailesh): "for the grouping of
+                                  levels in the student blocks, lets do that
+                                  for both teacher and admin login" -- one
+                                  sub-table per level instead of every paper
+                                  across every level mixed into one long
+                                  flat list. */}
+                              <div className="space-y-3">
+                                {GroupPracticePapersByLevel(StudentGroup.papers).map((LevelGroup) => (
+                                  <div
+                                    key={LevelGroup.LevelCode}
+                                    className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)] bg-white shadow-sm dark:bg-slate-950/35"
+                                  >
+                                    <div className="border-b border-[color:var(--mp-role-border)] bg-slate-50/80 px-5 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-[color:var(--mp-role-primary)] dark:bg-white/5">
+                                      {FormatCompetitionLevelLabel(LevelGroup.LevelCode)}
+                                    </div>
+                                    <div className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+                                      <span>Paper Name</span>
+                                      <span>Accuracy</span>
+                                      <span>Score</span>
+                                      <span>Time Taken</span>
+                                      <span>Completed</span>
+                                      <span>Action</span>
+                                    </div>
+                                    <div className="divide-y divide-slate-100 dark:divide-white/10">
+                                      {LevelGroup.Papers.map((Paper) => {
+                                        const IsPending = Paper.status === "NOT_STARTED" || !Paper.result;
+                                        return (
+                                          <div
+                                            key={Paper.levelPaperId}
+                                            className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr] items-center gap-3 px-5 py-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50/50 dark:text-slate-100 dark:hover:bg-slate-800/40"
+                                          >
+                                            <div className="font-black text-slate-950 dark:text-white">{Paper.paperLabel}</div>
+                                            <div>{IsPending ? "-" : `${Paper.result!.accuracyPercentage}%`}</div>
+                                            <div>{IsPending ? "-" : `${Paper.result!.score}/${Paper.result!.maxScore}`}</div>
+                                            <div>{IsPending ? "-" : FormatSecondsAsMinSec(Paper.result!.timeTakenSeconds)}</div>
+                                            <div>{IsPending ? "Pending" : FormatEventDate(Paper.result!.computedAt)}</div>
+                                            <div>
+                                              {!IsPending && Paper.attemptId ? (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => Router.push(`/teacher/competition/annual-result/${Paper.attemptId}`)}
+                                                  className="inline-flex items-center gap-1 rounded-full border border-[color:var(--mp-role-border)] px-3 py-1 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:bg-slate-50 dark:hover:bg-white/10"
+                                                >
+                                                  <Eye size={13} /> View
+                                                </button>
+                                              ) : null}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           ) : null}

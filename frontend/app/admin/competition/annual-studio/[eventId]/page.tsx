@@ -9,6 +9,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
   ANNUAL_COMPETITION_LEVEL_CODES,
+  FormatCompetitionLevelLabel,
   createAnnualCompetitionSlot,
   downloadAnnualCompetitionCertificate,
   generateAnnualCompetitionLevelPaper,
@@ -351,7 +352,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const GeneratePaperMutation = useMutation({
     mutationFn: (LevelCode: string) => generateAnnualCompetitionLevelPaper(EventId, LevelCode),
     onSuccess: (Result) => {
-      SetLastMessage(`Official paper generated for ${Result.competitionLevelCode}.`);
+      SetLastMessage(`Official paper generated for ${FormatCompetitionLevelLabel(Result.competitionLevelCode)}.`);
       InvalidateOverview();
     },
   });
@@ -360,7 +361,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     mutationFn: ({ LevelCode, MockExamId }: { LevelCode: string; MockExamId: string }) =>
       linkAnnualCompetitionLevelPaper(EventId, LevelCode, MockExamId),
     onSuccess: (Result) => {
-      SetLastMessage(`Existing mock exam linked as ${Result.competitionLevelCode}'s official paper.`);
+      SetLastMessage(`Existing mock exam linked as ${FormatCompetitionLevelLabel(Result.competitionLevelCode)}'s official paper.`);
       InvalidateOverview();
     },
   });
@@ -424,7 +425,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const RankResultsMutation = useMutation({
     mutationFn: (LevelCode: string) => rankAnnualCompetitionResults(EventId, LevelCode),
     onSuccess: (Result) => {
-      SetLastMessage(`Ranked ${Result.rankedCount} result${Result.rankedCount === 1 ? "" : "s"} for ${Result.competitionLevelCode}.`);
+      SetLastMessage(`Ranked ${Result.rankedCount} result${Result.rankedCount === 1 ? "" : "s"} for ${FormatCompetitionLevelLabel(Result.competitionLevelCode)}.`);
       InvalidateResults();
     },
   });
@@ -432,7 +433,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const ReleaseResultsForLevelMutation = useMutation({
     mutationFn: (LevelCode: string | null) => releaseAnnualCompetitionResults(EventId, LevelCode),
     onSuccess: (Result) => {
-      SetLastMessage(`Released ${Result.releasedCount} result${Result.releasedCount === 1 ? "" : "s"}${Result.competitionLevelCode ? ` for ${Result.competitionLevelCode}` : " across every level"}.`);
+      SetLastMessage(`Released ${Result.releasedCount} result${Result.releasedCount === 1 ? "" : "s"}${Result.competitionLevelCode ? ` for ${FormatCompetitionLevelLabel(Result.competitionLevelCode)}` : " across every level"}.`);
       InvalidateResults();
     },
   });
@@ -457,7 +458,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const RecomputeResultsMutation = useMutation({
     mutationFn: () => recomputeAnnualCompetitionResults(EventId, ResultsLevelFilter === "ALL" ? undefined : ResultsLevelFilter),
     onSuccess: (Result) => {
-      SetLastMessage(`Recomputed ${Result.recomputedCount} result${Result.recomputedCount === 1 ? "" : "s"}${Result.competitionLevelCode ? ` for ${Result.competitionLevelCode}` : " across every level"}.`);
+      SetLastMessage(`Recomputed ${Result.recomputedCount} result${Result.recomputedCount === 1 ? "" : "s"}${Result.competitionLevelCode ? ` for ${FormatCompetitionLevelLabel(Result.competitionLevelCode)}` : " across every level"}.`);
       InvalidateResults();
     },
   });
@@ -694,7 +695,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                             : "border-[color:var(--mp-role-border)] bg-white text-slate-600 dark:bg-slate-950/40 dark:text-slate-300"
                         }`}
                       >
-                        {LevelCode}
+                        {FormatCompetitionLevelLabel(LevelCode)}
                       </button>
                     );
                   })}
@@ -764,7 +765,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                       : "border-[color:var(--mp-role-border)] bg-white text-slate-600 dark:bg-slate-950/40 dark:text-slate-300"
                                   }`}
                                 >
-                                  {LevelCode}
+                                  {FormatCompetitionLevelLabel(LevelCode)}
                                 </button>
                               );
                             })}
@@ -832,7 +833,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {SlotItem.applicableLevelCodes.map((LevelCode) => (
                             <span key={LevelCode} className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                              {LevelCode}
+                              {FormatCompetitionLevelLabel(LevelCode)}
                             </span>
                           ))}
                         </div>
@@ -863,7 +864,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 <div key={LevelCode} className="math-card p-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-base font-black text-slate-950 dark:text-white">{LevelCode}</p>
+                      <p className="text-base font-black text-slate-950 dark:text-white">{FormatCompetitionLevelLabel(LevelCode)}</p>
                       {LevelPaper?.mockExamTitle && <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{LevelPaper.mockExamTitle}</p>}
                     </div>
                     <StatusChip status={LevelPaper?.status || "PENDING"} />
@@ -989,20 +990,25 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   engine can be run against only the students enrolled for this
                   event (e.g. a practice-exam dry run) instead of everyone. */}
               {AssignmentRows.length > 0 && (
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <div className="relative">
-                    <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                // 2026-09-15 (Shailesh): same responsive rebuild as the
+                // Practice Bank tab's filter row (admin/competition/
+                // annual-studio/page.tsx) -- see that file's comment for
+                // the full "why". This row used the identical cramped
+                // text-xs/fixed-width pattern, copy-pasted from there.
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_200px_200px_auto]">
+                  <div className="relative sm:col-span-2 lg:col-span-1">
+                    <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       value={AssignmentSearchText}
                       onChange={(EventValue) => SetAssignmentSearchText(EventValue.target.value)}
                       placeholder="Search by name or student code..."
-                      className="math-input !py-2 !pl-9 !text-xs w-64"
+                      className="math-input pl-11"
                     />
                   </div>
                   <select
                     value={AssignmentModuleFilter}
                     onChange={(EventValue) => SetAssignmentModuleFilter(EventValue.target.value)}
-                    className="math-input !py-2 !text-xs w-auto"
+                    className="math-select"
                     aria-label="Filter by module"
                   >
                     <option value="ALL">All Modules</option>
@@ -1013,7 +1019,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   <select
                     value={AssignmentLevelFilter}
                     onChange={(EventValue) => SetAssignmentLevelFilter(EventValue.target.value)}
-                    className="math-input !py-2 !text-xs w-auto"
+                    className="math-select"
                     aria-label="Filter by level"
                   >
                     <option value="ALL">All Levels</option>
@@ -1021,23 +1027,25 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                       <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
                     ))}
                   </select>
-                  {(AssignmentSearchText || AssignmentModuleFilter !== "ALL" || AssignmentLevelFilter !== "ALL") && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        SetAssignmentSearchText("");
-                        SetAssignmentModuleFilter("ALL");
-                        SetAssignmentLevelFilter("ALL");
-                      }}
-                      className="inline-flex items-center gap-1 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-2 text-xs font-black text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
-                    >
-                      <X size={12} />
-                      Clear Filters
-                    </button>
-                  )}
-                  <span className="text-xs font-bold text-slate-400">
-                    {FilteredAssignmentRows.length} of {AssignmentRows.length} shown
-                  </span>
+                  <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-1 lg:justify-self-end">
+                    {(AssignmentSearchText || AssignmentModuleFilter !== "ALL" || AssignmentLevelFilter !== "ALL") && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          SetAssignmentSearchText("");
+                          SetAssignmentModuleFilter("ALL");
+                          SetAssignmentLevelFilter("ALL");
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2 text-sm font-bold text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
+                      >
+                        <X size={14} />
+                        Clear Filters
+                      </button>
+                    )}
+                    <span className="text-sm font-bold text-slate-400">
+                      {FilteredAssignmentRows.length} of {AssignmentRows.length} shown
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -1122,7 +1130,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                   aria-label={`Set level for ${Row.studentName || Row.studentCode || Row.studentId}`}
                                 >
                                   {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                                    <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                                    <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
                                   ))}
                                 </select>
                                 <button
@@ -1172,7 +1180,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   Assigned Level
                   <select value={OverrideLevelCode} onChange={(EventValue) => SetOverrideLevelCode(EventValue.target.value)} className="math-input">
                     {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                      <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
                     ))}
                   </select>
                 </label>
@@ -1256,7 +1264,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                       {LiveMonitoringQuery.data.rows.map((Row: AnnualCompetitionLiveMonitoringRow) => (
                         <tr key={Row.assignmentId} className="border-t border-[color:var(--mp-role-border)]">
                           <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                          <td className="px-2 py-2">{Row.assignedLevelCode}</td>
+                          <td className="px-2 py-2">{FormatCompetitionLevelLabel(Row.assignedLevelCode)}</td>
                           <td className="px-2 py-2">{Row.slot?.slotLabel || Row.slot?.mode || "--"}</td>
                           <td className="px-2 py-2"><LiveStatusChip status={Row.liveStatus} /></td>
                           <td className="px-2 py-2">{Row.currentSectionNumber ?? "--"}</td>
@@ -1291,7 +1299,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   <select value={ResultsLevelFilter} onChange={(EventValue) => SetResultsLevelFilter(EventValue.target.value)} className="math-input">
                     <option value="ALL">All Levels</option>
                     {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                      <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
                     ))}
                   </select>
                 </label>
@@ -1299,7 +1307,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   Rank Level
                   <select value={RankLevelCode} onChange={(EventValue) => SetRankLevelCode(EventValue.target.value)} className="math-input">
                     {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                      <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
                     ))}
                   </select>
                 </label>
@@ -1310,20 +1318,20 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
                 >
                   <RefreshCcw size={14} />
-                  {RankResultsMutation.isPending ? "Ranking..." : `Rank ${RankLevelCode}`}
+                  {RankResultsMutation.isPending ? "Ranking..." : `Rank ${FormatCompetitionLevelLabel(RankLevelCode)}`}
                 </button>
                 <button
                   type="button"
                   disabled={ReleaseResultsForLevelMutation.isPending}
                   onClick={() => {
-                    if (window.confirm(`Release results for ${RankLevelCode}? Students/parents will be able to see them immediately.`)) {
+                    if (window.confirm(`Release results for ${FormatCompetitionLevelLabel(RankLevelCode)}? Students/parents will be able to see them immediately.`)) {
                       ReleaseResultsForLevelMutation.mutate(RankLevelCode);
                     }
                   }}
                   className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <CheckCircle2 size={14} />
-                  Release {RankLevelCode}
+                  Release {FormatCompetitionLevelLabel(RankLevelCode)}
                 </button>
                 <button
                   type="button"
@@ -1398,7 +1406,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                           <tr key={Row.resultId} className="border-t border-[color:var(--mp-role-border)]">
                             <td className="px-2 py-2 truncate"><RankBadge Rank={Row.rank} /></td>
                             <td className="px-2 py-2 truncate text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                            <td className="px-2 py-2 truncate">{Row.competitionLevelCode}</td>
+                            <td className="px-2 py-2 truncate">{FormatCompetitionLevelLabel(Row.competitionLevelCode)}</td>
                             <td className="px-2 py-2 truncate">{Row.accuracyPercentage}%</td>
                             <td className="px-2 py-2 truncate">{Row.score}/{Row.maxScore}</td>
                             <td className="px-2 py-2 truncate">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
@@ -1440,7 +1448,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                 className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950/60"
                                 onClick={() => {
                                   const Reason = window.prompt(
-                                    `Reason for granting ${Row.studentName || Row.studentCode || Row.studentId} a retry on ${Row.competitionLevelCode}? (required)`
+                                    `Reason for granting ${Row.studentName || Row.studentCode || Row.studentId} a retry on ${FormatCompetitionLevelLabel(Row.competitionLevelCode)}? (required)`
                                   );
                                   if (Reason && Reason.trim()) {
                                     RetryMutation.mutate({ Row, Reason: Reason.trim() });

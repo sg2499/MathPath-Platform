@@ -721,6 +721,49 @@ def test_generate_for_mm_l2_fails_cleanly_when_mm_l1_also_missing():
     assert exc_info.value.detail["code"] == "NO_CURRICULUM_LEVEL_FOR_CODE"
 
 
+def test_generate_for_ylm_l0_bloomers_succeeds_via_ylm_l1_curriculum_fallback():
+    """2026-09-15 (Shailesh): "Bloomers (Below 8 Years)" -- YLM-L0 -- is a
+    pure content clone of YLM-L1 ("Beginners (Above 8 Years)"), same shape
+    as the MM-L2/MM-L1 fallback above: no curriculum Level row of its own,
+    resolves Module/Level linkage through the real YLM-L1 row while
+    generating YLM-L0's own registry content (which is, deliberately, the
+    exact same content as YLM-L1's -- see annual_competition_paper_registry.
+    py's own comment)."""
+    db = _session()
+    admin = _admin(db)
+    _module_and_level(db, "YLM", "YLM-L1", "Young Learners Module Level 1")
+    _event(db)
+    db.commit()
+
+    result = studio.GenerateAndLinkCompetitionEventLevelPaper(
+        db, EventId="event-1", CompetitionLevelCode="YLM-L0", CreatedBy=admin
+    )
+    assert result["status"] == "READY"
+    assert result["competitionLevelCode"] == "YLM-L0"
+    assert result["mockExamId"] is not None
+
+
+def test_ylm_l0_and_ylm_l1_are_both_valid_and_distinct_level_codes():
+    """Guards the "Bloomers"/"Beginners" split itself: both codes are
+    independently valid assignment targets, and generating one never
+    silently reuses or collides with the other's own CompetitionMockExam."""
+    db = _session()
+    admin = _admin(db)
+    _module_and_level(db, "YLM", "YLM-L1", "Young Learners Module Level 1")
+    _event(db)
+    db.commit()
+
+    bloomers = studio.GenerateAndLinkCompetitionEventLevelPaper(
+        db, EventId="event-1", CompetitionLevelCode="YLM-L0", CreatedBy=admin
+    )
+    beginners = studio.GenerateAndLinkCompetitionEventLevelPaper(
+        db, EventId="event-1", CompetitionLevelCode="YLM-L1", CreatedBy=admin
+    )
+    assert bloomers["mockExamId"] != beginners["mockExamId"]
+    assert bloomers["competitionLevelCode"] == "YLM-L0"
+    assert beginners["competitionLevelCode"] == "YLM-L1"
+
+
 def test_regenerating_an_unlocked_paper_does_not_collide_on_mock_code():
     """Bug fix (Shailesh, 2026-09-14): "Regenerate Official Paper" used to
     build a fixed, non-unique MockCode (ANNUAL-{eventId}-{levelCode}) on
@@ -1064,6 +1107,9 @@ def test_manual_override_still_honors_an_explicit_slot_id_when_given():
 # ---------------------------------------------------------------------------
 
 EXPECTED_TOTAL_MINUTES = {
+    # YLM-L0 ("Bloomers (Below 8 Years)") is a pure content clone of YLM-L1
+    # ("Beginners (Above 8 Years)") -- same section, same 10-minute total.
+    "YLM-L0": 10,
     "YLM-L1": 10,
     "PM-L1": 10,
     "PM-L2": 10,
@@ -1243,6 +1289,36 @@ def test_batch_assign_creates_n_fresh_practice_papers_with_distinct_content():
     ]
     assert len(set(first_questions)) >= 1  # sanity: both queries returned something real
     assert all(q is not None for q in first_questions)
+
+
+def test_batch_assign_practice_papers_for_ylm_l0_bloomers_succeeds():
+    """2026-09-15 (Shailesh): "Bloomers (Below 8 Years)" -- YLM-L0 -- must be
+    assignable through the practice bank exactly like any other level, since
+    the admin assigns it manually (no DOB/age auto-detection -- see
+    annual_competition_assignment_service.py's own docstring). Resolves
+    through YLM-L1's curriculum Level row (same fallback as MM-L2/MM-L1)."""
+    db = _session()
+    module, level = _module_and_level(db, "YLM", "YLM-L1", "Young Learners Module Level 1")
+    admin = _admin(db)
+    student = _student(db, "s1", module_id=module.id, level_id=level.id)
+    db.commit()
+
+    outcome = studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="YLM-L0", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
+    )
+    assert outcome["studentsSucceeded"] == 1
+    assert outcome["studentsFailed"] == 0
+    assert outcome["totalPapersAssigned"] == 5
+
+    practice_papers = (
+        db.query(CompetitionEventLevelPaper)
+        .filter_by(paper_kind="PRACTICE", assigned_student_id=student.id)
+        .all()
+    )
+    assert len(practice_papers) == 5
+    for paper in practice_papers:
+        assert paper.competition_level_code == "YLM-L0"
+        assert paper.status == "READY"
 
 
 def test_batch_assign_creates_papers_for_every_student_in_one_call():

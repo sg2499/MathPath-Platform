@@ -5,6 +5,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { getAnnualCompetitionInstructions, startAnnualCompetitionAttempt } from "@/lib/api/student";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api";
+import { FormatCompetitionLevelLabel } from "@/lib/api/admin";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Brain, ClipboardList, Clock3, Hourglass, Layers3, PlayCircle, ShieldCheck, Trophy } from "lucide-react";
@@ -91,7 +92,7 @@ function AnnualCompetitionInstructionsContent() {
           <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-gradient-to-br from-white via-sky-50 to-cyan-100 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:p-6">
             <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-cyan-300/25 blur-3xl" />
             <div className="relative z-10">
-              <div className="math-block-header mb-2"><Trophy size={14} /> Annual Competition · {Query.data.assignedLevelCode}</div>
+              <div className="math-block-header mb-2"><Trophy size={14} /> Annual Competition · {FormatCompetitionLevelLabel(Query.data.assignedLevelCode)}</div>
               <h1 className="mt-2 w-full text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
                 {Query.data.eventName}
               </h1>

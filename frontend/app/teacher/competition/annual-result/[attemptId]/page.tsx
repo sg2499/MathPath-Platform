@@ -21,6 +21,7 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
+import { FormatCompetitionLevelLabel } from "@/lib/api/admin";
 import {
   getTeacherAnnualCompetitionAttemptReview,
   type TeacherAnnualCompetitionAttemptReview,
@@ -138,7 +139,7 @@ export default function TeacherAnnualCompetitionAttemptReviewPage() {
               <h1 className="math-title">{Review.studentName || Review.studentCode || Review.studentId}</h1>
               <div className="mt-3 flex flex-wrap gap-2">
                 {Review.studentCode ? <Chip label={Review.studentCode} /> : null}
-                {Review.competitionLevelCode ? <Chip label={Review.competitionLevelCode} /> : null}
+                {Review.competitionLevelCode ? <Chip label={FormatCompetitionLevelLabel(Review.competitionLevelCode)} /> : null}
                 {Review.attemptType ? (
                   <Chip tone={Review.attemptType === "PRACTICE" ? "amber" : "slate"}>{Review.attemptType}</Chip>
                 ) : null}
