@@ -1058,14 +1058,6 @@ def _ScheduleDateToStartTimeUtc(date_str: str) -> datetime:
     return ist_midnight.astimezone(timezone.utc)
 
 
-def _IsWeekendInIst(start_time_utc: datetime) -> bool:
-    """Saturday/Sunday check against the IST calendar day, since the
-    program's weekly rhythm (weekday practice, weekend classes) is defined
-    in the school's local time, not server UTC."""
-    ist_moment = start_time_utc.astimezone(IST)
-    return ist_moment.weekday() >= 5  # Monday=0 ... Saturday=5, Sunday=6
-
-
 @router.post("/assignments/schedule")
 def schedule_lesson_dps_to_students(
     payload: TeacherScheduleAssignRequest,
@@ -1131,8 +1123,6 @@ def schedule_lesson_dps_to_students(
             start_time = _ScheduleDateToStartTimeUtc(item.date)
         except ValueError:
             api_error(400, "VALIDATION_ERROR", f"'{item.date}' is not a valid date (expected YYYY-MM-DD).")
-        if _IsWeekendInIst(start_time):
-            warnings.append(f"DPS {dps.dps_number} is scheduled on {item.date}, which falls on a weekend.")
         ordered_entries.append((dps, start_time, item.date))
     ordered_entries.sort(key=lambda entry: entry[0].dps_number)
     slot_dates = [entry[1] for entry in ordered_entries]

@@ -970,53 +970,94 @@ def _ValidatePracticeBatchQuantity(Quantity: int) -> None:
 
 def _GeneratePracticePapersForOneStudent(
     db: Session, *, LevelRecord: Level, CompetitionLevelCode: str, StudentRecord: Student, Quantity: int, AssignedBy: User, NowUtc: datetime
-) -> list[CompetitionEventLevelPaper]:
+) -> tuple[list[CompetitionEventLevelPaper], str | None]:
+    """Returns (CreatedPapers, FailureReason). FailureReason is None on a
+    full, clean Quantity-paper success; otherwise it's the error that
+    stopped generation partway through, and CreatedPapers holds whatever
+    papers were ALREADY safely committed before that happened (possibly
+    empty, possibly Quantity - 1, never silently more or fewer than what's
+    really in the bank).
+
+    2026-09-15 (Shailesh, "we need to make sure this never happens ...
+    whether we assign 5 or 25 sheets everything should work at once"):
+    real bug found from a live case (a student who should have had 50
+    papers only had 47). Root cause: GenerateAnnualCompetitionLevelPaper
+    (annual_competition_paper_generation_service.py) commits internally,
+    once per paper -- but this loop used to only db.flush() each paper's
+    own CompetitionEventLevelPaper bank-entry row, leaving it pending until
+    the NEXT paper's internal commit swept it up too. If paper K's
+    generation raised (the exact class of error this same phase's retry-
+    ceiling fix reduces but can never make impossible), the caller's
+    per-student except block did a single db.rollback() believing it was
+    discarding the whole batch atomically -- but every paper before K-1 was
+    ALREADY committed via later papers' own internal commits, so only
+    paper K-1's bank-entry row (never yet committed) was actually lost,
+    while its own exam data survived as an invisible orphan. The whole call
+    was then reported to the admin as a flat failure (0 succeeded, no
+    notification), so a natural retry on top of what silently survived
+    produced a non-round total.
+
+    Fix: commit each paper's bank-entry row immediately, right after that
+    paper's own generation succeeds -- never left pending for a future
+    iteration to sweep up. A failure on any later paper can then only ever
+    discard its OWN not-yet-committed (and, per the common failure mode,
+    typically not-yet-started) work; every paper already created is
+    already durably saved and correctly counted, whatever happens next.
+    """
     CreatedPapers: list[CompetitionEventLevelPaper] = []
     for _Index in range(Quantity):
-        ExamPayload = GenerateAnnualCompetitionLevelPaper(
-            db,
-            LevelId=LevelRecord.id,
-            CreatedBy=AssignedBy,
-            Title=f"Annual Competition Practice -- {CompetitionLevelCode} for {StudentRecord.student_code}",
-            MockCode=f"ANNUAL-PRACTICE-{CompetitionLevelCode}-{uuid4().hex[:10].upper()}",
-            CompetitionScope="ANNUAL_COMPETITION_PRACTICE",
-            CompetitionLevelCode=CompetitionLevelCode,
-        )
-        # 2026-09-12 (Shailesh, full event decoupling): event_id is
-        # deliberately left unset -- practice papers no longer belong to any
-        # CompetitionEvent at all ("the practice papers should not be
-        # related to any event whatsoever, its only for practice leading to
-        # the main event"). See CompetitionEventLevelPaper.event_id's own
-        # model comment for why the column is nullable now.
-        #
-        # 2026-09-14 (Shailesh, paper-naming stability fix): every paper
-        # created within ONE batch call used to share the exact same NowUtc
-        # value verbatim, which made assigned_at ties across a batch
-        # possible/likely -- fine for the bank's own "oldest first" FIFO
-        # consumption order (a stable DB row order still applies even on a
-        # tie), but not stable enough to be a numbering key, which is what
-        # "Practice Paper N" needs (see ComputePracticePaperOrdinals below --
-        # ties would make the assigned displayed number able to differ
-        # between two reads of the same data). Staggering by microseconds
-        # within the batch loop makes assigned_at itself a fully unique,
-        # deterministic, always-increasing sort key with no schema change
-        # and no behavior change to FIFO consumption (which already reads as
-        # "oldest assigned_at first").
-        PracticePaperRecord = CompetitionEventLevelPaper(
-            competition_level_code=CompetitionLevelCode,
-            mock_exam_id=ExamPayload["mockExamId"],
-            paper_kind="PRACTICE",
-            assigned_student_id=StudentRecord.id,
-            assigned_by_user_id=AssignedBy.id if AssignedBy else None,
-            assigned_at=NowUtc + timedelta(microseconds=_Index),
-        )
-        db.add(PracticePaperRecord)
-        db.flush()
-        _SeedDefaultSectionTimers(db, PracticePaperRecord)
-        db.flush()  # section timer rows must be visible to _RecomputeLevelPaperStatus's query
-        _RecomputeLevelPaperStatus(db, PracticePaperRecord)
-        CreatedPapers.append(PracticePaperRecord)
-    return CreatedPapers
+        try:
+            ExamPayload = GenerateAnnualCompetitionLevelPaper(
+                db,
+                LevelId=LevelRecord.id,
+                CreatedBy=AssignedBy,
+                Title=f"Annual Competition Practice -- {CompetitionLevelCode} for {StudentRecord.student_code}",
+                MockCode=f"ANNUAL-PRACTICE-{CompetitionLevelCode}-{uuid4().hex[:10].upper()}",
+                CompetitionScope="ANNUAL_COMPETITION_PRACTICE",
+                CompetitionLevelCode=CompetitionLevelCode,
+            )
+            # 2026-09-12 (Shailesh, full event decoupling): event_id is
+            # deliberately left unset -- practice papers no longer belong to
+            # any CompetitionEvent at all ("the practice papers should not be
+            # related to any event whatsoever, its only for practice leading
+            # to the main event"). See CompetitionEventLevelPaper.event_id's
+            # own model comment for why the column is nullable now.
+            #
+            # 2026-09-14 (Shailesh, paper-naming stability fix): every paper
+            # created within ONE batch call used to share the exact same
+            # NowUtc value verbatim, which made assigned_at ties across a
+            # batch possible/likely -- fine for the bank's own "oldest first"
+            # FIFO consumption order (a stable DB row order still applies
+            # even on a tie), but not stable enough to be a numbering key,
+            # which is what "Practice Paper N" needs (see
+            # ComputePracticePaperOrdinals below -- ties would make the
+            # assigned displayed number able to differ between two reads of
+            # the same data). Staggering by microseconds within the batch
+            # loop makes assigned_at itself a fully unique, deterministic,
+            # always-increasing sort key with no schema change and no
+            # behavior change to FIFO consumption (which already reads as
+            # "oldest assigned_at first").
+            PracticePaperRecord = CompetitionEventLevelPaper(
+                competition_level_code=CompetitionLevelCode,
+                mock_exam_id=ExamPayload["mockExamId"],
+                paper_kind="PRACTICE",
+                assigned_student_id=StudentRecord.id,
+                assigned_by_user_id=AssignedBy.id if AssignedBy else None,
+                assigned_at=NowUtc + timedelta(microseconds=_Index),
+            )
+            db.add(PracticePaperRecord)
+            db.flush()
+            _SeedDefaultSectionTimers(db, PracticePaperRecord)
+            db.flush()  # section timer rows must be visible to _RecomputeLevelPaperStatus's query
+            _RecomputeLevelPaperStatus(db, PracticePaperRecord)
+            # Commit THIS paper now, immediately -- see the function
+            # docstring above. Never deferred to a later iteration.
+            db.commit()
+            CreatedPapers.append(PracticePaperRecord)
+        except Exception as Error:  # noqa: BLE001 -- papers already committed above must survive whatever this is
+            db.rollback()  # discards only this one paper's own uncommitted partial work, if any
+            return CreatedPapers, str(getattr(Error, "detail", None) or Error)
+    return CreatedPapers, None
 
 
 def ComputePracticePaperOrdinals(db: Session, Scopes: set[tuple[str, str]]) -> dict[str, int]:
@@ -1126,28 +1167,52 @@ def BatchAssignAnnualCompetitionPracticePapers(
     for StudentIdentifier in CleanedStudentIds:
         try:
             StudentRecord = _ResolveStudentByIdOrCode(db, StudentIdentifier)
-            CreatedPapers = _GeneratePracticePapersForOneStudent(
-                db,
-                LevelRecord=LevelRecord,
-                CompetitionLevelCode=CompetitionLevelCode,
-                StudentRecord=StudentRecord,
-                Quantity=Quantity,
-                AssignedBy=AssignedBy,
-                NowUtc=NowUtc,
-            )
-            db.commit()
-            for PracticePaperRecord in CreatedPapers:
-                db.refresh(PracticePaperRecord)
-            Succeeded.append(
-                {
-                    "studentId": StudentRecord.id,
-                    "studentCode": StudentRecord.student_code,
-                    "quantityAssigned": Quantity,
-                }
-            )
         except Exception as Error:  # noqa: BLE001 -- one bad student must never abort the rest of the batch
             db.rollback()
             Failed.append({"studentIdentifier": StudentIdentifier, "reason": str(getattr(Error, "detail", None) or Error)})
+            continue
+
+        # 2026-09-15 (Shailesh, "47 instead of 50" live bug): each paper is
+        # now committed immediately inside this call (see its own docstring),
+        # so CreatedPapers already reflects exactly what's durably in the
+        # bank -- there is deliberately no outer db.commit()/db.rollback()
+        # around this call anymore, since that used to be the thing that
+        # silently discarded the last already-successful paper's bank entry
+        # on a later failure. A FailureReason with a non-empty CreatedPapers
+        # is a genuine partial success (report it, notify for exactly what
+        # was created, never for the originally requested Quantity); a
+        # FailureReason with an empty CreatedPapers is a real full failure
+        # for this student.
+        CreatedPapers, FailureReason = _GeneratePracticePapersForOneStudent(
+            db,
+            LevelRecord=LevelRecord,
+            CompetitionLevelCode=CompetitionLevelCode,
+            StudentRecord=StudentRecord,
+            Quantity=Quantity,
+            AssignedBy=AssignedBy,
+            NowUtc=NowUtc,
+        )
+        for PracticePaperRecord in CreatedPapers:
+            db.refresh(PracticePaperRecord)
+        if not CreatedPapers:
+            Failed.append({"studentIdentifier": StudentIdentifier, "reason": FailureReason or "No papers could be generated."})
+            continue
+        SucceededEntry: dict[str, Any] = {
+            "studentId": StudentRecord.id,
+            "studentCode": StudentRecord.student_code,
+            "quantityAssigned": len(CreatedPapers),
+        }
+        if FailureReason:
+            # Fewer than Quantity were created before generation broke --
+            # still a real, durable success for however many DID get
+            # created, just not the full request. Surfaced distinctly so
+            # the admin can see exactly how many landed and choose to top
+            # up the remainder themselves, rather than a batch that quietly
+            # under-delivered looking identical to a full one.
+            SucceededEntry["partial"] = True
+            SucceededEntry["requestedQuantity"] = Quantity
+            SucceededEntry["shortfallReason"] = FailureReason
+        Succeeded.append(SucceededEntry)
 
     # 2026-09-15 (Shailesh): "we need to configure the notifications flow for
     # the student, teacher and admin side whenever a batch of practice papers
@@ -1163,7 +1228,11 @@ def BatchAssignAnnualCompetitionPracticePapers(
                 db,
                 student_id=SucceededEntry["studentId"],
                 competition_level_code=CompetitionLevelCode,
-                quantity=Quantity,
+                # 2026-09-15 fix: notify for what was ACTUALLY assigned to
+                # this student (quantityAssigned), never the originally
+                # requested Quantity -- a partial success must never tell a
+                # teacher/student more papers landed than really did.
+                quantity=SucceededEntry["quantityAssigned"],
                 actor_user_id=AssignedBy.id if AssignedBy else None,
             )
             db.commit()
@@ -1180,7 +1249,12 @@ def BatchAssignAnnualCompetitionPracticePapers(
         "studentsRequested": len(CleanedStudentIds),
         "studentsSucceeded": len(Succeeded),
         "studentsFailed": len(Failed),
-        "totalPapersAssigned": len(Succeeded) * Quantity,
+        # 2026-09-15 fix: sum each student's own actual quantityAssigned
+        # rather than assuming every succeeded student got the full
+        # requested Quantity -- a partial success (see _GeneratePractice
+        # PapersForOneStudent's docstring) must be reflected here exactly,
+        # never rounded up to what was merely requested.
+        "totalPapersAssigned": sum(int(Entry["quantityAssigned"]) for Entry in Succeeded),
         "succeeded": Succeeded,
         "failed": Failed,
     }

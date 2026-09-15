@@ -1608,6 +1608,17 @@ def _NumericDigitCount(Value: Decimal) -> int:
     return len("".join(Character for Character in format(Value, "f") if Character.isdigit()))
 
 
+def _TrimmedNumericDigitCount(Value: Decimal) -> int:
+    """Digit count AFTER stripping insignificant trailing decimal zeros --
+    unlike _NumericDigitCount above, which counts every digit character
+    literally (so "1250.00" would wrongly count as 6 digits, not 4). Mirrors
+    _AsDisplayNumber's own normalization (int when whole, else normalize())
+    so this always matches what the student is actually shown/asked to
+    type."""
+    Normalized = Value.to_integral_value() if Value == Value.to_integral_value() else Value.normalize()
+    return len("".join(Character for Character in format(Normalized, "f") if Character.isdigit()))
+
+
 def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -> tuple[list[int | float], list[str], Decimal, dict]:
     Stage = DifficultyStage(QuestionNumber - 1)
     Band = _LessonBand(Config)
@@ -1642,6 +1653,15 @@ def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumb
         PercentChoices = [5, 7.5, 10, 12.5, 15, 17.5, 20, 25, 30, 35, 40, 45, 50, 60, 70]
 
     LakhCap = Decimal("100000")
+    # Shailesh, 2026-09-15: "the mm add/less percentage problem also needs
+    # to be addressed for the competition that is across both the flows
+    # official and practice" -- final answers must never exceed 5 TOTAL
+    # digits (integer + decimal digits combined, trailing zeros excluded).
+    # This generator is the single shared implementation behind DPS,
+    # Assessment, Mock Exam, and Annual Competition (both official and
+    # practice), all of which call it via GenerateMmQuestionSet, so one fix
+    # here covers every flow.
+    MaxTotalDigits = 5
     Base = Decimal(0)
     Percent = Decimal(0)
     CorrectAnswer = Decimal(0)
@@ -1667,9 +1687,15 @@ def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumb
         PercentValue = Base * Percent / Decimal(100)
         CorrectAnswer = PercentValue if Operator == "×%" else Base - PercentValue
         CorrectAnswer = _Quantize(CorrectAnswer, 2)
-        if Decimal(0) <= CorrectAnswer <= LakhCap:
+        if Decimal(0) <= CorrectAnswer <= LakhCap and _TrimmedNumericDigitCount(CorrectAnswer) <= MaxTotalDigits:
             break
     else:
+        # Fallback (all 60 attempts rejected -- vanishingly rare given the
+        # ranges/percent choices above, but must still respect the same
+        # 5-digit cap deterministically). min(BaseMax, 9999) at 10% keeps
+        # this within 5 digits for every band currently defined; if a
+        # future band ever pushes BaseMax high enough to break that, this
+        # fallback would need its own explicit clamp.
         Percent = Decimal("10")
         Base = Decimal(min(BaseMax, 9999))
         CorrectAnswer = _Quantize(Base * Percent / Decimal(100) if Operator == "×%" else Base - (Base * Percent / Decimal(100)), 2)
@@ -1684,6 +1710,7 @@ def GeneratePercentageAddLess(Config: MMConfig, Rng: random.Random, QuestionNumb
         "lesson_band": Band,
         "add_percentage_max_numeric_digits": 6 if Operator == "×%" else None,
         "less_percentage_whole_numbers_only": Operator == "-%",
+        "correct_answer_max_total_digits": MaxTotalDigits,
     }
 
 

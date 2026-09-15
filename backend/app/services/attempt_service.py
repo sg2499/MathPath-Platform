@@ -55,10 +55,10 @@ def _aware(dt):
 # DPS punctuality (Shailesh, 2026-09-02): "on time" means the sheet was
 # submitted on the exact IST calendar day it unlocked -- IST because that's
 # the timezone the whole weekly-scheduling feature is defined in (see
-# _ScheduleDateToStartTimeUtc/_IsWeekendInIst in routes_teacher.py, which
-# store Assignment.start_time as IST-midnight-in-UTC). Kept local to this
-# file rather than imported from routes_teacher.py so a service doesn't
-# reach into an API route module for a constant.
+# _ScheduleDateToStartTimeUtc in routes_teacher.py, which stores
+# Assignment.start_time as IST-midnight-in-UTC). Kept local to this file
+# rather than imported from routes_teacher.py so a service doesn't reach
+# into an API route module for a constant.
 _PUNCTUALITY_IST = timezone(timedelta(hours=5, minutes=30))
 
 
