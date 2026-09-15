@@ -60,6 +60,8 @@ from app.models import (
     CompetitionEventSlot,
     CompetitionMockExam,
     CompetitionMockQuestion,
+    DPS,
+    Lesson,
     Level,
     Module,
     Student,
@@ -1729,6 +1731,49 @@ def test_list_students_for_practice_bank_lists_every_active_student():
     assert result["totalStudents"] == 2
     student_ids = {row["studentId"] for row in result["students"]}
     assert student_ids == {student_a.id, student_b.id}
+
+
+def test_list_students_for_practice_bank_surfaces_master_current_lesson_number():
+    """2026-09-15 (Shailesh): "we need to have the current lesson number
+    for the MM students as well ... so that it is clear why the student is
+    gonna sit for MM-L1." Confirms the field reaches the Practice Bank
+    roster row (not just the internal AssignmentComputation) -- this is
+    what the admin Studio's Practice Bank "Current Level" column reads.
+    Never populated for a non-Master row (PM-L2 here)."""
+    db = _session()
+    pm_module, pm_level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    mm_module, mm_level = _module_and_level(db, "MM", "MM-L1", "Master Level 1")
+    pm_student = _student(db, "s1", module_id=pm_module.id, level_id=pm_level.id)
+    mm_student = _student(db, "s2", module_id=mm_module.id, level_id=mm_level.id)
+
+    for n in range(1, 18):
+        lesson = Lesson(id=f"mm-lesson-{n}", level_id=mm_level.id, lesson_number=n, lesson_title=f"Lesson {n}", is_active=True)
+        db.add(lesson)
+        db.flush()
+        dps = DPS(id=f"mm-lesson-{n}-dps-1", lesson_id=lesson.id, dps_number=1, dps_title=f"Lesson {n} Sheet 1", publication_status="PUBLISHED", is_active=True)
+        db.add(dps)
+        db.flush()
+        if n <= 16:
+            db.add(
+                Attempt(
+                    id=f"attempt-s2-{n}", dps_id=dps.id, student_id=mm_student.id, mode="PRACTICE", status="SUBMITTED",
+                    cleared_at_attempt=True, started_at=datetime.now(timezone.utc) - timedelta(minutes=10),
+                    expires_at=datetime.now(timezone.utc) + timedelta(minutes=10), duration_seconds=600,
+                )
+            )
+    db.commit()
+
+    result = studio.ListStudentsForPracticeBank(db)
+    rows_by_id = {row["studentId"]: row for row in result["students"]}
+
+    assert rows_by_id[mm_student.id]["currentLevelCode"] == "MM-L1"
+    assert rows_by_id[mm_student.id]["eligibleCompetitionLevelCode"] == "MM-L1"
+    assert rows_by_id[mm_student.id]["currentLessonNumber"] == 17
+    assert rows_by_id[mm_student.id]["masterLevelComplete"] is False
+
+    # Non-Master rows are unaffected -- the field is None, not some default.
+    assert rows_by_id[pm_student.id]["currentLessonNumber"] is None
+    assert rows_by_id[pm_student.id]["masterLevelComplete"] is None
 
 
 def test_list_students_for_practice_bank_excludes_inactive_students():

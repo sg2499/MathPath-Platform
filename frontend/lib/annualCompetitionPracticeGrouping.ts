@@ -4,10 +4,17 @@
 // their papers used to be listed in one long flat table mixing every level
 // together. This groups them into per-level sections instead, same idea as
 // the student side's own per-level collapsible blocks
-// (student/competition/annual/page.tsx), just without the collapse (a
-// student-block-within-a-student-block accordion would be one nesting level
-// too many here -- these are simple grouped sections, always visible once
-// the student row itself is open).
+// (student/competition/annual/page.tsx).
+//
+// 2026-09-15 (Shailesh, same day, follow-up): "the individual student block
+// must contain the different level blocks under it which should be
+// expandable and collapseable and by default collapsed ... right now
+// everything is expanded ... which makes the page look very clumsy and
+// weird." The collapse/expand state itself lives in each page
+// (admin/competition/annual-studio/page.tsx's ExpandedPracticeLevelGroups,
+// teacher/competition/annual/page.tsx's own copy) rather than here -- this
+// function only groups and orders the papers; it stays a pure, stateless
+// helper on purpose.
 //
 // Shared by both admin/competition/annual-studio/page.tsx and
 // teacher/competition/annual/page.tsx since they use the exact same

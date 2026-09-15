@@ -1445,6 +1445,12 @@ def ListStudentsForPracticeBank(db: Session) -> dict[str, Any]:
                 "studentName": StudentRecord.user.full_name if StudentRecord.user else None,
                 "currentModuleCode": Computation.current_module_code if Computation else None,
                 "currentLevelCode": Computation.current_level_code if Computation else None,
+                # 2026-09-15 (Shailesh): same Master-module lesson-number
+                # surfacing as PreviewAnnualCompetitionAssignments -- both
+                # read the same ComputeAssignmentsForRoster computation, so
+                # this one addition covers the Practice Bank list too.
+                "currentLessonNumber": Computation.extra.get("currentLessonNumber") if Computation else None,
+                "masterLevelComplete": Computation.extra.get("masterLevelComplete") if Computation else None,
                 "eligibleCompetitionLevelCode": EligibleLevelCode,
             }
         )

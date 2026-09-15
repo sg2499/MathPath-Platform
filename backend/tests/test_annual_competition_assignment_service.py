@@ -295,6 +295,11 @@ def test_master_below_lesson_16_maps_to_im_l4():
     [computation] = engine.ComputeAssignmentsForRoster(db, [student])
     assert computation.assigned_level_code == "IM-L4"
     assert computation.rule_applied == "MASTER_MILESTONE:BELOW_LESSON_16"
+    # 2026-09-15 (Shailesh): "we need to have the current lesson number for
+    # the MM students as well" -- surfaced via `extra` for every Master
+    # cohort branch, not just the lesson-16-or-later one.
+    assert computation.extra.get("currentLessonNumber") == 2
+    assert computation.extra.get("masterLevelComplete") is False
 
 
 def test_master_at_lesson_16_maps_to_mm_l1():
@@ -308,6 +313,8 @@ def test_master_at_lesson_16_maps_to_mm_l1():
     [computation] = engine.ComputeAssignmentsForRoster(db, [student])
     assert computation.assigned_level_code == "MM-L1"
     assert computation.rule_applied == "MASTER_MILESTONE:LESSON_16_OR_LATER"
+    assert computation.extra.get("currentLessonNumber") == 17
+    assert computation.extra.get("masterLevelComplete") is False
 
 
 def test_master_full_completion_maps_to_mm_l2_and_flags_registry_gap():
@@ -322,11 +329,35 @@ def test_master_full_completion_maps_to_mm_l2_and_flags_registry_gap():
     assert computation.assigned_level_code == "MM-L2"
     assert computation.rule_applied == "MASTER_MILESTONE:FULL_COMPLETION"
     assert computation.extra.get("requiresNewPaperRegistryEntry") is True
+    assert computation.extra.get("masterLevelComplete") is True
+    assert computation.extra.get("previousLessonNumber") == max(lessons)
     # MM-L2 has no *_COMPETITION_LEVEL_REGISTRY entry yet -- confirm the
     # read-only registry check agrees (this is the same signal the preview
     # endpoint surfaces to admins).
     assert engine.IsRegistryBackedLevelCode("MM-L2") is False
     assert engine.IsRegistryBackedLevelCode("PM-L1") is True
+
+
+def test_preview_surfaces_master_current_lesson_number_for_admin_ui():
+    """2026-09-15 (Shailesh): "we need to have the current lesson number
+    for the MM students as well ... so that it is clear why the student is
+    gonna sit for MM-L1." Confirms the field actually reaches the Official
+    assignment-preview row (not just the internal AssignmentComputation),
+    since this is what the admin Studio's "Current Level" column reads."""
+    db = _session()
+    modules, levels, lessons = _master_setup(db)
+    _student(db, "s1", modules["MM"].id, levels["MM-L1"].id)
+    for n in range(1, 17):
+        _clear_lesson(db, "s1", lessons[n][1].id)
+    _event(db)
+    db.commit()
+
+    preview = engine.PreviewAnnualCompetitionAssignments(db, EventId="event-1")
+    [row] = preview["rows"]
+    assert row["currentLevelCode"] == "MM-L1"
+    assert row["computedAssignedLevelCode"] == "MM-L1"
+    assert row["currentLessonNumber"] == 17
+    assert row["masterLevelComplete"] is False
 
 
 # ---------------------------------------------------------------------------
