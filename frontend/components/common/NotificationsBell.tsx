@@ -19,6 +19,7 @@ import {
   GraduationCap,
   MailCheck,
   MessageSquareText,
+  Repeat,
   RotateCcw,
   Sparkles,
   Target,
@@ -61,6 +62,7 @@ function NormalizeTone(Notification: NotificationRecord): NotificationTone {
   if (Color === "TEAL" || Category === "PARENT_REPORT") return "teal";
   if (Color === "BLUE" || Category === "PRACTICE") return "blue";
   if (Category === "COMPETITION_MOCK") return "indigo";
+  if (Category === "ANNUAL_COMPETITION_PRACTICE") return "teal";
   return "gray";
 }
 
@@ -104,6 +106,8 @@ function IconFor(Notification: NotificationRecord) {
     return <ClipboardPlus size={16} />;
   if (Category === "COMPETITION_MOCK")
     return <Target size={16} />;
+  if (Category === "ANNUAL_COMPETITION_PRACTICE")
+    return <Repeat size={16} />;
   return <Sparkles size={16} />;
 }
 
@@ -217,6 +221,18 @@ function IsAssessmentFeedbackNotification(Notification: NotificationRecord) {
 
 function IsCompetitionMockNotification(Notification: NotificationRecord) {
   return NotificationText(Notification).Category === "COMPETITION_MOCK";
+}
+
+// 2026-09-15 (Shailesh): Annual Competition practice-paper assignment/
+// submission notifications -- a distinct category from both DPS ("PRACTICE")
+// and Competition Mock ("COMPETITION_MOCK"), checked first in every role
+// block below (same technique already used for IsLeaderboardRankNotification/
+// IsCompetitionMockNotification) so it wins ahead of IsPracticeNotification's
+// broader `Type.includes("PRACTICE")` / `Route.includes("/student/practice")`
+// checks, which would otherwise false-positive-match these notifications'
+// own ANNUAL_PRACTICE_* type strings.
+function IsAnnualCompetitionPracticeNotification(Notification: NotificationRecord) {
+  return NotificationText(Notification).Category === "ANNUAL_COMPETITION_PRACTICE";
 }
 
 function IsMockNotification(Notification: NotificationRecord) {
@@ -386,6 +402,13 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
       // IsMockNotification, since the stored `type` contains "DPS"/"MOCK".
       return { Route: Notification.targetRoute || "/teacher/dashboard", TargetTab: "", TargetSubTab: "" };
     }
+    if (IsAnnualCompetitionPracticeNotification(Notification)) {
+      // Both assignment and submission land the teacher on the same Practice
+      // tab -- studentCode (appended automatically below via
+      // AppendDeepLinkParams) is what the page uses to auto-expand that
+      // student's row.
+      return { Route: "/teacher/competition/annual", TargetTab: "PRACTICE", TargetSubTab: "" };
+    }
     if (IsParentReportNotification(Notification)) {
       // Progress Reports (frontend/app/teacher/progress-reports/page.tsx) is
       // the single dedicated place teachers review/download published parent
@@ -451,6 +474,13 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   }
 
   if (Role === "admin" || Role === "super_admin") {
+    if (IsAnnualCompetitionPracticeNotification(Notification)) {
+      // "the admin should see the pending papers in their login under the
+      // practice results tab" -- despite its name, the RESULTS sub-tab is
+      // the per-student roster of every practice paper (pending + submitted),
+      // which is exactly where an assignment or a submission should land.
+      return { Route: "/admin/competition/annual-studio", TargetTab: "PRACTICE", TargetSubTab: "RESULTS" };
+    }
     if (IsCompetitionMockNotification(Notification)) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
       if (AttemptId) {
@@ -519,6 +549,19 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
       // here. Checked first, ahead of IsPracticeNotification/
       // IsMockNotification, since the stored `type` contains "DPS"/"MOCK".
       return { Route: Notification.targetRoute || "/student/dashboard", TargetTab: "", TargetSubTab: "" };
+    }
+    if (IsAnnualCompetitionPracticeNotification(Notification)) {
+      const { Type } = NotificationText(Notification);
+      if (Type.includes("SUBMITTED")) {
+        const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
+        if (AttemptId) {
+          return { Route: `/student/competition/annual/attempt/${encodeURIComponent(AttemptId)}`, TargetTab: "", TargetSubTab: "" };
+        }
+      }
+      // Assigned (or a submitted notification missing its attemptId as a
+      // defensive fallback) -- the Practice tab, with levelCode appended
+      // below so the right level block auto-expands.
+      return { Route: "/student/competition/annual", TargetTab: "PRACTICE", TargetSubTab: "" };
     }
     if (IsCompetitionMockNotification(Notification)) {
       const AttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";

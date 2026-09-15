@@ -49,6 +49,7 @@ test_annual_competition_studio_service.py, not just eyeballed.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
@@ -76,6 +77,11 @@ from app.models import (
 )
 from app.services.annual_competition_paper_generation_service import GenerateAnnualCompetitionLevelPaper
 from app.services.annual_competition_paper_registry import ANNUAL_COMPETITION_LEVEL_REGISTRY
+from app.services.annual_competition_practice_notification_service import (
+    NotifyAnnualCompetitionPracticeAssigned,
+)
+
+logger = logging.getLogger("mathpath")
 # ComputeAssignmentsForRoster (annual_competition_assignment_service) is
 # deliberately imported locally inside ListStudentsForPracticeBank below,
 # not at module level -- that module imports _ResolveSlotIdForLevelCode
@@ -1135,6 +1141,31 @@ def BatchAssignAnnualCompetitionPracticePapers(
         except Exception as Error:  # noqa: BLE001 -- one bad student must never abort the rest of the batch
             db.rollback()
             Failed.append({"studentIdentifier": StudentIdentifier, "reason": str(getattr(Error, "detail", None) or Error)})
+
+    # 2026-09-15 (Shailesh): "we need to configure the notifications flow for
+    # the student, teacher and admin side whenever a batch of practice papers
+    # are assigned." Deliberately a SEPARATE loop after every student's papers
+    # are already generated and committed above -- same separation
+    # competition_mock_assignment_service.py's own assignment notifications
+    # use, and for the same reason: a notification failure must never cause a
+    # student whose papers were actually created successfully to be reported
+    # back to the admin as a failure.
+    for SucceededEntry in Succeeded:
+        try:
+            NotifyAnnualCompetitionPracticeAssigned(
+                db,
+                student_id=SucceededEntry["studentId"],
+                competition_level_code=CompetitionLevelCode,
+                quantity=Quantity,
+                actor_user_id=AssignedBy.id if AssignedBy else None,
+            )
+            db.commit()
+        except Exception:  # noqa: BLE001 -- see comment above; never turn a real success into a reported failure
+            db.rollback()
+            logger.exception(
+                "BatchAssignAnnualCompetitionPracticePapers: failed to notify for student %s",
+                SucceededEntry.get("studentId"),
+            )
 
     return {
         "competitionLevelCode": CompetitionLevelCode,

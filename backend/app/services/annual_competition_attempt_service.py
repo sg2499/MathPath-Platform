@@ -379,6 +379,42 @@ def _AdvanceOrFinalize(
 
         ComputeAndFinalizeCompetitionEventResult(db, AttemptRecord)
 
+        # 2026-09-15 (Shailesh): "the notifications ... will appear once the
+        # entire paper gets submitted right? not for each section" -- this
+        # branch is reached exactly once per attempt, only when the section
+        # just closed was the LAST one in the paper (see the `if NextSection`
+        # branch above), so hooking the submission notification here already
+        # gives per-paper-not-per-section firing for free, and covers every
+        # path that can reach a final close (manual submit, this function's
+        # own auto-advance-on-heartbeat caller, and the reconciliation sweep)
+        # with no separate wiring per path. Scoped to PRACTICE only -- the
+        # OFFICIAL flow's own submission notification is out of scope for
+        # this change and stays silent, same as before.
+        #
+        # Nothing in this function has been committed yet at this point --
+        # the caller commits once the whole operation finishes -- so a plain
+        # db.rollback() on failure would destroy the attempt's own
+        # just-computed SUBMITTED/FINALIZED state along with it, not just the
+        # notification. Wrapped in a SAVEPOINT instead (same pattern already
+        # used by assessment_feedback_service.py's own
+        # _safe_create_feedback_notification, for the identical reason), so a
+        # notification failure rolls back only the notification rows and
+        # leaves the attempt's real finalization untouched.
+        if AttemptRecord.attempt_type == "PRACTICE":
+            try:
+                from app.services.annual_competition_practice_notification_service import (
+                    NotifyAnnualCompetitionPracticeSubmitted,
+                )
+
+                with db.begin_nested():
+                    NotifyAnnualCompetitionPracticeSubmitted(db, attempt_id=AttemptRecord.id)
+            except Exception:  # noqa: BLE001 -- never let a notification failure block finalizing the attempt
+                import logging
+
+                logging.getLogger("mathpath").exception(
+                    "_AdvanceOrFinalize: failed to notify practice submission for attempt %s", AttemptRecord.id
+                )
+
     # Test sessions in this repo run with autoflush=False (see e.g.
     # test_annual_competition_studio_service.py), and a query that filters
     # on a column just mutated in this same transaction (status=="ACTIVE"

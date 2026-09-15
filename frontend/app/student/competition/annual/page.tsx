@@ -18,9 +18,9 @@ import {
   type AnnualCompetitionPracticeScope,
 } from "@/lib/api/student";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarClock, Eye, History, Hourglass, MapPin, PlayCircle, Repeat, Trophy } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { CalendarClock, ChevronDown, ChevronRight, Eye, History, Hourglass, MapPin, PlayCircle, Repeat, Trophy } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 function FormatDateTime(value?: string | null) {
   if (!value) return "-";
@@ -303,7 +303,28 @@ function TabButton({ active, label, onClick }: { active: boolean; label: string;
 // with every other Pending row shown as a queued "Pending" row with no
 // button, rather than a misleading Start button that would silently start
 // a different paper than the one clicked.
-function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }) {
+// 2026-09-15 (Shailesh): "the annual competition practice hero pill should
+// appear only once at the top and then the different level blocks should
+// appear as collapsed blocks ... having them collapsed keeps the view neat
+// and clean instead of clumsy and crammed." The "Annual Competition
+// Practice" pill that used to repeat inside every one of these panels now
+// lives once above the whole level list (AnnualCompetitionContent below);
+// each level renders as a single collapsed row here -- level code, chip,
+// remaining count, chevron -- and expands to show exactly the same table
+// content that used to always be visible. Collapsible is false only when
+// there's just one level scope, per Shailesh's own reasoning: collapsing a
+// single block adds a click for no benefit.
+function PracticeLevelPanel({
+  scope,
+  collapsible,
+  expanded,
+  onToggle,
+}: {
+  scope: AnnualCompetitionPracticeScope;
+  collapsible: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const router = useRouter();
   const levelCode = scope.competitionLevelCode;
 
@@ -339,40 +360,71 @@ function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }
     ? -1
     : bankPapers.findIndex((paper) => !attemptsByLevelPaperId.has(paper.levelPaperId));
   const isLoading = bankQuery.isLoading || attemptsQuery.isLoading;
+  const isOpen = !collapsible || expanded;
+
+  const HeaderChips = (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <Chip tone="blue">{levelCode}</Chip>
+      <Chip tone={remainingCount > 0 ? "green" : "slate"}>
+        {remainingCount} Paper{remainingCount === 1 ? "" : "s"} Remaining
+      </Chip>
+    </div>
+  );
 
   return (
-    <div className="math-card p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="math-block-header mb-2"><Repeat size={14} /> Annual Competition Practice</div>
-          <h2 className="text-xl font-black text-slate-950 dark:text-white">{levelCode} Practice Papers</h2>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Chip tone="blue">{levelCode}</Chip>
-            <Chip tone={remainingCount > 0 ? "green" : "slate"}>
-              {remainingCount} Paper{remainingCount === 1 ? "" : "s"} Remaining
-            </Chip>
+    <div id={`practice-level-${levelCode}`} className="math-card overflow-hidden p-0">
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          className="flex w-full flex-col gap-3 p-6 text-left transition hover:bg-slate-50/60 sm:flex-row sm:items-center sm:justify-between dark:hover:bg-white/5"
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[color:var(--mp-role-border)] bg-white text-[color:var(--mp-role-primary)] shadow-sm dark:bg-slate-950/50">
+              {isOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-xl font-black text-slate-950 dark:text-white">{levelCode} Practice Papers</h2>
+              {HeaderChips}
+            </div>
           </div>
-          {/* 2026-09-14 (Shailesh): "the text there again appears where it
-              goes to the next line while having ample space on the same" --
-              root cause was this max-w-2xl artificially narrowing the
-              paragraph well short of the card's real width; math-subtitle
-              elsewhere on this same page uses max-w-none for exactly this
-              reason, so this paragraph now matches that convention instead
-              of wrapping early. */}
-          <p className="mt-3 max-w-none text-sm font-bold text-slate-600 dark:text-slate-300">
-            Practice papers to help you prepare for the Annual Competition -- not the Annual Competition itself, and not
-            tied to any specific event. Always freshly generated, no retakes once submitted, and results are visible to
-            you immediately.
-          </p>
-        </div>
-        {!remainingCount && !inProgressAttempt ? (
-          <div className="flex shrink-0 flex-col items-start gap-2 lg:items-end">
-            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+          {!remainingCount && !inProgressAttempt ? (
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-right">
               No practice papers left -- ask your teacher/admin to assign more.
             </p>
+          ) : null}
+        </button>
+      ) : (
+        <div className="flex flex-col gap-4 p-6 pb-0 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-black text-slate-950 dark:text-white">{levelCode} Practice Papers</h2>
+            {HeaderChips}
           </div>
-        ) : null}
-      </div>
+          {!remainingCount && !inProgressAttempt ? (
+            <div className="flex shrink-0 flex-col items-start gap-2 lg:items-end">
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                No practice papers left -- ask your teacher/admin to assign more.
+              </p>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {!isOpen ? null : (
+      <div className="px-6 pb-6">
+      {/* 2026-09-14 (Shailesh): "the text there again appears where it
+          goes to the next line while having ample space on the same" --
+          root cause was this max-w-2xl artificially narrowing the
+          paragraph well short of the card's real width; math-subtitle
+          elsewhere on this same page uses max-w-none for exactly this
+          reason, so this paragraph now matches that convention instead
+          of wrapping early. */}
+      <p className="mt-3 max-w-none text-sm font-bold text-slate-600 dark:text-slate-300">
+        Practice papers to help you prepare for the Annual Competition -- not the Annual Competition itself, and not
+        tied to any specific event. Always freshly generated, no retakes once submitted, and results are visible to
+        you immediately.
+      </p>
 
       <div className="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
         <p className="math-block-header mb-3"><History size={14} /> Practice Papers</p>
@@ -464,6 +516,8 @@ function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }
           </div>
         )}
       </div>
+      </div>
+      )}
     </div>
   );
 }
@@ -471,13 +525,38 @@ function PracticeLevelPanel({ scope }: { scope: AnnualCompetitionPracticeScope }
 function AnnualCompetitionContent() {
   const ready = useProtectedPage(["STUDENT"]);
   const router = useRouter();
-  const [ActiveTab, SetActiveTab] = useState<AnnualCompetitionTab>("OFFICIAL");
+  // 2026-09-15 (Shailesh): "the student should see the practice tab opened
+  // where those papers are." Notifications land here as
+  // /student/competition/annual?tab=PRACTICE&levelCode=... (built
+  // client-side in NotificationsBell.tsx) -- read once on mount to
+  // pre-select Practice and, once scopes have loaded, auto-expand (and
+  // scroll to) the notified level's block.
+  const SearchParams = useSearchParams();
+  const DeepLinkTab = SearchParams.get("tab");
+  const DeepLinkLevelCode = SearchParams.get("levelCode");
+  const DeepLinkLevelAppliedRef = useRef(false);
+
+  const [ActiveTab, SetActiveTab] = useState<AnnualCompetitionTab>(DeepLinkTab === "PRACTICE" ? "PRACTICE" : "OFFICIAL");
   // 2026-09-14 (Shailesh): a student's Annual Competition level can change
   // between competition years, so a student who has practice papers from
   // more than one level needs to be able to narrow the view down to just
   // one -- "ALL" (the default, matching this view's behavior before the
   // filter existed) shows every level's papers stacked, same as today.
   const [PracticeLevelFilter, SetPracticeLevelFilter] = useState<string>("ALL");
+  // 2026-09-15 (Shailesh): "the different level blocks should appear as
+  // collapsed blocks ... on clicking them it should expand." Empty by
+  // default (every level starts collapsed) except for the one-scope case,
+  // which PracticeLevelPanel itself always renders open regardless of this
+  // set (see its own `collapsible` prop).
+  const [ExpandedPracticeLevels, SetExpandedPracticeLevels] = useState<Set<string>>(new Set());
+  function TogglePracticeLevelExpanded(LevelCode: string) {
+    SetExpandedPracticeLevels((Prev) => {
+      const Next = new Set(Prev);
+      if (Next.has(LevelCode)) Next.delete(LevelCode);
+      else Next.add(LevelCode);
+      return Next;
+    });
+  }
 
   const query = useQuery({
     queryKey: ["student-annual-competition-assignments"],
@@ -502,6 +581,23 @@ function AnnualCompetitionContent() {
     onSuccess: (attempt) => router.push(`/student/competition/annual/attempt/${attempt.attemptId}`),
   });
 
+  // Auto-expand + scroll to the notified level's block once scopes have
+  // actually loaded -- referenced off scopesQuery.data directly (rather
+  // than the `scopes` variable further down) since hooks must run
+  // unconditionally, before this component's early loading/error returns
+  // below. Applied at most once per page load so it never fights a level
+  // the student has since manually collapsed.
+  useEffect(() => {
+    if (!DeepLinkLevelCode || DeepLinkLevelAppliedRef.current) return;
+    const Match = (scopesQuery.data || []).find((scope) => scope.competitionLevelCode === DeepLinkLevelCode);
+    if (!Match) return;
+    DeepLinkLevelAppliedRef.current = true;
+    SetExpandedPracticeLevels((Prev) => new Set(Prev).add(DeepLinkLevelCode));
+    window.setTimeout(() => {
+      document.getElementById(`practice-level-${DeepLinkLevelCode}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }, [DeepLinkLevelCode, scopesQuery.data]);
+
   if (!ready) return null;
 
   if (query.isLoading) {
@@ -522,6 +618,10 @@ function AnnualCompetitionContent() {
 
   const assignments = query.data || [];
   const scopes = scopesQuery.data || [];
+  const FilteredScopes = scopes.filter(
+    (scope) => PracticeLevelFilter === "ALL" || scope.competitionLevelCode === PracticeLevelFilter
+  );
+  const Collapsible = FilteredScopes.length > 1;
 
   return (
     <AppShell title="Annual Competition">
@@ -580,6 +680,10 @@ function AnnualCompetitionContent() {
           />
         ) : (
           <div className="space-y-4">
+            {/* Hoisted here so it renders exactly once above the level list,
+                instead of being repeated inside every PracticeLevelPanel. */}
+            <div className="math-block-header mb-2"><Repeat size={14} /> Annual Competition Practice</div>
+
             {scopes.length > 1 ? (
               <div className="math-card flex flex-wrap items-center gap-3 p-4">
                 <label htmlFor="student-practice-level-filter" className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
@@ -601,11 +705,15 @@ function AnnualCompetitionContent() {
               </div>
             ) : null}
             <div className="grid gap-4">
-              {scopes
-                .filter((scope) => PracticeLevelFilter === "ALL" || scope.competitionLevelCode === PracticeLevelFilter)
-                .map((scope) => (
-                  <PracticeLevelPanel key={scope.competitionLevelCode} scope={scope} />
-                ))}
+              {FilteredScopes.map((scope) => (
+                <PracticeLevelPanel
+                  key={scope.competitionLevelCode}
+                  scope={scope}
+                  collapsible={Collapsible}
+                  expanded={ExpandedPracticeLevels.has(scope.competitionLevelCode)}
+                  onToggle={() => TogglePracticeLevelExpanded(scope.competitionLevelCode)}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -615,5 +723,9 @@ function AnnualCompetitionContent() {
 }
 
 export default function AnnualCompetitionPage() {
-  return <AnnualCompetitionContent />;
+  return (
+    <Suspense fallback={null}>
+      <AnnualCompetitionContent />
+    </Suspense>
+  );
 }

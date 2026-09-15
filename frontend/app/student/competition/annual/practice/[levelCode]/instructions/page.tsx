@@ -80,12 +80,20 @@ function AnnualCompetitionPracticeInstructionsContent() {
             <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-cyan-300/25 blur-3xl" />
             <div className="relative z-10">
               <div className="math-block-header mb-2"><Repeat size={14} /> Practice · {Query.data.competitionLevelCode}</div>
+              {/* 2026-09-15 (Shailesh): "the hero block text seems very
+                  generic, it needs to be pristine, clean and professional
+                  which should be tailored for the practice flow. no generic
+                  text whatsoever." This used to be a near-verbatim copy of
+                  the OFFICIAL instructions page's own hero copy (see that
+                  page for comparison) with one clause swapped -- written
+                  fresh here instead, specific to what practice actually is:
+                  a rehearsal, not the event itself. */}
               <h1 className="mt-2 w-full text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
-                Annual Competition Practice Paper
+                Practice Round
               </h1>
               <p className="math-subtitle !mt-2 w-full">
-                Read every section carefully before you begin. Sections run one at a time, in order, and cannot be
-                revisited once submitted -- just like the real Annual Competition.
+                A focused rehearsal for {Query.data.competitionLevelCode} -- same section format, same pacing, zero
+                pressure. Work through it exactly like the real thing, so the real thing feels familiar.
               </p>
             </div>
           </div>
@@ -165,7 +173,13 @@ function AnnualCompetitionPracticeInstructionsContent() {
                       <Trophy size={18} className="text-emerald-500" />
                       <span className="font-semibold text-sm">Type</span>
                     </div>
-                    <span className="text-right text-sm font-black text-slate-900 dark:text-white">Practice -- not scored towards the event</span>
+                    {/* 2026-09-15 (Shailesh): "for the practice type value lets
+                        name it Practice ... no only or any other thing like
+                        that." Was "Practice -- not scored towards the event",
+                        which wrapped onto a second line and broke this row's
+                        alignment with the Sections/Total Duration rows above
+                        it -- this fits on one line like the others. */}
+                    <span className="text-right text-sm font-black text-slate-900 dark:text-white">Practice</span>
                   </div>
                 </div>
 
