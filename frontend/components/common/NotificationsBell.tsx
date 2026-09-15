@@ -702,6 +702,28 @@ export function NotificationsBell() {
   const [ActionLoading, SetActionLoading] = useState(false);
   const PanelRef = useRef<HTMLDivElement | null>(null);
 
+  // 2026-09-15 (Shailesh): "the notifications ... on clicking them it
+  // redirects them to the dps practice tracker for that student first,
+  // then when we try it again then it redirects ... to the relevant
+  // student's practice block." Root cause found live: the 15s poll below,
+  // plus the window "focus"/"visibilitychange" refetches, used to fire
+  // even while the dropdown was open and silently re-sort Items (newest
+  // notification can arrive/reorder mid-view) -- the on-screen rows would
+  // shift while the user was looking at them, so a click aimed at one
+  // notification could land on whatever notification the reorder just
+  // moved into that same screen position. OpenRef mirrors Open (state, not
+  // a plain closure variable, since the interval/focus/visibilitychange
+  // handlers below are set up once in an effect keyed on FetchNotifications
+  // and would otherwise close over a stale Open value) so those background
+  // refreshes can check the *current* open state and skip refetching while
+  // the panel is open -- the list is frozen exactly as the user saw it the
+  // moment they opened it, and only refreshes again the next time they
+  // open it (the bell's own onClick already fetches fresh data on open).
+  const OpenRef = useRef(Open);
+  useEffect(() => {
+    OpenRef.current = Open;
+  }, [Open]);
+
   const VisibleItems = useMemo(() => SortNotificationsForWorkflow(Items).slice(0, 20), [Items]);
 
   const FetchNotifications = useCallback(async () => {
@@ -721,10 +743,19 @@ export function NotificationsBell() {
 
   useEffect(() => {
     FetchNotifications();
-    const Interval = window.setInterval(FetchNotifications, 15000);
+    // Frozen-while-open guard (see OpenRef above): the initial call right
+    // above always runs regardless of Open (it only fires on mount/user
+    // change, well before the panel could be open), but the recurring
+    // interval and focus/visibilitychange refreshes below must not
+    // silently reorder the list out from under a click while it's open.
+    const Interval = window.setInterval(() => {
+      if (OpenRef.current) return;
+      FetchNotifications();
+    }, 15000);
 
     function HandleFocus() {
       if (document.visibilityState === "hidden") return;
+      if (OpenRef.current) return;
       FetchNotifications();
     }
 

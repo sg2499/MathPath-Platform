@@ -89,7 +89,26 @@ from app.services.annual_competition_paper_registry import (
     GetAnnualCompetitionLevelConfig,
 )
 
-ANNUAL_COMPETITION_SLOT_MAX_RETRIES = 10
+# 2026-09-15 (Shailesh): "we need to make sure this never happens and always
+# gets assigned flawlessly and seamlessly whether we assign 5 or 25 sheets".
+# Was 10 -- too thin for a single-concept pool drawing deep into a small
+# achievable domain. IM-L3/IM-L4's "Squares" sections (_IM_L3_SQUARES_POOL/
+# _IM_L4_SQUARES_POOL, both single-concept, no fallback-to-another-concept
+# possible) need 50 unique draws from GenerateSquares's 89-value domain
+# (Base = randint(11, 99) in app/question_engine/im/operands.py). At the
+# tightest slot (49 of 89 values already used), a single random draw has
+# only a 40/89 (~45%) chance of landing on an unused value, so a run of 10
+# straight misses -- ~0.17% per slot -- was common enough across a full
+# batch of papers to surface as the intermittent
+# ANNUAL_COMPETITION_SECTION_GENERATION_INCOMPLETE errors reported live.
+# At 50 retries the same worst-case slot's failure probability is
+# ~1.15e-13 per slot -- effectively impossible even summed across every
+# slot of a full 25-paper batch. Deliberately raised for every section
+# (not just Squares): the extra retries are free when a slot succeeds on
+# its first or second attempt (the overwhelming majority of slots, which
+# have much larger achievable domains), so this only spends extra work on
+# the rare slots that actually need it.
+ANNUAL_COMPETITION_SLOT_MAX_RETRIES = 50
 DEFAULT_ANNUAL_COMPETITION_DIFFICULTY_BAND = "ANNUAL_COMPETITION"
 
 

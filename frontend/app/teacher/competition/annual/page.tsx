@@ -102,6 +102,14 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   const SearchParams = useSearchParams();
   const DeepLinkTab = SearchParams.get("tab");
   const DeepLinkStudentCode = SearchParams.get("studentCode");
+  // 2026-09-15 (Shailesh): "on clicking it, it should take them to the
+  // correct page with the student's level block expanded for whichever
+  // level the notification was assigned" -- the notification's deep link
+  // already carries levelCode (AppendDeepLinkParams in NotificationsBell.tsx
+  // appends it from the notification's own metadata), so read it the same
+  // way as DeepLinkStudentCode and auto-expand the matching level group
+  // once the student row itself has been matched, below.
+  const DeepLinkLevelCode = SearchParams.get("levelCode");
   const DeepLinkStudentAppliedRef = useRef(false);
 
   const [SelectedEventId, SetSelectedEventId] = useState<string>("");
@@ -205,13 +213,25 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   // so this waits for GroupedPracticeResults to have real rows to match
   // against. Applied at most once per page load so it never fights a
   // student the teacher has since manually collapsed.
+  //
+  // 2026-09-15 (Shailesh): "on clicking it, it should take them to the
+  // correct page with the student's level block expanded for whichever
+  // level the notification was assigned" -- once the student row is
+  // matched, also expand the specific level group the notification named
+  // (DeepLinkLevelCode), using the exact same `${studentId}::${levelCode}`
+  // key the level-group toggle/render below already uses. Gated behind the
+  // same DeepLinkStudentAppliedRef as the student-row expansion so it only
+  // ever applies once per page load, same reasoning as above.
   useEffect(() => {
     if (!DeepLinkStudentCode || DeepLinkStudentAppliedRef.current) return;
     const Match = GroupedPracticeResults.find((StudentGroup) => StudentGroup.studentCode === DeepLinkStudentCode);
     if (!Match) return;
     DeepLinkStudentAppliedRef.current = true;
     SetExpandedPracticeStudents((Prev) => new Set(Prev).add(Match.studentId));
-  }, [DeepLinkStudentCode, GroupedPracticeResults]);
+    if (DeepLinkLevelCode) {
+      SetExpandedPracticeLevelGroups((Prev) => new Set(Prev).add(`${Match.studentId}::${DeepLinkLevelCode}`));
+    }
+  }, [DeepLinkStudentCode, DeepLinkLevelCode, GroupedPracticeResults]);
 
   if (!Ready) return null;
 
