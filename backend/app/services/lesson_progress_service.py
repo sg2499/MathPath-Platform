@@ -68,6 +68,12 @@ def _EmptyProgress() -> dict:
         # teacher from picking any lesson to start a student on.
         "isNewToLevel": True,
         "assignableDpsIds": [],
+        # ADDITIVE (Shailesh, 2026-09-15): the next lesson, in sequence, a
+        # teacher should be allowed to start assigning -- see the field's
+        # own doc comment on ComputeLessonProgressForStudents for why this
+        # is a separate field rather than a change to currentLessonNumber.
+        "nextEligibleLessonNumber": None,
+        "nextEligibleLessonTitle": None,
     }
 
 
@@ -91,6 +97,24 @@ def ComputeLessonProgressForStudents(db: Session, students: list[Student], level
 
     Batched (no N+1): one query per fact type across all students/DPS in the
     level, then everything else is plain in-memory set lookups.
+
+    ADDITIVE FIELD -- nextEligibleLessonNumber (Shailesh, 2026-09-15): "lets
+    not keep any lock at all, the teacher should be able to assign any of
+    the lessons that come next ofc sequentially and not skipping any, but
+    yes once a lesson is assigned then the student can be assigned the next
+    lesson irrespective of them completing it or not". currentLessonNumber/
+    levelComplete below are deliberately left with their EXISTING
+    cleared-based semantics unchanged -- the Annual Competition assignment
+    engine (Master-module lesson-16-threshold / full-completion rules) also
+    reads these two fields, and changing their meaning would silently shift
+    competition eligibility, which was never asked for. Instead
+    nextEligibleLessonNumber is a brand-new field, derived purely from
+    highest_assigned_lesson_index (the last lesson this student was ever
+    actually assigned a sheet in) + 1 -- never from whether that lesson has
+    been cleared. assign-dps/page.tsx's eligibleStudents filter uses it
+    alongside currentLessonNumber to let a teacher pick either the
+    last-assigned lesson (to assign more of its own sheets) or the very
+    next one in sequence, and nothing further ahead.
     """
     result: dict[str, dict] = {}
     if not students or not level_id:
@@ -228,6 +252,17 @@ def ComputeLessonProgressForStudents(db: Session, students: list[Student], level
         lesson_idx = anchor_idx if anchor_idx is not None else 0
         cleared_count, total_count, assignable = lesson_progress(student.id, lesson_idx)
 
+        # Sequential "next lesson" off the raw assignment anchor -- deliberately
+        # NOT off lesson_idx (which the while-loop below may walk past the
+        # anchor once it's fully cleared). No anchor yet (isNewToLevel) means
+        # there's no "next" to speak of -- that student is already
+        # unrestricted via isNewToLevel on the frontend. Already anchored on
+        # the level's last lesson means there's nothing further to advance
+        # to either way.
+        next_eligible_lesson = None
+        if anchor_idx is not None and anchor_idx + 1 < len(ordered_lessons):
+            next_eligible_lesson = ordered_lessons[anchor_idx + 1]
+
         # Fully cleared -- advance to the next lesson (what they're about to
         # attempt), same walk whether we started from a real assignment
         # anchor or from Lesson 1 for a student with no history yet.
@@ -277,6 +312,8 @@ def ComputeLessonProgressForStudents(db: Session, students: list[Student], level
             # not just this fallback. See assign-dps/page.tsx eligibleStudents.
             "isNewToLevel": anchor_idx is None,
             "assignableDpsIds": assignable_dps_ids_by_student.get(student.id, []),
+            "nextEligibleLessonNumber": next_eligible_lesson.lesson_number if next_eligible_lesson else None,
+            "nextEligibleLessonTitle": next_eligible_lesson.lesson_title if next_eligible_lesson else None,
         }
 
     return result

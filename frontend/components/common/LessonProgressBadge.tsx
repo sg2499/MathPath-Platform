@@ -6,6 +6,13 @@ export interface LessonProgressBadgeProps {
   totalInCurrentLesson?: number;
   levelComplete?: boolean;
   previousLessonNumber?: number | null;
+  // ADDITIVE (Shailesh, 2026-09-15): the next lesson, in sequence, this
+  // student is now eligible to be assigned -- see lesson_progress_service.py.
+  // Only ever rendered when it differs from currentLessonNumber, since the
+  // two coincide once the current lesson is fully cleared (currentLessonNumber
+  // itself already walks forward in that case) and showing "Next: Lesson N"
+  // next to "Lesson N" would just be redundant.
+  nextEligibleLessonNumber?: number | null;
   className?: string;
 }
 
@@ -32,6 +39,7 @@ export function LessonProgressBadge({
   totalInCurrentLesson = 0,
   levelComplete = false,
   previousLessonNumber,
+  nextEligibleLessonNumber,
   className = "",
 }: LessonProgressBadgeProps) {
   if (levelComplete) {
@@ -48,6 +56,7 @@ export function LessonProgressBadge({
   }
 
   const showJustAdvancedChip = clearedInCurrentLesson === 0 && Boolean(previousLessonNumber);
+  const showNextEligibleChip = Boolean(nextEligibleLessonNumber) && nextEligibleLessonNumber !== currentLessonNumber;
 
   return (
     <span className={`inline-flex flex-wrap items-center gap-1.5 ${className}`}>
@@ -58,6 +67,11 @@ export function LessonProgressBadge({
         <span className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
           <CheckCircle2 size={12} />
           Lesson {previousLessonNumber} Cleared
+        </span>
+      ) : null}
+      {showNextEligibleChip ? (
+        <span className="math-badge border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200">
+          Next Eligible: Lesson {nextEligibleLessonNumber}
         </span>
       ) : null}
     </span>

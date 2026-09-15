@@ -90,33 +90,21 @@ function FormatDateYYYYMMDD(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-// Default prefill for the weekly scheduler: the next `count` weekdays
-// starting today (inclusive), skipping Saturday/Sunday -- matches the
-// program's Mon-Fri practice rhythm. Every date stays individually
-// editable afterward, so this is only ever a starting point.
+// Default prefill for the weekly scheduler: `count` CONSECUTIVE calendar
+// days starting today (inclusive) -- no Saturday/Sunday skip, no carrying a
+// sheet to the following Monday (Shailesh, 2026-09-15: "it should take 5
+// continuous days including the day when the sheet is being scheduled and
+// not skipping sat or sun ... lets keep it simple and flexible"). Every
+// date stays individually editable afterward, so this is only ever a
+// starting point.
 function NextWeekdaySequence(count: number, startFrom: Date = new Date()): string[] {
   const dates: string[] = [];
   const cursor = new Date(startFrom.getFullYear(), startFrom.getMonth(), startFrom.getDate());
   while (dates.length < count) {
-    const day = cursor.getDay(); // 0=Sun ... 6=Sat
-    if (day !== 0 && day !== 6) {
-      dates.push(FormatDateYYYYMMDD(cursor));
-    }
+    dates.push(FormatDateYYYYMMDD(cursor));
     cursor.setDate(cursor.getDate() + 1);
   }
   return dates;
-}
-
-// Parses a "YYYY-MM-DD" string as a local date (not UTC) to check whether
-// it lands on a Saturday or Sunday -- used only for the soft, non-blocking
-// warning shown next to a date picker; the backend makes the same check
-// (in IST) and returns it as a warning too, never a hard block.
-function IsWeekendDateStr(dateStr: string): boolean {
-  if (!dateStr) return false;
-  const [year, month, day] = dateStr.split("-").map(Number);
-  if (!year || !month || !day) return false;
-  const weekday = new Date(year, month - 1, day).getDay();
-  return weekday === 0 || weekday === 6;
 }
 
 export default function TeacherAssignDpsPage() {
@@ -241,11 +229,20 @@ export default function TeacherAssignDpsPage() {
   // separate summary field, so a student anchored on the right lesson but
   // with every sheet in it already assigned/completed still correctly
   // drops out.
+  //
+  // No completion lock (Shailesh, 2026-09-15): "once a lesson is assigned
+  // then the student can be assigned the next lesson irrespective of them
+  // completing it or not". A student with real history is therefore
+  // eligible for EITHER their current (last-assigned) lesson OR the next
+  // one in sequence (nextEligibleLessonNumber, additive -- see
+  // lesson_progress_service.py) -- never anything further ahead, so
+  // lessons still can't be skipped.
   const eligibleStudents = studentsInLevel.filter((student) => {
     const AssignableIds = student.assignableDpsIds || [];
     if (!AssignableIds.length) return false;
     const IsCurrentLessonMatch = Boolean(selectedLesson && selectedLesson.lessonNumber === student.currentLessonNumber);
-    if (!student.isNewToLevel && !IsCurrentLessonMatch) return false;
+    const IsNextEligibleLessonMatch = Boolean(selectedLesson && selectedLesson.lessonNumber === student.nextEligibleLessonNumber);
+    if (!student.isNewToLevel && !IsCurrentLessonMatch && !IsNextEligibleLessonMatch) return false;
     if (dpsId) return AssignableIds.includes(dpsId);
     return dpsForLesson.some((dps) => AssignableIds.includes(dps.dpsId));
   });
@@ -462,6 +459,7 @@ export default function TeacherAssignDpsPage() {
                       totalInCurrentLesson={student.totalInCurrentLesson}
                       levelComplete={student.levelComplete}
                       previousLessonNumber={student.previousLessonNumber}
+                      nextEligibleLessonNumber={student.nextEligibleLessonNumber}
                     />
                   </div>
                 </div>
@@ -545,7 +543,7 @@ export default function TeacherAssignDpsPage() {
                 title={
                   dpsId
                     ? "Clear the DPS Sheet selection (choose \"All Sheets In This Lesson\") to use this."
-                    : `Schedule ${dpsForLesson.length} sheet(s) across Mon-Fri for the selected student(s).`
+                    : `Schedule ${dpsForLesson.length} sheet(s) across consecutive days for the selected student(s).`
                 }
                 onClick={openScheduleConfirmation}
               >
@@ -568,6 +566,7 @@ export default function TeacherAssignDpsPage() {
                         totalInCurrentLesson={student.totalInCurrentLesson}
                         levelComplete={student.levelComplete}
                         previousLessonNumber={student.previousLessonNumber}
+                        nextEligibleLessonNumber={student.nextEligibleLessonNumber}
                       />
                       {student.isNewToLevel && (!selectedLesson || selectedLesson.lessonNumber !== student.currentLessonNumber) ? (
                         <span className="math-badge border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
@@ -779,7 +778,6 @@ export default function TeacherAssignDpsPage() {
                 <div className="space-y-2">
                   {dpsForLesson.map((dps) => {
                     const dateValue = scheduleDates[dps.dpsId] || "";
-                    const isWeekend = IsWeekendDateStr(dateValue);
                     return (
                       <div key={dps.dpsId} className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -793,12 +791,6 @@ export default function TeacherAssignDpsPage() {
                             onChange={(e) => setScheduleDates((prev) => ({ ...prev, [dps.dpsId]: e.target.value }))}
                           />
                         </div>
-                        {isWeekend ? (
-                          <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-amber-700">
-                            <AlertTriangle size={14} className="shrink-0" />
-                            This date falls on a weekend -- practice sheets are usually scheduled Mon-Fri.
-                          </p>
-                        ) : null}
                       </div>
                     );
                   })}
@@ -811,7 +803,7 @@ export default function TeacherAssignDpsPage() {
               <div className="flex gap-3 rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-amber-900">
                 <AlertTriangle size={18} className="mt-0.5 shrink-0" />
                 <p className="text-sm font-bold leading-6">
-                  Each sheet unlocks for the selected student(s) at the start of its date (IST) and stays visible after that -- earlier sheets remain available once later ones unlock too. Weekend dates are allowed but will show a warning above.
+                  Each sheet unlocks for the selected student(s) at the start of its date (IST) and stays visible after that -- earlier sheets remain available once later ones unlock too. Dates default to 5 consecutive days starting today, weekends included, and every date can be edited above.
                 </p>
               </div>
 

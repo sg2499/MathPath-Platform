@@ -58,6 +58,17 @@ export type TeacherStudent = {
   levelComplete?: boolean;
   previousLessonNumber?: number | null;
   previousLessonTitle?: string | null;
+  // ADDITIVE (Shailesh, 2026-09-15): the next lesson, in sequence, this
+  // student is eligible to be assigned -- derived purely from the last
+  // lesson they were ever actually assigned a sheet in (+1), never from
+  // whether that lesson has been cleared. There is no completion lock
+  // anymore: a teacher can assign this student either their current
+  // (last-assigned) lesson or this next one, never further ahead. null
+  // when there's no assignment anchor yet (isNewToLevel already leaves
+  // such a student unrestricted) or when they're anchored on the level's
+  // final lesson already. See lesson_progress_service.py.
+  nextEligibleLessonNumber?: number | null;
+  nextEligibleLessonTitle?: string | null;
 };
 
 export type TeacherDashboardSummary = {
