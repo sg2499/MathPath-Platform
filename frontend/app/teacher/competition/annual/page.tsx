@@ -18,8 +18,8 @@ import {
 } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, CalendarClock, ChevronDown, ChevronRight, Eye, Medal, Repeat, RefreshCcw, Search, Trophy } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 // Read-only by design -- Teacher: monitor/review only, no assign/rank/
 // release path exists here (pkg-07 checklist item 3, same convention as
@@ -82,10 +82,29 @@ const OfficialSubTabList = ["LIVE", "RESULTS"] as const;
 type OfficialSubTabKey = (typeof OfficialSubTabList)[number];
 
 export default function TeacherAnnualCompetitionMonitorPage() {
+  return (
+    <Suspense fallback={null}>
+      <TeacherAnnualCompetitionMonitorPageContent />
+    </Suspense>
+  );
+}
+
+function TeacherAnnualCompetitionMonitorPageContent() {
   const Ready = useProtectedPage(["TEACHER"]);
   const Router = useRouter();
+  // 2026-09-15 (Shailesh): "the teacher should see the pending list of
+  // papers in their login under the practice tab" -- notifications land
+  // here as /teacher/competition/annual?tab=PRACTICE&studentCode=... (built
+  // client-side in NotificationsBell.tsx) -- read once on mount to
+  // pre-select Practice and, once the roster has loaded, auto-expand the
+  // notified student's row.
+  const SearchParams = useSearchParams();
+  const DeepLinkTab = SearchParams.get("tab");
+  const DeepLinkStudentCode = SearchParams.get("studentCode");
+  const DeepLinkStudentAppliedRef = useRef(false);
+
   const [SelectedEventId, SetSelectedEventId] = useState<string>("");
-  const [TopTab, SetTopTab] = useState<TopTabKey>("OFFICIAL");
+  const [TopTab, SetTopTab] = useState<TopTabKey>(DeepLinkTab === "PRACTICE" ? "PRACTICE" : "OFFICIAL");
   const [ActiveTab, SetActiveTab] = useState<OfficialSubTabKey>("LIVE");
   const [PracticeLevelFilter, SetPracticeLevelFilter] = useState<string>("ALL");
   const [PracticeSearchText, SetPracticeSearchText] = useState("");
@@ -164,6 +183,19 @@ export default function TeacherAnnualCompetitionMonitorPage() {
       return Next;
     });
   }
+
+  // Auto-expand the notified student's row once the roster has actually
+  // loaded -- studentCode is all the notification carries (not studentId),
+  // so this waits for GroupedPracticeResults to have real rows to match
+  // against. Applied at most once per page load so it never fights a
+  // student the teacher has since manually collapsed.
+  useEffect(() => {
+    if (!DeepLinkStudentCode || DeepLinkStudentAppliedRef.current) return;
+    const Match = GroupedPracticeResults.find((StudentGroup) => StudentGroup.studentCode === DeepLinkStudentCode);
+    if (!Match) return;
+    DeepLinkStudentAppliedRef.current = true;
+    SetExpandedPracticeStudents((Prev) => new Set(Prev).add(Match.studentId));
+  }, [DeepLinkStudentCode, GroupedPracticeResults]);
 
   if (!Ready) return null;
 

@@ -43,8 +43,9 @@ import {
   Trophy,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 
 function SectionTitle({ kicker, title, description, icon }: { kicker: string; title: string; description: string; icon?: ReactNode }) {
   return (
@@ -115,11 +116,31 @@ const PracticeSubTabList = ["BANK", "RESULTS"] as const;
 type PracticeSubTabKey = (typeof PracticeSubTabList)[number];
 
 export default function AdminAnnualCompetitionStudioPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminAnnualCompetitionStudioPageContent />
+    </Suspense>
+  );
+}
+
+function AdminAnnualCompetitionStudioPageContent() {
   const Ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const QueryClient = useQueryClient();
+  // 2026-09-15 (Shailesh): "upon clicking the notification from the tray it
+  // should redirect them ... the admin should see the pending papers in
+  // their login under the practice results tab." Notifications land here as
+  // /admin/competition/annual-studio?tab=PRACTICE&subTab=RESULTS&studentCode=
+  // ...&levelCode=... (built client-side in NotificationsBell.tsx) -- read
+  // once on mount to pre-select the right tabs/filter and, once the roster
+  // has loaded, auto-expand the notified student's row.
+  const SearchParams = useSearchParams();
+  const DeepLinkTab = SearchParams.get("tab");
+  const DeepLinkSubTab = SearchParams.get("subTab");
+  const DeepLinkStudentCode = SearchParams.get("studentCode");
+  const DeepLinkLevelCode = SearchParams.get("levelCode");
 
-  const [TopTab, SetTopTab] = useState<TopTabKey>("OFFICIAL");
-  const [PracticeSubTab, SetPracticeSubTab] = useState<PracticeSubTabKey>("BANK");
+  const [TopTab, SetTopTab] = useState<TopTabKey>(DeepLinkTab === "PRACTICE" ? "PRACTICE" : "OFFICIAL");
+  const [PracticeSubTab, SetPracticeSubTab] = useState<PracticeSubTabKey>(DeepLinkSubTab === "RESULTS" ? "RESULTS" : "BANK");
   const [LastMessage, SetLastMessage] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------
@@ -352,9 +373,14 @@ export default function AdminAnnualCompetitionStudioPage() {
   // scoped to any one event either.
   // ---------------------------------------------------------------------
 
-  const [PracticeResultsLevelFilter, SetPracticeResultsLevelFilter] = useState<string>("ALL");
+  const [PracticeResultsLevelFilter, SetPracticeResultsLevelFilter] = useState<string>(
+    DeepLinkLevelCode && (ANNUAL_COMPETITION_LEVEL_CODES as readonly string[]).includes(DeepLinkLevelCode)
+      ? DeepLinkLevelCode
+      : "ALL"
+  );
   const [PracticeResultsSearchText, SetPracticeResultsSearchText] = useState("");
   const [ExpandedPracticeStudents, SetExpandedPracticeStudents] = useState<Set<string>>(new Set());
+  const DeepLinkStudentAppliedRef = useRef(false);
 
   const PracticeResultsQuery = useQuery({
     queryKey: ["admin", "annual-competition", "practice-results", PracticeResultsLevelFilter],
@@ -402,6 +428,19 @@ export default function AdminAnnualCompetitionStudioPage() {
       return Next;
     });
   }
+
+  // Auto-expand the notified student's row once the roster has actually
+  // loaded -- studentCode is all the notification carries (not studentId),
+  // so this waits for GroupedPracticeResults to have real rows to match
+  // against. Applied at most once per page load (the ref guard) so it never
+  // fights a student the admin has since manually collapsed.
+  useEffect(() => {
+    if (!DeepLinkStudentCode || DeepLinkStudentAppliedRef.current) return;
+    const Match = GroupedPracticeResults.find((StudentGroup) => StudentGroup.studentCode === DeepLinkStudentCode);
+    if (!Match) return;
+    DeepLinkStudentAppliedRef.current = true;
+    SetExpandedPracticeStudents((Prev) => new Set(Prev).add(Match.studentId));
+  }, [DeepLinkStudentCode, GroupedPracticeResults]);
 
   // 2026-09-14 (Shailesh): per-row and per-student-block delete icons in
   // the admin Practice view. Both mutations invalidate the same query key
