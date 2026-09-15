@@ -206,43 +206,36 @@ export default function TeacherAssignDpsPage() {
   // completed -- reattempts are a separate mechanism entirely and don't
   // concern this list.
   //
-  // Two rules, deliberately different for two different kinds of student
-  // (Shailesh, 2026-09-01: flexible only for someone never assigned
-  // anything in this level yet; strict and sequential for everyone else):
+  // No lesson-sequencing gate at all (Shailesh, 2026-09-15, superseding the
+  // 2026-09-01/2026-09-15 "current-or-next-lesson-only" designs below this
+  // filter used to encode): "make it flexible completely without having
+  // any locks or conditions for the next lesson to be assigned even before
+  // completing the previous lesson, any lesson under that level starting
+  // from 1 to the last lesson can be assigned by the teacher to any
+  // student under them." Students join a level mid-way (a new admission,
+  // a manual promotion, a special/emergency case) and the platform's own
+  // strict lesson-1-first tracking has no way to know that -- so a teacher
+  // must be able to place ANY active student in the level onto ANY lesson,
+  // regardless of currentLessonNumber/nextEligibleLessonNumber/isNewToLevel.
   //
-  //  - isNewToLevel (no assignment history anywhere in this level yet):
-  //    currentLessonId/currentLessonNumber are only the lesson-1-first
-  //    fallback the backend reports for someone who hasn't started, not a
-  //    real position -- so any lesson in the level is a valid starting
-  //    point for their first assignment here.
-  //  - Everyone else: strictly their own current lesson only, matched by
-  //    lesson NUMBER rather than raw lessonId (robust even if the lesson
-  //    dropdown's lesson list and the progress-tracking lookup ever
-  //    resolve "this lesson" to different Lesson rows for the same
-  //    number) -- once a student has real history, progression is
-  //    sequential and a teacher should never see them under a lesson
-  //    ahead of or behind where they actually are.
+  // Those fields are NOT removed anywhere -- currentLessonNumber,
+  // nextEligibleLessonNumber, cleared counts, levelComplete and the "New
+  // to this level" tag all keep rendering on every student card below,
+  // completely unchanged, precisely so a teacher can see where a student
+  // actually stands before overriding it. They have simply stopped being
+  // used to filter/hide students here -- informational, not a gate.
   //
-  // Either way, actual assignability is always the per-sheet fact
-  // (assignableDpsIds, the same is_assignable_now() predicate
-  // assign_single_dps_to_students() itself uses) -- never inferred from a
-  // separate summary field, so a student anchored on the right lesson but
-  // with every sheet in it already assigned/completed still correctly
-  // drops out.
-  //
-  // No completion lock (Shailesh, 2026-09-15): "once a lesson is assigned
-  // then the student can be assigned the next lesson irrespective of them
-  // completing it or not". A student with real history is therefore
-  // eligible for EITHER their current (last-assigned) lesson OR the next
-  // one in sequence (nextEligibleLessonNumber, additive -- see
-  // lesson_progress_service.py) -- never anything further ahead, so
-  // lessons still can't be skipped.
+  // The one gate that remains, and must always remain, is real per-sheet
+  // assignability (assignableDpsIds, the exact same is_assignable_now()
+  // predicate assign_single_dps_to_students() itself uses server-side) --
+  // a student who already has every sheet in the picked lesson
+  // assigned/completed (and no open reattempt permission) still correctly
+  // drops out, same as before. This is the only thing that was ever a
+  // real, necessary restriction; everything else above it was a UI-only
+  // lock this change removes.
   const eligibleStudents = studentsInLevel.filter((student) => {
     const AssignableIds = student.assignableDpsIds || [];
     if (!AssignableIds.length) return false;
-    const IsCurrentLessonMatch = Boolean(selectedLesson && selectedLesson.lessonNumber === student.currentLessonNumber);
-    const IsNextEligibleLessonMatch = Boolean(selectedLesson && selectedLesson.lessonNumber === student.nextEligibleLessonNumber);
-    if (!student.isNewToLevel && !IsCurrentLessonMatch && !IsNextEligibleLessonMatch) return false;
     if (dpsId) return AssignableIds.includes(dpsId);
     return dpsForLesson.some((dps) => AssignableIds.includes(dps.dpsId));
   });
@@ -583,7 +576,7 @@ export default function TeacherAssignDpsPage() {
               <p className="mt-5 text-sm font-bold text-slate-500">
                 {!studentsInLevel.length
                   ? "No eligible active students for this DPS level."
-                  : "Every active student in this level is currently on a different lesson, or has already been assigned/completed every sheet in this one."}
+                  : "Every active student in this level has already been assigned or completed every sheet in this one."}
               </p>
             ) : null}
           </section>
