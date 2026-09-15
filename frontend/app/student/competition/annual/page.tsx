@@ -7,6 +7,7 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { Chip } from "@/components/common/DetailWorkspaceViews";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
+import { FormatCompetitionLevelLabel } from "@/lib/api/admin";
 import {
   getAnnualCompetitionPracticeBank,
   getMyAnnualCompetitionAssignments,
@@ -166,7 +167,7 @@ function AssignmentCard({
         </div>
         <div className="flex shrink-0 flex-col items-start gap-3 lg:items-end">
           <div className="flex flex-wrap items-center gap-2">
-            <Chip tone="blue">{assignment.assignedLevelCode}</Chip>
+            <Chip tone="blue">{FormatCompetitionLevelLabel(assignment.assignedLevelCode)}</Chip>
             <StatusChip assignment={assignment} />
           </div>
           {notStarted ? (
@@ -364,7 +365,7 @@ function PracticeLevelPanel({
 
   const HeaderChips = (
     <div className="mt-2 flex flex-wrap items-center gap-2">
-      <Chip tone="blue">{levelCode}</Chip>
+      <Chip tone="blue">{FormatCompetitionLevelLabel(levelCode)}</Chip>
       <Chip tone={remainingCount > 0 ? "green" : "slate"}>
         {remainingCount} Paper{remainingCount === 1 ? "" : "s"} Remaining
       </Chip>
@@ -385,7 +386,7 @@ function PracticeLevelPanel({
               {isOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
             </span>
             <div className="min-w-0">
-              <h2 className="truncate text-xl font-black text-slate-950 dark:text-white">{levelCode} Practice Papers</h2>
+              <h2 className="truncate text-xl font-black text-slate-950 dark:text-white">{FormatCompetitionLevelLabel(levelCode)} Practice Papers</h2>
               {HeaderChips}
             </div>
           </div>
@@ -398,7 +399,7 @@ function PracticeLevelPanel({
       ) : (
         <div className="flex flex-col gap-4 p-6 pb-0 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-black text-slate-950 dark:text-white">{levelCode} Practice Papers</h2>
+            <h2 className="text-xl font-black text-slate-950 dark:text-white">{FormatCompetitionLevelLabel(levelCode)} Practice Papers</h2>
             {HeaderChips}
           </div>
           {!remainingCount && !inProgressAttempt ? (
@@ -698,7 +699,7 @@ function AnnualCompetitionContent() {
                   <option value="ALL">All Levels</option>
                   {scopes.map((scope) => (
                     <option key={scope.competitionLevelCode} value={scope.competitionLevelCode}>
-                      {scope.competitionLevelCode}
+                      {FormatCompetitionLevelLabel(scope.competitionLevelCode)}
                     </option>
                   ))}
                 </select>

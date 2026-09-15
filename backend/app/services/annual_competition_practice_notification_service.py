@@ -74,6 +74,7 @@ from app.models import (
     Teacher,
     User,
 )
+from app.services.annual_competition_paper_registry import FormatCompetitionLevelLabel
 from app.services.notification_service import ActiveAdminUsers, CreateNotification
 
 ANNUAL_COMPETITION_PRACTICE_CATEGORY = "ANNUAL_COMPETITION_PRACTICE"
@@ -112,6 +113,12 @@ def NotifyAnnualCompetitionPracticeAssigned(
 
     safe_quantity = max(1, int(quantity or 0))
     plural = "" if safe_quantity == 1 else "s"
+    # 2026-09-15 (Shailesh): "nothing should showcase the old name wherever
+    # it is being seen by the human eyes" -- message/title text uses the
+    # display label; metadata.levelCode stays the raw code since that's what
+    # NotificationsBell.tsx's AppendDeepLinkParams forwards as a query param
+    # (the frontend re-derives the label from the code for its own display).
+    level_label = FormatCompetitionLevelLabel(competition_level_code)
 
     metadata: dict[str, Any] = {
         "event": "ANNUAL_PRACTICE_ASSIGNED",
@@ -133,7 +140,7 @@ def NotifyAnnualCompetitionPracticeAssigned(
             type="ANNUAL_PRACTICE_ASSIGNED",
             category=ANNUAL_COMPETITION_PRACTICE_CATEGORY,
             title=f"{safe_quantity} Practice Paper{plural} Assigned",
-            message=f"{safe_quantity} new {competition_level_code} practice paper{plural} are ready in your Annual Competition Practice tab.",
+            message=f"{safe_quantity} new {level_label} practice paper{plural} are ready in your Annual Competition Practice tab.",
             target_route="/student/competition/annual",
             target_tab="PRACTICE",
             metadata=metadata,
@@ -151,7 +158,7 @@ def NotifyAnnualCompetitionPracticeAssigned(
             type="ANNUAL_PRACTICE_ASSIGNED_BY_ADMIN",
             category=ANNUAL_COMPETITION_PRACTICE_CATEGORY,
             title=f"{safe_quantity} Practice Paper{plural} Assigned To {student_name}",
-            message=f"{student_name} now has {safe_quantity} new {competition_level_code} practice paper{plural} pending.",
+            message=f"{student_name} now has {safe_quantity} new {level_label} practice paper{plural} pending.",
             target_route="/teacher/competition/annual",
             target_tab="PRACTICE",
             metadata=metadata,
@@ -174,7 +181,7 @@ def NotifyAnnualCompetitionPracticeAssigned(
             type="ANNUAL_PRACTICE_ASSIGNED_BY_ADMIN",
             category=ANNUAL_COMPETITION_PRACTICE_CATEGORY,
             title=f"{safe_quantity} Practice Paper{plural} Assigned To {student_name}",
-            message=f"{student_name} now has {safe_quantity} new {competition_level_code} practice paper{plural} pending.",
+            message=f"{student_name} now has {safe_quantity} new {level_label} practice paper{plural} pending.",
             target_route="/admin/competition/annual-studio",
             target_tab="PRACTICE",
             target_sub_tab="RESULTS",
@@ -200,6 +207,7 @@ def NotifyAnnualCompetitionPracticeSubmitted(db: Session, *, attempt_id: str) ->
     teacher_user = _TeacherUser(db, teacher)
     student_name = student_user.full_name if student_user else (student.student_code or "Student")
     level_code = result.competition_level_code
+    level_label = FormatCompetitionLevelLabel(level_code)
 
     accuracy = int(round(float(result.accuracy_percentage or 0)))
     score_label = f"{int(round(result.score or 0))}/{int(round(result.max_score or 0))}"
@@ -226,7 +234,7 @@ def NotifyAnnualCompetitionPracticeSubmitted(db: Session, *, attempt_id: str) ->
             type="ANNUAL_PRACTICE_SUBMITTED",
             category=ANNUAL_COMPETITION_PRACTICE_CATEGORY,
             title="Practice Paper Submitted",
-            message=f"You submitted your {level_code} practice paper. Score: {score_label} ({accuracy}%).",
+            message=f"You submitted your {level_label} practice paper. Score: {score_label} ({accuracy}%).",
             target_route=f"/student/competition/annual/attempt/{attempt.id}",
             metadata=metadata,
         )
@@ -244,7 +252,7 @@ def NotifyAnnualCompetitionPracticeSubmitted(db: Session, *, attempt_id: str) ->
             type="ANNUAL_PRACTICE_SUBMITTED_BY_STUDENT",
             category=ANNUAL_COMPETITION_PRACTICE_CATEGORY,
             title=f"{student_name} Submitted A Practice Paper",
-            message=f"{student_name} completed a {level_code} practice paper. Score: {score_label} ({accuracy}%).",
+            message=f"{student_name} completed a {level_label} practice paper. Score: {score_label} ({accuracy}%).",
             target_route="/teacher/competition/annual",
             target_tab="PRACTICE",
             metadata=metadata,
@@ -263,7 +271,7 @@ def NotifyAnnualCompetitionPracticeSubmitted(db: Session, *, attempt_id: str) ->
             type="ANNUAL_PRACTICE_SUBMITTED_BY_STUDENT",
             category=ANNUAL_COMPETITION_PRACTICE_CATEGORY,
             title=f"{student_name} Submitted A Practice Paper",
-            message=f"{student_name} completed a {level_code} practice paper. Score: {score_label} ({accuracy}%).",
+            message=f"{student_name} completed a {level_label} practice paper. Score: {score_label} ({accuracy}%).",
             target_route="/admin/competition/annual-studio",
             target_tab="PRACTICE",
             target_sub_tab="RESULTS",

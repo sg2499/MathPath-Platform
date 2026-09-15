@@ -89,8 +89,12 @@ logger = logging.getLogger("mathpath")
 
 # Level codes a student can actually be assigned to (Package 2). BM-L1 is
 # a current-position-only code and is never a valid target here.
+# 2026-09-15 (Shailesh): YLM-L0 added -- "Bloomers (Below 8 Years)", a
+# content-identical twin of YLM-L1 ("Beginners (Above 8 Years)"), assigned
+# manually by the admin (no DOB/age auto-detection) -- see
+# annual_competition_paper_registry.py's own comment on this split.
 VALID_COMPETITION_LEVEL_CODES = {
-    "YLM-L1",
+    "YLM-L0", "YLM-L1",
     "PM-L1", "PM-L2", "PM-L3", "PM-L4",
     "IM-L1", "IM-L2", "IM-L3", "IM-L4",
     "MM-L1", "MM-L2",
@@ -99,7 +103,10 @@ VALID_COMPETITION_LEVEL_CODES = {
 # MM-L2 has no curriculum Level row of its own -- generating its paper
 # resolves Module/Level linkage through this real Level's row instead (see
 # GenerateAnnualCompetitionLevelPaper's CompetitionLevelCode docstring).
-_CURRICULUM_LOOKUP_LEVEL_CODE_OVERRIDES: dict[str, str] = {"MM-L2": "MM-L1"}
+# YLM-L0 ("Bloomers") is the same shape: no curriculum Level row of its own,
+# resolves through YLM-L1's ("Beginners") row instead -- it's a pure content
+# clone, not a distinct curriculum position.
+_CURRICULUM_LOOKUP_LEVEL_CODE_OVERRIDES: dict[str, str] = {"MM-L2": "MM-L1", "YLM-L0": "YLM-L1"}
 
 # competition_level_code -> [(section_number, section_title, mode, time_limit_seconds), ...]
 # Derived from ANNUAL_COMPETITION_LEVEL_REGISTRY -- see module docstring.

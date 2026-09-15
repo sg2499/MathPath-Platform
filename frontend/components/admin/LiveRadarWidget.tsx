@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Activity, Clock } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Activity, Clock, Search, Users, X } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface LiveStudent {
@@ -11,9 +11,103 @@ interface LiveStudent {
   last_active_at: string;
 }
 
+// 2026-09-15 (Shailesh): "if there are 20-30 students active at the same
+// time then the current radar would not be able to show all of them as
+// there is not much space available in the admin dashboard view ... we need
+// a robust and professional way in which we can have the total number in
+// one place and a way where we can also view which students are active."
+// The backend endpoint (/admin/live-students) already returns every active
+// student unpaginated -- the 5-row cap was purely a frontend display
+// choice, with a dead "+N more" text label for the rest. The dashboard
+// tile itself stays exactly this small (it lives in a fixed w-80 sidebar
+// slot next to the hero panel, so growing it isn't really an option) --
+// what's new is that the tile's own header count and the "+N more" line
+// are now buttons that open a full, scrollable, searchable list of every
+// active student, reusing this app's existing dialog-overlay visual
+// pattern (ConfirmDialog's fixed inset-0 blurred backdrop).
+function FormatLastActive(isoTimestamp: string) {
+  const then = new Date(isoTimestamp).getTime();
+  if (Number.isNaN(then)) return "Live";
+  const seconds = Math.max(0, Math.round((Date.now() - then) / 1000));
+  if (seconds < 60) return "Just now";
+  const minutes = Math.round(seconds / 60);
+  return `${minutes} min${minutes === 1 ? "" : "s"} ago`;
+}
+
+function ViewAllActiveStudentsModal({ liveStudents, onClose }: { liveStudents: LiveStudent[]; onClose: () => void }) {
+  const [searchText, setSearchText] = useState("");
+
+  const filteredStudents = useMemo(() => {
+    const term = searchText.trim().toLowerCase();
+    if (!term) return liveStudents;
+    return liveStudents.filter(
+      (student) => student.full_name?.toLowerCase().includes(term) || student.student_code?.toLowerCase().includes(term)
+    );
+  }, [liveStudents, searchText]);
+
+  return (
+    <div className="math-dialog-overlay fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+      <div className="math-pop-in flex max-h-[80vh] w-full max-w-lg flex-col rounded-[36px] border !border-slate-200 !bg-white p-6 backdrop-blur-2xl transition duration-300 dark:!border-slate-800 dark:!bg-slate-950">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-300">Live Radar</p>
+            <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+              {liveStudents.length} Student{liveStudents.length === 1 ? "" : "s"} Active Now
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:-translate-y-px hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="relative mt-4">
+          <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            autoFocus
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            placeholder="Search by name or student code..."
+            className="math-input pl-11"
+          />
+        </div>
+
+        <div className="mt-4 flex-1 space-y-2 overflow-y-auto pr-1">
+          {filteredStudents.length === 0 ? (
+            <div className="py-8 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
+              No active students match "{searchText}".
+            </div>
+          ) : (
+            filteredStudents.map((student) => (
+              <div
+                key={student.id}
+                className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3 dark:border-emerald-800/30 dark:bg-emerald-900/10"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{student.full_name}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{student.student_code}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                  <Clock size={12} />
+                  {FormatLastActive(student.last_active_at)}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function LiveRadarWidget() {
   const [liveStudents, setLiveStudents] = useState<LiveStudent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchLiveStudents = async () => {
@@ -60,9 +154,15 @@ export function LiveRadarWidget() {
           <Activity size={18} className="text-emerald-500 animate-pulse" />
           Live Radar
         </h3>
-        <span className="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-full">
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          disabled={liveStudents.length === 0}
+          title="View every active student"
+          className="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-full transition hover:-translate-y-px disabled:cursor-default disabled:hover:translate-y-0"
+        >
           {liveStudents.length} Active Now
-        </span>
+        </button>
       </div>
 
       {liveStudents.length === 0 ? (
@@ -84,12 +184,18 @@ export function LiveRadarWidget() {
             </div>
           ))}
           {liveStudents.length > 5 && (
-            <div className="text-center text-xs text-slate-500 font-medium pt-2">
-              + {liveStudents.length - 5} more students online
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="flex w-full items-center justify-center gap-1.5 text-center text-xs font-bold text-emerald-700 dark:text-emerald-300 pt-2 transition hover:underline"
+            >
+              <Users size={13} />+ {liveStudents.length - 5} more students online -- view all
+            </button>
           )}
         </div>
       )}
+
+      {isModalOpen && <ViewAllActiveStudentsModal liveStudents={liveStudents} onClose={() => setIsModalOpen(false)} />}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
   ANNUAL_COMPETITION_LEVEL_CODES,
+  FormatCompetitionLevelLabel,
   PRACTICE_BATCH_QUANTITY_OPTIONS,
   PRACTICE_BULK_MAX_STUDENTS_PER_CALL,
   batchAssignAnnualCompetitionPracticePapers,
@@ -26,6 +27,7 @@ import {
   type AnnualCompetitionPracticeBatchAssignFailedRow,
   type AnnualCompetitionPracticeRosterStudent,
 } from "@/lib/api/admin";
+import { GroupPracticePapersByLevel } from "@/lib/annualCompetitionPracticeGrouping";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -355,7 +357,7 @@ function AdminAnnualCompetitionStudioPageContent() {
     },
     onSuccess: (Result) => {
       SetLastMessage(
-        `Assigned ${PracticeAssignQuantity} practice paper${PracticeAssignQuantity === 1 ? "" : "s"} of ${PracticeAssignLevelCode} to ${Result.StudentsSucceeded} student${Result.StudentsSucceeded === 1 ? "" : "s"}` +
+        `Assigned ${PracticeAssignQuantity} practice paper${PracticeAssignQuantity === 1 ? "" : "s"} of ${FormatCompetitionLevelLabel(PracticeAssignLevelCode)} to ${Result.StudentsSucceeded} student${Result.StudentsSucceeded === 1 ? "" : "s"}` +
           (Result.StudentsFailed > 0 ? `, ${Result.StudentsFailed} failed.` : ".")
       );
       SetBulkAssignSummary(Result);
@@ -771,7 +773,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                       className="math-input"
                     >
                       {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                        <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                        <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
                       ))}
                     </select>
                   </label>
@@ -793,7 +795,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                     onClick={() => {
                       if (
                         window.confirm(
-                          `Assign ${PracticeAssignQuantity} ${PracticeAssignLevelCode} practice paper${PracticeAssignQuantity === 1 ? "" : "s"} to ${SelectedStudentIdsForPractice.size} student${SelectedStudentIdsForPractice.size === 1 ? "" : "s"}?`
+                          `Assign ${PracticeAssignQuantity} ${FormatCompetitionLevelLabel(PracticeAssignLevelCode)} practice paper${PracticeAssignQuantity === 1 ? "" : "s"} to ${SelectedStudentIdsForPractice.size} student${SelectedStudentIdsForPractice.size === 1 ? "" : "s"}?`
                         )
                       ) {
                         SetBulkAssignSummary(null);
@@ -841,14 +843,28 @@ function AdminAnnualCompetitionStudioPageContent() {
                 )}
 
                 {StudentRows.length > 0 && (
-                  <div className="mt-5 flex flex-wrap items-center gap-3">
-                    <div className="relative">
-                      <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  // 2026-09-15 (Shailesh): "the content in that tab is very
+                  // small ... we need to have the content displayed properly
+                  // and in bigger font sizes ... especially the search bar,
+                  // module and level filters ... no matter from which device
+                  // the admin logs in everything should be visually top
+                  // notch and clean." These used to be forced down to
+                  // text-xs (12px) at fixed pixel widths (w-64/w-auto) with
+                  // no responsive behaviour at all -- cramped on every
+                  // screen size, not just small ones. Rebuilt to match the
+                  // clean, responsive precedent already used elsewhere in
+                  // this admin app (admin/students/page.tsx's own search/
+                  // filter row): full-size math-input/select, a grid that
+                  // stacks to one column per control on narrow screens and
+                  // opens up on wider ones instead of staying tiny always.
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_200px_200px_auto]">
+                    <div className="relative sm:col-span-2 lg:col-span-1">
+                      <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         value={PracticeSearchText}
                         onChange={(EventValue) => SetPracticeSearchText(EventValue.target.value)}
                         placeholder="Search by name or student code..."
-                        className="math-input !py-2 !pl-9 !text-xs w-64"
+                        className="math-input pl-11"
                       />
                     </div>
                     <select
@@ -860,7 +876,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                         SetPracticeModuleFilter(EventValue.target.value);
                         SetPracticeLevelFilter("ALL");
                       }}
-                      className="math-input !py-2 !text-xs w-auto"
+                      className="math-select"
                       aria-label="Filter by module"
                     >
                       <option value="ALL">All Modules</option>
@@ -871,7 +887,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                     <select
                       value={PracticeLevelFilter}
                       onChange={(EventValue) => SetPracticeLevelFilter(EventValue.target.value)}
-                      className="math-input !py-2 !text-xs w-auto"
+                      className="math-select"
                       aria-label="Filter by current level"
                     >
                       <option value="ALL">All Levels</option>
@@ -879,33 +895,35 @@ function AdminAnnualCompetitionStudioPageContent() {
                         <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
                       ))}
                     </select>
-                    <label className="inline-flex items-center gap-2 text-xs font-black text-slate-600 dark:text-slate-300">
+                    <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-1 lg:justify-self-end">
+                      {(PracticeSearchText || PracticeModuleFilter !== "ALL" || PracticeLevelFilter !== "ALL" || PracticeEligibleOnly) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            SetPracticeSearchText("");
+                            SetPracticeModuleFilter("ALL");
+                            SetPracticeLevelFilter("ALL");
+                            SetPracticeEligibleOnly(false);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2 text-sm font-bold text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
+                        >
+                          <X size={14} />
+                          Clear Filters
+                        </button>
+                      )}
+                      <span className="text-sm font-bold text-slate-400">
+                        {FilteredStudentRows.length} of {StudentRows.length} shown
+                      </span>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300 sm:col-span-2 lg:col-span-4">
                       <input
                         type="checkbox"
                         checked={PracticeEligibleOnly}
                         onChange={(EventValue) => SetPracticeEligibleOnly(EventValue.target.checked)}
-                        className="h-3.5 w-3.5"
+                        className="h-4 w-4"
                       />
-                      Only show students eligible for {PracticeAssignLevelCode}
+                      Only show students eligible for {FormatCompetitionLevelLabel(PracticeAssignLevelCode)}
                     </label>
-                    {(PracticeSearchText || PracticeModuleFilter !== "ALL" || PracticeLevelFilter !== "ALL" || PracticeEligibleOnly) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          SetPracticeSearchText("");
-                          SetPracticeModuleFilter("ALL");
-                          SetPracticeLevelFilter("ALL");
-                          SetPracticeEligibleOnly(false);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-2 text-xs font-black text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
-                      >
-                        <X size={12} />
-                        Clear Filters
-                      </button>
-                    )}
-                    <span className="text-xs font-bold text-slate-400">
-                      {FilteredStudentRows.length} of {StudentRows.length} shown
-                    </span>
                   </div>
                 )}
 
@@ -946,7 +964,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                             <td className="px-2 py-2">{Row.currentLevelCode || "--"}</td>
                             <td className="px-2 py-2">
                               {Row.eligibleCompetitionLevelCode ? (
-                                <span className="text-emerald-600 dark:text-emerald-300">{Row.eligibleCompetitionLevelCode}</span>
+                                <span className="text-emerald-600 dark:text-emerald-300">{FormatCompetitionLevelLabel(Row.eligibleCompetitionLevelCode)}</span>
                               ) : (
                                 <span className="text-slate-400">Not matched</span>
                               )}
@@ -994,7 +1012,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                   >
                     <option value="ALL">All Levels</option>
                     {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                      <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
                     ))}
                   </select>
                 </div>
@@ -1057,76 +1075,93 @@ function AdminAnnualCompetitionStudioPageContent() {
 
                           {StudentOpen ? (
                             <div className="border-t border-[#2563eb]/10 p-3 dark:border-cyan-300/10">
-                              <div className="overflow-hidden rounded-2xl border border-[#2563eb]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35">
-                                <div className="math-admin-light-student-summary-header grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr_0.5fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
-                                  <span>Paper Name</span>
-                                  <span>Level</span>
-                                  <span>Accuracy</span>
-                                  <span>Score</span>
-                                  <span>Time Taken</span>
-                                  <span>Completed</span>
-                                  <span>Attempt</span>
-                                  <span />
-                                </div>
-                                <div className="divide-y divide-slate-100 dark:divide-white/10">
-                                  {StudentGroup.papers.map((Paper) => {
-                                    const IsPending = Paper.status === "NOT_STARTED" || !Paper.result;
-                                    return (
-                                      <div
-                                        key={Paper.levelPaperId}
-                                        className="math-admin-light-student-summary-row grid grid-cols-[1.2fr_0.7fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr_0.5fr] items-center gap-3 px-5 py-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50/50 dark:text-slate-100 dark:hover:bg-slate-800/40"
-                                      >
-                                        <div className="font-black text-slate-950 dark:text-white">{Paper.paperLabel}</div>
-                                        <div>{Paper.competitionLevelCode}</div>
-                                        <div>{IsPending ? "-" : `${Paper.result!.accuracyPercentage}%`}</div>
-                                        <div>{IsPending ? "-" : `${Paper.result!.score}/${Paper.result!.maxScore}`}</div>
-                                        <div>{IsPending ? "-" : FormatSecondsAsMinSec(Paper.result!.timeTakenSeconds)}</div>
-                                        <div>{IsPending ? "-" : FormatEventDate(Paper.result!.computedAt)}</div>
-                                        <div>
-                                          {Paper.attemptId ? (
-                                            <Link
-                                              href={`/admin/competition/annual-result/${Paper.attemptId}`}
-                                              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
-                                            >
-                                              <ClipboardList size={12} />
-                                              View
-                                            </Link>
-                                          ) : (
-                                            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                                              Pending
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div>
-                                          {/* 2026-09-14 (Shailesh): "pending row
-                                              should get the delete option as
-                                              well ... present everywhere" --
-                                              works on both a pending and a
-                                              submitted row, keyed by
-                                              levelPaperId either way. */}
-                                          <button
-                                            type="button"
-                                            title="Delete this practice paper"
-                                            aria-label="Delete this practice paper"
-                                            disabled={DeletePracticeAttemptMutation.isPending}
-                                            onClick={() => {
-                                              if (
-                                                window.confirm(
-                                                  `Delete "${Paper.paperLabel}"? This removes the paper${Paper.attemptId ? ", its attempt, and its result" : ""} entirely. This can't be undone.`
-                                                )
-                                              ) {
-                                                DeletePracticeAttemptMutation.mutate(Paper.levelPaperId);
-                                              }
-                                            }}
-                                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-300 text-rose-600 transition hover:-translate-y-px hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-700/70 dark:text-rose-300"
+                              {/* 2026-09-15 (Shailesh): "for the grouping of
+                                  levels in the student blocks, lets do that
+                                  for both teacher and admin login" -- one
+                                  sub-table per level instead of every paper
+                                  across every level mixed into one long
+                                  flat list. See GroupPracticePapersByLevel's
+                                  own comment for why this stays a simple
+                                  grouped section rather than another nested
+                                  accordion. */}
+                              <div className="space-y-3">
+                                {GroupPracticePapersByLevel(StudentGroup.papers).map((LevelGroup) => (
+                                  <div
+                                    key={LevelGroup.LevelCode}
+                                    className="overflow-hidden rounded-2xl border border-[#2563eb]/15 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/35"
+                                  >
+                                    <div className="border-b border-[#2563eb]/10 bg-[#2563eb]/[0.04] px-5 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:border-cyan-300/10 dark:bg-cyan-400/5 dark:text-cyan-100">
+                                      {FormatCompetitionLevelLabel(LevelGroup.LevelCode)}
+                                    </div>
+                                    <div className="math-admin-light-student-summary-header grid grid-cols-[1.4fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr_0.5fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+                                      <span>Paper Name</span>
+                                      <span>Accuracy</span>
+                                      <span>Score</span>
+                                      <span>Time Taken</span>
+                                      <span>Completed</span>
+                                      <span>Attempt</span>
+                                      <span />
+                                    </div>
+                                    <div className="divide-y divide-slate-100 dark:divide-white/10">
+                                      {LevelGroup.Papers.map((Paper) => {
+                                        const IsPending = Paper.status === "NOT_STARTED" || !Paper.result;
+                                        return (
+                                          <div
+                                            key={Paper.levelPaperId}
+                                            className="math-admin-light-student-summary-row grid grid-cols-[1.4fr_0.8fr_0.8fr_0.9fr_1fr_0.8fr_0.5fr] items-center gap-3 px-5 py-4 text-sm font-bold text-slate-800 transition hover:bg-slate-50/50 dark:text-slate-100 dark:hover:bg-slate-800/40"
                                           >
-                                            <Trash2 size={13} />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                                            <div className="font-black text-slate-950 dark:text-white">{Paper.paperLabel}</div>
+                                            <div>{IsPending ? "-" : `${Paper.result!.accuracyPercentage}%`}</div>
+                                            <div>{IsPending ? "-" : `${Paper.result!.score}/${Paper.result!.maxScore}`}</div>
+                                            <div>{IsPending ? "-" : FormatSecondsAsMinSec(Paper.result!.timeTakenSeconds)}</div>
+                                            <div>{IsPending ? "-" : FormatEventDate(Paper.result!.computedAt)}</div>
+                                            <div>
+                                              {Paper.attemptId ? (
+                                                <Link
+                                                  href={`/admin/competition/annual-result/${Paper.attemptId}`}
+                                                  className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+                                                >
+                                                  <ClipboardList size={12} />
+                                                  View
+                                                </Link>
+                                              ) : (
+                                                <span className="inline-flex rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                                  Pending
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div>
+                                              {/* 2026-09-14 (Shailesh): "pending row
+                                                  should get the delete option as
+                                                  well ... present everywhere" --
+                                                  works on both a pending and a
+                                                  submitted row, keyed by
+                                                  levelPaperId either way. */}
+                                              <button
+                                                type="button"
+                                                title="Delete this practice paper"
+                                                aria-label="Delete this practice paper"
+                                                disabled={DeletePracticeAttemptMutation.isPending}
+                                                onClick={() => {
+                                                  if (
+                                                    window.confirm(
+                                                      `Delete "${Paper.paperLabel}"? This removes the paper${Paper.attemptId ? ", its attempt, and its result" : ""} entirely. This can't be undone.`
+                                                    )
+                                                  ) {
+                                                    DeletePracticeAttemptMutation.mutate(Paper.levelPaperId);
+                                                  }
+                                                }}
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-300 text-rose-600 transition hover:-translate-y-px hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-700/70 dark:text-rose-300"
+                                              >
+                                                <Trash2 size={13} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           ) : null}

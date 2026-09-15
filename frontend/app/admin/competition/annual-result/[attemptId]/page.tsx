@@ -19,6 +19,7 @@ import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
+  FormatCompetitionLevelLabel,
   getAnnualCompetitionAttemptReview,
   type AnnualCompetitionAttemptReview,
   type AnnualCompetitionAttemptReviewQuestion,
@@ -129,7 +130,7 @@ export default function AdminAnnualCompetitionAttemptReviewPage() {
               <h1 className="math-title">{Review.studentName || Review.studentCode || Review.studentId}</h1>
               <div className="mt-3 flex flex-wrap gap-2">
                 {Review.studentCode ? <Chip label={Review.studentCode} /> : null}
-                {Review.assignedLevelCode ? <Chip label={Review.assignedLevelCode} /> : null}
+                {Review.assignedLevelCode ? <Chip label={FormatCompetitionLevelLabel(Review.assignedLevelCode)} /> : null}
                 {Review.eventName ? <Chip label={Review.eventName} /> : null}
                 {/* Phase E: PRACTICE and OFFICIAL attempts share this exact
                     review screen -- this is the only thing on the page that
