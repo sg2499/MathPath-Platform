@@ -19,6 +19,8 @@ import {
   deleteAllAnnualCompetitionPracticeRecordsForStudent,
   deleteAnnualCompetitionEvent,
   deleteAnnualCompetitionPracticeAttempt,
+  getAnnualCompetitionPracticeReportForLevel,
+  getAnnualCompetitionPracticeReportForStudent,
   listAnnualCompetitionEvents,
   listAnnualCompetitionPracticeResults,
   listStudentsForAnnualCompetitionPracticeBank,
@@ -27,6 +29,9 @@ import {
   updateAnnualCompetitionEvent,
   type AnnualCompetitionEvent,
   type AnnualCompetitionPracticeBatchAssignFailedRow,
+  type AnnualCompetitionPracticeReportForLevel,
+  type AnnualCompetitionPracticeReportForStudent,
+  type AnnualCompetitionPracticeReportSectionRow,
   type AnnualCompetitionPracticeRosterStudent,
 } from "@/lib/api/admin";
 import { GroupPracticePapersByLevel } from "@/lib/annualCompetitionPracticeGrouping";
@@ -103,6 +108,220 @@ function ToLocalInputValue(IsoValue: string | null): string {
   return `${D.getFullYear()}-${Pad(D.getMonth() + 1)}-${Pad(D.getDate())}T${Pad(D.getHours())}:${Pad(D.getMinutes())}`;
 }
 
+// Practice Reports feature, package 3 (Shailesh, 2026-09-16): small display
+// helpers + presentational components shared by the Student and Level
+// report views below. Kept separate from SectionTitle/StatusChip above
+// since these are specific to the Reports sub-tab.
+
+function FormatPercent(Value: number | null): string {
+  return Value == null ? "-" : `${Value}%`;
+}
+
+function FormatCount(Value: number | null): string {
+  return Value == null ? "-" : String(Value);
+}
+
+function StatCard({ Label, Value }: { Label: string; Value: string }) {
+  return (
+    <div className="rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-3 shadow-sm dark:bg-slate-950/40">
+      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{Label}</p>
+      <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{Value}</p>
+    </div>
+  );
+}
+
+// The per-section breakdown table -- shared by both the level-scoped
+// Student report and the Level report, since both are the same shape
+// (AnnualCompetitionPracticeReportSectionRow[]), just aggregated over a
+// different set of attempts server-side.
+function SectionBreakdownTable({ Rows }: { Rows: AnnualCompetitionPracticeReportSectionRow[] }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)]">
+      <div className="grid grid-cols-[0.6fr_1fr_1fr_1fr_1fr_1fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+        <span>Section</span>
+        <span>Avg Accuracy</span>
+        <span>Avg Score</span>
+        <span>Avg Attempted</span>
+        <span>Avg Time Taken</span>
+        <span>Time Limit</span>
+      </div>
+      <div className="divide-y divide-slate-100 dark:divide-white/10">
+        {Rows.map((Row) => (
+          <div
+            key={Row.sectionNumber}
+            className="grid grid-cols-[0.6fr_1fr_1fr_1fr_1fr_1fr] items-center gap-3 px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100"
+          >
+            <div className="font-black text-slate-950 dark:text-white">Section {Row.sectionNumber}</div>
+            <div>{FormatPercent(Row.avgAccuracyPercentage)}</div>
+            <div>{Row.avgScore == null ? "-" : `${Row.avgScore}/${Row.avgMaxScore ?? "-"}`}</div>
+            <div>{Row.avgAttemptedCount == null ? "-" : `${Row.avgAttemptedCount}/${Row.avgTotalQuestions ?? "-"}`}</div>
+            <div>{FormatSecondsAsMinSec(Row.avgTimeTakenSeconds)}</div>
+            <div>{Row.timeLimitSeconds == null ? "-" : FormatSecondsAsMinSec(Row.timeLimitSeconds)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// The per-student Practice Report view -- summary cards always shown;
+// everything below branches on whether a level filter is active
+// (Report.competitionLevelCode set) or this is the blended "All Levels"
+// view, per getAnnualCompetitionPracticeReportForStudent's own comment.
+function StudentReportView({ Report }: { Report: AnnualCompetitionPracticeReportForStudent }) {
+  const Summary = Report.summary;
+  return (
+    <div className="mt-5 space-y-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard Label="Attempts" Value={FormatCount(Summary.attemptsCount)} />
+        <StatCard Label="Papers Assigned" Value={FormatCount(Summary.papersAssignedCount)} />
+        <StatCard Label="Papers Completed" Value={FormatCount(Summary.papersCompletedCount)} />
+        <StatCard Label="Avg Score" Value={Summary.avgScore == null ? "-" : `${Summary.avgScore}/${Summary.avgMaxScore ?? "-"}`} />
+        <StatCard Label="Avg Accuracy" Value={FormatPercent(Summary.avgAccuracyPercentage)} />
+        <StatCard Label="Avg Time Taken" Value={FormatSecondsAsMinSec(Summary.avgTimeTakenSeconds)} />
+      </div>
+
+      {Report.competitionLevelCode ? (
+        <>
+          {Report.levelComparison ? (
+            <div className="rounded-2xl border border-[color:var(--mp-role-border)] bg-slate-50/60 p-4 text-sm font-bold text-slate-700 dark:bg-white/5 dark:text-slate-200">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-[color:var(--mp-role-primary)]">
+                Vs. Level Cohort ({Report.levelComparison.cohortStudentsCount} student
+                {Report.levelComparison.cohortStudentsCount === 1 ? "" : "s"}, {Report.levelComparison.cohortAttemptsCount} attempt
+                {Report.levelComparison.cohortAttemptsCount === 1 ? "" : "s"})
+              </p>
+              <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1">
+                <span>Cohort Avg Accuracy: {FormatPercent(Report.levelComparison.cohortAvgAccuracyPercentage)}</span>
+                <span>
+                  Cohort Avg Score: {Report.levelComparison.cohortAvgScore ?? "-"}/{Report.levelComparison.cohortAvgMaxScore ?? "-"}
+                </span>
+                <span>Cohort Avg Time: {FormatSecondsAsMinSec(Report.levelComparison.cohortAvgTimeTakenSeconds)}</span>
+              </div>
+            </div>
+          ) : null}
+
+          {Report.perSection.length > 0 ? <SectionBreakdownTable Rows={Report.perSection} /> : null}
+
+          {Report.trend.length > 0 ? (
+            <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)]">
+              <div className="grid grid-cols-[1fr_0.8fr_0.8fr_0.9fr_0.9fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+                <span>Attempt Date</span>
+                <span>Accuracy</span>
+                <span>Score</span>
+                <span>Time Taken</span>
+                <span>Action</span>
+              </div>
+              <div className="divide-y divide-slate-100 dark:divide-white/10">
+                {Report.trend.map((Row) => (
+                  <div
+                    key={Row.attemptId}
+                    className="grid grid-cols-[1fr_0.8fr_0.8fr_0.9fr_0.9fr] items-center gap-3 px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100"
+                  >
+                    <div>{FormatEventDate(Row.computedAt)}</div>
+                    <div>{Row.accuracyPercentage}%</div>
+                    <div>{Row.score}/{Row.maxScore}</div>
+                    <div>{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</div>
+                    <div>
+                      <Link
+                        href={`/admin/competition/annual-result/${Row.attemptId}`}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+                      >
+                        <ClipboardList size={12} /> View
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : Report.byLevel.length > 0 ? (
+        <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)]">
+          <div className="grid grid-cols-[1fr_0.7fr_0.8fr_0.8fr_0.9fr_0.9fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+            <span>Level</span>
+            <span>Attempts</span>
+            <span>Avg Accuracy</span>
+            <span>Avg Score</span>
+            <span>Avg Time</span>
+            <span>Completed</span>
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-white/10">
+            {Report.byLevel.map((Row) => (
+              <div
+                key={Row.competitionLevelCode}
+                className="grid grid-cols-[1fr_0.7fr_0.8fr_0.8fr_0.9fr_0.9fr] items-center gap-3 px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100"
+              >
+                <div className="font-black text-slate-950 dark:text-white">{FormatCompetitionLevelLabel(Row.competitionLevelCode)}</div>
+                <div>{Row.attemptsCount}</div>
+                <div>{FormatPercent(Row.avgAccuracyPercentage)}</div>
+                <div>{Row.avgScore == null ? "-" : `${Row.avgScore}/${Row.avgMaxScore ?? "-"}`}</div>
+                <div>{FormatSecondsAsMinSec(Row.avgTimeTakenSeconds)}</div>
+                <div>{Row.papersCompletedCount}/{Row.papersAssignedCount}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <EmptyState title="No practice activity yet" description="This student hasn't completed any practice papers yet." />
+      )}
+    </div>
+  );
+}
+
+// The per-level (cohort) Practice Report view.
+function LevelReportView({ Report }: { Report: AnnualCompetitionPracticeReportForLevel }) {
+  const Summary = Report.summary;
+  return (
+    <div className="mt-5 space-y-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard Label="Students" Value={FormatCount(Summary.studentsWithAttemptsCount)} />
+        <StatCard Label="Attempts" Value={FormatCount(Summary.attemptsCount)} />
+        <StatCard Label="Papers Assigned" Value={FormatCount(Summary.papersAssignedCount)} />
+        <StatCard Label="Papers Completed" Value={FormatCount(Summary.papersCompletedCount)} />
+        <StatCard Label="Avg Accuracy" Value={FormatPercent(Summary.avgAccuracyPercentage)} />
+        <StatCard Label="Avg Time Taken" Value={FormatSecondsAsMinSec(Summary.avgTimeTakenSeconds)} />
+      </div>
+
+      {Report.perSection.length > 0 ? <SectionBreakdownTable Rows={Report.perSection} /> : null}
+
+      {Report.perStudent.length > 0 ? (
+        <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)]">
+          <div className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_0.9fr_0.9fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+            <span>Student</span>
+            <span>Attempts</span>
+            <span>Avg Accuracy</span>
+            <span>Avg Score</span>
+            <span>Avg Time</span>
+            <span>Completed</span>
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-white/10">
+            {Report.perStudent.map((Row) => (
+              <div
+                key={Row.studentId}
+                className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_0.9fr_0.9fr] items-center gap-3 px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100"
+              >
+                <div className="min-w-0">
+                  <div className="truncate font-black text-slate-950 dark:text-white">{Row.studentName || Row.studentCode || Row.studentId}</div>
+                  {Row.studentCode ? (
+                    <div className="text-xs font-black uppercase tracking-[0.1em] text-[color:var(--mp-role-primary)]">{Row.studentCode}</div>
+                  ) : null}
+                </div>
+                <div>{Row.attemptsCount}</div>
+                <div>{FormatPercent(Row.avgAccuracyPercentage)}</div>
+                <div>{Row.avgScore == null ? "-" : `${Row.avgScore}/${Row.avgMaxScore ?? "-"}`}</div>
+                <div>{FormatSecondsAsMinSec(Row.avgTimeTakenSeconds)}</div>
+                <div>{Row.papersCompletedCount}/{Row.papersAssignedCount}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <EmptyState title="No practice activity yet" description="No student has completed a practice paper at this level yet." />
+      )}
+    </div>
+  );
+}
+
 // 2026-09-12 (Shailesh, full event decoupling): "there are 2 sub tabs in
 // the annual competition studio, one practice ... and the other sub tab
 // for the official competition ... just like the student tab has 2 sub
@@ -116,8 +335,15 @@ type TopTabKey = (typeof TopTabList)[number];
 // "the practice tab must have 2 sub tabs within, one for the practice bank
 // with the list of all students where they can be assigned papers
 // simultaneously and the second sub tab for the practice results."
-const PracticeSubTabList = ["BANK", "RESULTS"] as const;
+// 2026-09-16 (Shailesh, Practice Reports feature): "Practice Bank -
+// Practice Results - Practice Reports" -- a third sub-tab added here,
+// containing its own two further sub-tabs (see PracticeReportsSubTabList
+// below) for the per-student and per-level analytics.
+const PracticeSubTabList = ["BANK", "RESULTS", "REPORTS"] as const;
 type PracticeSubTabKey = (typeof PracticeSubTabList)[number];
+
+const PracticeReportsSubTabList = ["STUDENT", "LEVEL"] as const;
+type PracticeReportsSubTabKey = (typeof PracticeReportsSubTabList)[number];
 
 export default function AdminAnnualCompetitionStudioPage() {
   return (
@@ -305,7 +531,10 @@ function AdminAnnualCompetitionStudioPageContent() {
   const StudentsQuery = useQuery({
     queryKey: ["admin", "annual-competition", "practice-bank-students"],
     queryFn: listStudentsForAnnualCompetitionPracticeBank,
-    enabled: Ready && TopTab === "PRACTICE" && PracticeSubTab === "BANK",
+    // 2026-09-16 (Practice Reports feature): also enabled for REPORTS --
+    // its Student view's student picker reuses this same roster rather than
+    // issuing a second student-list call.
+    enabled: Ready && TopTab === "PRACTICE" && (PracticeSubTab === "BANK" || PracticeSubTab === "REPORTS"),
   });
   const StudentRows = StudentsQuery.data?.students || [];
 
@@ -613,6 +842,53 @@ function AdminAnnualCompetitionStudioPageContent() {
     onError: (Error) => ReportActionError("Recompute Practice Results", Error),
   });
 
+  // ---------------------------------------------------------------------
+  // Practice -- Reports (package 3, Shailesh, 2026-09-16). Two inner views:
+  // per-student (level filter OPTIONAL -- see getAnnualCompetitionPractice-
+  // ReportForStudent's own comment on why, a 2026-09-16 clarification about
+  // a returning student's level changing year to year) and per-level (level
+  // REQUIRED, per Shailesh's own confirmation the same day). Reuses
+  // StudentRows (the same roster the Bank tab's student picker already
+  // loads, enabled above for this tab too) for the student search/select
+  // below, rather than a second student-list call.
+  // ---------------------------------------------------------------------
+
+  const [PracticeReportsSubTab, SetPracticeReportsSubTab] = useState<PracticeReportsSubTabKey>("STUDENT");
+  const [ReportsStudentSearchText, SetReportsStudentSearchText] = useState("");
+  const [ReportsStudentId, SetReportsStudentId] = useState<string>("");
+  // "ALL" = the blended "All Levels" view.
+  const [ReportsStudentLevelFilter, SetReportsStudentLevelFilter] = useState<string>("ALL");
+  const [ReportsLevelCode, SetReportsLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
+
+  const ReportsStudentSearchLower = ReportsStudentSearchText.trim().toLowerCase();
+  const ReportsFilteredStudentRows = StudentRows.filter((Row) => {
+    if (!ReportsStudentSearchLower) return true;
+    const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
+    return Haystack.includes(ReportsStudentSearchLower);
+  });
+
+  const PracticeReportStudentQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "practice-report-student", ReportsStudentId, ReportsStudentLevelFilter],
+    queryFn: () =>
+      getAnnualCompetitionPracticeReportForStudent(
+        ReportsStudentId,
+        ReportsStudentLevelFilter === "ALL" ? undefined : ReportsStudentLevelFilter
+      ),
+    enabled:
+      Ready &&
+      TopTab === "PRACTICE" &&
+      PracticeSubTab === "REPORTS" &&
+      PracticeReportsSubTab === "STUDENT" &&
+      Boolean(ReportsStudentId),
+  });
+
+  const PracticeReportLevelQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "practice-report-level", ReportsLevelCode],
+    queryFn: () => getAnnualCompetitionPracticeReportForLevel(ReportsLevelCode),
+    enabled:
+      Ready && TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "LEVEL" && Boolean(ReportsLevelCode),
+  });
+
   if (!Ready) return null;
 
   // 2026-09-16 (Shailesh, 504 fix): a STANDING fact about page state (a
@@ -624,7 +900,9 @@ function AdminAnnualCompetitionStudioPageContent() {
   const DataLoadError =
     EventsQuery.error ||
     (TopTab === "PRACTICE" && PracticeSubTab === "BANK" ? StudentsQuery.error : null) ||
-    (TopTab === "PRACTICE" && PracticeSubTab === "RESULTS" ? PracticeResultsQuery.error : null);
+    (TopTab === "PRACTICE" && PracticeSubTab === "RESULTS" ? PracticeResultsQuery.error : null) ||
+    (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "STUDENT" ? PracticeReportStudentQuery.error : null) ||
+    (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "LEVEL" ? PracticeReportLevelQuery.error : null);
 
   return (
     <AppShell title="Annual Competition Studio">
@@ -880,7 +1158,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                     aria-selected={PracticeSubTab === Tab}
                     className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${PracticeSubTab === Tab ? "is-active math-admin-tab-force-selected" : ""}`}
                   >
-                    {Tab === "BANK" ? "Practice Bank" : "Practice Results"}
+                    {Tab === "BANK" ? "Practice Bank" : Tab === "RESULTS" ? "Practice Results" : "Practice Reports"}
                   </button>
                 ))}
               </div>
@@ -1342,6 +1620,119 @@ function AdminAnnualCompetitionStudioPageContent() {
                 ) : (
                   <div className="mt-5">
                     <EmptyState title="No practice activity yet" description="Practice papers appear here as soon as a student is assigned some." />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {PracticeSubTab === "REPORTS" && (
+              <div className="space-y-6">
+                <div className="math-card p-3">
+                  <div className="flex flex-wrap gap-3">
+                    {PracticeReportsSubTabList.map((Tab) => (
+                      <button
+                        key={Tab}
+                        type="button"
+                        onClick={() => SetPracticeReportsSubTab(Tab)}
+                        aria-selected={PracticeReportsSubTab === Tab}
+                        className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${PracticeReportsSubTab === Tab ? "is-active math-admin-tab-force-selected" : ""}`}
+                      >
+                        {Tab === "STUDENT" ? "Individual Student" : "Individual Level"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {PracticeReportsSubTab === "STUDENT" && (
+                  <div className="math-card p-5">
+                    <SectionTitle
+                      icon={<Sparkles size={14} />}
+                      kicker="Practice Reports"
+                      title="Individual Student Analytics"
+                      description="Collated performance across every one of this student's practice attempts. Pick a level to see its section-by-section breakdown, an attempt-by-attempt trend, and how this student compares to everyone else who's practiced it -- or leave it on All Levels for a blended summary across every level they've ever tried, useful once the same student returns in a later year at a different level."
+                    />
+
+                    <div className="mt-4 flex flex-wrap items-end gap-3">
+                      <label className="flex items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
+                        <Search size={16} className="text-[color:var(--mp-role-primary)]" />
+                        <input
+                          value={ReportsStudentSearchText}
+                          onChange={(EventValue) => SetReportsStudentSearchText(EventValue.target.value)}
+                          placeholder="Search student name or code"
+                          className="w-56 bg-transparent outline-none placeholder:text-slate-400"
+                        />
+                      </label>
+                      <select
+                        aria-label="Select student"
+                        value={ReportsStudentId}
+                        onChange={(EventValue) => SetReportsStudentId(EventValue.target.value)}
+                        className="math-input"
+                      >
+                        <option value="">Select a student...</option>
+                        {ReportsFilteredStudentRows.map((Row) => (
+                          <option key={Row.studentId} value={Row.studentId}>
+                            {Row.studentName || Row.studentCode || Row.studentId}
+                            {Row.studentCode ? ` (${Row.studentCode})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {/* Wired the same way every other level dropdown in this
+                          app is (ANNUAL_COMPETITION_LEVEL_CODES + Format-
+                          CompetitionLevelLabel), so Bloomers/Beginners and
+                          MM-1/MM-2 show their real display names here too. */}
+                      <select
+                        aria-label="Filter by level"
+                        value={ReportsStudentLevelFilter}
+                        onChange={(EventValue) => SetReportsStudentLevelFilter(EventValue.target.value)}
+                        className="math-input"
+                        disabled={!ReportsStudentId}
+                      >
+                        <option value="ALL">All Levels</option>
+                        {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                          <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {!ReportsStudentId ? (
+                      <div className="mt-5">
+                        <EmptyState title="Select a student" description="Pick a student above to see their Practice Reports." />
+                      </div>
+                    ) : PracticeReportStudentQuery.isLoading ? (
+                      <div className="mt-5"><LoadingState label="Loading student report..." /></div>
+                    ) : PracticeReportStudentQuery.data ? (
+                      <StudentReportView Report={PracticeReportStudentQuery.data} />
+                    ) : null}
+                  </div>
+                )}
+
+                {PracticeReportsSubTab === "LEVEL" && (
+                  <div className="math-card p-5">
+                    <SectionTitle
+                      icon={<Medal size={14} />}
+                      kicker="Practice Reports"
+                      title="Individual Level Analytics"
+                      description="Cohort-wide performance across every student who has practiced this level -- averages, the section the cohort finds hardest, and a per-student leaderboard sorted by accuracy, for a rough forecast of what to expect (and from whom) on the day of the official event."
+                    />
+
+                    <div className="mt-4 flex flex-wrap items-end gap-3">
+                      <select
+                        aria-label="Select level"
+                        value={ReportsLevelCode}
+                        onChange={(EventValue) => SetReportsLevelCode(EventValue.target.value)}
+                        className="math-input"
+                      >
+                        {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                          <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {PracticeReportLevelQuery.isLoading ? (
+                      <div className="mt-5"><LoadingState label="Loading level report..." /></div>
+                    ) : PracticeReportLevelQuery.data ? (
+                      <LevelReportView Report={PracticeReportLevelQuery.data} />
+                    ) : null}
                   </div>
                 )}
               </div>

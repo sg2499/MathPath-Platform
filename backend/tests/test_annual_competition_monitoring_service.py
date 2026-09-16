@@ -612,10 +612,18 @@ def test_teacher_annual_competition_routes_are_all_get_only():
     2026-09-14 batch: bumped 4 -> 5 for the new
     /attempts/{attempt_id}/review route
     (GetCompetitionEventAttemptReviewForTeacher, the "View" action's
-    backend) -- also GET-only, same read-only guarantee."""
+    backend) -- also GET-only, same read-only guarantee.
+
+    2026-09-16 (Shailesh, Practice Reports feature, package 2): bumped 5 -> 7
+    for the two new /practice-reports/student/{student_id} and
+    /practice-reports/level/{competition_level_code} routes
+    (GetAnnualCompetitionPracticeReportForStudent/ForLevel) -- also
+    GET-only, same read-only guarantee; the per-student route enforces its
+    own roster check inline (403 for a student not on this teacher's
+    roster) rather than via a write verb."""
     from app.api.routes_teacher import router as teacher_router
 
     annual_routes = [r for r in teacher_router.routes if "/competition/annual" in getattr(r, "path", "")]
-    assert len(annual_routes) == 5, "expected exactly the 5 pkg-07/Phase E/2026-09-14-batch teacher routes"
+    assert len(annual_routes) == 7, "expected exactly the 7 pkg-07/Phase E/2026-09-14-batch/practice-reports teacher routes"
     for route in annual_routes:
         assert route.methods == {"GET"}, f"{route.path} must be GET-only -- teacher has no write path here"

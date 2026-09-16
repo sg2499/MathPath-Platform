@@ -2244,3 +2244,130 @@ export async function recomputeAnnualCompetitionPracticeResults(
   });
   return data;
 }
+
+// ---------------------------------------------------------------------------
+// Practice Reports (package 2/3, Shailesh, 2026-09-16): per-student and
+// per-level analytics over Annual Competition PRACTICE attempts -- see
+// annual_competition_practice_report_service.py's own module docstring for
+// the full design (every "avg" is an attempt-weighted mean; level-filter
+// semantics below).
+// ---------------------------------------------------------------------------
+
+export type AnnualCompetitionPracticeReportSummary = {
+  attemptsCount: number;
+  avgScore: number | null;
+  avgMaxScore: number | null;
+  avgPercentage: number | null;
+  avgAccuracyPercentage: number | null;
+  avgTimeTakenSeconds: number | null;
+  papersAssignedCount: number;
+  papersCompletedCount: number;
+};
+
+export type AnnualCompetitionPracticeReportSectionRow = {
+  sectionNumber: number;
+  attemptsCount: number;
+  avgScore: number | null;
+  avgMaxScore: number | null;
+  avgAttemptedCount: number | null;
+  avgTotalQuestions: number | null;
+  avgAccuracyPercentage: number | null;
+  avgTimeTakenSeconds: number | null;
+  timeLimitSeconds: number | null;
+};
+
+export type AnnualCompetitionPracticeReportTrendRow = {
+  attemptId: string;
+  computedAt: string | null;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  accuracyPercentage: number;
+  timeTakenSeconds: number | null;
+};
+
+// One row per level the student has ever practiced, only populated when the
+// student report is requested with no level filter ("All Levels") -- see
+// GetAnnualCompetitionPracticeReportForStudent's own docstring for why this
+// blended view has no per-section table (paper structures differ level to
+// level, so a section-by-section blend across levels would not mean
+// anything).
+export type AnnualCompetitionPracticeReportByLevelRow = AnnualCompetitionPracticeReportSummary & {
+  competitionLevelCode: string;
+  lastAttemptAt: string | null;
+};
+
+// Only populated when the student report IS scoped to one level -- this
+// student's own averages against that level's whole cohort (every student
+// who has practiced it), computed the same attempt-weighted way.
+export type AnnualCompetitionPracticeReportLevelComparison = {
+  cohortAttemptsCount: number;
+  cohortStudentsCount: number;
+  cohortAvgScore: number | null;
+  cohortAvgMaxScore: number | null;
+  cohortAvgPercentage: number | null;
+  cohortAvgAccuracyPercentage: number | null;
+  cohortAvgTimeTakenSeconds: number | null;
+};
+
+export type AnnualCompetitionPracticeReportForStudent = {
+  studentId: string;
+  studentName: string | null;
+  studentCode: string | null;
+  // null means "All Levels" (blended) -- byLevel is populated instead of
+  // perSection/trend/levelComparison in that case. See this type's own
+  // fields below and the service module's docstring.
+  competitionLevelCode: string | null;
+  summary: AnnualCompetitionPracticeReportSummary;
+  perSection: AnnualCompetitionPracticeReportSectionRow[];
+  trend: AnnualCompetitionPracticeReportTrendRow[];
+  byLevel: AnnualCompetitionPracticeReportByLevelRow[];
+  levelComparison: AnnualCompetitionPracticeReportLevelComparison | null;
+};
+
+// competitionLevelCode is OPTIONAL here, unlike the level report below --
+// 2026-09-16 (Shailesh): "the same student would not be in the same level
+// [across annual cycles] ... it would still be better to have a level
+// filter for the student data analytics." Omit it (or pass null/undefined)
+// for the blended "All Levels" view.
+export async function getAnnualCompetitionPracticeReportForStudent(
+  studentId: string,
+  competitionLevelCode?: string | null
+): Promise<AnnualCompetitionPracticeReportForStudent> {
+  const { data } = await api.get<AnnualCompetitionPracticeReportForStudent>(
+    `/admin/annual-competition/practice-reports/student/${studentId}`,
+    { params: { competitionLevelCode: competitionLevelCode || undefined } }
+  );
+  return data;
+}
+
+export type AnnualCompetitionPracticeReportStudentRow = AnnualCompetitionPracticeReportSummary & {
+  studentId: string;
+  studentName: string | null;
+  studentCode: string | null;
+  lastAttemptAt: string | null;
+};
+
+export type AnnualCompetitionPracticeReportForLevel = {
+  competitionLevelCode: string;
+  summary: AnnualCompetitionPracticeReportSummary & { studentsWithAttemptsCount: number };
+  perSection: AnnualCompetitionPracticeReportSectionRow[];
+  // Sorted server-side, highest avgAccuracyPercentage first (leaderboard
+  // order) -- see GetAnnualCompetitionPracticeReportForLevel's own docstring.
+  perStudent: AnnualCompetitionPracticeReportStudentRow[];
+};
+
+// competitionLevelCode is REQUIRED here -- 2026-09-16 (Shailesh): "for the
+// level scoped analytics there we will ofc need level filters ... we need
+// to see the level scoped data for all the levels" -- a cohort average
+// blended across different levels' different papers would not mean
+// anything, so there is no "all levels" mode on this one, unlike the
+// student report above.
+export async function getAnnualCompetitionPracticeReportForLevel(
+  competitionLevelCode: string
+): Promise<AnnualCompetitionPracticeReportForLevel> {
+  const { data } = await api.get<AnnualCompetitionPracticeReportForLevel>(
+    `/admin/annual-competition/practice-reports/level/${competitionLevelCode}`
+  );
+  return data;
+}

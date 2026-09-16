@@ -164,6 +164,26 @@ def _RawMetricsForAttempt(db: Session, AttemptRecord: CompetitionEventAttempt) -
     Score = 0.0
     MaxScore = 0.0
 
+    # Per-section score tallies (Practice Reports feature, package 1,
+    # 2026-09-16): keyed by section_number, seeded from SectionStates so
+    # every section this attempt actually presented gets an entry even if
+    # somehow zero questions from it were ever iterated below -- same
+    # attempt-scoped section set AttemptSectionNumbers/QuestionRecords above
+    # already committed to (see this function's own big comment on why that
+    # scoping matters), reused here rather than re-derived.
+    SectionTallies: dict[int, dict[str, float]] = {
+        SectionState.section_number: {
+            "totalQuestions": 0,
+            "attemptedCount": 0,
+            "correctCount": 0,
+            "wrongCount": 0,
+            "unansweredCount": 0,
+            "score": 0.0,
+            "maxScore": 0.0,
+        }
+        for SectionState in SectionStates
+    }
+
     for QuestionRecord in QuestionRecords:
         # Point 10 fix (Shailesh, 2026-09-08): 1 mark per question, out of
         # the paper's real question count -- never QuestionRecord.marks,
@@ -177,6 +197,15 @@ def _RawMetricsForAttempt(db: Session, AttemptRecord: CompetitionEventAttempt) -
         # question counts are confirmed and papers regenerated, since
         # MaxScore is just however many questions this specific paper has.
         MaxScore += 1.0
+        # .get, not direct indexing -- QuestionRecords is already filtered to
+        # AttemptSectionNumbers (this function's own scoping fix above), so
+        # this always hits, but a defensive None-guard costs nothing and
+        # matches this file's existing style (e.g. the LevelPaperRecord check
+        # below) rather than risking a KeyError if that invariant ever slips.
+        SectionTally = SectionTallies.get(QuestionRecord.section_number)
+        if SectionTally is not None:
+            SectionTally["totalQuestions"] += 1
+            SectionTally["maxScore"] += 1.0
         AnswerRecord = AnswersByQuestionId.get(QuestionRecord.id)
         StudentAnswerText = (AnswerRecord.selected_value or "").strip() if AnswerRecord else ""
 
@@ -203,14 +232,23 @@ def _RawMetricsForAttempt(db: Session, AttemptRecord: CompetitionEventAttempt) -
 
         if not StudentAnswerText:
             UnansweredCount += 1
+            if SectionTally is not None:
+                SectionTally["unansweredCount"] += 1
             continue
 
         IsCorrect = LegacyOptionIsCorrect if LegacyOptionIsCorrect is not None else bool(AnswerRecord.is_correct)
         if IsCorrect:
             CorrectCount += 1
             Score += 1.0
+            if SectionTally is not None:
+                SectionTally["attemptedCount"] += 1
+                SectionTally["correctCount"] += 1
+                SectionTally["score"] += 1.0
         else:
             WrongCount += 1
+            if SectionTally is not None:
+                SectionTally["attemptedCount"] += 1
+                SectionTally["wrongCount"] += 1
 
     TotalQuestions = len(QuestionRecords)
     Percentage = round((Score / MaxScore) * 100, 2) if MaxScore else 0.0
@@ -247,6 +285,30 @@ def _RawMetricsForAttempt(db: Session, AttemptRecord: CompetitionEventAttempt) -
             }
         )
 
+    # Per-section score breakdown (Practice Reports feature, package 1,
+    # 2026-09-16): same SectionStates order as PerSectionTime above, built
+    # from the tallies accumulated in the QuestionRecords loop -- no extra
+    # queries. Raw counts only (never a per-section accuracy%/percentage
+    # here) -- matches this whole function's "raw metrics captured
+    # unconditionally, formula lives elsewhere" discipline (module
+    # docstring); any per-section rate is derived from these counts by
+    # whichever report/aggregation layer consumes them.
+    PerSectionScore: list[dict[str, Any]] = []
+    for SectionState in SectionStates:
+        Tally = SectionTallies[SectionState.section_number]
+        PerSectionScore.append(
+            {
+                "sectionNumber": SectionState.section_number,
+                "totalQuestions": Tally["totalQuestions"],
+                "attemptedCount": Tally["attemptedCount"],
+                "correctCount": Tally["correctCount"],
+                "wrongCount": Tally["wrongCount"],
+                "unansweredCount": Tally["unansweredCount"],
+                "score": round(Tally["score"], 2),
+                "maxScore": round(Tally["maxScore"], 2),
+            }
+        )
+
     return {
         "correctCount": CorrectCount,
         "wrongCount": WrongCount,
@@ -259,6 +321,7 @@ def _RawMetricsForAttempt(db: Session, AttemptRecord: CompetitionEventAttempt) -
         "accuracyPercentage": AccuracyPercentage,
         "timeTakenSeconds": TotalTimeTakenSeconds,
         "perSectionTime": PerSectionTime,
+        "perSectionScore": PerSectionScore,
     }
 
 
@@ -321,6 +384,7 @@ def ComputeAndFinalizeCompetitionEventResult(db: Session, AttemptRecord: Competi
     ResultRecord.unanswered_count = Metrics["unansweredCount"]
     ResultRecord.time_taken_seconds = Metrics["timeTakenSeconds"]
     ResultRecord.per_section_time_json = json.dumps(Metrics["perSectionTime"])
+    ResultRecord.per_section_score_json = json.dumps(Metrics["perSectionScore"])
     ResultRecord.computed_at = _NowUtc()
 
     AttemptRecord.status = "FINALIZED"
@@ -570,6 +634,7 @@ def _ResultPayload(ResultRecord: CompetitionEventResult) -> dict[str, Any]:
         "unansweredCount": ResultRecord.unanswered_count,
         "timeTakenSeconds": ResultRecord.time_taken_seconds,
         "perSectionTime": json.loads(ResultRecord.per_section_time_json) if ResultRecord.per_section_time_json else [],
+        "perSectionScore": json.loads(ResultRecord.per_section_score_json) if ResultRecord.per_section_score_json else [],
         "rank": ResultRecord.rank,
         "computedAt": ResultRecord.computed_at.isoformat() if ResultRecord.computed_at else None,
         "releasedAt": ResultRecord.released_at.isoformat() if ResultRecord.released_at else None,

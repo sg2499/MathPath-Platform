@@ -751,6 +751,118 @@ export async function getTeacherAnnualCompetitionPracticeResults(
   return data;
 }
 
+// ---------------------------------------------------------------------------
+// Practice Reports (package 2/4, Shailesh, 2026-09-16): teacher's own,
+// roster-scoped sibling of the admin Practice Reports endpoints
+// (lib/api/admin.ts's getAnnualCompetitionPracticeReportForStudent/ForLevel)
+// -- same response shapes (the backend's GetAnnualCompetitionPracticeReport-
+// ForStudent/ForLevel serve both), kept as separate, parallel types/functions
+// here rather than imported from admin.ts, matching this file's own existing
+// convention of a parallel Teacher-prefixed type for every admin-side
+// Annual Competition type above (TeacherAnnualCompetitionPracticeResult vs
+// AnnualCompetitionPracticeResult, etc.).
+// ---------------------------------------------------------------------------
+
+export type TeacherAnnualCompetitionPracticeReportSummary = {
+  attemptsCount: number;
+  avgScore: number | null;
+  avgMaxScore: number | null;
+  avgPercentage: number | null;
+  avgAccuracyPercentage: number | null;
+  avgTimeTakenSeconds: number | null;
+  papersAssignedCount: number;
+  papersCompletedCount: number;
+};
+
+export type TeacherAnnualCompetitionPracticeReportSectionRow = {
+  sectionNumber: number;
+  attemptsCount: number;
+  avgScore: number | null;
+  avgMaxScore: number | null;
+  avgAttemptedCount: number | null;
+  avgTotalQuestions: number | null;
+  avgAccuracyPercentage: number | null;
+  avgTimeTakenSeconds: number | null;
+  timeLimitSeconds: number | null;
+};
+
+export type TeacherAnnualCompetitionPracticeReportTrendRow = {
+  attemptId: string;
+  computedAt: string | null;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  accuracyPercentage: number;
+  timeTakenSeconds: number | null;
+};
+
+export type TeacherAnnualCompetitionPracticeReportByLevelRow = TeacherAnnualCompetitionPracticeReportSummary & {
+  competitionLevelCode: string;
+  lastAttemptAt: string | null;
+};
+
+export type TeacherAnnualCompetitionPracticeReportLevelComparison = {
+  cohortAttemptsCount: number;
+  cohortStudentsCount: number;
+  cohortAvgScore: number | null;
+  cohortAvgMaxScore: number | null;
+  cohortAvgPercentage: number | null;
+  cohortAvgAccuracyPercentage: number | null;
+  cohortAvgTimeTakenSeconds: number | null;
+};
+
+export type TeacherAnnualCompetitionPracticeReportForStudent = {
+  studentId: string;
+  studentName: string | null;
+  studentCode: string | null;
+  competitionLevelCode: string | null;
+  summary: TeacherAnnualCompetitionPracticeReportSummary;
+  perSection: TeacherAnnualCompetitionPracticeReportSectionRow[];
+  trend: TeacherAnnualCompetitionPracticeReportTrendRow[];
+  byLevel: TeacherAnnualCompetitionPracticeReportByLevelRow[];
+  levelComparison: TeacherAnnualCompetitionPracticeReportLevelComparison | null;
+};
+
+// competitionLevelCode is optional -- omit (or pass null/undefined) for the
+// blended "All Levels" view. The backend rejects this student id with a 403
+// if the student isn't on this teacher's own roster.
+export async function getTeacherAnnualCompetitionPracticeReportForStudent(
+  studentId: string,
+  competitionLevelCode?: string | null
+): Promise<TeacherAnnualCompetitionPracticeReportForStudent> {
+  const { data } = await api.get<TeacherAnnualCompetitionPracticeReportForStudent>(
+    `/teacher/competition/annual/practice-reports/student/${studentId}`,
+    { params: { competitionLevelCode: competitionLevelCode || undefined } }
+  );
+  return data;
+}
+
+export type TeacherAnnualCompetitionPracticeReportStudentRow = TeacherAnnualCompetitionPracticeReportSummary & {
+  studentId: string;
+  studentName: string | null;
+  studentCode: string | null;
+  lastAttemptAt: string | null;
+};
+
+export type TeacherAnnualCompetitionPracticeReportForLevel = {
+  competitionLevelCode: string;
+  summary: TeacherAnnualCompetitionPracticeReportSummary & { studentsWithAttemptsCount: number };
+  perSection: TeacherAnnualCompetitionPracticeReportSectionRow[];
+  perStudent: TeacherAnnualCompetitionPracticeReportStudentRow[];
+};
+
+// Scoped server-side to this teacher's own roster (StudentIdsFilter) --
+// never another teacher's students, same as getTeacherAnnualCompetition
+// PracticeResults above.
+export async function getTeacherAnnualCompetitionPracticeReportForLevel(
+  competitionLevelCode: string
+): Promise<TeacherAnnualCompetitionPracticeReportForLevel> {
+  const { data } = await api.get<TeacherAnnualCompetitionPracticeReportForLevel>(
+    `/teacher/competition/annual/practice-reports/level/${competitionLevelCode}`
+  );
+  return data;
+}
+
 // 2026-09-14 batch (Shailesh): teacher-facing Answer Sheet + Scorecard --
 // the "View" action on both the Official results table
 // (TeacherAnnualCompetitionResultRow, gated on released/result above, same

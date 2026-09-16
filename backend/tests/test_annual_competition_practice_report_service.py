@@ -1,0 +1,380 @@
+"""Practice Reports feature, package 2 (Shailesh, 2026-09-16).
+
+Covers annual_competition_practice_report_service.py: the per-student report
+(level-scoped and "all levels" blended modes -- see that module's own
+docstring for the 2026-09-16 clarification on why the level filter is
+optional there), the per-level cohort report (required level, roster
+scoping, leaderboard ordering), the shared attempt-weighted averaging rule,
+and the practice bank completion counts (assigned vs completed).
+
+Self-contained fixtures (no cross-file imports), matching
+test_annual_competition_scoring_service.py's own stated per-test-file
+convention.
+"""
+
+from datetime import datetime, timezone
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.database import Base
+from app.models import (
+    CompetitionEvent,
+    CompetitionEventAssignment,
+    CompetitionEventAttempt,
+    CompetitionEventLevelPaper,
+    CompetitionEventResult,
+    CompetitionEventSectionTimer,
+    CompetitionMockExam,
+    CompetitionMockQuestion,
+    CompetitionMockQuestionOption,
+    Level,
+    Module,
+    Student,
+    User,
+)
+from fastapi import HTTPException
+import pytest
+from app.services import annual_competition_attempt_service as attempt_engine
+from app.services import annual_competition_practice_report_service as report_service
+
+
+def _session():
+    db_engine = create_engine("sqlite:///:memory:", future=True)
+    Base.metadata.create_all(db_engine)
+    Session = sessionmaker(bind=db_engine, autoflush=False, autocommit=False, future=True)
+    return Session()
+
+
+def _user(db, uid, name="Test Student"):
+    u = User(id=uid, full_name=name, email=f"{uid}@example.test", password_hash="x", role="STUDENT", is_active=True)
+    db.add(u)
+    return u
+
+
+def _student(db, sid="student-1", name=None):
+    u = _user(db, f"user-{sid}", name=name or sid)
+    s = Student(id=sid, user_id=u.id, student_code=f"MP-{sid}", is_active=True)
+    db.add(s)
+    return s
+
+
+def _module_and_level(db, module_code="PM", level_code="PM-L2", level_name="Preparatory Level 2"):
+    m = db.query(Module).filter(Module.module_code == module_code).first()
+    if not m:
+        m = Module(id=f"module-{module_code}", module_code=module_code, module_name=module_code, is_active=True)
+        db.add(m)
+        db.flush()
+    l = db.query(Level).filter(Level.module_id == m.id, Level.level_code == level_code).first()
+    if not l:
+        l = Level(id=f"level-{level_code}", module_id=m.id, level_code=level_code, level_name=level_name, is_active=True)
+        db.add(l)
+        db.flush()
+    return m, l
+
+
+def _mock_exam(db, level_id, module_id, exam_id):
+    e = CompetitionMockExam(
+        id=exam_id, title="Test Exam", module_id=module_id, level_id=level_id,
+        total_questions=20, duration_seconds=1200, is_active=True,
+    )
+    db.add(e)
+    db.flush()
+    return e
+
+
+def _question_with_options(db, mock_exam_id, section_number, question_number, qid):
+    q = CompetitionMockQuestion(
+        id=qid, mock_exam_id=mock_exam_id, section_number=section_number, question_number=question_number,
+        display_type="VERTICAL", correct_answer="4", concept_family="Addition", marks=1,
+    )
+    db.add(q)
+    db.flush()
+    db.add(CompetitionMockQuestionOption(
+        id=f"{qid}-opt-a", mock_question_id=q.id, option_label="A", option_value="4", is_correct=True, display_order=1,
+    ))
+    db.add(CompetitionMockQuestionOption(
+        id=f"{qid}-opt-b", mock_question_id=q.id, option_label="B", option_value="5", is_correct=False, display_order=2,
+    ))
+    db.flush()
+
+
+def _answer(db, student, attempt_id, token, section_number, question_id, correct):
+    answer_text = "4" if correct else "5"
+    attempt_engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, section_number, question_id, answer_text)
+
+
+def _setup_practice_paper(db, student_id, level_code, section_seconds, questions_per_section, exam_id, level_paper_id, qid_prefix):
+    """Wires one PRACTICE bank paper (fresh mock exam + timers) for one
+    student at one level -- every call gets its own exam_id/level_paper_id/
+    qid_prefix so multiple papers (same or different students/levels) never
+    collide, unlike the scoring test file's single-paper-per-level-per-test
+    helper."""
+    m, l = _module_and_level(db, level_code=level_code)
+    exam = _mock_exam(db, l.id, m.id, exam_id)
+    for section_number, count in enumerate(questions_per_section, start=1):
+        for n in range(1, count + 1):
+            question_number = (section_number - 1) * 10 + n
+            _question_with_options(db, exam.id, section_number, question_number, qid=f"{qid_prefix}-q-{section_number}-{question_number}")
+    paper = CompetitionEventLevelPaper(
+        id=level_paper_id, event_id=None, competition_level_code=level_code,
+        mock_exam_id=exam.id, status="READY", paper_kind="PRACTICE",
+        assigned_student_id=student_id, assigned_at=datetime.now(timezone.utc),
+    )
+    db.add(paper)
+    db.flush()
+    for i, seconds in enumerate(section_seconds, start=1):
+        db.add(CompetitionEventSectionTimer(
+            id=f"{level_paper_id}-timer-{i}", level_paper_id=paper.id, section_number=i,
+            section_title=f"Section {i}", mode="MIXED", time_limit_seconds=seconds, display_order=i,
+        ))
+    db.flush()
+    return paper
+
+
+def _attempt_and_answer_all(db, student, level_code, qid_prefix, questions_per_section, correct_pattern):
+    """Starts a practice attempt against the most-recently-created READY
+    bank paper for (student, level_code) -- mirrors StartAnnualCompetition-
+    PracticeAttempt's own bank-consumption behavior -- answers every
+    question per correct_pattern (a flat list, section 1's questions first),
+    and submits every section in order, finalizing the attempt."""
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, level_code)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    Index = 0
+    for section_number, count in enumerate(questions_per_section, start=1):
+        for n in range(1, count + 1):
+            question_number = (section_number - 1) * 10 + n
+            qid = f"{qid_prefix}-q-{section_number}-{question_number}"
+            _answer(db, student, attempt_id, token, section_number, qid, correct=correct_pattern[Index])
+            Index += 1
+        attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, section_number)
+    return attempt_id
+
+
+# ---------------------------------------------------------------------------
+# Per-student report
+# ---------------------------------------------------------------------------
+
+def test_student_report_scoped_to_level_returns_summary_section_and_trend():
+    db = _session()
+    student = _student(db, "s1")
+    other = _student(db, "s2")
+    _setup_practice_paper(db, student.id, "PM-L2", (600, 300), [2, 2], "exam-a", "paper-a", "a")
+    db.commit()
+    # Attempt 1: section 1 both correct, section 2 one correct one wrong.
+    _attempt_and_answer_all(db, student, "PM-L2", "a", [2, 2], [True, True, True, False])
+
+    _setup_practice_paper(db, student.id, "PM-L2", (600, 300), [2, 2], "exam-b", "paper-b", "b")
+    db.commit()
+    # Attempt 2: section 1 one wrong one correct, section 2 both wrong.
+    _attempt_and_answer_all(db, student, "PM-L2", "b", [2, 2], [True, False, False, False])
+
+    # A second student at the same level, for the cohort comparison.
+    _setup_practice_paper(db, other.id, "PM-L2", (600, 300), [2, 2], "exam-c", "paper-c", "c")
+    db.commit()
+    _attempt_and_answer_all(db, other, "PM-L2", "c", [2, 2], [True, True, True, True])
+
+    report = report_service.GetAnnualCompetitionPracticeReportForStudent(db, StudentId=student.id, CompetitionLevelCode="PM-L2")
+
+    assert report["studentId"] == "s1"
+    assert report["competitionLevelCode"] == "PM-L2"
+    assert report["summary"]["attemptsCount"] == 2
+    # Attempt 1: 3/4 correct = 75%. Attempt 2: 1/4 correct = 25%. Attempt-weighted avg = 50%.
+    assert report["summary"]["avgAccuracyPercentage"] == 50.0
+    assert report["summary"]["avgScore"] == 2.0  # (3 + 1) / 2
+
+    per_section = {row["sectionNumber"]: row for row in report["perSection"]}
+    # Section 1 across both attempts: attempt 1 = 2/2 correct, attempt 2 = 1/2 correct -> avg accuracy 75%.
+    assert per_section[1]["avgAccuracyPercentage"] == 75.0
+    # Section 2 across both attempts: attempt 1 = 1/2 correct, attempt 2 = 0/2 correct -> avg accuracy 25%.
+    assert per_section[2]["avgAccuracyPercentage"] == 25.0
+    assert per_section[1]["avgTimeLimitSeconds"] if "avgTimeLimitSeconds" in per_section[1] else True  # noqa: no-op guard
+
+    assert len(report["trend"]) == 2
+    assert report["trend"][0]["accuracyPercentage"] == 75.0
+    assert report["trend"][1]["accuracyPercentage"] == 25.0
+
+    # Cohort comparison: 3 attempts total across 2 students (2 from s1, 1 from s2).
+    assert report["levelComparison"]["cohortAttemptsCount"] == 3
+    assert report["levelComparison"]["cohortStudentsCount"] == 2
+
+
+def test_student_report_all_levels_blends_summary_and_lists_by_level():
+    db = _session()
+    student = _student(db, "s1")
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [2], "exam-pm", "paper-pm", "pm")
+    db.commit()
+    _attempt_and_answer_all(db, student, "PM-L2", "pm", [2], [True, True])
+
+    _setup_practice_paper(db, student.id, "IM-L1", (600,), [2], "exam-im", "paper-im", "im")
+    db.commit()
+    _attempt_and_answer_all(db, student, "IM-L1", "im", [2], [True, False])
+
+    report = report_service.GetAnnualCompetitionPracticeReportForStudent(db, StudentId=student.id, CompetitionLevelCode=None)
+
+    assert report["competitionLevelCode"] is None
+    assert report["summary"]["attemptsCount"] == 2
+    # No per-section/trend when levels are blended -- not meaningful across
+    # different papers.
+    assert report["perSection"] == []
+    assert report["trend"] == []
+    assert report["levelComparison"] is None
+
+    by_level = {row["competitionLevelCode"]: row for row in report["byLevel"]}
+    assert by_level["PM-L2"]["attemptsCount"] == 1
+    assert by_level["PM-L2"]["avgAccuracyPercentage"] == 100.0
+    assert by_level["IM-L1"]["attemptsCount"] == 1
+    assert by_level["IM-L1"]["avgAccuracyPercentage"] == 50.0
+    # Canonical registry order (YLM-L0, YLM-L1, PM-L1..4, IM-L1..4, MM-L1, MM-L2) -- PM-L2 before IM-L1.
+    assert [row["competitionLevelCode"] for row in report["byLevel"]] == ["PM-L2", "IM-L1"]
+
+
+def test_student_report_unknown_student_raises_404():
+    db = _session()
+    with pytest.raises(HTTPException) as excinfo:
+        report_service.GetAnnualCompetitionPracticeReportForStudent(db, StudentId="does-not-exist")
+    assert excinfo.value.status_code == 404
+
+
+def test_student_report_invalid_level_code_raises_400():
+    db = _session()
+    student = _student(db, "s1")
+    db.commit()
+    with pytest.raises(HTTPException) as excinfo:
+        report_service.GetAnnualCompetitionPracticeReportForStudent(db, StudentId=student.id, CompetitionLevelCode="NOT-A-LEVEL")
+    assert excinfo.value.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Per-level (cohort) report
+# ---------------------------------------------------------------------------
+
+def test_level_report_aggregates_across_students_and_sorts_by_accuracy_desc():
+    db = _session()
+    high = _student(db, "s-high", name="High Scorer")
+    low = _student(db, "s-low", name="Low Scorer")
+
+    _setup_practice_paper(db, high.id, "PM-L2", (600,), [4], "exam-high", "paper-high", "high")
+    db.commit()
+    _attempt_and_answer_all(db, high, "PM-L2", "high", [4], [True, True, True, True])
+
+    _setup_practice_paper(db, low.id, "PM-L2", (600,), [4], "exam-low", "paper-low", "low")
+    db.commit()
+    _attempt_and_answer_all(db, low, "PM-L2", "low", [4], [True, False, False, False])
+
+    report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
+
+    assert report["competitionLevelCode"] == "PM-L2"
+    assert report["summary"]["attemptsCount"] == 2
+    assert report["summary"]["studentsWithAttemptsCount"] == 2
+    assert len(report["perStudent"]) == 2
+    # Highest accuracy first.
+    assert report["perStudent"][0]["studentId"] == "s-high"
+    assert report["perStudent"][0]["avgAccuracyPercentage"] == 100.0
+    assert report["perStudent"][1]["studentId"] == "s-low"
+    assert report["perStudent"][1]["avgAccuracyPercentage"] == 25.0
+
+    assert len(report["perSection"]) == 1
+    # (100 + 25) / 2 = 62.5 attempt-weighted average across both students' one attempt each.
+    assert report["perSection"][0]["avgAccuracyPercentage"] == 62.5
+
+
+def test_level_report_roster_scoping_excludes_other_students():
+    db = _session()
+    mine = _student(db, "s-mine")
+    other = _student(db, "s-other")
+    _setup_practice_paper(db, mine.id, "PM-L2", (600,), [2], "exam-mine", "paper-mine", "mine")
+    db.commit()
+    _attempt_and_answer_all(db, mine, "PM-L2", "mine", [2], [True, True])
+    _setup_practice_paper(db, other.id, "PM-L2", (600,), [2], "exam-other", "paper-other", "other")
+    db.commit()
+    _attempt_and_answer_all(db, other, "PM-L2", "other", [2], [False, False])
+
+    report = report_service.GetAnnualCompetitionPracticeReportForLevel(
+        db, CompetitionLevelCode="PM-L2", StudentIdsFilter=[mine.id]
+    )
+
+    assert report["summary"]["attemptsCount"] == 1
+    assert [row["studentId"] for row in report["perStudent"]] == ["s-mine"]
+
+
+def test_level_report_empty_roster_short_circuits_without_querying_results():
+    db = _session()
+    report = report_service.GetAnnualCompetitionPracticeReportForLevel(
+        db, CompetitionLevelCode="PM-L2", StudentIdsFilter=[]
+    )
+    assert report["summary"]["attemptsCount"] == 0
+    assert report["perStudent"] == []
+    assert report["perSection"] == []
+
+
+def test_level_report_invalid_level_code_raises_400():
+    db = _session()
+    with pytest.raises(HTTPException) as excinfo:
+        report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="NOT-A-LEVEL")
+    assert excinfo.value.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Practice bank completion (assigned vs completed)
+# ---------------------------------------------------------------------------
+
+def test_papers_assigned_and_completed_counts():
+    db = _session()
+    student = _student(db, "s1")
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [2], "exam-done", "paper-done", "done")
+    db.commit()
+    _attempt_and_answer_all(db, student, "PM-L2", "done", [2], [True, True])
+
+    # A second bank paper for the same student/level, never attempted.
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [2], "exam-pending", "paper-pending", "pending")
+    db.commit()
+
+    report = report_service.GetAnnualCompetitionPracticeReportForStudent(db, StudentId=student.id, CompetitionLevelCode="PM-L2")
+    assert report["summary"]["papersAssignedCount"] == 2
+    assert report["summary"]["papersCompletedCount"] == 1
+
+    level_report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
+    assert level_report["summary"]["papersAssignedCount"] == 2
+    assert level_report["summary"]["papersCompletedCount"] == 1
+
+
+def test_level_report_excludes_official_attempts():
+    """PRACTICE-only, mirroring test_practice_result_excluded_from_admin_
+    results_list in the scoring-service test file -- an OFFICIAL attempt at
+    the same level must never bleed into the practice cohort average."""
+    db = _session()
+    student = _student(db, "s1")
+    event = CompetitionEvent(
+        id="event-1", name="Annual Competition 2026", status="SCHEDULED",
+        competition_date=datetime.now(timezone.utc),
+    )
+    db.add(event)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id, "exam-official")
+    _question_with_options(db, exam.id, 1, 1, qid="official-q-1-1")
+    db.add(CompetitionEventAssignment(
+        id="assign-1", event_id=event.id, student_id=student.id,
+        assigned_level_code="PM-L2", assignment_source="AUTO", is_active=True,
+    ))
+    db.flush()
+    paper = CompetitionEventLevelPaper(
+        id="official-paper-1", event_id=event.id, competition_level_code="PM-L2",
+        mock_exam_id=exam.id, status="READY",
+    )
+    db.add(paper)
+    db.flush()
+    db.add(CompetitionEventSectionTimer(
+        id="official-paper-1-timer-1", level_paper_id=paper.id, section_number=1,
+        section_title="Section 1", mode="MIXED", time_limit_seconds=600, display_order=1,
+    ))
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "official-q-1-1", correct=True)
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
+    assert report["summary"]["attemptsCount"] == 0
+    assert report["perStudent"] == []
