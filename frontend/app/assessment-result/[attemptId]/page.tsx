@@ -249,9 +249,17 @@ function StudentAssessmentResultPageContent() {
                   </div>
 
                   <div className="mt-5 grid gap-3 xl:grid-cols-2">
-                    <div className="rounded-[22px] bg-slate-50 p-4">
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-500">Your Answer</p>
-                      <p className="mt-2 text-lg font-black text-slate-900">{Question.selectedOption ? `${Question.selectedOption.label}. ${Question.selectedOption.value}` : "Not Answered"}</p>
+                    <div
+                      className={`rounded-[22px] p-4 ${
+                        Question.isCorrect
+                          ? `bg-emerald-50 text-emerald-900 ${ViewerRole === "ADMIN" ? "dark:!bg-emerald-50 dark:!text-emerald-900 dark:!ring-1 dark:!ring-emerald-200" : ""}`
+                          : Question.selectedOption
+                            ? `bg-rose-50 text-rose-900 ${ViewerRole === "ADMIN" ? "dark:!bg-rose-50 dark:!text-rose-900 dark:!ring-1 dark:!ring-rose-200" : ""}`
+                            : `bg-amber-50 text-amber-900 ${ViewerRole === "ADMIN" ? "dark:!bg-amber-50 dark:!text-amber-900 dark:!ring-1 dark:!ring-amber-200" : ""}`
+                      }`}
+                    >
+                      <p className="text-xs font-extrabold uppercase tracking-[0.14em]">Your Answer</p>
+                      <p className="mt-2 text-lg font-black">{Question.selectedOption ? `${Question.selectedOption.label}. ${Question.selectedOption.value}` : "Not Answered"}</p>
                     </div>
                     <div className={`rounded-[22px] bg-emerald-50 p-4 text-emerald-900 ${ViewerRole === "ADMIN" ? "dark:!bg-emerald-50 dark:!text-emerald-900 dark:!ring-1 dark:!ring-emerald-200" : ""}`}>
                       <p className={`text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700 ${ViewerRole === "ADMIN" ? "dark:!text-emerald-700" : ""}`}>Correct Answer</p>

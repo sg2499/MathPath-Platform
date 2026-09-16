@@ -246,9 +246,9 @@ export default function ResultPage() {
                   </div>
 
                   <div className="mt-5 grid gap-3 xl:grid-cols-2">
-                    <div className="rounded-[22px] bg-slate-50 p-4">
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-500">Your answer</p>
-                      <p className="mt-2 text-lg font-black text-slate-900">
+                    <div className={`rounded-[22px] p-4 ${q.isCorrect ? "bg-emerald-50 text-emerald-900" : q.studentAnswer ? "bg-rose-50 text-rose-900" : "bg-amber-50 text-amber-900"}`}>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.14em]">Your answer</p>
+                      <p className="mt-2 text-lg font-black">
                         {q.studentAnswer ? formatAnswerValue(q.studentAnswer) : "Not Answered"}
                       </p>
                     </div>
