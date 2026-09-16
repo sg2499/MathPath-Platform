@@ -2015,10 +2015,36 @@ export const PRACTICE_BATCH_QUANTITY_OPTIONS = [5, 10, 15, 20, 25] as const;
 
 // Matches PRACTICE_BULK_MAX_STUDENTS_PER_CALL in annual_competition_studio_
 // service.py -- this backend has no background job queue, so bulk practice
-// generation runs synchronously in-request; the frontend chunks a larger
-// selection ("assign to all 200 students") into sequential calls of at most
-// this many students each rather than ever sending all of them at once.
+// generation runs synchronously in-request. This is a flat, absolute
+// ceiling on students-per-call regardless of quantity; the REAL chunk-size
+// calculation the frontend actually uses (see BulkAssignMutation in
+// annual-studio/page.tsx) additionally bounds by total PAPER count via
+// PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL below, which is the tighter,
+// more accurate bound that actually protects against a timeout.
 export const PRACTICE_BULK_MAX_STUDENTS_PER_CALL = 25;
+
+// 2026-09-16 (Shailesh, 504 fix -- "we need to make sure this never happens
+// ... bulletproof end to end"): live bug -- a bulk practice-paper assign to
+// multiple students failed with a 504 from the reverse-proxy in front of
+// this backend. Root cause: PRACTICE_BULK_MAX_STUDENTS_PER_CALL alone
+// bounds how many STUDENTS one call covers, but not how much total work
+// that really is -- each paper is a full synchronous generation (this
+// backend has no background job queue), and the two multiply freely.
+// PRACTICE_BATCH_MAX_QUANTITY (see that constant's own comment, backend
+// side) already establishes 25 papers for ONE student -- even at the
+// heaviest level -- as an already-accepted, comfortably-safe workload; this
+// reuses that as its calibration anchor rather than guessing a fresh
+// number: 5x that single-student ceiling. Generous enough that an ordinary
+// bulk action rarely needs more than a couple of chunks, while still
+// forcing the previous worst case (25 students x 25 papers = 625 papers)
+// into several smaller, safer calls instead of one giant one. Matches
+// PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL in annual_competition_studio_
+// service.py -- keep both in sync; the backend enforces this as a hard
+// validation (so a call this frontend forgot to chunk correctly fails fast
+// with a clear error instead of running long and dying ambiguously at the
+// gateway), the frontend uses the same number to size its chunks so that
+// rejection should not actually happen in normal use.
+export const PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL = 125;
 
 export type AnnualCompetitionPracticeBankPaper = {
   levelPaperId: string;
