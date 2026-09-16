@@ -6179,11 +6179,12 @@ def admin_list_annual_competition_results(
 def admin_list_annual_competition_practice_results(
     competitionLevelCode: str | None = None,
     studentId: str | None = None,
+    teacherId: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(admin_dep),
 ):
     return ListAnnualCompetitionPracticeResultsForAdmin(
-        db, CompetitionLevelCode=competitionLevelCode, StudentId=studentId
+        db, CompetitionLevelCode=competitionLevelCode, StudentId=studentId, TeacherId=teacherId
     )
 
 
