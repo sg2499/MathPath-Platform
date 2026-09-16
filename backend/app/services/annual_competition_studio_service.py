@@ -934,6 +934,20 @@ def OverrideCompetitionEventAssignment(
 # paper to generate, so 25 papers stays comfortably inside a normal HTTP
 # request/proxy timeout; an admin who wants more than 25 at once simply
 # calls this action again to top up the bank further.
+#
+# 2026-09-16 CORRECTION (Shailesh, live 504 during a bulk assign to multiple
+# students -- "bulletproof end to end"): the "well under a second per paper"
+# claim above was only ever about ONE student's own Quantity papers -- it
+# never accounted for PRACTICE_BULK_MAX_STUDENTS_PER_CALL multiplying
+# against it (that constant's own comment already flagged "25 students x 25
+# papers = 625 synchronous generations is already a lot," but nothing
+# actually enforced a joint bound until now). See
+# PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL / _ValidatePracticeBulkWorkload
+# below for the real, enforced cross-dimensional limit. Left
+# PRACTICE_BATCH_MAX_QUANTITY itself unchanged -- it's the already-accepted
+# calibration anchor the new limit is built from (see that constant's own
+# comment) -- but it is no longer the only thing standing between an
+# admin's click and a 504.
 PRACTICE_BATCH_MIN_QUANTITY = 5
 PRACTICE_BATCH_MAX_QUANTITY = 25
 
@@ -948,8 +962,44 @@ PRACTICE_BATCH_MAX_QUANTITY = 25
 # x 25 papers = 625 synchronous generations is already a lot for one HTTP
 # request/proxy timeout; the frontend chunks a larger selection ("assign to
 # all 200 students") into multiple sequential calls of this size rather than
-# ever sending all 200 at once.
+# ever sending all 200 at once. Kept as a flat, absolute, defense-in-depth
+# ceiling -- PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL below is the tighter
+# bound that actually protects against a timeout in practice.
 PRACTICE_BULK_MAX_STUDENTS_PER_CALL = 25
+
+# 2026-09-16 (Shailesh, 504 fix -- live bug: a bulk practice-paper assign to
+# multiple students failed with a 504 from the reverse-proxy in front of
+# this backend, confirmed root-caused to this exact gap). Neither
+# PRACTICE_BATCH_MAX_QUANTITY nor PRACTICE_BULK_MAX_STUDENTS_PER_CALL alone
+# bounds the real cost driver of one call: total PAPERS generated (students
+# x quantity), and the two multiply freely today. PRACTICE_BATCH_MAX_
+# QUANTITY's own docstring already establishes 25 papers for ONE student
+# (even at the heaviest level, MM-L1/MM-L2's 450 questions) as an
+# already-accepted, comfortably-safe workload -- this reuses that exact
+# number as its calibration anchor rather than guessing a fresh one: 5x
+# that single-student ceiling is generous enough that an ordinary bulk
+# action rarely needs more than a couple of chunks, while still forcing the
+# worst case previously allowed (25 students x 25 papers = 625 papers, 5x
+# over this limit) into several smaller, safer calls instead of one giant
+# one. Deliberately NOT weighted by level/question-count -- the existing
+# "well under a second per paper, even for the heaviest level" calibration
+# already treats per-paper cost as roughly uniform enough for this purpose,
+# and a flat papers-based limit is simpler and less error-prone than a
+# level-weighted one. Checked FIRST, before any generation work starts or
+# any DB query runs, so an oversized ask fails fast with a clear, actionable
+# 400 instead of running long and dying ambiguously at the gateway. Matches
+# PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL in frontend/lib/api/admin.ts --
+# keep both in sync; the frontend uses the same number to size its chunks
+# so this rejection should not actually fire in normal use, but the backend
+# enforces it independently regardless of what the frontend sends (a
+# direct API caller, a stale frontend build, or a future bug in the
+# chunking logic must never be able to reintroduce this exact failure).
+# This is a deliberately conservative first-pass number, not a precisely
+# measured ceiling -- this codebase has no request-timing telemetry to
+# calibrate against yet (see this module's own "no scheduler/cron" note
+# above re: infrastructure gaps), so it should be tightened or loosened
+# once real timing data from production is available.
+PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL = 125
 
 
 def _ValidatePracticeBatchQuantity(Quantity: int) -> None:
@@ -965,6 +1015,27 @@ def _ValidatePracticeBatchQuantity(Quantity: int) -> None:
             "INVALID_PRACTICE_BATCH_QUANTITY",
             f"Quantity cannot exceed {PRACTICE_BATCH_MAX_QUANTITY} papers in one batch -- call this action again to "
             "top up the bank further.",
+        )
+
+
+def _ValidatePracticeBulkWorkload(StudentCount: int, Quantity: int) -> None:
+    """The real, cross-dimensional guard against the 2026-09-16 504 bug --
+    see PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL's own comment above. Checked
+    before any Level lookup or generation work starts."""
+    TotalPapers = StudentCount * Quantity
+    if TotalPapers > PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL:
+        MaxStudentsAtThisQuantity = max(1, PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL // max(1, Quantity))
+        api_error(
+            400,
+            "PRACTICE_BULK_TOO_MUCH_WORK",
+            f"This action would generate {TotalPapers:,} papers in one call "
+            f"({StudentCount} student{'s' if StudentCount != 1 else ''} x {Quantity} paper{'s' if Quantity != 1 else ''} each), "
+            f"over the {PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL:,}-paper safe limit for one call -- select fewer "
+            "students, a smaller quantity, or call this action again for the rest.",
+            {
+                "maxPapersPerCall": PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL,
+                "maxStudentsAtThisQuantity": MaxStudentsAtThisQuantity,
+            },
         )
 
 
@@ -1117,8 +1188,11 @@ def BatchAssignAnnualCompetitionPracticePapers(
 ) -> dict[str, Any]:
     """Admin action: generates Quantity fresh practice papers and adds them
     to EVERY listed student's bank for this level -- one, several, or up to
-    PRACTICE_BULK_MAX_STUDENTS_PER_CALL students at once. Safe to call
-    repeatedly for the same student/level -- each call only ever ADDS new,
+    PRACTICE_BULK_MAX_STUDENTS_PER_CALL students at once, and further bounded
+    by PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL (students x quantity -- see
+    that constant's own comment for why student count alone isn't a safe
+    bound). Safe to call repeatedly for the same student/level -- each call
+    only ever ADDS new,
     additional bank papers; it never touches, consumes, or removes any
     paper already in the bank (existing rows are never queried here at
     all). Fully independent of any CompetitionEvent (2026-09-12 decoupling)
@@ -1144,6 +1218,11 @@ def BatchAssignAnnualCompetitionPracticePapers(
             "call it again for the remaining students.",
             {"maxStudentsPerCall": PRACTICE_BULK_MAX_STUDENTS_PER_CALL},
         )
+    # 2026-09-16 (504 fix): the real, cross-dimensional guard -- see
+    # PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL's own comment above. Checked
+    # before the Level lookup/any generation work starts, so an oversized
+    # ask fails fast with a clear error instead of running long.
+    _ValidatePracticeBulkWorkload(len(CleanedStudentIds), Quantity)
 
     # Same curriculum-lookup override and "no curriculum Level yet" guard
     # GenerateAndLinkCompetitionEventLevelPaper already applies for the

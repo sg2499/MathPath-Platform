@@ -13,6 +13,7 @@ import {
   FormatMasterCurrentLevelSuffix,
   PRACTICE_BATCH_QUANTITY_OPTIONS,
   PRACTICE_BULK_MAX_STUDENTS_PER_CALL,
+  PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL,
   batchAssignAnnualCompetitionPracticePapers,
   createAnnualCompetitionEvent,
   deleteAllAnnualCompetitionPracticeRecordsForStudent,
@@ -144,7 +145,27 @@ function AdminAnnualCompetitionStudioPageContent() {
 
   const [TopTab, SetTopTab] = useState<TopTabKey>(DeepLinkTab === "PRACTICE" ? "PRACTICE" : "OFFICIAL");
   const [PracticeSubTab, SetPracticeSubTab] = useState<PracticeSubTabKey>(DeepLinkSubTab === "RESULTS" ? "RESULTS" : "BANK");
-  const [LastMessage, SetLastMessage] = useState<string | null>(null);
+
+  // 2026-09-16 (Shailesh, 504 fix -- "bulletproof end to end"): this page
+  // used to track a success message and per-mutation errors as separate,
+  // independently-persisting pieces of state (a bare LastMessage string
+  // plus each useMutation's own .error), which meant a success banner from
+  // an earlier action could sit on screen forever, unrelated to and never
+  // cleared by a LATER action's own failure -- exactly what produced the
+  // confusing "assigned 25 papers to 1 student" success banner sitting
+  // next to a fresh, unrelated 504 error in the live bug report this fixes.
+  // Every action on this page (event create/update/delete, both recompute
+  // buttons, practice bulk-assign, both practice-record deletes) now
+  // reports through this ONE slot instead: cleared the instant a new action
+  // starts (see each mutation's onMutate below) and always fully replaced
+  // -- never merged -- by whichever action most recently finished, success
+  // or failure. Deliberately separate from DataLoadError below, which is a
+  // standing fact about page state (a query failed to load), not a
+  // one-shot outcome of something the admin just clicked.
+  const [LastActionResult, SetLastActionResult] = useState<{ Kind: "success" | "error"; Label: string; Text: string } | null>(null);
+  const ReportActionSuccess = (Label: string, Text: string) => SetLastActionResult({ Kind: "success", Label, Text });
+  const ReportActionError = (Label: string, Error: unknown) => SetLastActionResult({ Kind: "error", Label, Text: apiErrorMessage(Error) });
+  const ClearActionResult = () => SetLastActionResult(null);
 
   // ---------------------------------------------------------------------
   // Official (unchanged from before the Official/Practice split -- create
@@ -171,13 +192,15 @@ function AdminAnnualCompetitionStudioPageContent() {
         competitionDate: new Date(CompetitionDateInput).toISOString(),
         resultsReleaseAt: ResultsReleaseInput ? new Date(ResultsReleaseInput).toISOString() : null,
       }),
+    onMutate: ClearActionResult,
     onSuccess: (Created) => {
-      SetLastMessage(`"${Created.name}" created.`);
+      ReportActionSuccess("Create Event", `"${Created.name}" created.`);
       SetEventName("");
       SetCompetitionDateInput("");
       SetResultsReleaseInput("");
       QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "events"] });
     },
+    onError: (Error) => ReportActionError("Create Event", Error),
   });
 
   const CanCreate = EventName.trim().length > 0 && Boolean(CompetitionDateInput);
@@ -213,11 +236,16 @@ function AdminAnnualCompetitionStudioPageContent() {
           ? { resultsReleaseAt: new Date(EditResultsReleaseInput).toISOString() }
           : { clearResultsReleaseAt: true }),
       }),
+    onMutate: ClearActionResult,
     onSuccess: (Updated) => {
-      SetLastMessage(`"${Updated.name}" updated.`);
+      ReportActionSuccess("Update Event", `"${Updated.name}" updated.`);
       SetEditingEventId(null);
       QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "events"] });
     },
+    // Also shown inline in the edit form itself (see UpdateEventMutation.isError
+    // below) -- reporting it here too means the top banner reflects it as well,
+    // consistent with every other action on this page.
+    onError: (Error) => ReportActionError("Update Event", Error),
   });
 
   // Hard delete (CompetitionEvent has no isActive flag to soft-delete with,
@@ -230,10 +258,12 @@ function AdminAnnualCompetitionStudioPageContent() {
   // reflects how much more this button can actually do.
   const DeleteEventMutation = useMutation({
     mutationFn: (EventId: string) => deleteAnnualCompetitionEvent(EventId),
+    onMutate: ClearActionResult,
     onSuccess: () => {
-      SetLastMessage("Event deleted.");
+      ReportActionSuccess("Delete Event", "Event deleted.");
       QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "events"] });
     },
+    onError: (Error) => ReportActionError("Delete Event", Error),
   });
 
   // ---------------------------------------------------------------------
@@ -242,10 +272,12 @@ function AdminAnnualCompetitionStudioPageContent() {
   // creating unnecessary events." Fully event-independent -- the roster
   // below is every active student, tagged with the level they're currently
   // eligible for, so the admin can select all, many, or a filtered subset
-  // and assign in one action. A selection larger than
-  // PRACTICE_BULK_MAX_STUDENTS_PER_CALL is chunked into sequential calls
-  // client-side (this backend has no background job queue -- see that
-  // constant's own comment in lib/api/admin.ts) with progress shown below.
+  // and assign in one action. A selection is chunked into sequential calls
+  // client-side (this backend has no background job queue -- see
+  // PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL's own comment in
+  // lib/api/admin.ts) with progress shown below. 2026-09-16 (504 fix):
+  // chunk size is bounded by total PAPER count (students x quantity), not
+  // just student count -- see BulkAssignMutation.
   // ---------------------------------------------------------------------
 
   const [PracticeSearchText, SetPracticeSearchText] = useState("");
@@ -333,40 +365,84 @@ function AdminAnnualCompetitionStudioPageContent() {
   const BulkAssignMutation = useMutation({
     mutationFn: async () => {
       const StudentIds = Array.from(SelectedStudentIdsForPractice);
+      // 2026-09-16 (Shailesh, 504 fix): the true unit of work for one call
+      // is students x quantity (total papers), not student count alone --
+      // see PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL's own comment in
+      // lib/api/admin.ts. The chunk size must shrink as quantity grows, not
+      // stay flat at PRACTICE_BULK_MAX_STUDENTS_PER_CALL regardless of what
+      // quantity is selected (that flat cap is kept too, as a
+      // defense-in-depth ceiling).
+      const MaxStudentsByWorkload = Math.max(1, Math.floor(PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL / PracticeAssignQuantity));
+      const ChunkSize = Math.min(PRACTICE_BULK_MAX_STUDENTS_PER_CALL, MaxStudentsByWorkload);
       const Chunks: string[][] = [];
-      for (let Index = 0; Index < StudentIds.length; Index += PRACTICE_BULK_MAX_STUDENTS_PER_CALL) {
-        Chunks.push(StudentIds.slice(Index, Index + PRACTICE_BULK_MAX_STUDENTS_PER_CALL));
+      for (let Index = 0; Index < StudentIds.length; Index += ChunkSize) {
+        Chunks.push(StudentIds.slice(Index, Index + ChunkSize));
       }
       SetBulkAssignProgress({ Done: 0, Total: Chunks.length });
       let StudentsSucceeded = 0;
       let StudentsFailed = 0;
       let TotalPapersAssigned = 0;
       const FailedRows: AnnualCompetitionPracticeBatchAssignFailedRow[] = [];
+      let ChunkCallError: unknown = null;
       for (let Index = 0; Index < Chunks.length; Index++) {
-        const Result = await batchAssignAnnualCompetitionPracticePapers({
-          studentIds: Chunks[Index],
-          competitionLevelCode: PracticeAssignLevelCode,
-          quantity: PracticeAssignQuantity,
-        });
-        StudentsSucceeded += Result.studentsSucceeded;
-        StudentsFailed += Result.studentsFailed;
-        TotalPapersAssigned += Result.totalPapersAssigned;
-        FailedRows.push(...Result.failed);
+        try {
+          const Result = await batchAssignAnnualCompetitionPracticePapers({
+            studentIds: Chunks[Index],
+            competitionLevelCode: PracticeAssignLevelCode,
+            quantity: PracticeAssignQuantity,
+          });
+          StudentsSucceeded += Result.studentsSucceeded;
+          StudentsFailed += Result.studentsFailed;
+          TotalPapersAssigned += Result.totalPapersAssigned;
+          FailedRows.push(...Result.failed);
+        } catch (Error) {
+          // 2026-09-16 (Shailesh, 504 fix): a call-level failure (network
+          // hiccup, an unlucky 504 despite the sizing above, etc.) must
+          // never discard whatever EARLIER chunks in this same batch
+          // already succeeded -- those papers are already durably
+          // committed server-side, one commit per paper (see
+          // _GeneratePracticePapersForOneStudent's own docstring). Stop
+          // here, but still report every earlier chunk's real success
+          // rather than throwing it all away.
+          ChunkCallError = Error;
+          Chunks[Index].forEach((StudentId) => {
+            FailedRows.push({
+              studentIdentifier: StudentId,
+              reason: "This batch call did not complete -- unknown whether papers were generated for this student. Check their practice bank before reassigning.",
+            });
+          });
+          StudentsFailed += Chunks[Index].length;
+          break;
+        }
         SetBulkAssignProgress({ Done: Index + 1, Total: Chunks.length });
       }
-      return { StudentsSucceeded, StudentsFailed, TotalPapersAssigned, FailedRows };
+      return { StudentsSucceeded, StudentsFailed, TotalPapersAssigned, FailedRows, ChunkCallError };
     },
+    onMutate: ClearActionResult,
     onSuccess: (Result) => {
-      SetLastMessage(
+      const BaseMessage =
         `Assigned ${PracticeAssignQuantity} practice paper${PracticeAssignQuantity === 1 ? "" : "s"} of ${FormatCompetitionLevelLabel(PracticeAssignLevelCode)} to ${Result.StudentsSucceeded} student${Result.StudentsSucceeded === 1 ? "" : "s"}` +
-          (Result.StudentsFailed > 0 ? `, ${Result.StudentsFailed} failed.` : ".")
-      );
+        (Result.StudentsFailed > 0 ? `, ${Result.StudentsFailed} failed.` : ".");
+      if (Result.ChunkCallError) {
+        ReportActionError(
+          "Assign Practice Papers",
+          new Error(
+            `${BaseMessage} The batch stopped early after a request failed (${apiErrorMessage(Result.ChunkCallError)}) -- ` +
+              "check the affected students' practice banks before retrying, since some papers may already have been generated."
+          )
+        );
+      } else {
+        ReportActionSuccess("Assign Practice Papers", BaseMessage);
+      }
       SetBulkAssignSummary(Result);
       SetSelectedStudentIdsForPractice(new Set());
       SetBulkAssignProgress(null);
       InvalidatePracticeResults();
     },
-    onError: () => SetBulkAssignProgress(null),
+    onError: (Error) => {
+      SetBulkAssignProgress(null);
+      ReportActionError("Assign Practice Papers", Error);
+    },
   });
 
   // ---------------------------------------------------------------------
@@ -482,11 +558,26 @@ function AdminAnnualCompetitionStudioPageContent() {
   // deletion immediately without a manual refetch call.
   const DeletePracticeAttemptMutation = useMutation({
     mutationFn: (LevelPaperId: string) => deleteAnnualCompetitionPracticeAttempt(LevelPaperId),
-    onSuccess: () => InvalidatePracticeResults(),
+    onMutate: ClearActionResult,
+    // 2026-09-16 (Shailesh, 504-fix pass -- "bulletproof end to end"): this
+    // delete used to have no success/error feedback at all -- a failure was
+    // silently swallowed, indistinguishable from a delete that never
+    // happened. Both delete mutations now report through the same shared
+    // action-result banner every other action on this page uses.
+    onSuccess: () => {
+      ReportActionSuccess("Delete Practice Paper", "Practice paper deleted.");
+      InvalidatePracticeResults();
+    },
+    onError: (Error) => ReportActionError("Delete Practice Paper", Error),
   });
   const DeleteAllPracticeForStudentMutation = useMutation({
     mutationFn: (StudentId: string) => deleteAllAnnualCompetitionPracticeRecordsForStudent(StudentId),
-    onSuccess: () => InvalidatePracticeResults(),
+    onMutate: ClearActionResult,
+    onSuccess: () => {
+      ReportActionSuccess("Delete All Practice Records", "All practice records deleted for this student.");
+      InvalidatePracticeResults();
+    },
+    onError: (Error) => ReportActionError("Delete All Practice Records", Error),
   });
 
   // 2026-09-14 batch (Shailesh: "for accuracy breakdown part if possible
@@ -501,33 +592,38 @@ function AdminAnnualCompetitionStudioPageContent() {
   // tables themselves use, so a refreshed row shows up immediately.
   const RecomputeOfficialMutation = useMutation({
     mutationFn: () => recomputeAllAnnualCompetitionOfficialResults(),
+    onMutate: ClearActionResult,
     onSuccess: (Result) => {
-      SetLastMessage(`Recomputed ${Result.recomputedCount} official result${Result.recomputedCount === 1 ? "" : "s"}.`);
+      ReportActionSuccess("Recompute Official Results", `Recomputed ${Result.recomputedCount} official result${Result.recomputedCount === 1 ? "" : "s"}.`);
       // Matches the per-event results query key from
       // annual-studio/[eventId]/page.tsx (["admin", "annual-competition",
       // "results", EventId, ...]) as a prefix, so any such query already in
       // the cache is marked stale and refetches next time that page mounts.
       QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "results"] });
     },
+    onError: (Error) => ReportActionError("Recompute Official Results", Error),
   });
   const RecomputePracticeMutation = useMutation({
     mutationFn: () => recomputeAnnualCompetitionPracticeResults(),
+    onMutate: ClearActionResult,
     onSuccess: (Result) => {
-      SetLastMessage(`Recomputed ${Result.recomputedCount} practice result${Result.recomputedCount === 1 ? "" : "s"}.`);
+      ReportActionSuccess("Recompute Practice Results", `Recomputed ${Result.recomputedCount} practice result${Result.recomputedCount === 1 ? "" : "s"}.`);
       InvalidatePracticeResults();
     },
+    onError: (Error) => ReportActionError("Recompute Practice Results", Error),
   });
 
   if (!Ready) return null;
 
-  const AnyError =
+  // 2026-09-16 (Shailesh, 504 fix): a STANDING fact about page state (a
+  // query failed to load) -- deliberately separate from LastActionResult
+  // above, which is the one-shot outcome of whatever the admin most
+  // recently clicked. Keeping these apart means a stale action result can
+  // never masquerade as (or hide) a genuine, ongoing data-load failure, and
+  // vice versa.
+  const DataLoadError =
     EventsQuery.error ||
-    CreateMutation.error ||
-    UpdateEventMutation.error ||
-    DeleteEventMutation.error ||
-    RecomputeOfficialMutation.error ||
-    RecomputePracticeMutation.error ||
-    (TopTab === "PRACTICE" && PracticeSubTab === "BANK" ? StudentsQuery.error || BulkAssignMutation.error : null) ||
+    (TopTab === "PRACTICE" && PracticeSubTab === "BANK" ? StudentsQuery.error : null) ||
     (TopTab === "PRACTICE" && PracticeSubTab === "RESULTS" ? PracticeResultsQuery.error : null);
 
   return (
@@ -544,10 +640,13 @@ function AdminAnnualCompetitionStudioPageContent() {
           </p>
         </div>
 
-        {AnyError && <ErrorState message={apiErrorMessage(AnyError)} />}
-        {LastMessage && (
+        {DataLoadError && <ErrorState message={apiErrorMessage(DataLoadError)} />}
+        {LastActionResult && LastActionResult.Kind === "error" && (
+          <ErrorState title={LastActionResult.Label} message={LastActionResult.Text} />
+        )}
+        {LastActionResult && LastActionResult.Kind === "success" && (
           <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-black text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
-            {LastMessage}
+            {LastActionResult.Text}
           </div>
         )}
 
