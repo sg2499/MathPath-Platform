@@ -37,6 +37,7 @@ from app.models import (
     Level,
     Module,
     Student,
+    Teacher,
     User,
 )
 from app.services import annual_competition_attempt_service as attempt_engine
@@ -67,6 +68,14 @@ def _student(db, sid="student-1", name=None):
     s = Student(id=sid, user_id=u.id, student_code=f"MP-{sid}", is_active=True)
     db.add(s)
     return s
+
+
+def _teacher(db, tid="teacher-1", name=None):
+    u = _user(db, f"user-{tid}", name=name or tid)
+    u.role = "TEACHER"
+    t = Teacher(id=tid, user_id=u.id, teacher_code=f"MP-{tid}", is_active=True)
+    db.add(t)
+    return t
 
 
 def _event(db, event_id="event-1"):
@@ -1404,6 +1413,34 @@ def test_admin_practice_results_list_filters_by_student_id():
     result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, StudentId="sPracticeA")
     assert result["totalStudents"] == 1
     assert result["students"][0]["studentId"] == "sPracticeA"
+
+
+def test_admin_practice_results_list_filters_by_teacher_id():
+    # Shailesh, 2026-09-16 (Practice Reports UI redesign): "the admin can
+    # see the students teacher wise as well." Two teachers, one student
+    # each -- filtering by one teacher's id must show only their student,
+    # and a teacher with no matching students returns an empty roster
+    # rather than erroring.
+    db = _session()
+    teacher_a = _teacher(db, "teacherA")
+    teacher_b = _teacher(db, "teacherB")
+    student_a = _student(db, "sPracticeA")
+    student_a.teacher_id = teacher_a.id
+    student_b = _student(db, "sPracticeB")
+    student_b.teacher_id = teacher_b.id
+    db.commit()
+    _practice_result(db, "sPracticeA", "PM-L2")
+    _practice_result(db, "sPracticeB", "PM-L2")
+    db.commit()
+
+    result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, TeacherId=teacher_a.id)
+    assert result["totalStudents"] == 1
+    assert result["students"][0]["studentId"] == "sPracticeA"
+
+    other_teacher = _teacher(db, "teacherC")
+    db.commit()
+    empty_result = scoring.ListAnnualCompetitionPracticeResultsForAdmin(db, TeacherId=other_teacher.id)
+    assert empty_result["totalStudents"] == 0
 
 
 def test_admin_practice_results_list_carries_level_paper_id_and_paper_label():

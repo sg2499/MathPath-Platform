@@ -798,7 +798,7 @@ def ListCompetitionEventResultsForAdmin(db: Session, *, EventId: str, Competitio
 
 
 def ListAnnualCompetitionPracticeResultsForAdmin(
-    db: Session, *, CompetitionLevelCode: str | None = None, StudentId: str | None = None
+    db: Session, *, CompetitionLevelCode: str | None = None, StudentId: str | None = None, TeacherId: str | None = None
 ) -> dict[str, Any]:
     """Practice's own admin results surface (Phase E) -- deliberately
     separate from ListCompetitionEventResultsForAdmin above, exactly as
@@ -832,6 +832,14 @@ def ListAnnualCompetitionPracticeResultsForAdmin(
     related to any event whatsoever." No event scope -- every PRACTICE
     paper across all students/all time, optionally narrowed by
     competition_level_code and/or studentId only.
+
+    2026-09-16 (Shailesh, Practice Reports UI redesign): "the admin can see
+    the students teacher wise as well." TeacherId is a third, independent
+    optional narrowing -- admin-only (a teacher's own equivalent endpoint is
+    already implicitly scoped to their own roster, so it never needs this
+    param). Resolved the same way the level/student filters are: to a set of
+    matching student ids, then folded into the same assigned_student_id
+    filter on the paper query -- no join, no change to the response shape.
     """
     PaperQuery = db.query(CompetitionEventLevelPaper).filter(
         CompetitionEventLevelPaper.paper_kind == "PRACTICE",
@@ -840,6 +848,11 @@ def ListAnnualCompetitionPracticeResultsForAdmin(
         PaperQuery = PaperQuery.filter(CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode)
     if StudentId:
         PaperQuery = PaperQuery.filter(CompetitionEventLevelPaper.assigned_student_id == StudentId)
+    if TeacherId:
+        TeacherStudentIds = [Row[0] for Row in db.query(Student.id).filter(Student.teacher_id == TeacherId).all()]
+        if not TeacherStudentIds:
+            return {"competitionLevelCode": CompetitionLevelCode, "studentId": StudentId, "totalStudents": 0, "students": []}
+        PaperQuery = PaperQuery.filter(CompetitionEventLevelPaper.assigned_student_id.in_(TeacherStudentIds))
     PracticePapers = PaperQuery.order_by(
         CompetitionEventLevelPaper.assigned_at.asc(), CompetitionEventLevelPaper.id.asc()
     ).all()

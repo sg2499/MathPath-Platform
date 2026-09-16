@@ -19,6 +19,7 @@ import {
   deleteAllAnnualCompetitionPracticeRecordsForStudent,
   deleteAnnualCompetitionEvent,
   deleteAnnualCompetitionPracticeAttempt,
+  getAdminTeachers,
   getAnnualCompetitionPracticeReportForLevel,
   getAnnualCompetitionPracticeReportForStudent,
   listAnnualCompetitionEvents,
@@ -34,6 +35,7 @@ import {
   type AnnualCompetitionPracticeReportSectionRow,
   type AnnualCompetitionPracticeRosterStudent,
 } from "@/lib/api/admin";
+import type { AdminTeacher } from "@/types/teacher";
 import { GroupPracticePapersByLevel } from "@/lib/annualCompetitionPracticeGrouping";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -42,6 +44,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  Flame,
   Medal,
   Pencil,
   PlusCircle,
@@ -130,14 +133,32 @@ function StatCard({ Label, Value }: { Label: string; Value: string }) {
   );
 }
 
-// The per-section breakdown table -- shared by both the level-scoped
-// Student report and the Level report, since both are the same shape
-// (AnnualCompetitionPracticeReportSectionRow[]), just aggregated over a
-// different set of attempts server-side.
+// The per-section breakdown table -- shared by the Level report and both
+// the Student report's Overall Analytics ("All Levels" byLevel table
+// instead, see below) and its dedicated Section Wise Analytics tab, since
+// all of these are the same shape (AnnualCompetitionPracticeReportSectionRow[]),
+// just aggregated over a different set of attempts server-side.
+//
+// 2026-09-16 (Shailesh, Practice Reports UI redesign): "you had mentioned
+// about the toughest section or something like but i do not see that
+// anywhere" -- this was promised in an earlier package's own description
+// text but never actually computed or surfaced. Real now: the section with
+// the lowest avg accuracy (among sections that actually have attempts --
+// never flag a section nobody has touched yet) gets a highlighted row +
+// badge. Requires at least 2 sections with real data, otherwise "toughest"
+// is meaningless (nothing to compare against).
 function SectionBreakdownTable({ Rows }: { Rows: AnnualCompetitionPracticeReportSectionRow[] }) {
+  const RowsWithData = Rows.filter((Row) => Row.avgAccuracyPercentage != null && Row.attemptsCount > 0);
+  const ToughestSectionNumber =
+    RowsWithData.length > 1
+      ? RowsWithData.reduce((Toughest, Row) =>
+          (Row.avgAccuracyPercentage as number) < (Toughest.avgAccuracyPercentage as number) ? Row : Toughest
+        ).sectionNumber
+      : null;
+
   return (
     <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)]">
-      <div className="grid grid-cols-[0.6fr_1fr_1fr_1fr_1fr_1fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="grid grid-cols-[0.9fr_1fr_1fr_1fr_1fr_1fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <span>Section</span>
         <span>Avg Accuracy</span>
         <span>Avg Score</span>
@@ -146,32 +167,48 @@ function SectionBreakdownTable({ Rows }: { Rows: AnnualCompetitionPracticeReport
         <span>Time Limit</span>
       </div>
       <div className="divide-y divide-slate-100 dark:divide-white/10">
-        {Rows.map((Row) => (
-          <div
-            key={Row.sectionNumber}
-            className="grid grid-cols-[0.6fr_1fr_1fr_1fr_1fr_1fr] items-center gap-3 px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100"
-          >
-            <div className="font-black text-slate-950 dark:text-white">Section {Row.sectionNumber}</div>
-            <div>{FormatPercent(Row.avgAccuracyPercentage)}</div>
-            <div>{Row.avgScore == null ? "-" : `${Row.avgScore}/${Row.avgMaxScore ?? "-"}`}</div>
-            <div>{Row.avgAttemptedCount == null ? "-" : `${Row.avgAttemptedCount}/${Row.avgTotalQuestions ?? "-"}`}</div>
-            <div>{FormatSecondsAsMinSec(Row.avgTimeTakenSeconds)}</div>
-            <div>{Row.timeLimitSeconds == null ? "-" : FormatSecondsAsMinSec(Row.timeLimitSeconds)}</div>
-          </div>
-        ))}
+        {Rows.map((Row) => {
+          const IsToughest = Row.sectionNumber === ToughestSectionNumber;
+          return (
+            <div
+              key={Row.sectionNumber}
+              className={`grid grid-cols-[0.9fr_1fr_1fr_1fr_1fr_1fr] items-center gap-3 px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100 ${
+                IsToughest ? "bg-rose-50/70 dark:bg-rose-950/20" : ""
+              }`}
+            >
+              <div className="flex flex-wrap items-center gap-2 font-black text-slate-950 dark:text-white">
+                <span>Section {Row.sectionNumber}</span>
+                {IsToughest ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">
+                    <Flame size={10} /> Toughest
+                  </span>
+                ) : null}
+              </div>
+              <div>{FormatPercent(Row.avgAccuracyPercentage)}</div>
+              <div>{Row.avgScore == null ? "-" : `${Row.avgScore}/${Row.avgMaxScore ?? "-"}`}</div>
+              <div>{Row.avgAttemptedCount == null ? "-" : `${Row.avgAttemptedCount}/${Row.avgTotalQuestions ?? "-"}`}</div>
+              <div>{FormatSecondsAsMinSec(Row.avgTimeTakenSeconds)}</div>
+              <div>{Row.timeLimitSeconds == null ? "-" : FormatSecondsAsMinSec(Row.timeLimitSeconds)}</div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-// The per-student Practice Report view -- summary cards always shown;
-// everything below branches on whether a level filter is active
-// (Report.competitionLevelCode set) or this is the blended "All Levels"
-// view, per getAnnualCompetitionPracticeReportForStudent's own comment.
-function StudentReportView({ Report }: { Report: AnnualCompetitionPracticeReportForStudent }) {
+// The per-student Practice Report view, split into two dedicated tabs
+// inside the student analytics modal (2026-09-16, Shailesh -- "have 2 sub
+// tabs in that window one would be the overall stats and the other would
+// be section wise stats"): Overall Analytics (this component) keeps the
+// original blended-"All Levels"-vs-one-level behavior including the trend
+// history and cohort comparison, but no longer renders the section table
+// -- that's StudentSectionWiseAnalyticsView's job below, exclusively, so
+// the same data is never shown twice across the two tabs.
+function StudentOverallAnalyticsView({ Report }: { Report: AnnualCompetitionPracticeReportForStudent }) {
   const Summary = Report.summary;
   return (
-    <div className="mt-5 space-y-5">
+    <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard Label="Attempts" Value={FormatCount(Summary.attemptsCount)} />
         <StatCard Label="Papers Assigned" Value={FormatCount(Summary.papersAssignedCount)} />
@@ -199,8 +236,6 @@ function StudentReportView({ Report }: { Report: AnnualCompetitionPracticeReport
               </div>
             </div>
           ) : null}
-
-          {Report.perSection.length > 0 ? <SectionBreakdownTable Rows={Report.perSection} /> : null}
 
           {Report.trend.length > 0 ? (
             <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)]">
@@ -264,6 +299,172 @@ function StudentReportView({ Report }: { Report: AnnualCompetitionPracticeReport
       ) : (
         <EmptyState title="No practice activity yet" description="This student hasn't completed any practice papers yet." />
       )}
+    </div>
+  );
+}
+
+// Section Wise Analytics tab (new, 2026-09-16): always level-scoped (no
+// "All Levels" mode -- section identity/count differs per level's paper,
+// so blending across levels would be meaningless), hence Report here is
+// always fetched with a specific competitionLevelCode. A compact,
+// level-scoped stat strip for context, then the shared section table
+// (with the Toughest Section highlight) exclusively -- the trend/cohort
+// detail lives in Overall Analytics instead, not duplicated here.
+function StudentSectionWiseAnalyticsView({ Report }: { Report: AnnualCompetitionPracticeReportForStudent }) {
+  const Summary = Report.summary;
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard Label="Attempts" Value={FormatCount(Summary.attemptsCount)} />
+        <StatCard Label="Avg Score" Value={Summary.avgScore == null ? "-" : `${Summary.avgScore}/${Summary.avgMaxScore ?? "-"}`} />
+        <StatCard Label="Avg Accuracy" Value={FormatPercent(Summary.avgAccuracyPercentage)} />
+        <StatCard Label="Avg Time Taken" Value={FormatSecondsAsMinSec(Summary.avgTimeTakenSeconds)} />
+      </div>
+
+      {Report.perSection.length > 0 ? (
+        <SectionBreakdownTable Rows={Report.perSection} />
+      ) : (
+        <EmptyState title="No section data yet" description="This student hasn't completed a practice paper at this level yet." />
+      )}
+    </div>
+  );
+}
+
+// Default level for Section Wise Analytics (2026-09-16, Shailesh: "by
+// default the level student is solving papers for should be selected") --
+// the competition level of whichever practice paper was assigned to this
+// student MOST RECENTLY. Row.papers is already ordered ascending by
+// assignment order (see AnnualCompetitionPracticeRosterPaper's own comment
+// in lib/api/admin.ts), so the last entry is the most recent one -- zero
+// extra fetch, reuses data the block grid already has in hand.
+function DefaultSectionLevelForRow(Row: AnnualCompetitionPracticeRosterStudent): string {
+  if (Row.papers.length === 0) return ANNUAL_COMPETITION_LEVEL_CODES[0];
+  return Row.papers[Row.papers.length - 1].competitionLevelCode;
+}
+
+const StudentModalTabList = ["OVERALL", "SECTION"] as const;
+type StudentModalTabKey = (typeof StudentModalTabList)[number];
+
+// The student analytics modal (2026-09-16, Shailesh -- "we need to have a
+// seperate window popping up when a student is clicked upon ... rather
+// than the chaotic feel that we see right now"). A large (~90vh), dimmed-
+// backdrop panel rather than a small cramped dialog, per Shailesh's own
+// "top notch, neat and clean" ask -- closes via the X button, a backdrop
+// click, or Esc. Owns its own tab/level state and its own report fetch
+// entirely -- the parent only ever hands it which student to show.
+function StudentAnalyticsModal({
+  Row,
+  OnClose,
+}: {
+  Row: AnnualCompetitionPracticeRosterStudent;
+  OnClose: () => void;
+}) {
+  const [ActiveTab, SetActiveTab] = useState<StudentModalTabKey>("OVERALL");
+  // "All Levels" stays valid for Overall Analytics (2026-09-16 clarification
+  // this whole feature was built on -- a returning student isn't in the
+  // same level every year). Section Wise Analytics never offers it -- see
+  // StudentSectionWiseAnalyticsView's own comment for why -- so it's seeded
+  // straight from DefaultSectionLevelForRow and never "ALL".
+  const [OverallLevel, SetOverallLevel] = useState<string>("ALL");
+  const [SectionLevel, SetSectionLevel] = useState<string>(() => DefaultSectionLevelForRow(Row));
+
+  useEffect(() => {
+    const OnKeyDown = (KeyEvent: KeyboardEvent) => {
+      if (KeyEvent.key === "Escape") OnClose();
+    };
+    window.addEventListener("keydown", OnKeyDown);
+    return () => window.removeEventListener("keydown", OnKeyDown);
+  }, [OnClose]);
+
+  const ActiveLevelParam = ActiveTab === "SECTION" ? SectionLevel : OverallLevel === "ALL" ? undefined : OverallLevel;
+
+  const ReportQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "practice-report-student-modal", Row.studentId, ActiveLevelParam ?? "ALL"],
+    queryFn: () => getAnnualCompetitionPracticeReportForStudent(Row.studentId, ActiveLevelParam),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8" role="dialog" aria-modal="true" aria-label="Student practice analytics">
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={OnClose} />
+      <div className="relative flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-[color:var(--mp-role-border)] bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex items-center justify-between gap-4 border-b border-[color:var(--mp-role-border)] px-6 py-4">
+          <div className="min-w-0">
+            <p className="truncate text-lg font-black text-slate-950 dark:text-white">
+              {Row.studentName || Row.studentCode || Row.studentId}
+            </p>
+            {Row.studentCode ? (
+              <p className="text-xs font-black uppercase tracking-[0.1em] text-[color:var(--mp-role-primary)]">{Row.studentCode}</p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={OnClose}
+            aria-label="Close"
+            className="rounded-full border border-[color:var(--mp-role-border)] bg-white p-2 text-slate-500 transition hover:bg-slate-50 dark:bg-slate-950/60 dark:text-slate-300 dark:hover:bg-white/5"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex gap-2 border-b border-[color:var(--mp-role-border)] px-6 pt-3">
+          {StudentModalTabList.map((TabKey) => (
+            <button
+              key={TabKey}
+              type="button"
+              onClick={() => SetActiveTab(TabKey)}
+              aria-selected={ActiveTab === TabKey}
+              className={`rounded-t-xl px-4 py-2.5 text-sm font-black transition ${
+                ActiveTab === TabKey
+                  ? "border-x border-t border-[color:var(--mp-role-border)] border-b-2 border-b-[color:var(--mp-role-primary)] bg-white text-[color:var(--mp-role-primary)] dark:bg-slate-950"
+                  : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+              }`}
+            >
+              {TabKey === "OVERALL" ? "Overall Analytics" : "Section Wise Analytics"}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+            {ActiveTab === "OVERALL" ? (
+              <select
+                aria-label="Filter Overall Analytics by level"
+                value={OverallLevel}
+                onChange={(EventValue) => SetOverallLevel(EventValue.target.value)}
+                className="math-input w-auto min-w-[170px]"
+              >
+                <option value="ALL">All Levels</option>
+                {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                  <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                ))}
+              </select>
+            ) : (
+              <select
+                aria-label="Select level for Section Wise Analytics"
+                value={SectionLevel}
+                onChange={(EventValue) => SetSectionLevel(EventValue.target.value)}
+                className="math-input w-auto min-w-[170px]"
+              >
+                {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                  <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {ReportQuery.isLoading ? (
+            <LoadingState label="Loading student report..." />
+          ) : ReportQuery.isError ? (
+            <ErrorState message={apiErrorMessage(ReportQuery.error)} />
+          ) : ReportQuery.data ? (
+            ActiveTab === "OVERALL" ? (
+              <StudentOverallAnalyticsView Report={ReportQuery.data} />
+            ) : (
+              <StudentSectionWiseAnalyticsView Report={ReportQuery.data} />
+            )
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -859,28 +1060,41 @@ function AdminAnnualCompetitionStudioPageContent() {
   // reuses listAnnualCompetitionPracticeResults (the exact same roster/
   // filtering the Results tab already uses) rather than StudentsQuery's
   // full Bank roster, since a student with zero practice activity has
-  // nothing to show a report for anyway. ReportsBlockLevelFilter narrows
-  // WHICH BLOCKS are visible (server-side, same competitionLevelCode
-  // filter as Results); ReportsStudentLevelFilter (below, unchanged from
-  // package 3) is a completely separate concept -- once a student is
-  // picked, it scopes THAT student's OWN analytics (blended "All Levels"
-  // vs one level), never the block list.
+  // nothing to show a report for anyway. ReportsBlockLevelFilter (and,
+  // admin-only, ReportsTeacherFilter) narrow WHICH BLOCKS are visible
+  // (server-side). Clicking a block opens StudentAnalyticsModal for that
+  // student -- ModalStudentRow below -- which owns its own level filter(s)
+  // entirely separately from the block grid's filters (2026-09-16,
+  // Shailesh redesign: "a seperate window popping up when a student is
+  // clicked upon").
   // ---------------------------------------------------------------------
 
   const [PracticeReportsSubTab, SetPracticeReportsSubTab] = useState<PracticeReportsSubTabKey>("STUDENT");
   const [ReportsStudentSearchText, SetReportsStudentSearchText] = useState("");
-  const [ReportsStudentId, SetReportsStudentId] = useState<string>("");
   // "ALL" = every student with any practice activity, across every level.
   const [ReportsBlockLevelFilter, SetReportsBlockLevelFilter] = useState<string>("ALL");
-  // "ALL" = the blended "All Levels" view for the SELECTED student's own analytics.
-  const [ReportsStudentLevelFilter, SetReportsStudentLevelFilter] = useState<string>("ALL");
+  // Admin-only narrowing (2026-09-16, Shailesh -- "the admin can see the
+  // students teacher wise as well"). "ALL" = every teacher's students.
+  const [ReportsTeacherFilter, SetReportsTeacherFilter] = useState<string>("ALL");
   const [ReportsLevelCode, SetReportsLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
+  // The student the analytics modal is open for -- null when closed. The
+  // whole roster row is kept (not just an id) so the modal has the
+  // student's papers on hand immediately to derive Section Wise Analytics'
+  // default level, with zero extra fetch.
+  const [ModalStudentRow, SetModalStudentRow] = useState<AnnualCompetitionPracticeRosterStudent | null>(null);
+
+  const TeachersQuery = useQuery({
+    queryKey: ["admin-teachers"],
+    queryFn: getAdminTeachers,
+    enabled: Ready && TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "STUDENT",
+  });
 
   const ReportsRosterQuery = useQuery({
-    queryKey: ["admin", "annual-competition", "practice-reports-roster", ReportsBlockLevelFilter],
+    queryKey: ["admin", "annual-competition", "practice-reports-roster", ReportsBlockLevelFilter, ReportsTeacherFilter],
     queryFn: () =>
       listAnnualCompetitionPracticeResults({
         competitionLevelCode: ReportsBlockLevelFilter === "ALL" ? undefined : ReportsBlockLevelFilter,
+        teacherId: ReportsTeacherFilter === "ALL" ? undefined : ReportsTeacherFilter,
       }),
     enabled: Ready && TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "STUDENT",
   });
@@ -890,23 +1104,6 @@ function AdminAnnualCompetitionStudioPageContent() {
     if (!ReportsStudentSearchLower) return true;
     const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
     return Haystack.includes(ReportsStudentSearchLower);
-  });
-  const ReportsSelectedStudentRow = ReportsFilteredStudentRows.find((Row) => Row.studentId === ReportsStudentId) ||
-    (ReportsRosterQuery.data?.students || []).find((Row) => Row.studentId === ReportsStudentId);
-
-  const PracticeReportStudentQuery = useQuery({
-    queryKey: ["admin", "annual-competition", "practice-report-student", ReportsStudentId, ReportsStudentLevelFilter],
-    queryFn: () =>
-      getAnnualCompetitionPracticeReportForStudent(
-        ReportsStudentId,
-        ReportsStudentLevelFilter === "ALL" ? undefined : ReportsStudentLevelFilter
-      ),
-    enabled:
-      Ready &&
-      TopTab === "PRACTICE" &&
-      PracticeSubTab === "REPORTS" &&
-      PracticeReportsSubTab === "STUDENT" &&
-      Boolean(ReportsStudentId),
   });
 
   const PracticeReportLevelQuery = useQuery({
@@ -928,7 +1125,7 @@ function AdminAnnualCompetitionStudioPageContent() {
     EventsQuery.error ||
     (TopTab === "PRACTICE" && PracticeSubTab === "BANK" ? StudentsQuery.error : null) ||
     (TopTab === "PRACTICE" && PracticeSubTab === "RESULTS" ? PracticeResultsQuery.error : null) ||
-    (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "STUDENT" ? ReportsRosterQuery.error || PracticeReportStudentQuery.error : null) ||
+    (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "STUDENT" ? ReportsRosterQuery.error : null) ||
     (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "LEVEL" ? PracticeReportLevelQuery.error : null);
 
   return (
@@ -1676,17 +1873,17 @@ function AdminAnnualCompetitionStudioPageContent() {
                       icon={<Sparkles size={14} />}
                       kicker="Practice Reports"
                       title="Individual Student Analytics"
-                      description="Every student who has any practice activity, shown below as a list -- filter by level to narrow who's shown, search by name or code, then click a student to see their report. Once picked, a further level filter on that student's own card scopes their analytics to one level's section breakdown/trend/cohort comparison, or leave it on All Levels for a blended summary across every level they've ever tried."
+                      description="Every student who has any practice activity, shown below as a list -- narrow who's shown by level and (teacher-wise) by teacher, search by name or code, then click a student to open their full analytics."
                     />
 
-                    <div className="mt-4 flex flex-wrap items-end gap-3">
-                      <label className="flex items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
                         <Search size={16} className="text-[color:var(--mp-role-primary)]" />
                         <input
                           value={ReportsStudentSearchText}
                           onChange={(EventValue) => SetReportsStudentSearchText(EventValue.target.value)}
                           placeholder="Search student name or code"
-                          className="w-56 bg-transparent outline-none placeholder:text-slate-400"
+                          className="w-full bg-transparent outline-none placeholder:text-slate-400"
                         />
                       </label>
                       {/* Narrows WHICH STUDENT BLOCKS are shown below (server-
@@ -1696,19 +1893,37 @@ function AdminAnnualCompetitionStudioPageContent() {
                           level dropdown in this app is (ANNUAL_COMPETITION_
                           LEVEL_CODES + FormatCompetitionLevelLabel), so
                           Bloomers/Beginners and MM-1/MM-2 show their real
-                          display names here too. */}
+                          display names here too. Deliberately a bounded
+                          width (2026-09-16, Shailesh -- "we do not need such
+                          a large level filter") instead of this app's usual
+                          full-width .math-input, so it sits inline with the
+                          search bar instead of wrapping onto its own row. */}
                       <select
                         aria-label="Filter students by level"
                         value={ReportsBlockLevelFilter}
-                        onChange={(EventValue) => {
-                          SetReportsBlockLevelFilter(EventValue.target.value);
-                          SetReportsStudentId("");
-                        }}
-                        className="math-input min-w-[200px]"
+                        onChange={(EventValue) => SetReportsBlockLevelFilter(EventValue.target.value)}
+                        className="math-input w-auto min-w-[150px]"
                       >
                         <option value="ALL">All Levels</option>
                         {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
                           <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                        ))}
+                      </select>
+                      {/* Admin-only (2026-09-16, Shailesh -- "the admin can
+                          see the students teacher wise as well"), same
+                          bounded-width treatment, aligned with the level
+                          filter. A teacher's own equivalent screen never
+                          shows this -- they're already scoped to their own
+                          roster. */}
+                      <select
+                        aria-label="Filter students by teacher"
+                        value={ReportsTeacherFilter}
+                        onChange={(EventValue) => SetReportsTeacherFilter(EventValue.target.value)}
+                        className="math-input w-auto min-w-[170px]"
+                      >
+                        <option value="ALL">All Teachers</option>
+                        {(TeachersQuery.data || []).map((TeacherRow) => (
+                          <option key={TeacherRow.teacherId} value={TeacherRow.teacherId}>{TeacherRow.teacherName}</option>
                         ))}
                       </select>
                     </div>
@@ -1718,15 +1933,15 @@ function AdminAnnualCompetitionStudioPageContent() {
                     ) : ReportsFilteredStudentRows.length > 0 ? (
                       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                         {ReportsFilteredStudentRows.map((Row) => {
-                          const IsSelected = Row.studentId === ReportsStudentId;
+                          const IsOpenInModal = Row.studentId === ModalStudentRow?.studentId;
                           return (
                             <button
                               key={Row.studentId}
                               type="button"
-                              onClick={() => SetReportsStudentId(IsSelected ? "" : Row.studentId)}
-                              aria-pressed={IsSelected}
+                              onClick={() => SetModalStudentRow(Row)}
+                              aria-pressed={IsOpenInModal}
                               className={`rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-px ${
-                                IsSelected
+                                IsOpenInModal
                                   ? "border-[color:var(--mp-role-primary)] bg-[color:var(--mp-role-primary)]/10 dark:bg-[color:var(--mp-role-primary)]/20"
                                   : "border-[color:var(--mp-role-border)] bg-white hover:bg-slate-50 dark:bg-slate-950/40 dark:hover:bg-white/5"
                               }`}
@@ -1748,36 +1963,9 @@ function AdminAnnualCompetitionStudioPageContent() {
                       </div>
                     ) : (
                       <div className="mt-5">
-                        <EmptyState title="No students found" description="No student has practice activity matching this search/level filter yet." />
+                        <EmptyState title="No students found" description="No student has practice activity matching this search/level/teacher filter yet." />
                       </div>
                     )}
-
-                    {ReportsStudentId ? (
-                      <div className="mt-6 border-t border-[color:var(--mp-role-border)] pt-5">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-sm font-black text-slate-950 dark:text-white">
-                            {ReportsSelectedStudentRow?.studentName || ReportsSelectedStudentRow?.studentCode || "Selected student"}
-                          </p>
-                          <select
-                            aria-label="Filter this student's analytics by level"
-                            value={ReportsStudentLevelFilter}
-                            onChange={(EventValue) => SetReportsStudentLevelFilter(EventValue.target.value)}
-                            className="math-input"
-                          >
-                            <option value="ALL">All Levels</option>
-                            {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                              <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {PracticeReportStudentQuery.isLoading ? (
-                          <div className="mt-5"><LoadingState label="Loading student report..." /></div>
-                        ) : PracticeReportStudentQuery.data ? (
-                          <StudentReportView Report={PracticeReportStudentQuery.data} />
-                        ) : null}
-                      </div>
-                    ) : null}
                   </div>
                 )}
 
@@ -1815,6 +2003,9 @@ function AdminAnnualCompetitionStudioPageContent() {
           </div>
         )}
       </section>
+      {ModalStudentRow ? (
+        <StudentAnalyticsModal Row={ModalStudentRow} OnClose={() => SetModalStudentRow(null)} />
+      ) : null}
     </AppShell>
   );
 }

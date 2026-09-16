@@ -2196,11 +2196,17 @@ export type AnnualCompetitionPracticeResultsList = {
 export async function listAnnualCompetitionPracticeResults(filters?: {
   competitionLevelCode?: string | null;
   studentId?: string | null;
+  // 2026-09-16 (Shailesh, Practice Reports UI redesign): "the admin can see
+  // the students teacher wise as well" -- admin-only narrowing, mirrors the
+  // level/student filters server-side; a teacher's own roster endpoint
+  // never needs this since it's already scoped to their own students.
+  teacherId?: string | null;
 }): Promise<AnnualCompetitionPracticeResultsList> {
   const { data } = await api.get<AnnualCompetitionPracticeResultsList>(`/admin/annual-competition/practice-results`, {
     params: {
       competitionLevelCode: filters?.competitionLevelCode || undefined,
       studentId: filters?.studentId || undefined,
+      teacherId: filters?.teacherId || undefined,
     },
   });
   return data;
