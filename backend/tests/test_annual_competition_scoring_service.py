@@ -447,6 +447,93 @@ def test_finalize_time_taken_excludes_pause_and_sums_per_section():
     ]
 
 
+def test_finalize_per_section_score_breaks_down_correct_wrong_unanswered_by_section():
+    """Practice Reports feature, package 1 (Shailesh, 2026-09-16):
+    per_section_score_json is the sibling of per_section_time_json above,
+    same section-scoped shape, but for score/correct/wrong/unanswered/
+    attempted counts instead of time -- this is what the new per-student and
+    per-level analytics aggregate over. Section 1 gets one of each outcome
+    plus a clean split; section 2 additionally proves an unanswered question
+    is tallied into its own section's unansweredCount, never folded into
+    wrongCount, mirroring the whole-attempt-level distinction already
+    covered above."""
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600, 300), questions_per_section=[2, 3])
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "q-1-1", correct=True)
+    _answer(db, student, attempt_id, token, 1, "q-1-2", correct=False)
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    _answer(db, student, attempt_id, token, 2, "q-2-11", correct=True)
+    _answer(db, student, attempt_id, token, 2, "q-2-12", correct=False)
+    # q-2-13 left unanswered.
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 2)
+
+    result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    import json
+    per_section_score = json.loads(result.per_section_score_json)
+    assert per_section_score == [
+        {
+            "sectionNumber": 1, "totalQuestions": 2, "attemptedCount": 2,
+            "correctCount": 1, "wrongCount": 1, "unansweredCount": 0, "score": 1, "maxScore": 2,
+        },
+        {
+            "sectionNumber": 2, "totalQuestions": 3, "attemptedCount": 2,
+            "correctCount": 1, "wrongCount": 1, "unansweredCount": 1, "score": 1, "maxScore": 3,
+        },
+    ]
+    # Sibling whole-attempt totals must still be the sum across both
+    # sections, exactly as before this feature -- this column is purely
+    # additive, never a substitute for the existing totals.
+    assert result.correct_count == 2
+    assert result.wrong_count == 2
+    assert result.unanswered_count == 1
+    assert result.score == 2
+    assert result.max_score == 5
+
+
+def test_finalize_per_section_score_excludes_untimed_sections():
+    """Same root-cause scoping fix as
+    test_finalize_excludes_questions_from_sections_the_attempt_never_
+    included above, asserted here for per_section_score_json specifically --
+    a section with no CompetitionEventSectionTimer (never part of this
+    attempt) must not gain an entry in the per-section breakdown either,
+    not just be excluded from the whole-attempt totals."""
+    db = _session()
+    event = _event(db)
+    student = _student(db, "s1")
+    m, l = _module_and_level(db)
+    exam = _mock_exam(db, l.id, m.id)
+    _question_with_options(db, exam.id, 1, 1, qid="q-1-1")
+    _question_with_options(db, exam.id, 1, 2, qid="q-1-2")
+    _question_with_options(db, exam.id, 2, 11, qid="q-2-1")
+    _question_with_options(db, exam.id, 2, 12, qid="q-2-2")
+    _assignment(db, event.id, student.id, "PM-L2")
+    _level_paper_with_timers(db, event.id, "PM-L2", exam.id, [600])  # only section 1 gets a timer
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "q-1-1", correct=True)
+    _answer(db, student, attempt_id, token, 1, "q-1-2", correct=False)
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    import json
+    per_section_score = json.loads(result.per_section_score_json)
+    # NOT two entries -- section 2 was never part of this attempt.
+    assert per_section_score == [
+        {
+            "sectionNumber": 1, "totalQuestions": 2, "attemptedCount": 2,
+            "correctCount": 1, "wrongCount": 1, "unansweredCount": 0, "score": 1, "maxScore": 2,
+        },
+    ]
+
+
 def test_reconciliation_sweep_also_finalizes_scoring():
     """The reconciliation sweep (Package 4) shares the exact same
     _AdvanceOrFinalize call -- confirming it also triggers Package 6's
@@ -1520,3 +1607,44 @@ def test_recompute_practice_results_backfills_every_practice_result_under_new_fo
 
     result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
     assert result.accuracy_percentage == 100.0
+
+
+def test_recompute_practice_results_backfills_per_section_score_json_from_null():
+    """Practice Reports feature, package 1 (Shailesh, 2026-09-16): proves
+    the new migration's own claim -- a practice result finalized before
+    per_section_score_json existed (simulated here by nulling it out after
+    finalize, standing in for a genuinely pre-migration row) gets it
+    populated by the existing, already-idempotent
+    RecomputeAnnualCompetitionPracticeResults action, with no bespoke
+    backfill script needed, exactly like per_section_time_json and every
+    other formula fix already covered above."""
+    db = _session()
+    student = _setup_student_with_practice_questions(
+        db, "sPracticeSectionScoreBackfill", section_seconds=(600,), questions_per_section=[2],
+        level_paper_id="practice-section-score-backfill-paper",
+    )
+    db.commit()
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "practice-q-1-1", correct=True)
+    _answer(db, student, attempt_id, token, 1, "practice-q-1-2", correct=False)
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    # Simulate a genuinely pre-migration row: per_section_score_json never populated.
+    db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).update(
+        {CompetitionEventResult.per_section_score_json: None}
+    )
+    db.commit()
+
+    outcome = scoring.RecomputeAnnualCompetitionPracticeResults(db)
+    assert outcome["recomputedCount"] == 1
+
+    result = db.query(CompetitionEventResult).filter_by(attempt_id=attempt_id).one()
+    import json
+    per_section_score = json.loads(result.per_section_score_json)
+    assert per_section_score == [
+        {
+            "sectionNumber": 1, "totalQuestions": 2, "attemptedCount": 2,
+            "correctCount": 1, "wrongCount": 1, "unansweredCount": 0, "score": 1, "maxScore": 2,
+        },
+    ]

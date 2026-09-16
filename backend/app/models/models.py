@@ -678,6 +678,19 @@ class CompetitionEventResult(Base):
     # applied or changed without ever needing to re-derive this from raw
     # attempt data.
     per_section_time_json = Column(Text, nullable=True)
+    # Per-section score breakdown (totalQuestions/attemptedCount/correctCount/
+    # wrongCount/unansweredCount/score/maxScore per section_number), sibling
+    # of per_section_time_json above and captured the same way -- unconditionally
+    # at computation time, for both OFFICIAL and PRACTICE attempts. Added for
+    # the Annual Competition Practice Reports feature (2026-09-16, Shailesh
+    # package 1): the per-student and per-level analytics need a score/
+    # accuracy/attempted view per section, not just the whole-paper totals
+    # above. Nullable/additive -- a result finalized before this column
+    # existed simply has NULL here until RecomputeAnnualCompetitionPractice-
+    # Results/RecomputeAnnualCompetitionResults (both already idempotent,
+    # already safe to re-run) backfills it, exactly like every other
+    # recompute-driven formula fix in this file.
+    per_section_score_json = Column(Text, nullable=True)
     rank = Column(Integer, nullable=True)
     # Maximally private by default: only the student's own result is ever
     # visible until is_released flips (REQUIREMENTS.md outstanding item 5).
