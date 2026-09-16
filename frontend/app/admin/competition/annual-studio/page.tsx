@@ -843,29 +843,56 @@ function AdminAnnualCompetitionStudioPageContent() {
   });
 
   // ---------------------------------------------------------------------
-  // Practice -- Reports (package 3, Shailesh, 2026-09-16). Two inner views:
-  // per-student (level filter OPTIONAL -- see getAnnualCompetitionPractice-
-  // ReportForStudent's own comment on why, a 2026-09-16 clarification about
-  // a returning student's level changing year to year) and per-level (level
-  // REQUIRED, per Shailesh's own confirmation the same day). Reuses
-  // StudentRows (the same roster the Bank tab's student picker already
-  // loads, enabled above for this tab too) for the student search/select
-  // below, rather than a second student-list call.
+  // Practice -- Reports (package 3, Shailesh, 2026-09-16; block-list
+  // redesign 2026-09-16 per Shailesh's own follow-up: "we need the list of
+  // all the students there, that is the student blocks along with the
+  // level filters which will filter out the students in those levels only
+  // and by default would show all the students... on clicking those
+  // blocks it should show the analytics for that particular student").
+  // Two inner views: per-student (analytics-scope level filter OPTIONAL --
+  // see getAnnualCompetitionPracticeReportForStudent's own comment on why,
+  // a 2026-09-16 clarification about a returning student's level changing
+  // year to year) and per-level (level REQUIRED, per Shailesh's own
+  // confirmation the same day).
+  //
+  // The student picker is now a clickable block grid, not a dropdown --
+  // reuses listAnnualCompetitionPracticeResults (the exact same roster/
+  // filtering the Results tab already uses) rather than StudentsQuery's
+  // full Bank roster, since a student with zero practice activity has
+  // nothing to show a report for anyway. ReportsBlockLevelFilter narrows
+  // WHICH BLOCKS are visible (server-side, same competitionLevelCode
+  // filter as Results); ReportsStudentLevelFilter (below, unchanged from
+  // package 3) is a completely separate concept -- once a student is
+  // picked, it scopes THAT student's OWN analytics (blended "All Levels"
+  // vs one level), never the block list.
   // ---------------------------------------------------------------------
 
   const [PracticeReportsSubTab, SetPracticeReportsSubTab] = useState<PracticeReportsSubTabKey>("STUDENT");
   const [ReportsStudentSearchText, SetReportsStudentSearchText] = useState("");
   const [ReportsStudentId, SetReportsStudentId] = useState<string>("");
-  // "ALL" = the blended "All Levels" view.
+  // "ALL" = every student with any practice activity, across every level.
+  const [ReportsBlockLevelFilter, SetReportsBlockLevelFilter] = useState<string>("ALL");
+  // "ALL" = the blended "All Levels" view for the SELECTED student's own analytics.
   const [ReportsStudentLevelFilter, SetReportsStudentLevelFilter] = useState<string>("ALL");
   const [ReportsLevelCode, SetReportsLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
 
+  const ReportsRosterQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "practice-reports-roster", ReportsBlockLevelFilter],
+    queryFn: () =>
+      listAnnualCompetitionPracticeResults({
+        competitionLevelCode: ReportsBlockLevelFilter === "ALL" ? undefined : ReportsBlockLevelFilter,
+      }),
+    enabled: Ready && TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "STUDENT",
+  });
+
   const ReportsStudentSearchLower = ReportsStudentSearchText.trim().toLowerCase();
-  const ReportsFilteredStudentRows = StudentRows.filter((Row) => {
+  const ReportsFilteredStudentRows = (ReportsRosterQuery.data?.students || []).filter((Row) => {
     if (!ReportsStudentSearchLower) return true;
     const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
     return Haystack.includes(ReportsStudentSearchLower);
   });
+  const ReportsSelectedStudentRow = ReportsFilteredStudentRows.find((Row) => Row.studentId === ReportsStudentId) ||
+    (ReportsRosterQuery.data?.students || []).find((Row) => Row.studentId === ReportsStudentId);
 
   const PracticeReportStudentQuery = useQuery({
     queryKey: ["admin", "annual-competition", "practice-report-student", ReportsStudentId, ReportsStudentLevelFilter],
@@ -901,7 +928,7 @@ function AdminAnnualCompetitionStudioPageContent() {
     EventsQuery.error ||
     (TopTab === "PRACTICE" && PracticeSubTab === "BANK" ? StudentsQuery.error : null) ||
     (TopTab === "PRACTICE" && PracticeSubTab === "RESULTS" ? PracticeResultsQuery.error : null) ||
-    (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "STUDENT" ? PracticeReportStudentQuery.error : null) ||
+    (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "STUDENT" ? ReportsRosterQuery.error || PracticeReportStudentQuery.error : null) ||
     (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "LEVEL" ? PracticeReportLevelQuery.error : null);
 
   return (
@@ -1649,7 +1676,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                       icon={<Sparkles size={14} />}
                       kicker="Practice Reports"
                       title="Individual Student Analytics"
-                      description="Collated performance across every one of this student's practice attempts. Pick a level to see its section-by-section breakdown, an attempt-by-attempt trend, and how this student compares to everyone else who's practiced it -- or leave it on All Levels for a blended summary across every level they've ever tried, useful once the same student returns in a later year at a different level."
+                      description="Every student who has any practice activity, shown below as a list -- filter by level to narrow who's shown, search by name or code, then click a student to see their report. Once picked, a further level filter on that student's own card scopes their analytics to one level's section breakdown/trend/cohort comparison, or leave it on All Levels for a blended summary across every level they've ever tried."
                     />
 
                     <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -1662,30 +1689,22 @@ function AdminAnnualCompetitionStudioPageContent() {
                           className="w-56 bg-transparent outline-none placeholder:text-slate-400"
                         />
                       </label>
+                      {/* Narrows WHICH STUDENT BLOCKS are shown below (server-
+                          side, same as the Results tab's own level filter) --
+                          "ALL" (the default) shows every student with any
+                          practice activity. Wired the same way every other
+                          level dropdown in this app is (ANNUAL_COMPETITION_
+                          LEVEL_CODES + FormatCompetitionLevelLabel), so
+                          Bloomers/Beginners and MM-1/MM-2 show their real
+                          display names here too. */}
                       <select
-                        aria-label="Select student"
-                        value={ReportsStudentId}
-                        onChange={(EventValue) => SetReportsStudentId(EventValue.target.value)}
-                        className="math-input"
-                      >
-                        <option value="">Select a student...</option>
-                        {ReportsFilteredStudentRows.map((Row) => (
-                          <option key={Row.studentId} value={Row.studentId}>
-                            {Row.studentName || Row.studentCode || Row.studentId}
-                            {Row.studentCode ? ` (${Row.studentCode})` : ""}
-                          </option>
-                        ))}
-                      </select>
-                      {/* Wired the same way every other level dropdown in this
-                          app is (ANNUAL_COMPETITION_LEVEL_CODES + Format-
-                          CompetitionLevelLabel), so Bloomers/Beginners and
-                          MM-1/MM-2 show their real display names here too. */}
-                      <select
-                        aria-label="Filter by level"
-                        value={ReportsStudentLevelFilter}
-                        onChange={(EventValue) => SetReportsStudentLevelFilter(EventValue.target.value)}
-                        className="math-input"
-                        disabled={!ReportsStudentId}
+                        aria-label="Filter students by level"
+                        value={ReportsBlockLevelFilter}
+                        onChange={(EventValue) => {
+                          SetReportsBlockLevelFilter(EventValue.target.value);
+                          SetReportsStudentId("");
+                        }}
+                        className="math-input min-w-[200px]"
                       >
                         <option value="ALL">All Levels</option>
                         {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
@@ -1694,14 +1713,70 @@ function AdminAnnualCompetitionStudioPageContent() {
                       </select>
                     </div>
 
-                    {!ReportsStudentId ? (
-                      <div className="mt-5">
-                        <EmptyState title="Select a student" description="Pick a student above to see their Practice Reports." />
+                    {ReportsRosterQuery.isLoading ? (
+                      <div className="mt-5"><LoadingState label="Loading students..." /></div>
+                    ) : ReportsFilteredStudentRows.length > 0 ? (
+                      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                        {ReportsFilteredStudentRows.map((Row) => {
+                          const IsSelected = Row.studentId === ReportsStudentId;
+                          return (
+                            <button
+                              key={Row.studentId}
+                              type="button"
+                              onClick={() => SetReportsStudentId(IsSelected ? "" : Row.studentId)}
+                              aria-pressed={IsSelected}
+                              className={`rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-px ${
+                                IsSelected
+                                  ? "border-[color:var(--mp-role-primary)] bg-[color:var(--mp-role-primary)]/10 dark:bg-[color:var(--mp-role-primary)]/20"
+                                  : "border-[color:var(--mp-role-border)] bg-white hover:bg-slate-50 dark:bg-slate-950/40 dark:hover:bg-white/5"
+                              }`}
+                            >
+                              <div className="truncate text-sm font-black text-slate-950 dark:text-white">
+                                {Row.studentName || Row.studentCode || Row.studentId}
+                              </div>
+                              {Row.studentCode ? (
+                                <div className="mt-1 text-xs font-black uppercase tracking-[0.1em] text-[color:var(--mp-role-primary)]">
+                                  {Row.studentCode}
+                                </div>
+                              ) : null}
+                              <div className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+                                {Row.papers.length} paper{Row.papers.length === 1 ? "" : "s"}
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
-                    ) : PracticeReportStudentQuery.isLoading ? (
-                      <div className="mt-5"><LoadingState label="Loading student report..." /></div>
-                    ) : PracticeReportStudentQuery.data ? (
-                      <StudentReportView Report={PracticeReportStudentQuery.data} />
+                    ) : (
+                      <div className="mt-5">
+                        <EmptyState title="No students found" description="No student has practice activity matching this search/level filter yet." />
+                      </div>
+                    )}
+
+                    {ReportsStudentId ? (
+                      <div className="mt-6 border-t border-[color:var(--mp-role-border)] pt-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <p className="text-sm font-black text-slate-950 dark:text-white">
+                            {ReportsSelectedStudentRow?.studentName || ReportsSelectedStudentRow?.studentCode || "Selected student"}
+                          </p>
+                          <select
+                            aria-label="Filter this student's analytics by level"
+                            value={ReportsStudentLevelFilter}
+                            onChange={(EventValue) => SetReportsStudentLevelFilter(EventValue.target.value)}
+                            className="math-input"
+                          >
+                            <option value="ALL">All Levels</option>
+                            {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                              <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {PracticeReportStudentQuery.isLoading ? (
+                          <div className="mt-5"><LoadingState label="Loading student report..." /></div>
+                        ) : PracticeReportStudentQuery.data ? (
+                          <StudentReportView Report={PracticeReportStudentQuery.data} />
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                 )}
