@@ -365,8 +365,8 @@ function AnswerBox({ title, children, tone }: { title: string; children: React.R
     tone === "correct"
       ? "border-emerald-100 bg-emerald-50/80 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/25 dark:text-emerald-100"
       : tone === "wrong"
-        ? "border-cyan-100 bg-cyan-50/80 text-cyan-950 dark:border-cyan-800 dark:bg-cyan-950/25 dark:text-cyan-100"
-        : "border-slate-200 bg-slate-50 text-slate-900 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100";
+        ? "border-rose-100 bg-rose-50/80 text-rose-950 dark:border-rose-800 dark:bg-rose-950/25 dark:text-rose-100"
+        : "border-amber-100 bg-amber-50/80 text-amber-950 dark:border-amber-800 dark:bg-amber-950/25 dark:text-amber-100";
   return (
     <div className={`rounded-[22px] border p-4 ${ClassName}`}>
       <p className="text-xs font-extrabold uppercase tracking-[0.14em] opacity-80">{title}</p>
