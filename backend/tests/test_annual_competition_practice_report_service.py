@@ -275,8 +275,9 @@ def test_level_report_aggregates_across_students_and_sorts_by_accuracy_desc():
     assert report["perStudent"][1]["avgAccuracyPercentage"] == 25.0
 
     assert len(report["perSection"]) == 1
-    # (100 + 25) / 2 = 62.5 attempt-weighted average across both students' one attempt each.
-    assert report["perSection"][0]["avgAccuracyPercentage"] == 62.5
+    # (100 + 25) / 2 = 62.5 attempt-weighted average across both students' one attempt each,
+    # rounded to the nearest whole number per the flow's whole-number display policy (round-half-up).
+    assert report["perSection"][0]["avgAccuracyPercentage"] == 63
 
 
 def test_level_report_roster_scoping_excludes_other_students():
@@ -378,3 +379,18 @@ def test_level_report_excludes_official_attempts():
     report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
     assert report["summary"]["attemptsCount"] == 0
     assert report["perStudent"] == []
+
+
+def test_round_to_int_uses_standard_round_half_up_not_bankers_rounding():
+    """Whole-number display policy (Shailesh, 2026-09-16): every figure in
+    this flow rounds to the nearest integer, half-up at exactly .5, never
+    Python's built-in round()'s round-half-to-even. 62.5 must become 63
+    (not 62), and 63.5 must become 64 (not 64 by luck -- also checks the
+    even-target boundary explicitly)."""
+    assert report_service._RoundToInt(16.33) == 16
+    assert report_service._RoundToInt(16.5) == 17
+    assert report_service._RoundToInt(62.5) == 63
+    assert report_service._RoundToInt(63.5) == 64
+    assert report_service._RoundToInt(0.4) == 0
+    assert report_service._RoundToInt(0.0) == 0
+    assert report_service._RoundToInt(None) is None

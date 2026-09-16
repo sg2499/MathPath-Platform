@@ -71,6 +71,7 @@ scoped analytics there we will ofc need level filters").
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -88,6 +89,20 @@ from app.services.annual_competition_studio_service import VALID_COMPETITION_LEV
 # order for, so this list is what _PerLevelBreakdownForStudent actually
 # iterates.
 _LEVEL_CODE_DISPLAY_ORDER: list[str] = list(ANNUAL_COMPETITION_LEVEL_REGISTRY.keys())
+
+
+def _RoundToInt(Value: float | int | None) -> int | None:
+    """Whole-number display policy across this entire flow (Shailesh,
+    2026-09-16, superseding an earlier 1-decimal-place request the same
+    day): every average/percentage/score figure this module returns is
+    rounded to the nearest integer -- never a 2-decimal float like 16.33 --
+    using standard round-half-up (5 rounds up), not Python's built-in
+    round() which rounds half-to-even and would silently disagree with that
+    rule at exact .5 boundaries. None passes through unchanged: "no data"
+    must never render as 0."""
+    if Value is None:
+        return None
+    return math.floor(Value + 0.5) if Value >= 0 else -math.floor(-Value + 0.5)
 
 
 def _SafeJsonList(RawJson: str | None) -> list[dict[str, Any]]:
@@ -179,14 +194,18 @@ def _AggregateAttemptLevelStats(ResultRecords: list[CompetitionEventResult]) -> 
         }
     return {
         "attemptsCount": AttemptsCount,
-        "avgScore": round(sum(ResultRecord.score or 0.0 for ResultRecord in ResultRecords) / AttemptsCount, 2),
-        "avgMaxScore": round(sum(ResultRecord.max_score or 0.0 for ResultRecord in ResultRecords) / AttemptsCount, 2),
-        "avgPercentage": round(sum(ResultRecord.percentage or 0.0 for ResultRecord in ResultRecords) / AttemptsCount, 2),
-        "avgAccuracyPercentage": round(
-            sum(ResultRecord.accuracy_percentage or 0.0 for ResultRecord in ResultRecords) / AttemptsCount, 2
+        "avgScore": _RoundToInt(sum(ResultRecord.score or 0.0 for ResultRecord in ResultRecords) / AttemptsCount),
+        "avgMaxScore": _RoundToInt(
+            sum(ResultRecord.max_score or 0.0 for ResultRecord in ResultRecords) / AttemptsCount
         ),
-        "avgTimeTakenSeconds": round(
-            sum(ResultRecord.time_taken_seconds or 0 for ResultRecord in ResultRecords) / AttemptsCount, 2
+        "avgPercentage": _RoundToInt(
+            sum(ResultRecord.percentage or 0.0 for ResultRecord in ResultRecords) / AttemptsCount
+        ),
+        "avgAccuracyPercentage": _RoundToInt(
+            sum(ResultRecord.accuracy_percentage or 0.0 for ResultRecord in ResultRecords) / AttemptsCount
+        ),
+        "avgTimeTakenSeconds": _RoundToInt(
+            sum(ResultRecord.time_taken_seconds or 0 for ResultRecord in ResultRecords) / AttemptsCount
         ),
     }
 
@@ -233,25 +252,29 @@ def _AggregatePerSectionStats(ResultRecords: list[CompetitionEventResult]) -> li
             {
                 "sectionNumber": SectionNumber,
                 "attemptsCount": len(ScoreEntries),
-                "avgScore": round(sum(Entry.get("score", 0.0) for Entry in ScoreEntries) / len(ScoreEntries), 2)
+                "avgScore": _RoundToInt(sum(Entry.get("score", 0.0) for Entry in ScoreEntries) / len(ScoreEntries))
                 if ScoreEntries
                 else None,
-                "avgMaxScore": round(sum(Entry.get("maxScore", 0.0) for Entry in ScoreEntries) / len(ScoreEntries), 2)
-                if ScoreEntries
-                else None,
-                "avgAttemptedCount": round(
-                    sum(Entry.get("attemptedCount", 0) for Entry in ScoreEntries) / len(ScoreEntries), 2
+                "avgMaxScore": _RoundToInt(
+                    sum(Entry.get("maxScore", 0.0) for Entry in ScoreEntries) / len(ScoreEntries)
                 )
                 if ScoreEntries
                 else None,
-                "avgTotalQuestions": round(
-                    sum(Entry.get("totalQuestions", 0) for Entry in ScoreEntries) / len(ScoreEntries), 2
+                "avgAttemptedCount": _RoundToInt(
+                    sum(Entry.get("attemptedCount", 0) for Entry in ScoreEntries) / len(ScoreEntries)
                 )
                 if ScoreEntries
                 else None,
-                "avgAccuracyPercentage": round(sum(AccuracyValues) / len(AccuracyValues), 2) if AccuracyValues else None,
-                "avgTimeTakenSeconds": round(
-                    sum(Entry.get("timeTakenSeconds", 0) for Entry in TimeEntries) / len(TimeEntries), 2
+                "avgTotalQuestions": _RoundToInt(
+                    sum(Entry.get("totalQuestions", 0) for Entry in ScoreEntries) / len(ScoreEntries)
+                )
+                if ScoreEntries
+                else None,
+                "avgAccuracyPercentage": _RoundToInt(sum(AccuracyValues) / len(AccuracyValues))
+                if AccuracyValues
+                else None,
+                "avgTimeTakenSeconds": _RoundToInt(
+                    sum(Entry.get("timeTakenSeconds", 0) for Entry in TimeEntries) / len(TimeEntries)
                 )
                 if TimeEntries
                 else None,
@@ -266,13 +289,18 @@ def _AggregatePerSectionStats(ResultRecords: list[CompetitionEventResult]) -> li
 
 
 def _AttemptTrendRow(ResultRecord: CompetitionEventResult) -> dict[str, Any]:
+    # score/maxScore/percentage/accuracyPercentage are Float columns (see
+    # models.py) and can genuinely carry decimals per attempt even though
+    # this is a single attempt, not an average -- rounded here too so the
+    # trend table never shows a value like 16.33, matching this module's
+    # whole-number display policy everywhere else.
     return {
         "attemptId": ResultRecord.attempt_id,
         "computedAt": ResultRecord.computed_at.isoformat() if ResultRecord.computed_at else None,
-        "score": ResultRecord.score,
-        "maxScore": ResultRecord.max_score,
-        "percentage": ResultRecord.percentage,
-        "accuracyPercentage": ResultRecord.accuracy_percentage,
+        "score": _RoundToInt(ResultRecord.score),
+        "maxScore": _RoundToInt(ResultRecord.max_score),
+        "percentage": _RoundToInt(ResultRecord.percentage),
+        "accuracyPercentage": _RoundToInt(ResultRecord.accuracy_percentage),
         "timeTakenSeconds": ResultRecord.time_taken_seconds,
     }
 

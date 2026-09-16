@@ -117,7 +117,11 @@ function ToLocalInputValue(IsoValue: string | null): string {
 // since these are specific to the Reports sub-tab.
 
 function FormatPercent(Value: number | null): string {
-  return Value == null ? "-" : `${Value}%`;
+  // Backend already rounds every figure in this flow to a whole number
+  // (Shailesh, 2026-09-16 decimal policy) -- Math.round here is a defensive
+  // second layer, never the source of truth, so a value never renders as
+  // e.g. 16.33% even if some future call site forgets to round upstream.
+  return Value == null ? "-" : `${Math.round(Value)}%`;
 }
 
 function FormatCount(Value: number | null): string {
