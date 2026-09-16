@@ -148,6 +148,11 @@ from app.services.annual_competition_monitoring_service import (
     GetAnnualCompetitionLiveMonitoring,
 )
 
+from app.services.annual_competition_practice_report_service import (
+    GetAnnualCompetitionPracticeReportForStudent,
+    GetAnnualCompetitionPracticeReportForLevel,
+)
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
 
@@ -6180,6 +6185,37 @@ def admin_list_annual_competition_practice_results(
     return ListAnnualCompetitionPracticeResultsForAdmin(
         db, CompetitionLevelCode=competitionLevelCode, StudentId=studentId
     )
+
+
+# Practice Reports feature, package 2 (Shailesh, 2026-09-16): the new
+# analytics surface, deliberately separate from the flat per-paper listing
+# above -- see annual_competition_practice_report_service.py's own module
+# docstring for the full design. competitionLevelCode is OPTIONAL here
+# (unlike the level-report route below): omitted, the response blends a
+# per-level breakdown instead of one level's per-section table, per
+# Shailesh's own 2026-09-16 clarification that a returning student's level
+# changes year to year.
+@router.get("/annual-competition/practice-reports/student/{student_id}")
+def admin_get_annual_competition_practice_report_for_student(
+    student_id: str,
+    competitionLevelCode: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return GetAnnualCompetitionPracticeReportForStudent(db, StudentId=student_id, CompetitionLevelCode=competitionLevelCode)
+
+
+# Practice Reports feature, package 2: the cohort-scoped sibling of the
+# route above -- competitionLevelCode is a required path segment here (not
+# optional), since a cohort average across different levels' different
+# papers would not mean anything. Unrestricted (every student who has
+# practiced this level) for admin; the teacher route below passes its own
+# roster instead.
+@router.get("/annual-competition/practice-reports/level/{competition_level_code}")
+def admin_get_annual_competition_practice_report_for_level(
+    competition_level_code: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode=competition_level_code)
 
 
 # 2026-09-14 (Shailesh): per-row delete icon in the admin Practice view --

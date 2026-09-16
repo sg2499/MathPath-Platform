@@ -34,6 +34,10 @@ from app.services.annual_competition_monitoring_service import (
     ListNonDraftAnnualCompetitionEvents,
 )
 from app.services.annual_competition_attempt_service import GetCompetitionEventAttemptReviewForTeacher
+from app.services.annual_competition_practice_report_service import (
+    GetAnnualCompetitionPracticeReportForStudent,
+    GetAnnualCompetitionPracticeReportForLevel,
+)
 from app.services.route_harmonization_service import EmptyTeacherAssignmentOptionsResponse, EmptyTeacherDpsOptionsResponse
 from app.services.assessment_feedback_service import upsert_assessment_remark, assessment_feedback_payload, active_assessment_remark
 from app.services.auth_service import public_profile_photo_url
@@ -333,6 +337,41 @@ def teacher_list_annual_competition_practice_results(
     student_ids = [student.id for student in own_students_query(db, teacher).filter(Student.is_active == True).all()]
     return ListAnnualCompetitionPracticeResultsForRoster(
         db, StudentIdsFilter=student_ids, CompetitionLevelCode=competitionLevelCode
+    )
+
+
+# Practice Reports feature, package 2 (Shailesh, 2026-09-16): teacher's own
+# per-student view, scoped to this teacher's roster the same way
+# ensure_teacher_attempt_access already does elsewhere in this file -- a
+# student not on this teacher's roster gets 403, never a report for a
+# student they don't teach. competitionLevelCode is optional, same as the
+# admin route (see annual_competition_practice_report_service.py's module
+# docstring).
+@router.get("/competition/annual/practice-reports/student/{student_id}")
+def teacher_get_annual_competition_practice_report_for_student(
+    student_id: str,
+    competitionLevelCode: str | None = None,
+    db: Session = Depends(get_db),
+    teacher: Teacher = Depends(get_current_teacher),
+):
+    own_student = own_students_query(db, teacher).filter(Student.id == student_id).first()
+    if not own_student:
+        api_error(403, "FORBIDDEN", "You can view Practice Reports only for your own students.")
+    return GetAnnualCompetitionPracticeReportForStudent(db, StudentId=student_id, CompetitionLevelCode=competitionLevelCode)
+
+
+# Practice Reports feature, package 2: teacher's own per-level (cohort)
+# view -- competitionLevelCode is required, mirroring the admin route.
+# Scoped to this teacher's own roster via StudentIdsFilter, exactly like
+# teacher_list_annual_competition_practice_results above -- a teacher never
+# sees another teacher's students' data in this cohort average.
+@router.get("/competition/annual/practice-reports/level/{competition_level_code}")
+def teacher_get_annual_competition_practice_report_for_level(
+    competition_level_code: str, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)
+):
+    student_ids = [student.id for student in own_students_query(db, teacher).filter(Student.is_active == True).all()]
+    return GetAnnualCompetitionPracticeReportForLevel(
+        db, CompetitionLevelCode=competition_level_code, StudentIdsFilter=student_ids
     )
 
 
