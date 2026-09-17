@@ -142,7 +142,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
 from app.services.answer_matching import answers_match
-from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals
+from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals, RoundPercentageForDisplay
 from app.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
@@ -1692,8 +1692,8 @@ def GetCompetitionEventAttemptReviewForAdmin(db: Session, *, AttemptId: str) -> 
             {
                 "score": ResultRecord.score,
                 "maxScore": ResultRecord.max_score,
-                "percentage": ResultRecord.percentage,
-                "accuracyPercentage": ResultRecord.accuracy_percentage,
+                "percentage": RoundPercentageForDisplay(ResultRecord.percentage),
+                "accuracyPercentage": RoundPercentageForDisplay(ResultRecord.accuracy_percentage),
                 "correctCount": ResultRecord.correct_count,
                 "wrongCount": ResultRecord.wrong_count,
                 "unansweredCount": ResultRecord.unanswered_count,
@@ -1773,8 +1773,8 @@ def ListMyAnnualCompetitionPracticeAttempts(
                     {
                         "score": ResultRecord.score,
                         "maxScore": ResultRecord.max_score,
-                        "percentage": ResultRecord.percentage,
-                        "accuracyPercentage": ResultRecord.accuracy_percentage,
+                        "percentage": RoundPercentageForDisplay(ResultRecord.percentage),
+                        "accuracyPercentage": RoundPercentageForDisplay(ResultRecord.accuracy_percentage),
                         "correctCount": ResultRecord.correct_count,
                         "wrongCount": ResultRecord.wrong_count,
                         "unansweredCount": ResultRecord.unanswered_count,
@@ -1846,8 +1846,8 @@ def GetCompetitionEventAttemptReviewForStudent(db: Session, StudentRecord: Stude
         "result": {
             "score": ResultRecord.score,
             "maxScore": ResultRecord.max_score,
-            "percentage": ResultRecord.percentage,
-            "accuracyPercentage": ResultRecord.accuracy_percentage,
+            "percentage": RoundPercentageForDisplay(ResultRecord.percentage),
+            "accuracyPercentage": RoundPercentageForDisplay(ResultRecord.accuracy_percentage),
             "correctCount": ResultRecord.correct_count,
             "wrongCount": ResultRecord.wrong_count,
             "unansweredCount": ResultRecord.unanswered_count,
@@ -1919,8 +1919,8 @@ def GetCompetitionEventAttemptReviewForTeacher(db: Session, AttemptId: str, *, S
         "result": {
             "score": ResultRecord.score,
             "maxScore": ResultRecord.max_score,
-            "percentage": ResultRecord.percentage,
-            "accuracyPercentage": ResultRecord.accuracy_percentage,
+            "percentage": RoundPercentageForDisplay(ResultRecord.percentage),
+            "accuracyPercentage": RoundPercentageForDisplay(ResultRecord.accuracy_percentage),
             "correctCount": ResultRecord.correct_count,
             "wrongCount": ResultRecord.wrong_count,
             "unansweredCount": ResultRecord.unanswered_count,

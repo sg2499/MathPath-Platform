@@ -50,6 +50,7 @@ test_annual_competition_studio_service.py, not just eyeballed.
 from __future__ import annotations
 
 import logging
+import math
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
@@ -99,6 +100,31 @@ VALID_COMPETITION_LEVEL_CODES = {
     "IM-L1", "IM-L2", "IM-L3", "IM-L4",
     "MM-L1", "MM-L2",
 }
+
+
+def RoundPercentageForDisplay(Value: float | int | None) -> int | None:
+    """Whole-number display policy for every percentage/accuracy figure shown
+    on a competition attempt's review/scorecard, results list, or live
+    monitoring roster (Shailesh, 2026-09-17: "the percentages shown every
+    where should be following the round off logic and must show case whole
+    numbers only no decimals whatsoever, across all the 3 logins ... no
+    decimals at all for practice and official both the competition flows").
+
+    Standard round-half-up (5 rounds up), never Python's built-in round()
+    which rounds half-to-even and would silently disagree with that rule at
+    exact .5 boundaries -- same convention as
+    annual_competition_practice_report_service.py's own _RoundToInt (kept as
+    a separate, already-tested copy there rather than refactored to share
+    this one, to avoid touching that module's passing test suite). None
+    passes through unchanged: "no result yet" must never render as 0.
+
+    This only ever affects display-layer serialization -- the underlying
+    CompetitionEventResult.percentage/accuracy_percentage DB columns keep
+    their full stored precision, exactly like the practice-report fix.
+    """
+    if Value is None:
+        return None
+    return math.floor(Value + 0.5) if Value >= 0 else -math.floor(-Value + 0.5)
 
 # MM-L2 has no curriculum Level row of its own -- generating its paper
 # resolves Module/Level linkage through this real Level's row instead (see

@@ -433,7 +433,26 @@ def _ValidateMmAddLessVisual(Config: MMConfig, Operands: list[int | float | str]
                 return False
         return True
 
-    if len(Operands) < 3 or len(Operands) > 5:
+    # 2026-09-17 (Shailesh, teacher concern -- Annual Competition's
+    # MM-L1/MM-L2 "Decimal Add-Less (Visual)" pool): mirrors
+    # _DecimalVisualAddLessWholeDigitPlan's own opt-in maxWholeDigits/
+    # rowCountCap overrides (mm/operands.py) exactly, so this validator's
+    # expectations stay in sync with whatever that function actually
+    # generates. Every other caller (Config.GeneratorConfig never sets
+    # these keys) gets MaxWholeDigits=4/RowCountCap=None here too, so its
+    # checks below are byte-for-byte the same bounds as before this change.
+    MaxWholeDigits = 4
+    RowCountCap: int | None = None
+    if isinstance(Config.GeneratorConfig, dict):
+        ConfiguredMaxDigits = Config.GeneratorConfig.get("maxWholeDigits")
+        if ConfiguredMaxDigits:
+            MaxWholeDigits = max(2, min(4, int(ConfiguredMaxDigits)))
+        ConfiguredRowCap = Config.GeneratorConfig.get("rowCountCap")
+        if ConfiguredRowCap:
+            RowCountCap = max(2, int(ConfiguredRowCap))
+    MaxAllowedLen = RowCountCap if RowCountCap is not None else 5
+
+    if len(Operands) < 3 or len(Operands) > MaxAllowedLen:
         print("Failed visual decimal len")
         return False
 
@@ -442,21 +461,24 @@ def _ValidateMmAddLessVisual(Config: MMConfig, Operands: list[int | float | str]
         DecimalValue = abs(_DecimalValue(Value))
         WholePart = str(DecimalValue).split(".", 1)[0]
         WholeDigits = len(WholePart.lstrip("0")) if WholePart.lstrip("0") else 1
-        if WholeDigits < 2 or WholeDigits > 4:
+        if WholeDigits < 2 or WholeDigits > MaxWholeDigits:
             print(f"Failed visual decimal range: {DecimalValue}")
             return False
         WholeDigitsList.append(WholeDigits)
 
-    if all(Digits == 4 for Digits in WholeDigitsList):
-        if len(Operands) not in {3, 4}:
+    if all(Digits == MaxWholeDigits for Digits in WholeDigitsList):
+        AllowedAllSameLens = {Length for Length in (3, 4) if Length <= MaxAllowedLen}
+        if len(Operands) not in AllowedAllSameLens:
             print("Failed all-4-digit decimal visual len")
             return False
         return True
 
-    if len(Operands) != 5:
+    RequiredDigits = set(dict.fromkeys([min(2, MaxWholeDigits), min(3, MaxWholeDigits), MaxWholeDigits]))
+    EffectiveRowCount = max(MaxAllowedLen, len(RequiredDigits))
+    if len(Operands) != EffectiveRowCount:
         print("Failed mixed decimal visual len")
         return False
-    if not {2, 3, 4}.issubset(set(WholeDigitsList)):
+    if not RequiredDigits.issubset(set(WholeDigitsList)):
         print(f"Failed mixed decimal digit mix: {WholeDigitsList}")
         return False
     return True

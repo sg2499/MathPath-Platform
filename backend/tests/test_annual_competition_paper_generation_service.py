@@ -15,6 +15,7 @@ a bare active Level/Module row (no real curriculum seed) is enough to
 generate a real paper. This keeps these tests fast and self-contained.
 """
 
+import json
 from datetime import datetime, timezone
 
 import pytest
@@ -159,6 +160,103 @@ def test_im_l4_section1_borrowing_produces_genuine_mixed_answer_signs():
     assert len(section1_questions) == 50
     signs = {("-" in q.correct_answer) for q in section1_questions}
     assert signs == {True, False}  # both positive and negative answers present, not near-all-negative
+
+
+# ---------------------------------------------------------------------------
+# 2026-09-17 (Shailesh, relaying a teacher concern): "the abacus section and
+# visual section of add less [across IM & MM levels] are seemingly tough ...
+# ease it out ... still challenging but gettable." Regression guards for the
+# eased annual_competition_paper_registry.py pool settings + the new
+# mm/operands.py overrides (addLessRowCountOverride, maxWholeDigits,
+# rowCountCap) they rely on.
+# ---------------------------------------------------------------------------
+
+def _operand_digit_widths(question) -> list[int]:
+    Operands = json.loads(question.operands_json or "[]")
+    Widths: list[int] = []
+    for Operand in Operands:
+        WholePart = str(Operand).lstrip("-").split(".", 1)[0].lstrip("0")
+        Widths.append(len(WholePart) if WholePart else 1)
+    return Widths
+
+
+def test_im_l4_and_mm_borrowing_add_less_eased_to_4d_3r():
+    """IM-L4 Section 1 and MM-L1/MM-L2 Section 1 ("Add/Less 4D 3R (Abacus)
+    - Borrowing") used to force a 4-row stack (RowCount = max(4, RowCount))
+    -- addLessRowCountOverride=3 in the registry now eases this to 3 rows,
+    magnitude (4-digit) left untouched."""
+    for level_code, module_code, expected_section1_count in (("IM-L4", "IM", 50), ("MM-L1", "MM", 50)):
+        db = _session()
+        admin = _admin(db)
+        _module, level = _module_and_level(db, module_code, level_code, level_code)
+        db.commit()
+
+        payload = GenerateAnnualCompetitionLevelPaper(db, LevelId=level.id, CreatedBy=admin)
+        section1_questions = (
+            db.query(CompetitionMockQuestion)
+            .filter(CompetitionMockQuestion.mock_exam_id == payload["mockExamId"], CompetitionMockQuestion.section_number == 1)
+            .all()
+        )
+        assert len(section1_questions) == expected_section1_count
+        # Row count is what addLessRowCountOverride actually changed here --
+        # 4 rows down to 3. Magnitude is deliberately NOT asserted to a tight
+        # digit range: this pool's existing (unchanged by this fix) generator
+        # already scales some operands down from its 1000-9000 base
+        # (Minimum // 3, Maximum // 4, ...) and can clamp a forced-negative
+        # final subtraction up to 99999 when the running total demands it --
+        # both pre-existing behaviors this fix never touched.
+        for question in section1_questions:
+            Widths = _operand_digit_widths(question)
+            assert len(Widths) == 3, f"{level_code}: expected 3 rows, got {len(Widths)}"
+
+
+def test_mm_decimal_add_less_visual_eased_to_3_digit_4_rows():
+    """MM-L1/MM-L2's "Decimal Add-Less (Visual)" pool used to allow up to a
+    4-digit whole part across up to 5 rows -- maxWholeDigits=3/rowCountCap=4
+    in the registry now caps both, applied to MM-L1 (and, by the same
+    registry pool, MM-L2)."""
+    db = _session()
+    admin = _admin(db)
+    _module, level = _module_and_level(db, "MM", "MM-L1", "MM-L1")
+    db.commit()
+
+    payload = GenerateAnnualCompetitionLevelPaper(db, LevelId=level.id, CreatedBy=admin)
+    section2_questions = (
+        db.query(CompetitionMockQuestion)
+        .filter(CompetitionMockQuestion.mock_exam_id == payload["mockExamId"], CompetitionMockQuestion.section_number == 2)
+        .all()
+    )
+    assert len(section2_questions) > 0
+    for question in section2_questions:
+        Widths = _operand_digit_widths(question)
+        assert len(Widths) <= 4, f"expected at most 4 rows, got {len(Widths)}"
+        assert all(Width <= 3 for Width in Widths), f"expected at most 3-digit whole parts, got {Widths}"
+
+
+def test_im_l2_and_im_l3_add_less_pools_eased_to_2_digit_magnitude():
+    """IM-L2's Abacus pool used to range up to a 4-digit magnitude (31-3769)
+    -- and IM-L3's Abacus/Visual pools had no explicit override at all,
+    falling through to a 3-digit fallback -- both now cap at a 2-digit
+    (10-99) whole part."""
+    for level_code in ("IM-L2", "IM-L3"):
+        db = _session()
+        admin = _admin(db)
+        _module, level = _module_and_level(db, "IM", level_code, level_code)
+        db.commit()
+
+        payload = GenerateAnnualCompetitionLevelPaper(db, LevelId=level.id, CreatedBy=admin)
+        add_less_questions = (
+            db.query(CompetitionMockQuestion)
+            .filter(
+                CompetitionMockQuestion.mock_exam_id == payload["mockExamId"],
+                CompetitionMockQuestion.section_number.in_([1, 2]),
+            )
+            .all()
+        )
+        assert len(add_less_questions) > 0
+        for question in add_less_questions:
+            Widths = _operand_digit_widths(question)
+            assert all(Width <= 2 for Width in Widths), f"{level_code}: expected at most 2-digit magnitude, got {Widths}"
 
 
 def test_pm_l1_round_hundreds_narrow_diversity_does_not_break_generation():

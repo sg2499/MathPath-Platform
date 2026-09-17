@@ -696,3 +696,51 @@ def test_teacher_review_unknown_attempt_raises_404():
     with pytest.raises(HTTPException) as exc_info:
         attempt_engine.GetCompetitionEventAttemptReviewForTeacher(db, "does-not-exist", StudentIdsFilter=[student.id])
     assert exc_info.value.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Whole-number percentage display (Shailesh, 2026-09-17: "the percentages
+# shown every where should be following the round off logic and must show
+# case whole numbers only no decimals whatsoever, across all the 3 logins
+# for admin, teacher and student wherever applicable. no decimals at all for
+# practice and official both the competition flows"). 5 correct out of 7
+# gives a genuinely non-round 71.428571...% -- exactly the kind of value the
+# old 2-decimal display (71.43%) and the raw un-rounded frontend renders
+# were showing. Practice is used here (instantly released for all three
+# roles, no extra ReleaseCompetitionEventResults ceremony needed) to keep
+# the three assertions focused on the rounding itself, which is what
+# RoundPercentageForDisplay (annual_competition_studio_service.py) now
+# applies at every one of GetCompetitionEventAttemptReviewForAdmin/
+# ForStudent/ForTeacher's result-serialization sites -- OFFICIAL's own
+# _ResultPayload path (annual_competition_scoring_service.py, used by
+# GetCompetitionEventResultForStudent/ListCompetitionEventResultsForAdmin/
+# ListAnnualCompetitionPracticeResultsForAdmin) is covered by
+# test_annual_competition_scoring_service.py's own dedicated test instead,
+# so both flows' serialization points are exercised somewhere.
+# ---------------------------------------------------------------------------
+
+def test_review_accuracy_percentage_is_rounded_to_a_whole_number_across_all_three_logins():
+    db = _session()
+    student = _setup_student_with_practice_questions(db, "s1", section_seconds=(600,), questions_per_section=[7])
+    db.commit()
+
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    for n in range(1, 6):  # 5 correct
+        attempt_engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, f"practice-q-s1-1-{n}", "4")
+    for n in range(6, 8):  # 2 wrong
+        attempt_engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, f"practice-q-s1-1-{n}", "9")
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    admin_review = attempt_engine.GetCompetitionEventAttemptReviewForAdmin(db, AttemptId=attempt_id)
+    assert admin_review["result"]["correctCount"] == 5
+    assert admin_review["result"]["accuracyPercentage"] == 71
+    assert isinstance(admin_review["result"]["accuracyPercentage"], int)
+
+    student_review = attempt_engine.GetCompetitionEventAttemptReviewForStudent(db, student, attempt_id)
+    assert student_review["result"]["accuracyPercentage"] == 71
+    assert isinstance(student_review["result"]["accuracyPercentage"], int)
+
+    teacher_review = attempt_engine.GetCompetitionEventAttemptReviewForTeacher(db, attempt_id, StudentIdsFilter=[student.id])
+    assert teacher_review["result"]["accuracyPercentage"] == 71
+    assert isinstance(teacher_review["result"]["accuracyPercentage"], int)

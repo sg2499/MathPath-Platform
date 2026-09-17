@@ -78,7 +78,7 @@ from app.models import (
     User,
 )
 from app.services.annual_competition_attempt_service import HEARTBEAT_GRACE_SECONDS
-from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals
+from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals, RoundPercentageForDisplay
 
 LIVE_STATUS_NOT_STARTED = "NOT_STARTED"
 LIVE_STATUS_IN_PROGRESS = "IN_PROGRESS"
@@ -289,8 +289,8 @@ def _TeacherResultRow(db: Session, AssignmentRecord: CompetitionEventAssignment)
         "result": {
             "score": ResultRecord.score,
             "maxScore": ResultRecord.max_score,
-            "percentage": ResultRecord.percentage,
-            "accuracyPercentage": ResultRecord.accuracy_percentage,
+            "percentage": RoundPercentageForDisplay(ResultRecord.percentage),
+            "accuracyPercentage": RoundPercentageForDisplay(ResultRecord.accuracy_percentage),
             "correctCount": ResultRecord.correct_count,
             "wrongCount": ResultRecord.wrong_count,
             "unansweredCount": ResultRecord.unanswered_count,
@@ -434,8 +434,8 @@ def ListAnnualCompetitionPracticeResultsForRoster(
                     {
                         "score": ResultRecord.score,
                         "maxScore": ResultRecord.max_score,
-                        "percentage": ResultRecord.percentage,
-                        "accuracyPercentage": ResultRecord.accuracy_percentage,
+                        "percentage": RoundPercentageForDisplay(ResultRecord.percentage),
+                        "accuracyPercentage": RoundPercentageForDisplay(ResultRecord.accuracy_percentage),
                         "correctCount": ResultRecord.correct_count,
                         "wrongCount": ResultRecord.wrong_count,
                         "unansweredCount": ResultRecord.unanswered_count,
