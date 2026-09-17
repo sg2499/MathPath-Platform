@@ -153,6 +153,31 @@ def _GenerateYlmQuestion(Spec: dict[str, Any], Seed: str) -> dict[str, Any] | No
         lesson_number=int(Spec["lessonNumber"]), dps_number=0,
         question_count=1, seed=Seed,
     )
+    # 2026-09-17 (Shailesh, Bloomers/Beginners digit-mix fix): "the pattern
+    # should be a mix of single, double and single-double mixed sums but
+    # direct add/less only, the concept remains the same." YLM_LESSON_RULES
+    # only has two DIRECT_ADD_LESS lessons (1 = pure "1D", 2 = mixed
+    # "1D_AND_2D") -- there is no lesson anywhere in that shared, DPS-facing
+    # table offering a pure double-digit ("2D") DIRECT_ADD_LESS tier, and
+    # this module must never edit YLM_LESSON_RULES/YLM_DPS_DIGIT_PATTERN_
+    # OVERRIDES itself to add one (that table also drives DPS worksheet
+    # generation -- see annual_competition_paper_registry.py's own module
+    # docstring on why this file's registry is built deliberately separate
+    # from every shared, DPS/Assessment-facing table). Setting the new,
+    # opt-in YLMConfig.digit_pattern_override here -- rather than assigning
+    # Config.digit_pattern directly -- matters because generate_ylm_question_
+    # set() re-runs enrich_config_with_lesson_rule() internally on every
+    # call, which would silently overwrite a direct digit_pattern assignment
+    # right back to the chosen lesson's own default; digit_pattern_override
+    # is a separate field enrich_config_with_lesson_rule() re-applies after
+    # its own lookup on every one of those calls, so it survives. Still
+    # direct add/less, still the same operation focus/generation template
+    # (inherited from the chosen base lesson) -- only the operand width
+    # changes (see operands.py's _direct_bases(), which is driven by
+    # digit_pattern alone).
+    DigitPatternOverride = Spec.get("digitPatternOverride")
+    if DigitPatternOverride:
+        Config.digit_pattern_override = str(DigitPatternOverride)
     Config = enrich_config_with_lesson_rule(Config)
     Questions = generate_ylm_question_set(Config)
     return Questions[0] if Questions else None

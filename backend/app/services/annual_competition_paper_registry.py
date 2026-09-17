@@ -85,6 +85,30 @@ def _Tagged(Entries: list[dict[str, Any]], GeneratorFamily: str) -> list[dict[st
 _YLM_L1_DIRECT_POOL: list[dict[str, Any]] = [
     {"generatorFamily": "YLM", "title": "Direct Add-Less (Bead Recognition & Single Digit)", "lessonNumber": 1},
     {"generatorFamily": "YLM", "title": "Direct Add-Less (Bead Recognition Number 5, Mixed Digit)", "lessonNumber": 2},
+    # 2026-09-17 (Shailesh, Bloomers/Beginners digit-mix fix): "most of the
+    # sums are single digit direct addition ... we need to have a mix of
+    # both single, double and single-double mixed sums but direct add/less
+    # only, the concept remains the same." Before this entry, the 50
+    # questions split only 25/25 between pure single-digit (lessonNumber 1)
+    # and single-and-double mixed (lessonNumber 2) -- no pure double-digit
+    # tier existed, so roughly half the paper never went past single
+    # digits. This third entry reuses lessonNumber 1's own DIRECT_ADD_LESS/
+    # ADD_LESS/DIRECT-template base (the only two lessons in
+    # YLM_LESSON_RULES that are DIRECT_ADD_LESS at all -- see
+    # annual_competition_paper_generation_service.py's _GenerateYlmQuestion
+    # for why lessonNumber 2 would work identically here: only digit_pattern
+    # feeds the DIRECT template) and overrides just the digit pattern to
+    # "2D" (operands.py's _direct_bases(): range(10, 100)) via the new,
+    # opt-in digitPatternOverride key -- still direct add/less, still the
+    # exact same concept, only the operand width changes. With 3 pool
+    # entries, 50 questions now split ~17/17/16 across pure single-digit,
+    # mixed single-double, and pure double-digit. Applies to both YLM-L0
+    # (Bloomers) and YLM-L1 (Beginners) automatically, since both share this
+    # exact pool object -- and to both OFFICIAL and PRACTICE generation,
+    # since GenerateAnnualCompetitionLevelPaper reads this same registry
+    # entry for either scope, with no official/practice branching in what
+    # content gets selected.
+    {"generatorFamily": "YLM", "title": "Direct Add-Less (Double Digit)", "lessonNumber": 1, "digitPatternOverride": "2D"},
 ]
 
 # ---------------------------------------------------------------------------
