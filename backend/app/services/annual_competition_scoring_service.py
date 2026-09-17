@@ -78,6 +78,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
+from app.services.annual_competition_attempt_service import _ReconcileSingleAttemptIfAbandoned
 from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals, RoundPercentageForDisplay
 from app.models import (
     CompetitionEvent,
@@ -887,6 +888,20 @@ def ListAnnualCompetitionPracticeResultsForAdmin(
         .filter(CompetitionEventAttempt.level_paper_id.in_(PaperIds), CompetitionEventAttempt.attempt_type == "PRACTICE")
         .all()
     }
+
+    # 2026-09-17 (Shailesh: "never ever anywhere"): same self-heal as
+    # ListAnnualCompetitionPracticeResultsForRoster's own (teacher-facing)
+    # equivalent -- an abandoned practice attempt's remaining section time
+    # never organically reaches zero without heartbeats, so without this an
+    # abandoned attempt would show as a plain NOT_STARTED-looking paper
+    # forever on this admin surface too.
+    ReconciledAny = False
+    for AttemptRecord in AttemptsByLevelPaperId.values():
+        if _ReconcileSingleAttemptIfAbandoned(db, AttemptRecord, _NowUtc()):
+            ReconciledAny = True
+    if ReconciledAny:
+        db.commit()
+
     AttemptIds = [AttemptRecord.id for AttemptRecord in AttemptsByLevelPaperId.values()]
     ResultsByAttemptId = (
         {

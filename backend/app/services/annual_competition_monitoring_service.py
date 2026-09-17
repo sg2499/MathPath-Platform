@@ -77,7 +77,10 @@ from app.models import (
     Student,
     User,
 )
-from app.services.annual_competition_attempt_service import HEARTBEAT_GRACE_SECONDS
+from app.services.annual_competition_attempt_service import (
+    HEARTBEAT_GRACE_SECONDS,
+    _ReconcileSingleAttemptIfAbandoned,
+)
 from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals, RoundPercentageForDisplay
 
 LIVE_STATUS_NOT_STARTED = "NOT_STARTED"
@@ -266,6 +269,16 @@ def _TeacherResultRow(db: Session, AssignmentRecord: CompetitionEventAssignment)
     UserRecord = db.get(User, StudentRecord.user_id) if StudentRecord.user_id else None
     AttemptRecord = _LatestAttemptForAssignment(db, AssignmentRecord)
 
+    # 2026-09-17 (Shailesh: "never ever anywhere"): this is a *results*
+    # roster (unlike GetAnnualCompetitionLiveMonitoring's live status board,
+    # which deliberately leaves a paused attempt visibly IN_PROGRESS/paused
+    # rather than silently finalizing it out from under a live view) -- so a
+    # genuinely abandoned attempt should self-heal here too, the same as the
+    # single-attempt review endpoints, rather than sitting "released: False"
+    # until someone happens to press the manual reconcile button.
+    if AttemptRecord and _ReconcileSingleAttemptIfAbandoned(db, AttemptRecord, _NowUtc()):
+        db.commit()
+
     BaseRow = {
         "assignmentId": AssignmentRecord.id,
         "studentId": StudentRecord.id,
@@ -389,6 +402,19 @@ def ListAnnualCompetitionPracticeResultsForRoster(
         .filter(CompetitionEventAttempt.level_paper_id.in_(PaperIds), CompetitionEventAttempt.attempt_type == "PRACTICE")
         .all()
     }
+    # 2026-09-17 (Shailesh: "never ever anywhere"): same self-heal as
+    # _TeacherResultRow above -- a practice attempt abandoned mid-section
+    # never organically times out on its own (heartbeat-gap detection, not
+    # a pure wall-clock expiry), so without this an abandoned practice
+    # attempt would show as a plain NOT_STARTED-looking row forever instead
+    # of the real (if late) result.
+    ReconciledAny = False
+    for AttemptRecord in AttemptsByLevelPaperId.values():
+        if _ReconcileSingleAttemptIfAbandoned(db, AttemptRecord, _NowUtc()):
+            ReconciledAny = True
+    if ReconciledAny:
+        db.commit()
+
     AttemptIds = [AttemptRecord.id for AttemptRecord in AttemptsByLevelPaperId.values()]
     ResultsByAttemptId = (
         {

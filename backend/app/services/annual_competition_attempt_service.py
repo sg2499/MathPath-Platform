@@ -1393,13 +1393,67 @@ def GetAnnualCompetitionPracticeInstructions(db: Session, StudentRecord: Student
     }
 
 
+def _ReconcileSingleAttemptIfAbandoned(db: Session, AttemptRecord: CompetitionEventAttempt, NowUtc: datetime) -> bool:
+    """The single-attempt core of ReconcileExpiredCompetitionEventAttempts
+    below, extracted 2026-09-17 (Shailesh: "make sure it does not happen
+    across any flow ... never ever anywhere") so every place that reads one
+    specific attempt for display -- not just the admin-triggered bulk sweep
+    -- can self-heal it first. Returns True if this attempt was actually
+    force-closed just now.
+
+    Why this exists, precisely: unlike DPS/Assessment/Competition Mock
+    (whole-attempt wall-clock timers, where "expired" is a pure function of
+    now() and a stored expires_at), an Annual Competition section's
+    remaining time only ever moves in response to an actual heartbeat (see
+    module docstring) -- so simply calling _EnsureActiveSectionOrAdvance()
+    from a read path is NOT enough to catch a genuinely abandoned attempt,
+    because remaining_seconds_at_last_heartbeat never organically reaches
+    zero on its own once heartbeats stop. Detecting "abandoned" requires
+    this exact heartbeat-gap-vs-now comparison, which is why it has to be
+    a real reconciliation step, not just the lazy per-section check.
+
+    Only ever acts on an attempt that is IN_PROGRESS *and* currently paused
+    (no heartbeat within the grace window right now); an attempt receiving
+    live heartbeats this instant is left untouched -- exactly the same
+    guard the bulk sweep already relied on. Naturally idempotent: a second
+    call on an already-reconciled (no longer IN_PROGRESS) attempt is a
+    single cheap status check and returns False immediately.
+    """
+    if AttemptRecord.status != IN_PROGRESS_STATUS:
+        return False
+
+    ActiveSectionState = _ActiveSection(db, AttemptRecord)
+    if not ActiveSectionState:
+        # Defensive: an IN_PROGRESS attempt with no ACTIVE section is a data
+        # oddity (e.g. a prior partial write). The standard lazy check
+        # self-heals it from whatever is stored, same as every other entry
+        # point.
+        _EnsureActiveSectionOrAdvance(db, AttemptRecord, NowUtc)
+        return AttemptRecord.status != IN_PROGRESS_STATUS
+
+    LastHeartbeatAt = _Aware(ActiveSectionState.last_heartbeat_at) or _Aware(ActiveSectionState.started_at)
+    GapSeconds = (NowUtc - LastHeartbeatAt).total_seconds() if LastHeartbeatAt else None
+    IsCurrentlyPaused = GapSeconds is None or GapSeconds > HEARTBEAT_GRACE_SECONDS
+    if not IsCurrentlyPaused:
+        return False  # actively heartbeating right now -- not this check's job
+
+    # Force-close this section and cascade through any remaining ones -- an
+    # attempt abandoned mid-way should end up fully SUBMITTED, not left
+    # half-advanced with yet another immediately-paused active section.
+    _AdvanceOrFinalize(db, AttemptRecord, ActiveSectionState, NowUtc, Auto=True)
+    while AttemptRecord.status == IN_PROGRESS_STATUS:
+        NextActiveSectionState = _ActiveSection(db, AttemptRecord)
+        if not NextActiveSectionState:
+            break
+        _AdvanceOrFinalize(db, AttemptRecord, NextActiveSectionState, NowUtc, Auto=True)
+
+    return True
+
+
 def ReconcileExpiredCompetitionEventAttempts(db: Session, *, EventId: str) -> dict[str, Any]:
-    """Admin-triggered safety net -- see module docstring. Only ever acts
-    on an attempt that is IN_PROGRESS *and* currently paused (no heartbeat
-    within the grace window right now); an attempt receiving live
-    heartbeats this instant is left alone. Naturally idempotent: a second
-    run finds nothing left to do, since reconciled attempts are no longer
-    IN_PROGRESS.
+    """Admin-triggered safety net -- see module docstring. Naturally
+    idempotent: a second run finds nothing left to do, since reconciled
+    attempts are no longer IN_PROGRESS.
 
     2026-09-10 (Shailesh): scoped to a single event -- this is triggered
     from one specific event's page in the admin Studio, so it must only
@@ -1417,36 +1471,9 @@ def ReconcileExpiredCompetitionEventAttempts(db: Session, *, EventId: str) -> di
         .all()
     )
 
-    ReconciledAttemptIds: list[str] = []
-
-    for AttemptRecord in Attempts:
-        ActiveSectionState = _ActiveSection(db, AttemptRecord)
-        if not ActiveSectionState:
-            # Defensive: an IN_PROGRESS attempt with no ACTIVE section is a
-            # data oddity (e.g. a prior partial write). The standard lazy
-            # check self-heals it from whatever is stored, same as every
-            # other entry point.
-            _EnsureActiveSectionOrAdvance(db, AttemptRecord, NowUtc)
-            continue
-
-        LastHeartbeatAt = _Aware(ActiveSectionState.last_heartbeat_at) or _Aware(ActiveSectionState.started_at)
-        GapSeconds = (NowUtc - LastHeartbeatAt).total_seconds() if LastHeartbeatAt else None
-        IsCurrentlyPaused = GapSeconds is None or GapSeconds > HEARTBEAT_GRACE_SECONDS
-        if not IsCurrentlyPaused:
-            continue  # actively heartbeating right now -- not this sweep's job
-
-        # Force-close this section and cascade through any remaining ones
-        # -- an attempt abandoned mid-way should end up fully SUBMITTED,
-        # not left half-advanced with yet another immediately-paused
-        # active section.
-        _AdvanceOrFinalize(db, AttemptRecord, ActiveSectionState, NowUtc, Auto=True)
-        while AttemptRecord.status == IN_PROGRESS_STATUS:
-            NextActiveSectionState = _ActiveSection(db, AttemptRecord)
-            if not NextActiveSectionState:
-                break
-            _AdvanceOrFinalize(db, AttemptRecord, NextActiveSectionState, NowUtc, Auto=True)
-
-        ReconciledAttemptIds.append(AttemptRecord.id)
+    ReconciledAttemptIds: list[str] = [
+        AttemptRecord.id for AttemptRecord in Attempts if _ReconcileSingleAttemptIfAbandoned(db, AttemptRecord, NowUtc)
+    ]
 
     db.commit()
     return {"reconciledCount": len(ReconciledAttemptIds), "attemptIds": ReconciledAttemptIds}
@@ -1643,6 +1670,18 @@ def GetCompetitionEventAttemptReviewForAdmin(db: Session, *, AttemptId: str) -> 
     if not AttemptRecord:
         api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition attempt not found.")
 
+    # 2026-09-17 (Shailesh: "never ever anywhere"): an attempt abandoned
+    # mid-section (tab closed, connection dropped) never organically reaches
+    # zero remaining time on its own -- see _ReconcileSingleAttemptIfAbandoned's
+    # own docstring for why this is a heartbeat-gap check, not just the lazy
+    # per-section one. Without this, an admin opening this exact review page
+    # for a genuinely-abandoned attempt would see a still-IN_PROGRESS
+    # attempt with no result yet, indistinguishable from one a student is
+    # right now actively taking -- self-heals on the very first read instead
+    # of waiting for someone to notice and press the manual reconcile button.
+    if _ReconcileSingleAttemptIfAbandoned(db, AttemptRecord, _NowUtc()):
+        db.commit()
+
     # 2026-09-12 (Shailesh, decoupling): a PRACTICE attempt's event_id is now
     # always None -- db.get() with a None pk both warns and is meaningless,
     # so skip the lookup entirely rather than pass None through.
@@ -1810,6 +1849,16 @@ def GetCompetitionEventAttemptReviewForStudent(db: Session, StudentRecord: Stude
     if not AttemptRecord or AttemptRecord.student_id != StudentRecord.id:
         api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition attempt not found.")
 
+    # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal a genuinely
+    # abandoned attempt (tab closed mid-section, no heartbeats since) the
+    # moment the student themselves looks at it -- see
+    # _ReconcileSingleAttemptIfAbandoned's docstring. Without this, an
+    # abandoned attempt with nothing else left to touch it would sit
+    # "not released" forever; this is the one place a student can always be
+    # trusted to eventually look, same as DPS's own get_attempt_for_student.
+    if _ReconcileSingleAttemptIfAbandoned(db, AttemptRecord, _NowUtc()):
+        db.commit()
+
     ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).first()
     # A voided result is reported exactly like an unreleased one -- same
     # "never hint that anything unusual happened" reasoning
@@ -1881,6 +1930,12 @@ def GetCompetitionEventAttemptReviewForTeacher(db: Session, AttemptId: str, *, S
     AttemptRecord = db.get(CompetitionEventAttempt, AttemptId)
     if not AttemptRecord or AttemptRecord.student_id not in StudentIdsFilter:
         api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition attempt not found.")
+
+    # 2026-09-17 (Shailesh: "never ever anywhere"): same self-heal as the
+    # admin and student review functions above -- see
+    # _ReconcileSingleAttemptIfAbandoned's docstring.
+    if _ReconcileSingleAttemptIfAbandoned(db, AttemptRecord, _NowUtc()):
+        db.commit()
 
     ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).first()
     if not ResultRecord or not ResultRecord.is_released or ResultRecord.is_voided:
