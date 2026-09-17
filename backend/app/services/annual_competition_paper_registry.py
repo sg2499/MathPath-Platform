@@ -178,15 +178,29 @@ _IM_L1_DIVISION_POOL: list[dict[str, Any]] = [
 # ---------------------------------------------------------------------------
 # Level 7 -> IM-L2
 # ---------------------------------------------------------------------------
+# 2026-09-17 (Shailesh, relaying a teacher concern: "the abacus section and
+# visual section of add less are seemingly tough ... get the difficulty
+# level a little eased out either by reducing the number of digits or by
+# reducing the number of rows ... 2 or 3 digits including the decimal in IM
+# levels" -- "ease it, but keep it a real challenge, not impossible").
+# IM-L2's Abacus pool used to range up to a 4-digit magnitude (31-3769) plus
+# 2 decimal places on a 4-row sum -- by far the toughest entry in the whole
+# IM/MM Add/Less set. Every entry here is now capped to a 2-digit whole
+# part (10-99) + 2dp, fixed at 4 rows, matching the teacher's "2-3 digits
+# including the decimal" guidance while staying meaningfully harder than
+# IM-L1's own Abacus pool (which stays untouched -- already light).
 _IM_L2_DECIMAL_ADD_LESS_ABACUS_POOL: list[dict[str, Any]] = [
-    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Abacus)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 10, "magnitudeMax": 246},
-    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Abacus)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 6, "magnitudeMin": 10, "magnitudeMax": 89},
-    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Abacus)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 31, "magnitudeMax": 3769},
+    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Abacus)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 10, "magnitudeMax": 99},
+    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Abacus)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 10, "magnitudeMax": 89},
+    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Abacus)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 15, "magnitudeMax": 99},
 ]
+# Visual pool was already lighter (magnitude never exceeded 2 digits) --
+# only the row count needed easing, from up to 6 rows down to a 4-row cap,
+# same "ease but keep it a real challenge" instruction.
 _IM_L2_DECIMAL_ADD_LESS_VISUAL_POOL: list[dict[str, Any]] = [
     {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 1, "magnitudeMax": 9},
-    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 6, "magnitudeMin": 10, "magnitudeMax": 90},
-    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 6, "magnitudeMin": 0, "magnitudeMax": 4},
+    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 10, "magnitudeMax": 90},
+    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 0, "magnitudeMax": 4},
 ]
 _IM_L2_MULTIPLICATION_POOL: list[dict[str, Any]] = [
     {"generatorFamily": "IM", "title": "2D x 1D Multiplication", "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "multiplicationDigits": (2, 1)},
@@ -202,11 +216,20 @@ _IM_L2_DIVISION_POOL: list[dict[str, Any]] = [
 # ---------------------------------------------------------------------------
 # Level 8 -> IM-L3
 # ---------------------------------------------------------------------------
+# 2026-09-17 (Shailesh, teacher concern -- see IM-L2 Abacus pool's own
+# comment above for the full instruction). These two pools used to carry NO
+# explicit rowCount/magnitude overrides at all, so both fell through to
+# im/operands.py's _AddLessRowPlan generic decimal fallback -- 4 rows,
+# magnitude 10-999 (up to a 3-digit whole part) plus 2 decimal places.
+# Given explicit overrides here now, same target as IM-L2's own Abacus fix:
+# 2-digit whole part (10-99) + 2dp, 4 rows.
 _IM_L3_DECIMAL_ADD_LESS_ABACUS_POOL: list[dict[str, Any]] = [
-    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Abacus)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2},
+    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Abacus)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 10, "magnitudeMax": 99},
 ]
 _IM_L3_DECIMAL_ADD_LESS_VISUAL_POOL: list[dict[str, Any]] = [
-    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2},
+    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 10, "magnitudeMax": 99},
+    # Already within the eased target (2-digit magnitude, 3 rows) -- left
+    # unchanged.
     {"generatorFamily": "IM", "title": "Add/Less Sums (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 3, "magnitudeMin": 1, "magnitudeMax": 99},
 ]
 _IM_L3_MULTIPLICATION_POOL: list[dict[str, Any]] = [
@@ -253,13 +276,30 @@ _IM_L3_SQUARES_POOL: list[dict[str, Any]] = [
 # not excess difficulty layered on top of it. Lowering the stage here would
 # shrink the row/digit count below the gist's literal "4D 4R" spec, not just
 # soften the numbers within it. Flagging this rather than changing it.
+#
+# 2026-09-17 UPDATE (Shailesh, relaying a teacher concern): "the abacus
+# section ... of add less [is] seemingly tough ... ease it out ... either by
+# reducing the number of digits or by reducing the number of rows ... still
+# challenging but gettable." This supersedes (does not contradict) the
+# 2026-09-11 note above -- that note was about not accidentally drifting
+# away from the gist's literal spec via an unrelated lever (mmStagingQuestion
+# Number/mmLessonNumber); this is a deliberate, explicitly-approved ease of
+# that same spec in response to real classroom feedback. Kept the 4-digit
+# magnitude (mmStagingQuestionNumber=9 / Band 1 untouched -- still the exact
+# mechanism that produces "4D") and dropped one row instead, via the new,
+# opt-in addLessRowCountOverride (mm/operands.py's _BuildBorrowingAddLess --
+# every other MM caller is unaffected since it never sets this key). Title
+# updated from "4D 4R" to "4D 3R" so it stays accurate to what's generated.
 # ---------------------------------------------------------------------------
 _IM_L4_ADD_LESS_BORROWING_POOL: list[dict[str, Any]] = [
-    {"generatorFamily": "MM", "title": "Add/Less 4D 4R (Abacus) - Borrowing, Positive/Negative Answers", "conceptFamily": "ADD_LESS", "borrowingMode": "MIXED_POSITIVE_NEGATIVE", "mmStagingQuestionNumber": 9},
+    {"generatorFamily": "MM", "title": "Add/Less 4D 3R (Abacus) - Borrowing, Positive/Negative Answers", "conceptFamily": "ADD_LESS", "borrowingMode": "MIXED_POSITIVE_NEGATIVE", "mmStagingQuestionNumber": 9, "addLessRowCountOverride": 3},
 ]
+# 2026-09-17 (Shailesh, teacher concern -- see IM-L4 Abacus pool's own
+# comment above for the full instruction): row count eased from 6 down to
+# 4, magnitude left untouched (already light -- 1 or 2 digits).
 _IM_L4_DECIMAL_ADD_LESS_POOL: list[dict[str, Any]] = [
-    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 6, "magnitudeMin": 0, "magnitudeMax": 1},
-    {"generatorFamily": "IM", "title": "Add/Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 6, "magnitudeMin": 10, "magnitudeMax": 90},
+    {"generatorFamily": "IM", "title": "Decimal Number Add/Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 0, "magnitudeMax": 1},
+    {"generatorFamily": "IM", "title": "Add/Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "isDecimal": True, "decimalPlaces": 2, "rowCount": 4, "magnitudeMin": 10, "magnitudeMax": 90},
 ]
 _IM_L4_MULTIPLICATION_POOL: list[dict[str, Any]] = [
     {"generatorFamily": "IM", "title": "3D x 2D Multiplication", "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "multiplicationDigits": (3, 2)},
@@ -286,12 +326,25 @@ _IM_L4_PERCENTAGE_POOL: list[dict[str, Any]] = [
 # _IM_L4_ADD_LESS_BORROWING_POOL above applies here: mmStagingQuestionNumber
 # =9 at the default Band-1 LessonNumber is what produces this pool's own
 # "4D 4R" title, not incidental difficulty.
+#
+# 2026-09-17 UPDATE (Shailesh, same teacher concern and same fix as
+# _IM_L4_ADD_LESS_BORROWING_POOL above -- see that pool's own comment for
+# the full rationale): row count eased from 4 to 3 via addLessRowCountOverride,
+# 4-digit magnitude untouched, title updated to "4D 3R" to match.
 # ---------------------------------------------------------------------------
 _MM_ADD_LESS_BORROWING_POOL: list[dict[str, Any]] = [
-    {"generatorFamily": "MM", "title": "Add/Less 4D 4R (Abacus) - Borrowing, Positive/Negative Answers", "conceptFamily": "ADD_LESS", "borrowingMode": "MIXED_POSITIVE_NEGATIVE", "mmStagingQuestionNumber": 9},
+    {"generatorFamily": "MM", "title": "Add/Less 4D 3R (Abacus) - Borrowing, Positive/Negative Answers", "conceptFamily": "ADD_LESS", "borrowingMode": "MIXED_POSITIVE_NEGATIVE", "mmStagingQuestionNumber": 9, "addLessRowCountOverride": 3},
 ]
+# 2026-09-17 (Shailesh, teacher concern -- see above): this was the single
+# toughest Add/Less spot in the whole IM/MM set -- _DecimalVisualAddLessWholeDigitPlan
+# (mm/operands.py) randomly produces either 3-4 rows all at 4 digits, or 5
+# rows mixing 2/3/4-digit values, each with 2 decimal places, with no
+# override hook at all. maxWholeDigits/rowCountCap (new, opt-in
+# GeneratorConfig keys, mm/operands.py) cap that plan to 2-3 digit values
+# and 4 rows -- every other MM caller of this decimal-visual path (which
+# never sets these keys) is unaffected.
 _MM_DECIMAL_ADD_LESS_POOL: list[dict[str, Any]] = [
-    {"generatorFamily": "MM", "title": "Decimal Add-Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS"},
+    {"generatorFamily": "MM", "title": "Decimal Add-Less (Visual)", "conceptFamily": "DECIMAL_ADD_LESS", "maxWholeDigits": 3, "rowCountCap": 4},
 ]
 _MM_MULTIPLICATION_POOL: list[dict[str, Any]] = [
     {"generatorFamily": "MM", "title": "3D x 2D Multiplication", "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "multiplicationDigits": (3, 2)},

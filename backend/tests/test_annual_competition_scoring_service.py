@@ -805,6 +805,39 @@ def test_admin_always_sees_result_regardless_of_release():
     assert listing["rows"][0]["correctCount"] == 1
 
 
+def test_result_payload_rounds_accuracy_percentage_to_a_whole_number():
+    """Shailesh, 2026-09-17: "the percentages shown every where should be
+    following the round off logic and must show case whole numbers only no
+    decimals whatsoever ... no decimals at all for practice and official
+    both the competition flows." _ResultPayload (this module) is the shared
+    serialization point behind ListCompetitionEventResultsForAdmin,
+    GetCompetitionEventResultForStudent, VoidCompetitionEventResult/
+    UnvoidCompetitionEventResult, and ListAnnualCompetitionPracticeResultsForAdmin
+    -- one fix (RoundPercentageForDisplay, annual_competition_studio_service.py)
+    covers all of them. 5 correct out of 7 gives a genuinely non-round
+    71.428571...% -- exactly the kind of value the old raw/2-decimal display
+    was showing."""
+    db = _session()
+    event = _event(db)
+    admin = _admin(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[7])
+    db.commit()
+    attempt_id = _submit_full_attempt(
+        db, student, event.id,
+        {"q-1-1": True, "q-1-2": True, "q-1-3": True, "q-1-4": True, "q-1-5": True, "q-1-6": False, "q-1-7": False},
+    )
+
+    listing = scoring.ListCompetitionEventResultsForAdmin(db, EventId=event.id)
+    assert listing["rows"][0]["correctCount"] == 5
+    assert listing["rows"][0]["accuracyPercentage"] == 71
+    assert isinstance(listing["rows"][0]["accuracyPercentage"], int)
+
+    scoring.ReleaseCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode="PM-L2", ReleasedBy=admin)
+    student_payload = scoring.GetCompetitionEventResultForStudent(db, student, attempt_id)
+    assert student_payload["result"]["accuracyPercentage"] == 71
+    assert isinstance(student_payload["result"]["accuracyPercentage"], int)
+
+
 def test_release_scoped_to_one_level_does_not_release_another():
     db = _session()
     event = _event(db)

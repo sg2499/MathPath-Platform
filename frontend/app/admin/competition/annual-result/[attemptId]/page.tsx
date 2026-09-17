@@ -49,9 +49,19 @@ function FormatDurationSeconds(Value: number | null | undefined): string {
   return `${Seconds} Sec${Seconds !== 1 ? "s" : ""}`;
 }
 
+// 2026-09-17 (Shailesh): "the percentages shown every where should be
+// following the round off logic and must show case whole numbers only no
+// decimals whatsoever ... no decimals at all for practice and official both
+// the competition flows." This used to round to 2 decimal places
+// (Math.round(x * 100) / 100, e.g. 71.43) -- now rounds to a whole number,
+// same convention as the backend's RoundPercentageForDisplay
+// (annual_competition_studio_service.py), which already rounds every
+// percentage/accuracy value this page receives before it even reaches here;
+// this stays as a defensive second layer, same pattern as the Practice
+// Reports fix.
 function FormatNumber(Value: number | null | undefined): string {
   if (Value === null || Value === undefined || Number.isNaN(Number(Value))) return "-";
-  return String(Math.round(Number(Value) * 100) / 100);
+  return String(Math.round(Number(Value)));
 }
 
 function FormatDateTime(Value: string | null | undefined): string {
@@ -335,7 +345,7 @@ function ScorecardTab({ Review }: { Review: AnnualCompetitionAttemptReview }) {
             </div>
           </div>
           <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-            Accuracy = Correct ÷ Attempted = {ResultForBreakdown.correctCount}/{AttemptedCountForBreakdown} = {ResultForBreakdown.accuracyPercentage}%
+            Accuracy = Correct ÷ Attempted = {ResultForBreakdown.correctCount}/{AttemptedCountForBreakdown} = {FormatNumber(ResultForBreakdown.accuracyPercentage)}%
           </p>
         </div>
       ) : null}

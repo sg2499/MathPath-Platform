@@ -152,12 +152,55 @@ def _RandDecimalWithWholeDigitWindow(
     return Decimal(Raw) / Decimal(Scale)
 
 
-def _DecimalVisualAddLessWholeDigitPlan(Rng: random.Random) -> list[int]:
+def _DecimalVisualAddLessWholeDigitPlan(Rng: random.Random, Config: "MMConfig | None" = None) -> list[int]:
+    """2026-09-17 (Shailesh, teacher concern -- Annual Competition's
+    MM-L1/MM-L2 "Decimal Add-Less (Visual)" pool, annual_competition_paper_
+    registry.py's _MM_DECIMAL_ADD_LESS_POOL): "ease it out ... still
+    challenging but gettable." This plan used to be unconditionally either
+    3-4 rows all at 4 digits, or 5 rows mixing 2/3/4-digit values -- the
+    single toughest Add/Less spot in the whole IM/MM set, and had no
+    override hook at all. GeneratorConfig["maxWholeDigits"] (caps every
+    row's whole-number digit width) and ["rowCountCap"] (caps row count) are
+    new, opt-in overrides -- every other MM caller of this decimal-visual
+    path (which never sets these keys) gets MaxWholeDigits=4/no row cap,
+    the exact same values and even the exact same random-call sequence as
+    before this change, so its output is provably unchanged.
+    """
+    MaxWholeDigits = 4
+    RowCountCap: int | None = None
+    if Config is not None and isinstance(Config.GeneratorConfig, dict):
+        ConfiguredMaxDigits = Config.GeneratorConfig.get("maxWholeDigits")
+        if ConfiguredMaxDigits:
+            MaxWholeDigits = max(2, min(4, int(ConfiguredMaxDigits)))
+        ConfiguredRowCap = Config.GeneratorConfig.get("rowCountCap")
+        if ConfiguredRowCap:
+            RowCountCap = max(2, int(ConfiguredRowCap))
+
     if Rng.choice([True, False]):
         RowCount = Rng.choice([3, 4])
-        return [4] * RowCount
+        if RowCountCap is not None:
+            RowCount = min(RowCount, RowCountCap)
+        return [MaxWholeDigits] * RowCount
 
-    Digits = [2, 3, 4, Rng.choice([2, 3, 4]), Rng.choice([2, 3, 4])]
+    # Built to land on the target length directly (RequiredDigits padded up
+    # to EffectiveRowCount, then shuffled) rather than building a fixed
+    # 5-item list and truncating it afterwards -- truncating a post-shuffle
+    # list can randomly drop the one guaranteed occurrence of a required
+    # digit width (e.g. the single "2"), which would silently make a capped
+    # row count fail _ValidateMmAddLessVisual's own required-digit-mix
+    # check more often than not. With MaxWholeDigits=4/RowCountCap=None
+    # (every existing caller), RequiredDigits is exactly [2, 3, 4] and
+    # EffectiveRowCount is exactly 5, so this produces the identical value
+    # and even the identical random-call sequence (two Rng.choice calls
+    # building the list, then one Rng.shuffle) as the original
+    # [2, 3, 4, Rng.choice(...), Rng.choice(...)] + shuffle -- provably
+    # unchanged for every caller that doesn't set these new overrides.
+    DigitChoices = [Digit for Digit in (2, 3, 4) if Digit <= MaxWholeDigits] or [MaxWholeDigits]
+    RequiredDigits = list(dict.fromkeys([min(2, MaxWholeDigits), min(3, MaxWholeDigits), MaxWholeDigits]))
+    EffectiveRowCount = max(RowCountCap if RowCountCap is not None else 5, len(RequiredDigits))
+    Digits = list(RequiredDigits)
+    while len(Digits) < EffectiveRowCount:
+        Digits.append(Rng.choice(DigitChoices))
     Rng.shuffle(Digits)
     return Digits
 
@@ -294,9 +337,29 @@ def _BuildBorrowingAddLess(
     Places = _AddLessDecimalPlaces(Config, Stage)
     Minimum, Maximum = _ScaleRangeByLesson(*_NumberRange(Stage), Config)
     RowCount = _AddLessRowCount(Config, Stage)
+    # 2026-09-17 (Shailesh, relaying a teacher concern about the Annual
+    # Competition's "Add/Less 4D 4R (Abacus) - Borrowing" pools specifically
+    # -- IM-L4 and MM-L1/MM-L2's shared _IM_L4_ADD_LESS_BORROWING_POOL /
+    # _MM_ADD_LESS_BORROWING_POOL in annual_competition_paper_registry.py:
+    # "ease it out ... either by reducing the number of digits or by
+    # reducing the number of rows ... still challenging but gettable."
+    # Opt-in only via GeneratorConfig["addLessRowCountOverride"] -- every
+    # other MM DPS/lesson/assessment caller of this borrowing path (which
+    # never sets this key) keeps today's row count completely unchanged.
+    # Row count was chosen over digit magnitude here specifically because
+    # the RequireNegativeAnswer==True branch below hardcodes its operand/
+    # ceiling ranges (1000-9000, 99999) to guarantee a genuinely negative
+    # final answer without overflow -- reworking those thresholds to be
+    # digit-count-parametric would touch a delicate, already-tuned
+    # correctness routine for no real benefit, whereas one fewer row is a
+    # clean, structurally safe ease (FirstValue + >=1 middle row + the
+    # forced-negative final row is still a coherent "mixed stack").
+    RowCountOverride = Config.GeneratorConfig.get("addLessRowCountOverride") if isinstance(Config.GeneratorConfig, dict) else None
+    if RowCountOverride:
+        RowCount = int(RowCountOverride)
 
     if RequireNegativeAnswer and _IsDecimalVisualAddLessConcept(Config):
-        Plan = _DecimalVisualAddLessWholeDigitPlan(Rng)
+        Plan = _DecimalVisualAddLessWholeDigitPlan(Rng, Config)
         if not all(Digits == 4 for Digits in Plan):
             LastFourIndex = max(Index for Index, Digits in enumerate(Plan) if Digits == 4)
             Plan.append(Plan.pop(LastFourIndex))
@@ -397,7 +460,11 @@ def _BuildBorrowingAddLess(
     if RequireNegativeAnswer:
         # Master Module negative borrowing sheets must use only 4-digit/5-digit
         # operands while preserving a mixed stack and a negative final answer.
-        RowCount = max(4, RowCount)
+        # This floor is skipped when addLessRowCountOverride explicitly set a
+        # lower row count above -- every other caller (RowCountOverride is
+        # None) keeps this floor exactly as before.
+        if not RowCountOverride:
+            RowCount = max(4, RowCount)
         SignedOperands: list[Decimal] = []
         Operators: list[str] = []
         RunningTotal = Decimal(0)
@@ -575,7 +642,7 @@ def GenerateAddLess(Config: MMConfig, Rng: random.Random, QuestionNumber: int) -
     IsMixedDigitAddLess = _IsMixedDigitAddLessConcept(Config)
     IsMmAddLessVisual = _IsMmAddLessVisualConcept(Config)
     IsDecimalVisualAddLess = _IsDecimalVisualAddLessConcept(Config)
-    DecimalVisualWholeDigits = _DecimalVisualAddLessWholeDigitPlan(Rng) if IsDecimalVisualAddLess else []
+    DecimalVisualWholeDigits = _DecimalVisualAddLessWholeDigitPlan(Rng, Config) if IsDecimalVisualAddLess else []
     RowCount = len(DecimalVisualWholeDigits) if IsDecimalVisualAddLess else _AddLessRowCount(Config, Stage)
     if IsMmAddLessVisual:
         InitialValue = _RandMmAddLessVisualValue(Rng)

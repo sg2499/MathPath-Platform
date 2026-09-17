@@ -78,7 +78,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
-from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals
+from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals, RoundPercentageForDisplay
 from app.models import (
     CompetitionEvent,
     CompetitionEventAttempt,
@@ -643,8 +643,8 @@ def _ResultPayload(ResultRecord: CompetitionEventResult) -> dict[str, Any]:
         "competitionLevelCode": ResultRecord.competition_level_code,
         "score": ResultRecord.score,
         "maxScore": ResultRecord.max_score,
-        "percentage": ResultRecord.percentage,
-        "accuracyPercentage": ResultRecord.accuracy_percentage,
+        "percentage": RoundPercentageForDisplay(ResultRecord.percentage),
+        "accuracyPercentage": RoundPercentageForDisplay(ResultRecord.accuracy_percentage),
         "correctCount": ResultRecord.correct_count,
         "wrongCount": ResultRecord.wrong_count,
         "unansweredCount": ResultRecord.unanswered_count,

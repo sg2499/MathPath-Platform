@@ -50,9 +50,16 @@ function FormatDurationSeconds(Value: number | null | undefined): string {
   return `${Seconds} Sec${Seconds !== 1 ? "s" : ""}`;
 }
 
+// 2026-09-17 (Shailesh): "the percentages shown every where should be
+// following the round off logic and must show case whole numbers only no
+// decimals whatsoever ... no decimals at all for practice and official both
+// the competition flows." Mirrors the admin review page's own identical
+// fix -- rounds to a whole number (was 2 decimal places) as a defensive
+// second layer on top of the backend's own RoundPercentageForDisplay
+// rounding.
 function FormatNumber(Value: number | null | undefined): string {
   if (Value === null || Value === undefined || Number.isNaN(Number(Value))) return "-";
-  return String(Math.round(Number(Value) * 100) / 100);
+  return String(Math.round(Number(Value)));
 }
 
 type ReviewTab = "answerSheet" | "scorecard";
@@ -321,7 +328,7 @@ function ScorecardTab({ Review }: { Review: TeacherAnnualCompetitionAttemptRevie
             </div>
           </div>
           <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-            Accuracy = Correct ÷ Attempted = {ResultForBreakdown.correctCount}/{AttemptedCountForBreakdown} = {ResultForBreakdown.accuracyPercentage}%
+            Accuracy = Correct ÷ Attempted = {ResultForBreakdown.correctCount}/{AttemptedCountForBreakdown} = {FormatNumber(ResultForBreakdown.accuracyPercentage)}%
           </p>
         </div>
       ) : null}

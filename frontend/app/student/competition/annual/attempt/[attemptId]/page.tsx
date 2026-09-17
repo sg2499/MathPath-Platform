@@ -43,6 +43,19 @@ function triggerBlobDownload(BlobValue: Blob, FileName: string) {
   window.URL.revokeObjectURL(Url);
 }
 
+// 2026-09-17 (Shailesh): "the percentages shown every where should be
+// following the round off logic and must show case whole numbers only no
+// decimals whatsoever ... across all the 3 logins for admin, teacher and
+// student wherever applicable. no decimals at all for practice and official
+// both the competition flows." This page had no rounding helper at all --
+// both render sites showed the raw value straight through. Mirrors the
+// admin/teacher review pages' own FormatNumber, as a defensive second layer
+// on top of the backend's own RoundPercentageForDisplay rounding.
+function FormatPercentNumber(Value: number | null | undefined): string {
+  if (Value === null || Value === undefined || Number.isNaN(Number(Value))) return "-";
+  return String(Math.round(Number(Value)));
+}
+
 export default function AnnualCompetitionAttemptPage() {
   return <AnnualCompetitionAttemptContent />;
 }
@@ -427,7 +440,7 @@ function AnnualCompetitionAttemptContent() {
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="math-card p-3">
                   <div className="text-xs text-slate-500 dark:text-slate-400">Accuracy</div>
-                  <div className="text-xl font-black text-slate-950 dark:text-white">{result.accuracyPercentage}%</div>
+                  <div className="text-xl font-black text-slate-950 dark:text-white">{FormatPercentNumber(result.accuracyPercentage)}%</div>
                 </div>
                 <div className="math-card p-3">
                   <div className="text-xs text-slate-500 dark:text-slate-400">Correct</div>
@@ -904,7 +917,7 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
             </div>
           </div>
           <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-            Accuracy = Correct ÷ Attempted = {resultForBreakdown.correctCount}/{attemptedCountForBreakdown} = {resultForBreakdown.accuracyPercentage}%
+            Accuracy = Correct ÷ Attempted = {resultForBreakdown.correctCount}/{attemptedCountForBreakdown} = {FormatPercentNumber(resultForBreakdown.accuracyPercentage)}%
           </p>
         </div>
       ) : null}

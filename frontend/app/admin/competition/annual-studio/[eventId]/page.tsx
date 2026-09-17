@@ -1418,7 +1418,13 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                             <td className="px-2 py-2 truncate"><RankBadge Rank={Row.rank} /></td>
                             <td className="px-2 py-2 truncate text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
                             <td className="px-2 py-2 truncate">{FormatCompetitionLevelLabel(Row.competitionLevelCode)}</td>
-                            <td className="px-2 py-2 truncate">{Row.accuracyPercentage}%</td>
+                            {/* 2026-09-17 (Shailesh): whole numbers only, no
+                                decimals, across every competition attempt
+                                view -- the backend already rounds this via
+                                RoundPercentageForDisplay, Math.round here is
+                                the same defensive second layer every other
+                                review/scorecard page now applies. */}
+                            <td className="px-2 py-2 truncate">{Math.round(Row.accuracyPercentage)}%</td>
                             <td className="px-2 py-2 truncate">{Row.score}/{Row.maxScore}</td>
                             <td className="px-2 py-2 truncate">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
                             <td className="px-2 py-2">
