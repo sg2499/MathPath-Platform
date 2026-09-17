@@ -118,7 +118,10 @@ function SectionBreakdownTable({ Rows }: { Rows: TeacherAnnualCompetitionPractic
               }`}
             >
               <div className="flex flex-wrap items-center gap-2 font-black text-slate-950 dark:text-white">
-                <span>Section {Row.sectionNumber}</span>
+                <span>
+                  Section {Row.sectionNumber}
+                  {Row.sectionTitle ? `: ${Row.sectionTitle}` : ""}
+                </span>
                 {IsToughest ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">
                     <Flame size={10} /> Toughest
@@ -418,8 +421,15 @@ function StudentAnalyticsModal({
 
 // The per-level (cohort) Practice Report view -- roster-scoped to this
 // teacher's own students server-side (StudentIdsFilter, see
-// getTeacherAnnualCompetitionPracticeReportForLevel's own comment).
-function LevelReportView({ Report }: { Report: TeacherAnnualCompetitionPracticeReportForLevel }) {
+// getTeacherAnnualCompetitionPracticeReportForLevel's own comment). Split
+// into two dedicated sub-tabs (2026-09-17, Shailesh -- "we need to have 2
+// sub tabs , one would be Section Wise Analytics ... second sub tab would
+// be Student Wise Analytics ... right now both of them are shown in one tab
+// which makes it look very clumsy and chaotic"): each tab keeps its own
+// copy of the summary stat-card row at top, mirroring the same pattern the
+// student analytics modal's Overall/Section tabs already use. The level
+// filter itself lives one level up, outside both tabs.
+function LevelSectionWiseAnalyticsView({ Report }: { Report: TeacherAnnualCompetitionPracticeReportForLevel }) {
   const Summary = Report.summary;
   return (
     <div className="mt-5 space-y-5">
@@ -432,7 +442,27 @@ function LevelReportView({ Report }: { Report: TeacherAnnualCompetitionPracticeR
         <StatCard Label="Avg Time Taken" Value={FormatSecondsAsMinSec(Summary.avgTimeTakenSeconds)} />
       </div>
 
-      {Report.perSection.length > 0 ? <SectionBreakdownTable Rows={Report.perSection} /> : null}
+      {Report.perSection.length > 0 ? (
+        <SectionBreakdownTable Rows={Report.perSection} />
+      ) : (
+        <EmptyState title="No section data yet" description="No student of yours has completed a practice paper at this level yet." />
+      )}
+    </div>
+  );
+}
+
+function LevelStudentWiseAnalyticsView({ Report }: { Report: TeacherAnnualCompetitionPracticeReportForLevel }) {
+  const Summary = Report.summary;
+  return (
+    <div className="mt-5 space-y-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard Label="Students" Value={FormatCount(Summary.studentsWithAttemptsCount)} />
+        <StatCard Label="Attempts" Value={FormatCount(Summary.attemptsCount)} />
+        <StatCard Label="Papers Assigned" Value={FormatCount(Summary.papersAssignedCount)} />
+        <StatCard Label="Papers Completed" Value={FormatCount(Summary.papersCompletedCount)} />
+        <StatCard Label="Avg Accuracy" Value={FormatPercent(Summary.avgAccuracyPercentage)} />
+        <StatCard Label="Avg Time Taken" Value={FormatSecondsAsMinSec(Summary.avgTimeTakenSeconds)} />
+      </div>
 
       {Report.perStudent.length > 0 ? (
         <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)]">
@@ -524,6 +554,11 @@ type PracticeSubTabKey = (typeof PracticeSubTabList)[number];
 const PracticeReportsSubTabList = ["STUDENT", "LEVEL"] as const;
 type PracticeReportsSubTabKey = (typeof PracticeReportsSubTabList)[number];
 
+// 2026-09-17 (Shailesh): Individual Level's own two further sub-tabs --
+// see LevelSectionWiseAnalyticsView/LevelStudentWiseAnalyticsView above.
+const LevelReportSubTabList = ["SECTION", "STUDENT"] as const;
+type LevelReportSubTabKey = (typeof LevelReportSubTabList)[number];
+
 export default function TeacherAnnualCompetitionMonitorPage() {
   return (
     <Suspense fallback={null}>
@@ -581,6 +616,11 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   // (block-list redesign, 2026-09-16 per Shailesh's own follow-up).
   const [ReportsBlockLevelFilter, SetReportsBlockLevelFilter] = useState<string>("ALL");
   const [ReportsLevelCode, SetReportsLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
+  // 2026-09-17 (Shailesh): which of Individual Level's own two sub-tabs is
+  // active -- the level filter above stays shared/outside both (single
+  // ReportsLevelCode state, single query), only the displayed table+its own
+  // stat-card row switches.
+  const [LevelReportSubTab, SetLevelReportSubTab] = useState<LevelReportSubTabKey>("SECTION");
   // The student the analytics modal is open for -- null when closed. See
   // StudentAnalyticsModal's own comment (2026-09-16 redesign: "a seperate
   // window popping up when a student is clicked upon"). No teacher filter
@@ -1259,17 +1299,35 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                   what to expect from your roster on the day of the official event.
                 </p>
 
-                <div className="mt-4 flex flex-wrap items-end gap-3">
+                {/* 2026-09-17 (Shailesh): level filter stays OUTSIDE/above
+                    both sub-tabs below -- one shared ReportsLevelCode state
+                    and one query, so changing it re-scopes whichever
+                    sub-tab is active, never just one. */}
+                <div className="mt-4 flex flex-wrap items-center gap-3">
                   <select
                     aria-label="Select level"
                     value={ReportsLevelCode}
                     onChange={(EventValue) => SetReportsLevelCode(EventValue.target.value)}
-                    className="math-input"
+                    className="math-input w-auto min-w-[170px]"
                   >
                     {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
                       <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
                     ))}
                   </select>
+
+                  <div className="flex flex-wrap gap-2">
+                    {LevelReportSubTabList.map((Tab) => (
+                      <button
+                        key={Tab}
+                        type="button"
+                        onClick={() => SetLevelReportSubTab(Tab)}
+                        aria-selected={LevelReportSubTab === Tab}
+                        className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${LevelReportSubTab === Tab ? "is-active" : ""}`}
+                      >
+                        {Tab === "SECTION" ? "Section Wise Analytics" : "Student Wise Analytics"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {PracticeReportLevelQuery.isLoading ? (
@@ -1277,7 +1335,11 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                 ) : PracticeReportLevelQuery.error ? (
                   <div className="mt-5"><ErrorState message={apiErrorMessage(PracticeReportLevelQuery.error)} /></div>
                 ) : PracticeReportLevelQuery.data ? (
-                  <LevelReportView Report={PracticeReportLevelQuery.data} />
+                  LevelReportSubTab === "SECTION" ? (
+                    <LevelSectionWiseAnalyticsView Report={PracticeReportLevelQuery.data} />
+                  ) : (
+                    <LevelStudentWiseAnalyticsView Report={PracticeReportLevelQuery.data} />
+                  )
                 ) : null}
               </div>
             )}

@@ -776,6 +776,11 @@ export type TeacherAnnualCompetitionPracticeReportSummary = {
 
 export type TeacherAnnualCompetitionPracticeReportSectionRow = {
   sectionNumber: number;
+  // 2026-09-17 (Shailesh: "the section number and section names should
+  // appear everywhere relevant") -- the section's real title from its
+  // level's own registry, e.g. "Add/Less (Abacus)". null only if the level
+  // code is somehow unrecognized (defensive; should not happen in practice).
+  sectionTitle: string | null;
   attemptsCount: number;
   avgScore: number | null;
   avgMaxScore: number | null;

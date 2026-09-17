@@ -374,6 +374,23 @@ def ComputeAndFinalizeCompetitionEventResult(db: Session, AttemptRecord: Competi
             # own always-released state instead of a manual admin release.
             ResultRecord.is_released = True
             ResultRecord.released_at = _NowUtc()
+        # Also only on first creation (2026-09-17 fix, Shailesh -- "the
+        # completion date and time ... are all the same, which is not
+        # possible"): computed_at used to be reset to "now" on EVERY call to
+        # this function, including a later recompute over an already-
+        # finalized row (RecomputeAnnualCompetitionResults/RecomputeAnnual
+        # CompetitionPracticeResults both just re-invoke this same function
+        # per result) -- so one bulk recompute run silently collapsed every
+        # affected result's own true completion time to that one run's
+        # timestamp. Setting it only here, alongside is_released/released_at
+        # above, means a recompute can never again overwrite it -- matching
+        # what this module's own docstring already claims ("computed once at
+        # submission... frozen"), which this line was quietly breaking.
+        # annual_competition_practice_report_service.py's Practice Reports
+        # display now sources from CompetitionEventAttempt.submitted_at
+        # instead of this field anyway, precisely because it survives a
+        # recompute and this one, historically, did not.
+        ResultRecord.computed_at = _NowUtc()
 
     ResultRecord.score = Metrics["score"]
     ResultRecord.max_score = Metrics["maxScore"]
@@ -385,7 +402,6 @@ def ComputeAndFinalizeCompetitionEventResult(db: Session, AttemptRecord: Competi
     ResultRecord.time_taken_seconds = Metrics["timeTakenSeconds"]
     ResultRecord.per_section_time_json = json.dumps(Metrics["perSectionTime"])
     ResultRecord.per_section_score_json = json.dumps(Metrics["perSectionScore"])
-    ResultRecord.computed_at = _NowUtc()
 
     AttemptRecord.status = "FINALIZED"
 

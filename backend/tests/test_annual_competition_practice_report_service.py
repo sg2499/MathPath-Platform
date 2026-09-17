@@ -189,6 +189,12 @@ def test_student_report_scoped_to_level_returns_summary_section_and_trend():
     # Section 2 across both attempts: attempt 1 = 1/2 correct, attempt 2 = 0/2 correct -> avg accuracy 25%.
     assert per_section[2]["avgAccuracyPercentage"] == 25.0
     assert per_section[1]["avgTimeLimitSeconds"] if "avgTimeLimitSeconds" in per_section[1] else True  # noqa: no-op guard
+    # 2026-09-17 (Shailesh: "the section names do not all appear ... should
+    # appear along with the relevant section numbers"): real titles from
+    # PM-L2's own registry (annual_competition_paper_registry.py), not just
+    # the bare section number.
+    assert per_section[1]["sectionTitle"] == "Add/Less (Abacus)"
+    assert per_section[2]["sectionTitle"] == "Add/Less (Visual)"
 
     assert len(report["trend"]) == 2
     assert report["trend"][0]["accuracyPercentage"] == 75.0
@@ -197,6 +203,57 @@ def test_student_report_scoped_to_level_returns_summary_section_and_trend():
     # Cohort comparison: 3 attempts total across 2 students (2 from s1, 1 from s2).
     assert report["levelComparison"]["cohortAttemptsCount"] == 3
     assert report["levelComparison"]["cohortStudentsCount"] == 2
+
+
+def test_trend_and_by_level_dates_survive_a_recompute_that_corrupts_computed_at():
+    """2026-09-17 fix (Shailesh bug report -- "the completion date and time
+    ... are all the same, which is not possible"): simulates the exact
+    historical corruption (a bulk recompute stamping every result's
+    computed_at to one identical shared timestamp, which is what actually
+    happened in production during the 2026-09-16 per_section_score_json
+    backfill) and asserts the trend table's dates -- and the "All Levels"
+    byLevel table's lastAttemptAt -- still come out distinct and correct,
+    because both now source from CompetitionEventAttempt.submitted_at, which
+    that corruption never touched (see _SubmittedAtByAttemptId's own
+    docstring)."""
+    db = _session()
+    student = _student(db, "sTimestampFix")
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [1], "exam-ts-a", "paper-ts-a", "tsa")
+    db.commit()
+    attempt_id_1 = _attempt_and_answer_all(db, student, "PM-L2", "tsa", [1], [True])
+
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [1], "exam-ts-b", "paper-ts-b", "tsb")
+    db.commit()
+    attempt_id_2 = _attempt_and_answer_all(db, student, "PM-L2", "tsb", [1], [True])
+
+    # Give the two attempts genuinely distinct, known submitted_at values --
+    # this is the real, uncorrupted source of truth this fix relies on.
+    earlier = datetime(2026, 9, 1, 10, 0, 0, tzinfo=timezone.utc)
+    later = datetime(2026, 9, 10, 15, 30, 0, tzinfo=timezone.utc)
+    db.get(CompetitionEventAttempt, attempt_id_1).submitted_at = earlier
+    db.get(CompetitionEventAttempt, attempt_id_2).submitted_at = later
+
+    # Simulate the historical corruption itself: a bulk recompute collapsing
+    # both results' computed_at to one identical timestamp.
+    corrupted = datetime(2026, 9, 16, 12, 2, 0, tzinfo=timezone.utc)
+    for result in db.query(CompetitionEventResult).filter(CompetitionEventResult.student_id == student.id).all():
+        result.computed_at = corrupted
+    db.commit()
+
+    report = report_service.GetAnnualCompetitionPracticeReportForStudent(db, StudentId=student.id, CompetitionLevelCode="PM-L2")
+    assert len(report["trend"]) == 2
+    # Ascending order (earlier first) -- _ResultRowsForStudent now orders by
+    # the attempt's own submitted_at, never by the corrupted shared computed_at.
+    # (SQLite's in-memory test DB round-trips DateTime(timezone=True) as
+    # naive -- Postgres in production keeps the UTC offset -- so compare
+    # against the naive isoformat here, same as the round-tripped value.)
+    assert report["trend"][0]["computedAt"] == earlier.replace(tzinfo=None).isoformat()
+    assert report["trend"][1]["computedAt"] == later.replace(tzinfo=None).isoformat()
+    assert report["trend"][0]["computedAt"] != report["trend"][1]["computedAt"]
+
+    all_levels_report = report_service.GetAnnualCompetitionPracticeReportForStudent(db, StudentId=student.id)
+    by_level = {row["competitionLevelCode"]: row for row in all_levels_report["byLevel"]}
+    assert by_level["PM-L2"]["lastAttemptAt"] == later.replace(tzinfo=None).isoformat()
 
 
 def test_student_report_all_levels_blends_summary_and_lists_by_level():
@@ -227,6 +284,20 @@ def test_student_report_all_levels_blends_summary_and_lists_by_level():
     assert by_level["IM-L1"]["avgAccuracyPercentage"] == 50.0
     # Canonical registry order (YLM-L0, YLM-L1, PM-L1..4, IM-L1..4, MM-L1, MM-L2) -- PM-L2 before IM-L1.
     assert [row["competitionLevelCode"] for row in report["byLevel"]] == ["PM-L2", "IM-L1"]
+
+    # 2026-09-17 (Shailesh: "on selecting a particular level ... the card
+    # metrics must always be scoped to that level only and must not show the
+    # overview or collated stats for all the levels"): re-requesting this
+    # SAME multi-level student, now scoped to just PM-L2, must return PM-L2's
+    # own summary (1 attempt, 100% accuracy -- matching its byLevel row
+    # above), never the blended "All Levels" summary (2 attempts, 75%) this
+    # test already confirmed above.
+    pm_l2_report = report_service.GetAnnualCompetitionPracticeReportForStudent(
+        db, StudentId=student.id, CompetitionLevelCode="PM-L2"
+    )
+    assert pm_l2_report["summary"]["attemptsCount"] == 1
+    assert pm_l2_report["summary"]["avgAccuracyPercentage"] == 100.0
+    assert pm_l2_report["summary"]["attemptsCount"] != report["summary"]["attemptsCount"]
 
 
 def test_student_report_unknown_student_raises_404():
@@ -278,6 +349,41 @@ def test_level_report_aggregates_across_students_and_sorts_by_accuracy_desc():
     # (100 + 25) / 2 = 62.5 attempt-weighted average across both students' one attempt each,
     # rounded to the nearest whole number per the flow's whole-number display policy (round-half-up).
     assert report["perSection"][0]["avgAccuracyPercentage"] == 63
+    # Level report's perSection also carries the real section title (shared
+    # _AggregatePerSectionStats implementation, same 2026-09-17 fix).
+    assert report["perSection"][0]["sectionTitle"] == "Add/Less (Abacus)"
+
+
+def test_level_report_per_student_last_attempt_at_sources_from_submitted_at():
+    """Same 2026-09-17 fix as the student-report trend/byLevel test above,
+    for GetAnnualCompetitionPracticeReportForLevel's own perStudent rows:
+    lastAttemptAt must reflect the attempt's real submitted_at, not a
+    computed_at that a later recompute may have collapsed to a shared,
+    identical timestamp."""
+    db = _session()
+    student = _student(db, "sLevelTimestampFix")
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [1], "exam-lvl-ts-a", "paper-lvl-ts-a", "lvltsa")
+    db.commit()
+    attempt_id_1 = _attempt_and_answer_all(db, student, "PM-L2", "lvltsa", [1], [True])
+
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [1], "exam-lvl-ts-b", "paper-lvl-ts-b", "lvltsb")
+    db.commit()
+    attempt_id_2 = _attempt_and_answer_all(db, student, "PM-L2", "lvltsb", [1], [True])
+
+    earlier = datetime(2026, 9, 1, 10, 0, 0, tzinfo=timezone.utc)
+    later = datetime(2026, 9, 10, 15, 30, 0, tzinfo=timezone.utc)
+    db.get(CompetitionEventAttempt, attempt_id_1).submitted_at = earlier
+    db.get(CompetitionEventAttempt, attempt_id_2).submitted_at = later
+
+    corrupted = datetime(2026, 9, 16, 12, 2, 0, tzinfo=timezone.utc)
+    for result in db.query(CompetitionEventResult).filter(CompetitionEventResult.student_id == student.id).all():
+        result.computed_at = corrupted
+    db.commit()
+
+    report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
+    assert len(report["perStudent"]) == 1
+    # (Same SQLite-round-trips-as-naive note as the student-report test above.)
+    assert report["perStudent"][0]["lastAttemptAt"] == later.replace(tzinfo=None).isoformat()
 
 
 def test_level_report_roster_scoping_excludes_other_students():

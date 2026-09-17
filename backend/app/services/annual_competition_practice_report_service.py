@@ -77,9 +77,13 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
-from app.models import CompetitionEventLevelPaper, CompetitionEventResult, Student
+from app.models import CompetitionEventAttempt, CompetitionEventLevelPaper, CompetitionEventResult, Student
 from app.services.annual_competition_paper_registry import ANNUAL_COMPETITION_LEVEL_REGISTRY
-from app.services.annual_competition_studio_service import VALID_COMPETITION_LEVEL_CODES, _ValidateCompetitionLevelCode
+from app.services.annual_competition_studio_service import (
+    DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE,
+    VALID_COMPETITION_LEVEL_CODES,
+    _ValidateCompetitionLevelCode,
+)
 
 # Canonical level display/iteration order -- reuses the paper registry's own
 # key order (already exactly the order every level dropdown in this app
@@ -105,6 +109,60 @@ def _RoundToInt(Value: float | int | None) -> int | None:
     return math.floor(Value + 0.5) if Value >= 0 else -math.floor(-Value + 0.5)
 
 
+def _SubmittedAtByAttemptId(db: Session, ResultRecords: list[CompetitionEventResult]) -> dict[str, Any]:
+    """Maps attempt_id -> CompetitionEventAttempt.submitted_at for a batch of
+    results, in one query. Exists because CompetitionEventResult.computed_at
+    (Shailesh, 2026-09-17 bug report -- "the completion date and time ... are
+    all the same, which is not possible") gets unconditionally reset to "now"
+    on every call to ComputeAndFinalizeCompetitionEventResult, including a
+    later RecomputeAnnualCompetitionPracticeResults/RecomputeAnnualCompetition
+    Results pass over ALREADY-finalized rows -- so every result that has ever
+    been through a recompute (every row that existed before the 2026-09-16
+    per_section_score_json backfill) now carries that one backfill run's
+    timestamp instead of its own true completion time, collapsing every such
+    student's attempts to one identical date/time. Fixed at the source too
+    (see ComputeAndFinalizeCompetitionEventResult's own comment -- computed_at
+    is now only ever set on first finalize), but that alone can't repair
+    already-corrupted historical rows, since the true original computed_at is
+    already overwritten and unrecoverable. CompetitionEventAttempt.submitted_at
+    is the fix for existing data: set exactly once, at genuine whole-attempt
+    submission time (annual_competition_attempt_service.py), and never touched
+    by any recompute -- so it is still correct for every historical attempt,
+    not just future ones."""
+    AttemptIds = [ResultRecord.attempt_id for ResultRecord in ResultRecords if ResultRecord.attempt_id]
+    if not AttemptIds:
+        return {}
+    Rows = (
+        db.query(CompetitionEventAttempt.id, CompetitionEventAttempt.submitted_at)
+        .filter(CompetitionEventAttempt.id.in_(AttemptIds))
+        .all()
+    )
+    return {AttemptId: SubmittedAt for AttemptId, SubmittedAt in Rows}
+
+
+def _SectionTitleLookup(CompetitionLevelCode: str) -> dict[int, str]:
+    """sectionNumber -> sectionTitle for one competition level, from the same
+    canonical DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE registry every practice
+    paper's own CompetitionEventSectionTimer rows are generated from
+    (annual_competition_studio_service.py) -- so this is authoritative for
+    every paper of this level regardless of which specific mock exam/paper
+    any one attempt happened to use, which matters here since this module
+    aggregates across many different students' many different generated
+    papers of the same level. Deliberately NOT a join against the DB's own
+    CompetitionEventSectionTimer rows: aggregating many papers can only ever
+    show one title per section number anyway, and the registry is the single
+    source of truth those rows were stamped from in the first place. Missing/
+    unknown level codes return an empty lookup (sectionTitle just stays None
+    for every row) rather than raising -- title is decoration, never load-
+    bearing for the numbers themselves."""
+    return {
+        SectionNumber: SectionTitle
+        for SectionNumber, SectionTitle, _Mode, _TimeLimitSeconds in DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE.get(
+            CompetitionLevelCode, []
+        )
+    }
+
+
 def _SafeJsonList(RawJson: str | None) -> list[dict[str, Any]]:
     if not RawJson:
         return []
@@ -122,14 +180,25 @@ def _StudentDisplayName(StudentRecord: Student) -> str:
 def _ResultRowsForStudent(
     db: Session, StudentId: str, *, CompetitionLevelCode: str | None = None
 ) -> list[CompetitionEventResult]:
-    Query = db.query(CompetitionEventResult).filter(
-        CompetitionEventResult.attempt_type == "PRACTICE",
-        CompetitionEventResult.is_voided == False,  # noqa: E712
-        CompetitionEventResult.student_id == StudentId,
+    # Ordered by the ATTEMPT's own submitted_at (join), not CompetitionEventResult
+    # .computed_at -- see _SubmittedAtByAttemptId's own docstring below for why
+    # computed_at can no longer be trusted to reflect true chronological order
+    # for any result that has ever been through a recompute (every existing row
+    # was, as of the 2026-09-16 Practice Reports backfill). submitted_at is set
+    # exactly once, at genuine attempt-submission time, and no recompute has
+    # ever touched it.
+    Query = (
+        db.query(CompetitionEventResult)
+        .join(CompetitionEventAttempt, CompetitionEventAttempt.id == CompetitionEventResult.attempt_id)
+        .filter(
+            CompetitionEventResult.attempt_type == "PRACTICE",
+            CompetitionEventResult.is_voided == False,  # noqa: E712
+            CompetitionEventResult.student_id == StudentId,
+        )
     )
     if CompetitionLevelCode:
         Query = Query.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
-    return Query.order_by(CompetitionEventResult.computed_at.asc()).all()
+    return Query.order_by(CompetitionEventAttempt.submitted_at.asc()).all()
 
 
 def _ResultRowsForLevel(
@@ -210,13 +279,19 @@ def _AggregateAttemptLevelStats(ResultRecords: list[CompetitionEventResult]) -> 
     }
 
 
-def _AggregatePerSectionStats(ResultRecords: list[CompetitionEventResult]) -> list[dict[str, Any]]:
+def _AggregatePerSectionStats(
+    ResultRecords: list[CompetitionEventResult], CompetitionLevelCode: str
+) -> list[dict[str, Any]]:
     """Averages per_section_score_json + per_section_time_json across every
     row handed in, section-number by section-number, same attempt-weighted
     rule as _AggregateAttemptLevelStats above. Only meaningful when every
     row shares one paper structure -- both call sites in this module already
     scope ResultRecords to a single competition_level_code before calling
-    this."""
+    this, which is also what CompetitionLevelCode here is for: attaching each
+    row's real section title from _SectionTitleLookup (Shailesh, 2026-09-17:
+    "the section number and section names should appear everywhere relevant"
+    -- previously only sectionNumber was ever returned)."""
+    TitleBySectionNumber = _SectionTitleLookup(CompetitionLevelCode)
     ScoreEntriesBySection: dict[int, list[dict[str, Any]]] = {}
     TimeEntriesBySection: dict[int, list[dict[str, Any]]] = {}
     for ResultRecord in ResultRecords:
@@ -251,6 +326,7 @@ def _AggregatePerSectionStats(ResultRecords: list[CompetitionEventResult]) -> li
         Rows.append(
             {
                 "sectionNumber": SectionNumber,
+                "sectionTitle": TitleBySectionNumber.get(SectionNumber),
                 "attemptsCount": len(ScoreEntries),
                 "avgScore": _RoundToInt(sum(Entry.get("score", 0.0) for Entry in ScoreEntries) / len(ScoreEntries))
                 if ScoreEntries
@@ -288,15 +364,22 @@ def _AggregatePerSectionStats(ResultRecords: list[CompetitionEventResult]) -> li
     return Rows
 
 
-def _AttemptTrendRow(ResultRecord: CompetitionEventResult) -> dict[str, Any]:
+def _AttemptTrendRow(ResultRecord: CompetitionEventResult, SubmittedAtByAttemptId: dict[str, Any]) -> dict[str, Any]:
     # score/maxScore/percentage/accuracyPercentage are Float columns (see
     # models.py) and can genuinely carry decimals per attempt even though
     # this is a single attempt, not an average -- rounded here too so the
     # trend table never shows a value like 16.33, matching this module's
     # whole-number display policy everywhere else.
+    #
+    # "computedAt" is still the field name here (kept for compatibility --
+    # nothing needed to change on the frontend for this fix) but its VALUE
+    # is now the attempt's own submitted_at first, falling back to
+    # ResultRecord.computed_at only if that attempt row is somehow missing --
+    # see _SubmittedAtByAttemptId's own docstring for why.
+    SubmittedAt = SubmittedAtByAttemptId.get(ResultRecord.attempt_id) or ResultRecord.computed_at
     return {
         "attemptId": ResultRecord.attempt_id,
-        "computedAt": ResultRecord.computed_at.isoformat() if ResultRecord.computed_at else None,
+        "computedAt": SubmittedAt.isoformat() if SubmittedAt else None,
         "score": _RoundToInt(ResultRecord.score),
         "maxScore": _RoundToInt(ResultRecord.max_score),
         "percentage": _RoundToInt(ResultRecord.percentage),
@@ -321,6 +404,12 @@ def _PerLevelBreakdownForStudent(db: Session, StudentId: str) -> list[dict[str, 
     for ResultRecord in AllResultRecords:
         ResultsByLevel.setdefault(ResultRecord.competition_level_code, []).append(ResultRecord)
 
+    # See _SubmittedAtByAttemptId's own docstring -- computed_at can no
+    # longer be trusted as "last attempt time" for any result that has ever
+    # been through a recompute, which by now is every row that existed
+    # before the 2026-09-16 backfill.
+    SubmittedAtByAttemptId = _SubmittedAtByAttemptId(db, AllResultRecords)
+
     Rows: list[dict[str, Any]] = []
     for LevelCode in _LEVEL_CODE_DISPLAY_ORDER:
         LevelResultRecords = ResultsByLevel.get(LevelCode)
@@ -329,10 +418,15 @@ def _PerLevelBreakdownForStudent(db: Session, StudentId: str) -> list[dict[str, 
         Stats = _AggregateAttemptLevelStats(LevelResultRecords)
         Stats.update(_PracticeBankCompletionStats(db, StudentId=StudentId, CompetitionLevelCode=LevelCode))
         Stats["competitionLevelCode"] = LevelCode
-        LastComputedAt = max(
-            (ResultRecord.computed_at for ResultRecord in LevelResultRecords if ResultRecord.computed_at), default=None
+        LastAttemptAt = max(
+            (
+                SubmittedAtByAttemptId.get(ResultRecord.attempt_id) or ResultRecord.computed_at
+                for ResultRecord in LevelResultRecords
+                if SubmittedAtByAttemptId.get(ResultRecord.attempt_id) or ResultRecord.computed_at
+            ),
+            default=None,
         )
-        Stats["lastAttemptAt"] = LastComputedAt.isoformat() if LastComputedAt else None
+        Stats["lastAttemptAt"] = LastAttemptAt.isoformat() if LastAttemptAt else None
         Rows.append(Stats)
     return Rows
 
@@ -365,8 +459,9 @@ def GetAnnualCompetitionPracticeReportForStudent(
     }
 
     if CompetitionLevelCode:
-        Payload["perSection"] = _AggregatePerSectionStats(ResultRecords)
-        Payload["trend"] = [_AttemptTrendRow(ResultRecord) for ResultRecord in ResultRecords]
+        Payload["perSection"] = _AggregatePerSectionStats(ResultRecords, CompetitionLevelCode)
+        SubmittedAtByAttemptId = _SubmittedAtByAttemptId(db, ResultRecords)
+        Payload["trend"] = [_AttemptTrendRow(ResultRecord, SubmittedAtByAttemptId) for ResultRecord in ResultRecords]
 
         CohortResultRecords = _ResultRowsForLevel(db, CompetitionLevelCode)
         CohortSummary = _AggregateAttemptLevelStats(CohortResultRecords)
@@ -402,7 +497,8 @@ def GetAnnualCompetitionPracticeReportForLevel(
         _PracticeBankCompletionStats(db, CompetitionLevelCode=CompetitionLevelCode, StudentIdsFilter=StudentIdsFilter)
     )
 
-    PerSection = _AggregatePerSectionStats(ResultRecords)
+    PerSection = _AggregatePerSectionStats(ResultRecords, CompetitionLevelCode)
+    SubmittedAtByAttemptId = _SubmittedAtByAttemptId(db, ResultRecords)
 
     ResultsByStudent: dict[str, list[CompetitionEventResult]] = {}
     for ResultRecord in ResultRecords:
@@ -422,10 +518,15 @@ def GetAnnualCompetitionPracticeReportForLevel(
         StudentStats["studentId"] = StudentRecord.id
         StudentStats["studentName"] = _StudentDisplayName(StudentRecord)
         StudentStats["studentCode"] = StudentRecord.student_code
-        LastComputedAt = max(
-            (ResultRecord.computed_at for ResultRecord in StudentResultRecords if ResultRecord.computed_at), default=None
+        LastAttemptAt = max(
+            (
+                SubmittedAtByAttemptId.get(ResultRecord.attempt_id) or ResultRecord.computed_at
+                for ResultRecord in StudentResultRecords
+                if SubmittedAtByAttemptId.get(ResultRecord.attempt_id) or ResultRecord.computed_at
+            ),
+            default=None,
         )
-        StudentStats["lastAttemptAt"] = LastComputedAt.isoformat() if LastComputedAt else None
+        StudentStats["lastAttemptAt"] = LastAttemptAt.isoformat() if LastAttemptAt else None
         PerStudent.append(StudentStats)
 
     # Leaderboard-style default order: highest avg accuracy first. A None
