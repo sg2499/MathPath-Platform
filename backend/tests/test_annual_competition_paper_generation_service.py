@@ -554,3 +554,111 @@ def test_generate_fails_cleanly_for_inactive_level():
     with pytest.raises(HTTPException) as exc_info:
         GenerateAnnualCompetitionLevelPaper(db, LevelId=level.id, CreatedBy=admin)
     assert exc_info.value.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# 2026-09-17 (Shailesh, Bloomers/Beginners digit-mix fix): "most of the sums
+# are single digit direct addition ... we need to have a mix of both single,
+# double and single-double mixed sums but direct add/less only, the concept
+# remains the same." Before this fix, YLM-L0/YLM-L1's 50 questions split only
+# 25/25 between pure single-digit (lessonNumber 1) and single-and-double
+# mixed (lessonNumber 2) -- no pure double-digit tier existed. Regression
+# guards for the new third pool entry (digitPatternOverride="2D") in
+# annual_competition_paper_registry.py's _YLM_L1_DIRECT_POOL.
+# ---------------------------------------------------------------------------
+
+def _ylm_base_digit_width(question) -> str:
+    """Classifies a YLM direct-add-less question by its FIRST operand (the
+    abacus starting base -- see operands.py's _direct_bases()/_direct_stems()
+    -- every later operand is a small single-digit movement step by
+    definition of "direct", so only the base reflects the question's real
+    digit_pattern)."""
+    Operands = json.loads(question.operands_json or "[]")
+    Base = abs(int(Operands[0])) if Operands else 0
+    return "1D" if Base < 10 else "2D"
+
+
+@pytest.mark.parametrize("level_code", ["YLM-L1", "YLM-L0"])
+def test_ylm_bloomers_beginners_paper_mixes_single_and_double_digit_direct_add_less(level_code):
+    db = _session()
+    admin = _admin(db)
+    # YLM-L0 (Bloomers) has no curriculum Level row of its own -- generate it
+    # via the CompetitionLevelCode override on a YLM-L1 Level row, exactly
+    # the way real generation resolves it (see GenerateAnnualCompetitionLevelPaper's
+    # own docstring on the MM-L2 precedent for this same pattern).
+    _module, level = _module_and_level(db, "YLM", "YLM-L1", "YLM-L1")
+    db.commit()
+
+    payload = GenerateAnnualCompetitionLevelPaper(
+        db, LevelId=level.id, CreatedBy=admin,
+        CompetitionLevelCode=level_code if level_code != "YLM-L1" else None,
+    )
+
+    questions = (
+        db.query(CompetitionMockQuestion)
+        .filter(CompetitionMockQuestion.mock_exam_id == payload["mockExamId"])
+        .order_by(CompetitionMockQuestion.question_number)
+        .all()
+    )
+    assert len(questions) == 50
+    assert len(set(q.section_number for q in questions)) == 1  # still exactly one section
+    assert payload["durationSeconds"] == 10 * 60  # still 10 minutes -- unchanged
+
+    # Still, always, only direct add/less -- never any other concept.
+    assert {q.concept_family for q in questions} == {"DIRECT_ADD_LESS"}
+
+    widths = {_ylm_base_digit_width(q) for q in questions}
+    assert widths == {"1D", "2D"}  # a genuine mix -- not all single-digit, not all double-digit
+
+    # A real, substantial double-digit presence -- not just a token handful.
+    # The dedicated pure-"2D" pool entry alone contributes ~16 of the 50
+    # (50 // 3), plus a further slice from the mixed "1D_AND_2D" entry, so
+    # requiring at least 15 catches a regression where the new entry was
+    # dropped or silently ignored, without being brittle about the exact
+    # random split the mixed entry contributes on top of it.
+    double_digit_count = sum(1 for q in questions if _ylm_base_digit_width(q) == "2D")
+    assert double_digit_count >= 15
+
+    single_digit_count = sum(1 for q in questions if _ylm_base_digit_width(q) == "1D")
+    assert single_digit_count >= 10  # single-digit still meaningfully represented, not squeezed to near-zero
+
+
+def test_ylm_double_digit_pool_entry_only_ever_produces_double_digit_bases():
+    """Direct unit coverage of the new pool entry in isolation, pinned to the
+    exact concept title so a future edit to the pool that silently drops or
+    renames the "Double Digit" entry fails loudly here rather than only
+    showing up as a softer ratio assertion elsewhere."""
+    db = _session()
+    admin = _admin(db)
+    _module, level = _module_and_level(db, "YLM", "YLM-L1", "YLM-L1")
+    db.commit()
+
+    payload = GenerateAnnualCompetitionLevelPaper(db, LevelId=level.id, CreatedBy=admin)
+    questions = (
+        db.query(CompetitionMockQuestion)
+        .filter(CompetitionMockQuestion.mock_exam_id == payload["mockExamId"])
+        .all()
+    )
+    double_digit_entry_questions = [
+        q for q in questions
+        if json.loads(q.metadata_json or "{}").get("annualCompetitionConceptTitle") == "Direct Add-Less (Double Digit)"
+    ]
+    assert len(double_digit_entry_questions) >= 15
+    for q in double_digit_entry_questions:
+        assert _ylm_base_digit_width(q) == "2D"
+        assert json.loads(q.metadata_json or "{}").get("digit_pattern") == "2D"
+        assert q.concept_family == "DIRECT_ADD_LESS"  # concept never changes, only operand width
+
+
+def test_ylm_digit_pattern_override_field_defaults_to_none_and_is_inert_for_other_callers():
+    """Guards the backward-compatibility property the whole fix depends on:
+    YLMConfig.digit_pattern_override defaults to None, so every OTHER caller
+    (DPS worksheet generation, practice Competition Mock, Term Assessments --
+    none of which ever set this new field) resolves digit_pattern exactly as
+    before -- purely from YLM_LESSON_RULES/YLM_DPS_DIGIT_PATTERN_OVERRIDES."""
+    from app.question_engine.ylm.config import YLMConfig, enrich_config_with_lesson_rule
+
+    Config = YLMConfig(module_code="YLM", level_code="YLM-L1", lesson_number=1, dps_number=0, question_count=1, seed="x")
+    assert Config.digit_pattern_override is None
+    Enriched = enrich_config_with_lesson_rule(Config)
+    assert Enriched.digit_pattern == "1D"  # lesson 1's own untouched default, override never applied

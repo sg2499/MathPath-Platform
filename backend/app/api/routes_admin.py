@@ -30,7 +30,7 @@ from app.database import SessionLocal, get_db
 from app.dependencies import require_roles
 from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog, CompetitionMockExam, CompetitionMockAssignment, CompetitionMockAttempt, CompetitionMockAttemptAnswer, CompetitionMockResultSummary
 from app.services.assignment_service import create_assignment
-from app.services.attempt_service import result_payload
+from app.services.attempt_service import ensure_active_or_auto_submit, result_payload
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, ClearedConceptAttempts, CurrentOperationalAttempts, NeedsReattemptAttempts
 from app.services.curriculum_service import dps_config_payload, get_dps_or_404
 from app.services.generation_service import build_preview_seed, generate_preview
@@ -54,6 +54,7 @@ from app.services.assessment_engine_service import (
     ApproveAssessmentReattempt,
     AssessmentAssignmentPayload,
     AssessmentResultPayload,
+    EnsureAssessmentAttemptActiveOrAutoSubmit,
     NormalizeAssessmentScore,
     NormalizeAssessmentPercentage,
     AssessmentEngineFoundation,
@@ -2596,12 +2597,17 @@ def _admin_attempt_metadata(db: Session, attempt: Attempt | None) -> dict:
 
 
 def all_attempts_for_student_assignment(db: Session, assignment_id: str, student_id: str) -> list[Attempt]:
-    return (
+    attempts = (
         db.query(Attempt)
         .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
         .order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
         .all()
     )
+    # 2026-09-17 (Shailesh: "never ever anywhere"): sole caller is the
+    # admin attempt-history display (admin_attempt_history_for_assignment_student)
+    # -- self-heal here so that history never shows a stuck IN_PROGRESS
+    # attempt's default-zero score/status.
+    return [ensure_active_or_auto_submit(db, attempt) for attempt in attempts]
 
 
 def admin_attempt_history_for_assignment_student(db: Session, assignment: Assignment, student: Student) -> list[dict]:
@@ -2673,6 +2679,12 @@ def assignment_payload(db: Session, assignment: Assignment) -> dict:
     assigned_by = db.get(User, assignment.assigned_by_user_id) if assignment.assigned_by_user_id else None
 
     attempts = db.query(Attempt).filter(Attempt.assignment_id == assignment.id).all()
+    # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal any attempt
+    # that's sat IN_PROGRESS past its own expiry before splitting into
+    # completed/in-progress buckets below -- otherwise an abandoned attempt
+    # stays miscounted as "in progress" (and excluded from the average
+    # accuracy) indefinitely, same bug class as admin_attempt_detail above.
+    attempts = [ensure_active_or_auto_submit(db, attempt) for attempt in attempts]
     completed_statuses = {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}
     completed_attempts = [attempt for attempt in attempts if attempt.status in completed_statuses]
     in_progress_attempts = [attempt for attempt in attempts if attempt.status == "IN_PROGRESS"]
@@ -2750,6 +2762,10 @@ def admin_assessment_attempt_result_route(
     attempt = db.get(AssessmentAttempt, attempt_id)
     if not attempt:
         api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found.")
+    # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal a stuck
+    # IN_PROGRESS attempt before serving its result, mirroring the proven
+    # Competition Mock admin pattern (GetCompetitionMockResultForAdmin).
+    attempt = EnsureAssessmentAttemptActiveOrAutoSubmit(db, attempt)
     return AssessmentResultPayload(db, attempt, IncludeReview=True)
 
 
@@ -2997,6 +3013,12 @@ def get_assignment_route(assignment_id: str, db: Session = Depends(get_db), user
         .order_by(Attempt.started_at.desc())
         .all()
     )
+    # 2026-09-17 (Shailesh: "never ever anywhere"): this is exactly the
+    # "Student Attempt Summary" table an admin uses to check a student's
+    # score/benchmark right after they finish -- self-heal every attempt
+    # here the same way admin_attempt_detail does, before any row below
+    # reads its score/status/benchmark fields.
+    attempts = [ensure_active_or_auto_submit(db, attempt) for attempt in attempts]
 
     detail = assignment_payload(db, assignment)
     attempt_rows = []
@@ -3327,6 +3349,10 @@ def _admin_student_matches_teacher(db: Session, student: Student | None, teacher
 @router.get("/dps/{dps_id}/results")
 def dps_results(dps_id: str, teacherId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     attempts = db.query(Attempt).filter(Attempt.dps_id == dps_id).all()
+    # 2026-09-17 (Shailesh: "never ever anywhere"): this results table reads
+    # a.total_score/accuracy_percentage/correct_count etc. directly below --
+    # self-heal first, same as every other DPS results display.
+    attempts = [ensure_active_or_auto_submit(db, a) for a in attempts]
     results = []
     for a in attempts:
         student = db.get(Student, a.student_id)
@@ -3373,6 +3399,9 @@ def level_results(levelId: str, moduleId: str | None = None, teacherId: str | No
     dps_ids = [dps.id for dps in dps_items]
 
     attempt_rows = db.query(Attempt).filter(Attempt.dps_id.in_(dps_ids)).all() if dps_ids else []
+    # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal before this
+    # level-wide results report reads any score/accuracy/status field below.
+    attempt_rows = [ensure_active_or_auto_submit(db, attempt) for attempt in attempt_rows]
     students_by_id: dict[str, Student] = {}
     if dps_ids:
         for attempt in attempt_rows:
@@ -3750,6 +3779,9 @@ def _admin_assessment_attempt_report_rows(
         .order_by(AssessmentAttempt.started_at.desc().nullslast(), AssessmentAttempt.submitted_at.desc().nullslast(), AssessmentAttempt.id.desc())
         .all()
     )
+    # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal before this
+    # report reads score/status for each attempt row.
+    Attempts = [EnsureAssessmentAttemptActiveOrAutoSubmit(db, AttemptValue) for AttemptValue in Attempts]
     Rows: list[dict] = []
     for AttemptValue in Attempts:
         AssignmentValue = db.get(AssessmentAssignment, AttemptValue.assessment_assignment_id)
@@ -3847,6 +3879,9 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
     )
     promotion_rows = [_admin_promotion_payload_for_report(db, Promotion) for Promotion in promotion_records]
     all_attempts = db.query(Attempt).filter(Attempt.student_id == student.id).order_by(Attempt.started_at.desc()).all()
+    # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal before this
+    # student's full attempt history report reads any score/status field.
+    all_attempts = [ensure_active_or_auto_submit(db, attempt) for attempt in all_attempts]
 
     filtered_attempts = []
     for attempt in all_attempts:
@@ -4160,6 +4195,13 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
 
 def _admin_filter_attempts_for_learning_performance(db: Session, teacher_id: str | None = None, module_id: str | None = None, level_id: str | None = None, lesson_id: str | None = None, dps_id: str | None = None) -> list[tuple[Attempt, dict]]:
     Attempts = db.query(Attempt).all()
+    # 2026-09-17 (Shailesh: "never ever anywhere"): this Learning Performance
+    # report reads score/accuracy fields off every one of these attempts
+    # below -- self-heal each one first. Cheap relative to the rest of this
+    # loop's own per-row db.get() calls (a terminal attempt is a single
+    # in-memory status check; only a genuinely abandoned one does any real
+    # work).
+    Attempts = [ensure_active_or_auto_submit(db, AttemptValue) for AttemptValue in Attempts]
     FilteredAttempts: list[tuple[Attempt, dict]] = []
     for AttemptValue in Attempts:
         Scope = _admin_attempt_scope(db, AttemptValue)
@@ -5380,6 +5422,17 @@ def admin_attempt_detail(attempt_id: str, db: Session = Depends(get_db), user: U
     attempt = db.get(Attempt, attempt_id)
     if not attempt:
         api_error(404, "NOT_FOUND", "Attempt not found.")
+    # 2026-09-17 (Shailesh: "never ever anywhere"): a DPS attempt abandoned
+    # past its own expiry (tab closed, connection dropped) never gets graded
+    # until *something* touches it -- previously only the student's own
+    # device ever did, via get_attempt_for_student(). Without this, an admin
+    # opening this exact page for such an attempt saw total_score=0 and
+    # every AttemptAnswer.is_correct still NULL (not graded yet) rendered as
+    # if it were a genuine, final "everything wrong" result -- see
+    # result_payload()'s own `bool(selected.is_correct)` note. Mirrors the
+    # same fix already live for Competition Mock's admin result endpoint
+    # (GetCompetitionMockResultForAdmin).
+    attempt = ensure_active_or_auto_submit(db, attempt)
 
     student = db.get(Student, attempt.student_id)
     student_user = db.get(User, student.user_id) if student else None

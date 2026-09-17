@@ -2467,6 +2467,13 @@ def AssessmentAssignmentPayload(Db: Session, Assignment: AssessmentAssignment) -
         .order_by(AssessmentAttempt.started_at.desc())
         .first()
     )
+    if Attempt is not None:
+        # 2026-09-17 (Shailesh: "never ever anywhere"): this is the shared
+        # payload builder behind essentially every assessment list/tracker
+        # view (admin and teacher) — self-heal here once so every caller
+        # gets finalized score/status, matching the DPS/Competition Mock
+        # fix pattern applied elsewhere for the same bug class.
+        Attempt = EnsureAssessmentAttemptActiveOrAutoSubmit(Db, Attempt)
     Result = (
         Db.query(AssessmentResult)
         .filter(AssessmentResult.assessment_assignment_id == Assignment.id)

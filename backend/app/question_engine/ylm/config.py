@@ -46,6 +46,18 @@ class YLMConfig:
     lesson_title: str | None = None
     generation_template: str = "DIRECT"
     revision_templates: tuple[str, ...] = field(default_factory=tuple)
+    # 2026-09-17 (Shailesh, Annual Competition Bloomers/Beginners digit-mix
+    # fix): opt-in, defaults to None for every existing caller (DPS worksheet
+    # generation, practice Competition Mock, Term Assessments) -- behavior is
+    # completely unchanged unless a caller explicitly sets this. Lets a
+    # caller pin the digit width actually used for generation without
+    # touching YLM_LESSON_RULES/YLM_DPS_DIGIT_PATTERN_OVERRIDES (the shared,
+    # DPS-facing tables enrich_config_with_lesson_rule() otherwise derives
+    # digit_pattern from) -- see enrich_config_with_lesson_rule() below,
+    # which applies this AFTER its own lesson-rule lookup so it always wins,
+    # and survives being re-applied on every one of that function's repeat
+    # calls (generate_ylm_question_set() re-enriches internally).
+    digit_pattern_override: str | None = None
 
 
 def _same_titles(title: str) -> tuple[str, str, str, str, str]:
@@ -244,6 +256,8 @@ def enrich_config_with_lesson_rule(config: YLMConfig) -> YLMConfig:
     config.target_numbers = list(rule.target_numbers)
     config.place_value = rule.place_value
     config.digit_pattern = dps_digit_pattern_for(config.lesson_number, config.dps_number, rule.digit_pattern)
+    if config.digit_pattern_override:
+        config.digit_pattern = config.digit_pattern_override
     config.allow_negative_operands = rule.allow_negative_operands
     config.allow_negative_answer = rule.allow_negative_answer
     config.allowed_movement_types = rule.allowed_movement_types

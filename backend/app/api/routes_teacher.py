@@ -13,11 +13,11 @@ from app.services.assignment_service import create_assignment
 from app.services import leaderboard_service
 from app.services.attempt_chain_service import ATTEMPT_SOURCE_MANUAL_RETRY
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
-from app.services.attempt_service import result_payload
+from app.services.attempt_service import ensure_active_or_auto_submit, result_payload
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, NeedsReattemptAttempts
 from app.services.assessment_eligibility_service import assessment_eligibility_payload, eligibility_for_students
 from app.services.assessment_blueprint_service import blueprint_payload, teacher_visible_blueprints
-from app.services.assessment_engine_service import AvailablePublishedVersions, AssessmentVersionOptionPayload, ExistingAssessmentAssignmentForLevel, AssessmentAssignmentPayload, AssessmentResultPayload, AssessmentProgressionPayload, StudentLevelPromotionPayload
+from app.services.assessment_engine_service import AvailablePublishedVersions, AssessmentVersionOptionPayload, ExistingAssessmentAssignmentForLevel, AssessmentAssignmentPayload, AssessmentResultPayload, AssessmentProgressionPayload, StudentLevelPromotionPayload, EnsureAssessmentAttemptActiveOrAutoSubmit
 from app.services.assessment_notification_service import NotifyAssessmentAssignmentsCreated
 from app.services.practice_notification_service import NotifyPracticeAssignmentsCreated
 from app.services.lesson_progress_service import (
@@ -26,7 +26,7 @@ from app.services.lesson_progress_service import (
     ComputeLessonProgressByLevelGroups,
     ComputeLessonProgressForStudents,
 )
-from app.services.competition_mock_attempt_service import GetCompetitionMockResultForTeacher
+from app.services.competition_mock_attempt_service import GetCompetitionMockResultForTeacher, EnsureCompetitionAttemptActiveOrSubmit
 from app.services.annual_competition_monitoring_service import (
     GetAnnualCompetitionLiveMonitoring,
     ListAnnualCompetitionResultsForRoster,
@@ -129,6 +129,12 @@ def _teacher_competition_row_payload(db: Session, assignment: CompetitionMockAss
         .order_by(CompetitionMockAttempt.attempt_number.desc(), CompetitionMockAttempt.started_at.desc())
         .first()
     )
+    if latest_attempt:
+        # 2026-09-17 (Shailesh: "never ever anywhere"): this single helper
+        # backs BOTH the teacher mock tracker and the admin mock tracker
+        # (admin_competition_mock_tracker reuses it directly), so fixing it
+        # once here self-heals a stuck IN_PROGRESS attempt for both logins.
+        latest_attempt = EnsureCompetitionAttemptActiveOrSubmit(db, latest_attempt)
     result_summary = None
     if latest_attempt:
         result_summary = (
@@ -495,6 +501,9 @@ def student_payload(db: Session, student: Student, lesson_progress: dict | None 
     visible_assignments = list(assignments_by_id.values())
 
     attempts = db.query(Attempt).filter(Attempt.student_id == student.id).all()
+    # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal before this
+    # roster card's completed/in-progress counts and latest score are read.
+    attempts = [ensure_active_or_auto_submit(db, attempt) for attempt in attempts]
     completed_statuses = ["SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"]
     completed_attempts = [a for a in attempts if a.status in completed_statuses]
     latest = sorted(
@@ -631,7 +640,11 @@ def ensure_teacher_attempt_access(db: Session, teacher: Teacher, attempt_id: str
     if not own_student:
         api_error(403, "FORBIDDEN", "You can review attempts only for your own students.")
 
-    return attempt
+    # 2026-09-17 (Shailesh: "never ever anywhere"): single choke point for
+    # every teacher-facing DPS attempt read (teacher_attempt_result and any
+    # other route built on this helper) -- self-heal here once instead of at
+    # each call site, mirroring admin_attempt_detail's own fix.
+    return ensure_active_or_auto_submit(db, attempt)
 
 
 def attempt_payload(db: Session, attempt: Attempt) -> dict:
@@ -1332,23 +1345,32 @@ def active_reattempt_permission_for_assignment(db: Session, assignment_id: str, 
 
 
 def latest_attempt_for_assignment(db: Session, assignment_id: str, student_id: str) -> Attempt | None:
-    return (
+    attempt = (
         db.query(Attempt)
         .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
         .order_by(Attempt.started_at.desc())
         .first()
     )
+    if attempt is None:
+        return None
+    # 2026-09-17 (Shailesh: "never ever anywhere"): single choke point for
+    # every teacher view that shows a "latest attempt" (notifications,
+    # assignment tracker, legacy assessment tracker) -- self-heal here once.
+    return ensure_active_or_auto_submit(db, attempt)
 
 
 
 
 def all_attempts_for_assignment_student(db: Session, assignment_id: str, student_id: str) -> list[Attempt]:
-    return (
+    attempts = (
         db.query(Attempt)
         .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
         .order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
         .all()
     )
+    # 2026-09-17 (Shailesh: "never ever anywhere"): backs the teacher
+    # attempt-history display -- self-heal before status/score are read.
+    return [ensure_active_or_auto_submit(db, attempt) for attempt in attempts]
 
 
 def attempt_history_for_assignment_student(db: Session, assignment: Assignment, student: Student, dps_context: dict | None = None) -> list[dict]:
@@ -1494,6 +1516,11 @@ def teacher_assignment_tracker(db: Session = Depends(get_db), teacher: Teacher =
         for student in target_students:
             student_user = db.get(User, student.user_id)
             attempt = latest_attempt_for_assignment(db, assignment.id, student.id)
+            # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal before
+            # this row's status/score is computed below -- same bug class as
+            # admin's Student Attempt Summary table.
+            if attempt:
+                attempt = ensure_active_or_auto_submit(db, attempt)
             reattempt_permission = active_reattempt_permission_for_assignment(db, assignment.id, student.id)
             status = tracker_attempt_status(attempt, reattempt_permission)
 
@@ -1575,6 +1602,9 @@ def teacher_assessment_attempt_result_route(
     own_student_ids = [student.id for student in own_students_query(db, teacher).all()]
     if attempt.student_id not in own_student_ids:
         api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found for this teacher.")
+    # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal a stuck
+    # IN_PROGRESS attempt before serving its result.
+    attempt = EnsureAssessmentAttemptActiveOrAutoSubmit(db, attempt)
     return AssessmentResultPayload(db, attempt, IncludeReview=True)
 
 
@@ -1800,6 +1830,9 @@ def teacher_results(db: Session = Depends(get_db), teacher: Teacher = Depends(ge
         .limit(200)
         .all()
     )
+    # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal before
+    # attempt_payload() below reads score/status for this list.
+    attempts = [ensure_active_or_auto_submit(db, attempt) for attempt in attempts]
     return {"attempts": [attempt_payload(db, attempt) for attempt in attempts]}
 
 
