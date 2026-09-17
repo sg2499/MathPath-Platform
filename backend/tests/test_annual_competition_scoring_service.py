@@ -1365,6 +1365,41 @@ def test_practice_finalize_does_not_double_stamp_consumed_at_on_recompute():
     assert paper.consumed_at == first_consumed_at
 
 
+def test_finalize_does_not_re_stamp_computed_at_on_recompute():
+    """2026-09-17 fix (Shailesh bug report -- "the completion date and time
+    ... are all the same, which is not possible"): computed_at used to be
+    reset to "now" on every call to ComputeAndFinalizeCompetitionEventResult,
+    including a later recompute over an already-finalized row -- so one bulk
+    RecomputeAnnualCompetitionPracticeResults/RecomputeAnnualCompetitionResults
+    pass collapsed every affected result's own true completion time to that
+    one run's timestamp. Mirrors test_practice_finalize_does_not_double_stamp_
+    consumed_at_on_recompute above exactly, just for computed_at: IsFirstFinalize
+    must stay false on the second call, so computed_at (already stamped) is
+    left exactly as it was."""
+    db = _session()
+    student = _setup_student_with_practice_questions(
+        db, "sPracticeComputedAt", section_seconds=(600,), questions_per_section=[1],
+        level_paper_id="practice-computed-at-paper",
+    )
+    db.commit()
+
+    started = attempt_engine.StartAnnualCompetitionPracticeAttempt(db, student, "PM-L2")
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "practice-q-1-1", correct=True)
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    result = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == attempt_id).first()
+    first_computed_at = result.computed_at
+    assert first_computed_at is not None
+
+    attempt = db.get(CompetitionEventAttempt, attempt_id)
+    scoring.ComputeAndFinalizeCompetitionEventResult(db, attempt)
+    db.commit()
+
+    db.refresh(result)
+    assert result.computed_at == first_computed_at
+
+
 # ---------------------------------------------------------------------------
 # Practice's own admin results surface (Phase E; fully decoupled from any
 # event, 2026-09-12) -- ListAnnualCompetitionPracticeResultsForAdmin.
