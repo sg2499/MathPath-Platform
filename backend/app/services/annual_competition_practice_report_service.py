@@ -529,12 +529,37 @@ def GetAnnualCompetitionPracticeReportForLevel(
         StudentStats["lastAttemptAt"] = LastAttemptAt.isoformat() if LastAttemptAt else None
         PerStudent.append(StudentStats)
 
-    # Leaderboard-style default order: highest avg accuracy first. A None
-    # (zero attempted questions across every attempt -- unusual but
-    # possible) sorts last, never mistaken for a genuine 0%.
+    # Leaderboard-style default order: highest avg accuracy first, average
+    # time taken ascending as tiebreak -- 2026-09-18 (Shailesh, Annual
+    # Competition Practice Leaderboard feature): mirrors the exact tiebreak
+    # rule every other leaderboard in this codebase already uses (see
+    # leaderboard_service.py's own module docstring, "pooled accuracy
+    # descending, then average time taken ascending as tiebreaker"), so an
+    # admin/teacher who already knows how DPS/Mock leaderboards break ties
+    # sees the same rule here. A None accuracy (zero attempted questions
+    # across every attempt -- unusual but possible) sorts last, never
+    # mistaken for a genuine 0%; a None avg time (should not occur for a row
+    # with real attempts, but handled defensively) sorts after every real
+    # time value rather than being treated as an implicit zero/fastest.
     PerStudent.sort(
-        key=lambda Row: (Row["avgAccuracyPercentage"] is None, -(Row["avgAccuracyPercentage"] or 0.0))
+        key=lambda Row: (
+            Row["avgAccuracyPercentage"] is None,
+            -(Row["avgAccuracyPercentage"] or 0.0),
+            Row["avgTimeTakenSeconds"] is None,
+            Row["avgTimeTakenSeconds"] if Row["avgTimeTakenSeconds"] is not None else 0,
+        )
     )
+    # "rank" (Shailesh, 2026-09-18): an explicit 1-based field, not just
+    # array order -- the new Practice Leaderboard tab (frontend) needs a
+    # stable, unambiguous rank number per row (e.g. to identify podium
+    # positions 1/2/3) rather than re-deriving it from array position, which
+    # is exactly the kind of implicit-order dependency this codebase's own
+    # leaderboard_service.py explicitly avoids elsewhere. Purely additive --
+    # every existing consumer of perStudent (the "Individual Level" report
+    # tab) already renders these rows in array order and ignores unknown
+    # dict keys, so this cannot change that tab's behavior.
+    for Index, Row in enumerate(PerStudent):
+        Row["rank"] = Index + 1
 
     return {
         "competitionLevelCode": CompetitionLevelCode,

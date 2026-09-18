@@ -8,6 +8,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { ANNUAL_COMPETITION_LEVEL_CODES, FormatCompetitionLevelLabel } from "@/lib/api/admin";
 import { GroupPracticePapersByLevel } from "@/lib/annualCompetitionPracticeGrouping";
+import { PracticeLeaderboardPodium } from "@/components/common/PracticeLeaderboardPodium";
 import {
   getTeacherAnnualCompetitionEvents,
   getTeacherAnnualCompetitionLive,
@@ -548,7 +549,10 @@ type OfficialSubTabKey = (typeof OfficialSubTabList)[number];
 // PracticeSubTabList/PracticeReportsSubTabList exactly (admin/competition/
 // annual-studio/page.tsx) -- Teacher just has two sub-tabs (no Bank, that
 // stays Admin-only) instead of three.
-const PracticeSubTabList = ["RESULTS", "REPORTS"] as const;
+// 2026-09-18 (Shailesh, Practice Leaderboard feature): "3rd tab for teacher
+// which is gonna be leaderboard." Same reasoning as admin's own 4th tab --
+// see that page's identical comment.
+const PracticeSubTabList = ["RESULTS", "REPORTS", "LEADERBOARD"] as const;
 type PracticeSubTabKey = (typeof PracticeSubTabList)[number];
 
 const PracticeReportsSubTabList = ["STUDENT", "LEVEL"] as const;
@@ -700,6 +704,18 @@ function TeacherAnnualCompetitionMonitorPageContent() {
     queryFn: () => getTeacherAnnualCompetitionPracticeReportForLevel(ReportsLevelCode),
     enabled:
       Ready && TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "LEVEL" && Boolean(ReportsLevelCode),
+  });
+
+  // 2026-09-18 (Shailesh, Practice Leaderboard feature) -- see the identical
+  // block on the admin page (admin/competition/annual-studio/page.tsx) for
+  // the full reasoning. Automatically scoped to this teacher's own roster
+  // server-side (getTeacherAnnualCompetitionPracticeReportForLevel already
+  // is, same as every other teacher Practice Reports call in this file).
+  const [LeaderboardLevelCode, SetLeaderboardLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
+  const PracticeLeaderboardQuery = useQuery({
+    queryKey: ["teacher", "annual-competition", "practice-leaderboard-level", LeaderboardLevelCode],
+    queryFn: () => getTeacherAnnualCompetitionPracticeReportForLevel(LeaderboardLevelCode),
+    enabled: Ready && TopTab === "PRACTICE" && PracticeSubTab === "LEADERBOARD" && Boolean(LeaderboardLevelCode),
   });
 
   // 2026-09-14 (Shailesh): same student-grouped view as the admin Practice
@@ -878,7 +894,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                     aria-selected={PracticeSubTab === Tab}
                     className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${PracticeSubTab === Tab ? "is-active" : ""}`}
                   >
-                    {Tab === "RESULTS" ? "Practice Results" : "Practice Reports"}
+                    {Tab === "RESULTS" ? "Practice Results" : Tab === "REPORTS" ? "Practice Reports" : "Leaderboard"}
                   </button>
                 ))}
               </div>
@@ -1343,6 +1359,48 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                 ) : null}
               </div>
             )}
+          </div>
+        )}
+
+        {TopTab === "PRACTICE" && PracticeSubTab === "LEADERBOARD" && (
+          <div className="math-card p-5">
+            <p className="math-block-header"><Trophy size={14} />Leaderboard</p>
+            <h2 className="mt-1 text-lg font-black text-slate-950 dark:text-white">Practice Leaderboard</h2>
+            <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+              Level-wise rankings across your own students&apos; Annual Competition practice papers at this level --
+              highest average accuracy first, average time taken as tiebreak. Practice only, never mixed with the
+              official event&apos;s own ranked results.
+            </p>
+
+            <div className="mt-4">
+              <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                Level
+                <select
+                  aria-label="Select level for the leaderboard"
+                  value={LeaderboardLevelCode}
+                  onChange={(EventValue) => SetLeaderboardLevelCode(EventValue.target.value)}
+                  className="math-input w-auto min-w-[200px]"
+                >
+                  {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                    <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-5">
+              {PracticeLeaderboardQuery.isLoading ? (
+                <LoadingState label="Loading leaderboard..." />
+              ) : PracticeLeaderboardQuery.isError ? (
+                <ErrorState message={apiErrorMessage(PracticeLeaderboardQuery.error)} />
+              ) : PracticeLeaderboardQuery.data ? (
+                <PracticeLeaderboardPodium
+                  Summary={PracticeLeaderboardQuery.data.summary}
+                  Rows={PracticeLeaderboardQuery.data.perStudent}
+                  EmptyDescription="None of your students have completed a practice paper at this level yet -- the leaderboard fills in as soon as the first paper is submitted."
+                />
+              ) : null}
+            </div>
           </div>
         )}
       </section>
