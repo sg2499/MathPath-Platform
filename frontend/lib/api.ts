@@ -125,3 +125,27 @@ export function apiErrorDetail(error: unknown): { code: string; message: string;
   if (!Detail || typeof Detail !== "object" || !Detail.code) return null;
   return { code: String(Detail.code), message: String(Detail.message || ""), details: Detail.details || {} };
 }
+
+// 2026-09-18 (Shailesh: "make sure this never happens again," after a
+// student went without visible assigned work for over a week because a
+// real fix sat correctly merged to `main` without ever reaching the box
+// `mock.mathpath.in` actually resolves to). BackendHealth surfaces exactly
+// what commit is answering requests right now -- see
+// backend/app/core/deploy_info.py's module docstring for the full story.
+// Public/unauthenticated endpoint (no role/session dependency at all), so
+// this is safe to call from anywhere, including before login.
+export type BackendHealth = {
+  status: string;
+  environment: string;
+  deployedCommit: string;
+  deployedCommitFull: string;
+  deployedCommitSubject: string;
+  deployedCommitTime: string;
+  processStartedAt: string;
+  uptimeSeconds: number;
+};
+
+export async function getBackendHealth(): Promise<BackendHealth> {
+  const { data } = await api.get<BackendHealth>("/health", { skipAuth: true } as any);
+  return data;
+}

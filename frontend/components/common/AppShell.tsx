@@ -3,6 +3,7 @@
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { useAuthenticatedImage } from "@/lib/hooks/useAuthenticatedImage";
 import { NotificationsBell } from "@/components/common/NotificationsBell";
+import { BuildInfoBadge } from "@/components/common/BuildInfoBadge";
 import { apiErrorMessage } from "@/lib/api";
 import {
   changePassword,
@@ -1805,6 +1806,9 @@ function AccountMenu({
 }) {
   const RoleLabel = displayUserRole(user.role);
   const UserCode = accountCode(user);
+  // 2026-09-18: operational "what's actually deployed" info belongs to
+  // whoever can act on it -- admins, not students/teachers.
+  const CanSeeBuildInfo = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
 
   return (
     <div className="math-account-menu math-pop-in" role="menu">
@@ -1847,6 +1851,8 @@ function AccountMenu({
           <span>Account Settings</span>
         </button>
       </div>
+
+      {CanSeeBuildInfo ? <BuildInfoBadge /> : null}
 
       <div className="math-account-divider" />
 

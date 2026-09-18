@@ -1,5 +1,36 @@
 # MathPath — Deploy Playbook (Shailesh's actual workflow)
 
+**2026-09-18 update — deploys to production now happen automatically.**
+`.github/workflows/deploy-production.yml` deploys to the EC2 box on every
+push to `main`: backend always, frontend only when `frontend/` files
+actually changed (mirroring Step 4a/4b below), then verifies the deploy by
+calling the box's own `GET /api/health` and comparing the commit it
+reports against the commit just pushed -- failing loudly (not silently) if
+they don't match. This exists because a real bug fix sat correctly merged
+to `main` for over a week without ever reaching `mock.mathpath.in` (which
+resolves straight to this EC2 box, confirmed via direct DNS lookup --
+`mathpath-backend` on Render, this repo's *other* backend deployment,
+auto-deploys on every merge too but was never the one serving real
+students, which is exactly what made the gap so easy to miss) -- see
+`COWORK_HANDOFF.md`'s 2026-09-18 entry for the full incident writeup.
+
+**Everything below this note still works exactly as documented** and
+remains the way to deploy by hand -- if the automated workflow is broken,
+if GitHub Actions itself is unreachable, or if Shailesh simply wants to
+deploy something that hasn't been merged to `main` yet. In normal
+operation, though, merging a PR is now the last manual step; nothing further
+needs to be run for the change to go live. `GET /api/health` (or the
+build-info widget in the admin account menu) is the fast way to confirm
+what's actually live, instead of an SSH session.
+
+One-time setup this needed (done once, not part of any future deploy): a
+repository secret named `PROD_SSH_PRIVATE_KEY`, containing the contents of
+`C:\Users\shail\.ssh\mathpath-platform.pem`, added by Shailesh directly via
+GitHub -- Settings -> Secrets and variables -> Actions -> New repository
+secret. Cowork never has and never will see this key's contents.
+
+---
+
 Last documented: 2026-08-21, by a Cowork session, from Shailesh's own pasted
 commands after a prior Cowork reply guessed wrong (offered the
 `.agents/apex_deliver.py` / `sre-devops` route instead). **This file is the
