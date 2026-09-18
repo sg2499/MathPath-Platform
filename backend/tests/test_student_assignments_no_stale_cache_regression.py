@@ -10,8 +10,9 @@ Both GET /student/assignments and GET /student/results were decorated with
 @cache_by_user_id() (backend/app/core/cache.py, now deleted): a 60-second
 in-process TTLCache, keyed only by (function name, student id), with no
 invalidation anywhere in the codebase -- not on assignment creation, not
-on anything. Combined with this backend running as 4 separate gunicorn
-worker processes (each with its own independent copy of the cache), a
+on anything. Combined with this backend running under systemd as 2
+separate gunicorn worker processes (-w 2 in mathpath-backend.service,
+each with its own independent copy of the cache), a
 student could log in seconds after a teacher assigned them a sheet and
 still be served a stale, pre-assignment response, entirely depending on
 which worker handled the request and whether that worker had already
