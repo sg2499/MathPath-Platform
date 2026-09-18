@@ -847,6 +847,9 @@ export type TeacherAnnualCompetitionPracticeReportStudentRow = TeacherAnnualComp
   studentName: string | null;
   studentCode: string | null;
   lastAttemptAt: string | null;
+  // 2026-09-18 (Practice Leaderboard feature) -- see the identical field on
+  // AnnualCompetitionPracticeReportStudentRow (lib/api/admin.ts) for why.
+  rank: number;
 };
 
 export type TeacherAnnualCompetitionPracticeReportForLevel = {

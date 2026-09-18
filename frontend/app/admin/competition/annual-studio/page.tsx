@@ -37,6 +37,7 @@ import {
 } from "@/lib/api/admin";
 import type { AdminTeacher } from "@/types/teacher";
 import { GroupPracticePapersByLevel } from "@/lib/annualCompetitionPracticeGrouping";
+import { PracticeLeaderboardPodium } from "@/components/common/PracticeLeaderboardPodium";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -576,7 +577,13 @@ type TopTabKey = (typeof TopTabList)[number];
 // Practice Results - Practice Reports" -- a third sub-tab added here,
 // containing its own two further sub-tabs (see PracticeReportsSubTabList
 // below) for the per-student and per-level analytics.
-const PracticeSubTabList = ["BANK", "RESULTS", "REPORTS"] as const;
+// 2026-09-18 (Shailesh, Practice Leaderboard feature): a 4th sub-tab --
+// "we need to have a 4th tab for admin ... which is gonna be leaderboard
+// ... level wise leaderboards." Deliberately its own top-level sub-tab
+// (sibling to Reports), not nested under Reports -- Shailesh's own words
+// listed it as a 4th tab alongside the existing 3, not a 3rd Reports
+// sub-tab like Analytics Visualization is.
+const PracticeSubTabList = ["BANK", "RESULTS", "REPORTS", "LEADERBOARD"] as const;
 type PracticeSubTabKey = (typeof PracticeSubTabList)[number];
 
 const PracticeReportsSubTabList = ["STUDENT", "LEVEL"] as const;
@@ -1159,6 +1166,24 @@ function AdminAnnualCompetitionStudioPageContent() {
       Ready && TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "LEVEL" && Boolean(ReportsLevelCode),
   });
 
+  // ---------------------------------------------------------------------
+  // Practice -- Leaderboard (2026-09-18, Shailesh): "we need to have a 4th
+  // tab for admin ... which is gonna be leaderboard ... level wise
+  // leaderboards so that ... the admin can see how all the students are
+  // faring." Reuses the exact same GetAnnualCompetitionPracticeReportForLevel
+  // endpoint the "Individual Level" Reports tab already calls -- its
+  // perStudent array is already the leaderboard (sorted, now with an
+  // explicit rank field, see that service function's own comment) -- kept
+  // as its own query/queryKey rather than sharing PracticeReportLevelQuery
+  // so the Leaderboard tab has its own independent level selection instead
+  // of the two tabs fighting over one shared filter.
+  const [LeaderboardLevelCode, SetLeaderboardLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
+  const PracticeLeaderboardQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "practice-leaderboard-level", LeaderboardLevelCode],
+    queryFn: () => getAnnualCompetitionPracticeReportForLevel(LeaderboardLevelCode),
+    enabled: Ready && TopTab === "PRACTICE" && PracticeSubTab === "LEADERBOARD" && Boolean(LeaderboardLevelCode),
+  });
+
   if (!Ready) return null;
 
   // 2026-09-16 (Shailesh, 504 fix): a STANDING fact about page state (a
@@ -1172,7 +1197,8 @@ function AdminAnnualCompetitionStudioPageContent() {
     (TopTab === "PRACTICE" && PracticeSubTab === "BANK" ? StudentsQuery.error : null) ||
     (TopTab === "PRACTICE" && PracticeSubTab === "RESULTS" ? PracticeResultsQuery.error : null) ||
     (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "STUDENT" ? ReportsRosterQuery.error : null) ||
-    (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "LEVEL" ? PracticeReportLevelQuery.error : null);
+    (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "LEVEL" ? PracticeReportLevelQuery.error : null) ||
+    (TopTab === "PRACTICE" && PracticeSubTab === "LEADERBOARD" ? PracticeLeaderboardQuery.error : null);
 
   return (
     <AppShell title="Annual Competition Studio">
@@ -1428,7 +1454,13 @@ function AdminAnnualCompetitionStudioPageContent() {
                     aria-selected={PracticeSubTab === Tab}
                     className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${PracticeSubTab === Tab ? "is-active math-admin-tab-force-selected" : ""}`}
                   >
-                    {Tab === "BANK" ? "Practice Bank" : Tab === "RESULTS" ? "Practice Results" : "Practice Reports"}
+                    {Tab === "BANK"
+                      ? "Practice Bank"
+                      : Tab === "RESULTS"
+                        ? "Practice Results"
+                        : Tab === "REPORTS"
+                          ? "Practice Reports"
+                          : "Leaderboard"}
                   </button>
                 ))}
               </div>
@@ -2066,6 +2098,45 @@ function AdminAnnualCompetitionStudioPageContent() {
                     ) : null}
                   </div>
                 )}
+              </div>
+            )}
+
+            {PracticeSubTab === "LEADERBOARD" && (
+              <div className="math-card p-5">
+                <SectionTitle
+                  icon={<Trophy size={14} />}
+                  kicker="Leaderboard"
+                  title="Practice Leaderboard"
+                  description="Level-wise rankings across every student's Annual Competition practice papers at this level -- highest average accuracy first, average time taken as tiebreak. Practice only, never mixed with the official event's own ranked results."
+                />
+
+                <div className="mt-4">
+                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                    Level
+                    <select
+                      aria-label="Select level for the leaderboard"
+                      value={LeaderboardLevelCode}
+                      onChange={(EventValue) => SetLeaderboardLevelCode(EventValue.target.value)}
+                      className="math-input w-auto min-w-[200px]"
+                    >
+                      {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                        <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="mt-5">
+                  {PracticeLeaderboardQuery.isLoading ? (
+                    <LoadingState label="Loading leaderboard..." />
+                  ) : PracticeLeaderboardQuery.data ? (
+                    <PracticeLeaderboardPodium
+                      Summary={PracticeLeaderboardQuery.data.summary}
+                      Rows={PracticeLeaderboardQuery.data.perStudent}
+                      EmptyDescription="No student has completed a practice paper at this level yet -- the leaderboard fills in as soon as the first paper is submitted."
+                    />
+                  ) : null}
+                </div>
               </div>
             )}
           </div>

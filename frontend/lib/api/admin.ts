@@ -2357,6 +2357,13 @@ export type AnnualCompetitionPracticeReportStudentRow = AnnualCompetitionPractic
   studentName: string | null;
   studentCode: string | null;
   lastAttemptAt: string | null;
+  // 2026-09-18 (Practice Leaderboard feature): 1-based rank within this
+  // level's perStudent array, highest avg accuracy first, avg time
+  // ascending as tiebreak -- see GetAnnualCompetitionPracticeReportForLevel's
+  // own comment. The pre-existing "Individual Level" report tab already
+  // rendered these rows in this same order; this field just makes that
+  // order an explicit, addressable number instead of only array position.
+  rank: number;
 };
 
 export type AnnualCompetitionPracticeReportForLevel = {

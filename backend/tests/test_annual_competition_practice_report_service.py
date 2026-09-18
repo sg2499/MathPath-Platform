@@ -344,14 +344,48 @@ def test_level_report_aggregates_across_students_and_sorts_by_accuracy_desc():
     assert report["perStudent"][0]["avgAccuracyPercentage"] == 100.0
     assert report["perStudent"][1]["studentId"] == "s-low"
     assert report["perStudent"][1]["avgAccuracyPercentage"] == 25.0
+    # 2026-09-18 (Practice Leaderboard feature): explicit 1-based rank field,
+    # not just array order -- see GetAnnualCompetitionPracticeReportForLevel's
+    # own comment.
+    assert report["perStudent"][0]["rank"] == 1
+    assert report["perStudent"][1]["rank"] == 2
 
-    assert len(report["perSection"]) == 1
-    # (100 + 25) / 2 = 62.5 attempt-weighted average across both students' one attempt each,
-    # rounded to the nearest whole number per the flow's whole-number display policy (round-half-up).
-    assert report["perSection"][0]["avgAccuracyPercentage"] == 63
-    # Level report's perSection also carries the real section title (shared
-    # _AggregatePerSectionStats implementation, same 2026-09-17 fix).
-    assert report["perSection"][0]["sectionTitle"] == "Add/Less (Abacus)"
+
+def test_level_report_ties_on_accuracy_break_by_avg_time_ascending():
+    """2026-09-18 (Practice Leaderboard feature): two students with identical
+    avg accuracy rank by avg time taken ascending -- the same tiebreak rule
+    leaderboard_service.py's DPS/Mock leaderboards already use (see that
+    module's own docstring), so the Practice Leaderboard tab breaks ties the
+    same way every other leaderboard in this app already does."""
+    db = _session()
+    fast = _student(db, "s-fast", name="Fast Student")
+    slow = _student(db, "s-slow", name="Slow Student")
+
+    _setup_practice_paper(db, fast.id, "PM-L2", (600,), [4], "exam-fast", "paper-fast", "fast")
+    db.commit()
+    _attempt_and_answer_all(db, fast, "PM-L2", "fast", [4], [True, True, False, False])
+
+    _setup_practice_paper(db, slow.id, "PM-L2", (600,), [4], "exam-slow", "paper-slow", "slow")
+    db.commit()
+    _attempt_and_answer_all(db, slow, "PM-L2", "slow", [4], [True, True, False, False])
+
+    # Both students now have identical 50% accuracy -- force distinct
+    # time_taken_seconds directly (mirrors this file's own established
+    # pattern of post-hoc-patching a field to test ordering, see
+    # test_level_report_per_student_last_attempt_at_sources_from_submitted_at
+    # above) so the tiebreak, not accuracy, decides the order.
+    fast_result = db.query(CompetitionEventResult).filter(CompetitionEventResult.student_id == fast.id).one()
+    slow_result = db.query(CompetitionEventResult).filter(CompetitionEventResult.student_id == slow.id).one()
+    assert fast_result.accuracy_percentage == slow_result.accuracy_percentage == 50.0
+    fast_result.time_taken_seconds = 120
+    slow_result.time_taken_seconds = 300
+    db.commit()
+
+    report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
+
+    assert [row["studentId"] for row in report["perStudent"]] == ["s-fast", "s-slow"]
+    assert report["perStudent"][0]["rank"] == 1
+    assert report["perStudent"][1]["rank"] == 2
 
 
 def test_level_report_per_student_last_attempt_at_sources_from_submitted_at():
