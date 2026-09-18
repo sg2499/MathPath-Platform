@@ -18,6 +18,7 @@ import sentry_sdk
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.core.rate_limit import limiter
+from app.core.deploy_info import GetDeployedCommitInfo
 
 logger = logging.getLogger("mathpath")
 
@@ -27,6 +28,10 @@ if SENTRY_DSN:
         dsn=SENTRY_DSN,
         traces_sample_rate=1.0,
         profiles_sample_rate=1.0,
+        # 2026-09-18: tags every captured error with the exact commit that
+        # produced it, so a Sentry issue answers "which deploy was this"
+        # without cross-referencing timestamps against deploy history.
+        release=GetDeployedCommitInfo()["commit"],
     )
 
 app = FastAPI(title="MathPath Backend v1", version="1.0.0")

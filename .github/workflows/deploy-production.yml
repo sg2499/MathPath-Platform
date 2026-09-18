@@ -1,0 +1,249 @@
+# =============================================================================
+# MathPath — Automatic production deploy on every merge to `main`
+# =============================================================================
+#
+# Built 2026-09-18 (Shailesh: "do whatever will fix and make sure this never
+# happens again"), after a real student went without visible assigned DPS
+# sheets and Annual Competition practice papers for over a week. The fix for
+# the actual bug (a stale in-process cache, removed 2026-09-07/08) had been
+# sitting correctly merged to `main` the entire time -- the gap was that
+# `mock.mathpath.in` is served by a single EC2 box (confirmed via direct DNS
+# lookup: it resolves straight to 15.206.108.37, not the Render service this
+# repo also has, which was a red herring -- fully current via auto-deploy,
+# but never the box real students hit) that only ever updated when someone
+# remembered to run docs/project-memory/DEPLOY_PLAYBOOK.md's manual SSH
+# steps by hand. This workflow removes that manual step entirely: every
+# push to `main` deploys itself, backend always, frontend only when
+# `frontend/` actually changed (mirroring DEPLOY_PLAYBOOK.md's own Step
+# 4a/4b split, so a backend-only fix isn't held up behind an unnecessary
+# ~2-3 minute frontend rebuild).
+#
+# This does NOT replace DEPLOY_PLAYBOOK.md -- that stays as the documented
+# manual fallback (e.g. if this workflow itself needs debugging, or GitHub
+# Actions is unreachable). It also does not change how a change reaches
+# `main` in the first place: a human still opens, reviews, and merges every
+# PR exactly as before. This only automates the step that used to be a
+# manual SSH session *after* that merge -- the step that was the actual
+# root cause of the recurring bug.
+#
+# One-time setup needed from Shailesh before this can run (see the PR this
+# workflow ships in for the exact instructions): add a repository secret
+# named PROD_SSH_PRIVATE_KEY containing the *contents* of
+# C:\Users\shail\.ssh\mathpath-platform.pem. Nothing else -- the server
+# host/user (ubuntu@15.206.108.37) is not sensitive and is already
+# documented in DEPLOY_PLAYBOOK.md, so it's inlined below rather than
+# adding a second secret for no real benefit.
+#
+# Safety properties, deliberately built in:
+#   - Pins the remote `git reset --hard` to *this workflow run's own*
+#     github.sha, never the possibly-already-moved-on `origin/main` --
+#     stronger than the manual playbook itself, and what makes the
+#     post-deploy verification step meaningful (it's checking that the
+#     exact commit this run was triggered for is what's actually live).
+#   - Verifies the deploy by calling the box's own GET /api/health after
+#     restarting and comparing deployedCommitFull against github.sha --
+#     the same endpoint added in this same change specifically so this
+#     kind of check never again requires an SSH session. A mismatch fails
+#     the job loudly (GitHub's default failure notification reaches
+#     Shailesh) instead of silently leaving stale code live.
+#   - concurrency + cancel-in-progress: false -- two merges landing close
+#     together queue instead of one deploy getting killed mid-way through
+#     a restart.
+#   - Does not attempt an automatic rollback on a failed verification --
+#     deliberately, for this first version: an auto-rollback is its own
+#     source of risk (it can mask a real problem, or itself fail) and the
+#     manual process today carries the exact same no-auto-rollback
+#     property. A failed run here is strictly better than today's silent
+#     staleness: it's loud, and DEPLOY_PLAYBOOK.md's manual steps remain
+#     the documented way to intervene by hand.
+# =============================================================================
+
+name: Deploy to Production
+
+'on':
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PROD_SSH_HOST: '15.206.108.37'
+  PROD_SSH_USER: 'ubuntu'
+  PROD_REMOTE_PATH: '/home/ubuntu/MathPath-Platform'
+
+jobs:
+  detect-frontend-changes:
+    name: Detect whether frontend/ changed
+    runs-on: ubuntu-latest
+    outputs:
+      frontend_changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compare against the previous main tip
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual run -- rebuilding frontend too, to be safe."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          BEFORE="${{ github.event.before }}"
+          if printf '%s' "$BEFORE" | grep -Eq '^0+$' || ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            echo "No usable prior commit (first run or force-push) -- rebuilding frontend too, to be safe."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$BEFORE" "${{ github.sha }}" | grep -q '^frontend/'; then
+            echo "frontend/ changed in this push."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend/ did not change in this push -- backend-only deploy."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-frontend:
+    name: Build frontend (only when frontend/ changed)
+    needs: detect-frontend-changes
+    if: needs.detect-frontend-changes.outputs.frontend_changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          # Production Next server talks to the local uvicorn/gunicorn
+          # process behind nginx on the same box -- matches
+          # DEPLOY_PLAYBOOK.md Step 4a exactly.
+          BACKEND_ORIGIN: 'http://127.0.0.1:8000'
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
+      - name: Pack frontend build artifact
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/mp-frontend-artifact
+          cp -a frontend/.next /tmp/mp-frontend-artifact/.next
+          if [ -d frontend/public ]; then cp -a frontend/public /tmp/mp-frontend-artifact/public; fi
+          cp frontend/package.json /tmp/mp-frontend-artifact/
+          if [ -f frontend/package-lock.json ]; then cp frontend/package-lock.json /tmp/mp-frontend-artifact/; fi
+          if [ -f frontend/next.config.mjs ]; then cp frontend/next.config.mjs /tmp/mp-frontend-artifact/; fi
+          echo "${{ github.sha }}" > /tmp/mp-frontend-artifact/BUILD_SHA.txt
+          tar -C /tmp/mp-frontend-artifact -czf /tmp/mathpath-frontend-build.tgz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mathpath-frontend-build
+          path: /tmp/mathpath-frontend-build.tgz
+          retention-days: 3
+
+  deploy:
+    name: Deploy to production
+    needs: [detect-frontend-changes, build-frontend]
+    if: |
+      always() &&
+      needs.detect-frontend-changes.result == 'success' &&
+      (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download frontend artifact
+        if: needs.detect-frontend-changes.outputs.frontend_changed == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: mathpath-frontend-build
+          path: /tmp/mp-artifact
+
+      - name: Configure deploy SSH key
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          umask 077
+          printf '%s\n' "${{ secrets.PROD_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$PROD_SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Upload frontend build to server
+        if: needs.detect-frontend-changes.outputs.frontend_changed == 'true'
+        run: |
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            /tmp/mp-artifact/mathpath-frontend-build.tgz \
+            "$PROD_SSH_USER@$PROD_SSH_HOST:/tmp/mathpath-frontend-build.tgz"
+
+      - name: Deploy and verify
+        env:
+          FRONTEND_CHANGED: ${{ needs.detect-frontend-changes.outputs.frontend_changed }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "$PROD_SSH_USER@$PROD_SSH_HOST" \
+            "FRONTEND_CHANGED='$FRONTEND_CHANGED' EXPECTED_SHA='$EXPECTED_SHA' REMOTE_PATH='$PROD_REMOTE_PATH' bash -s" <<'REMOTE_SCRIPT'
+          set -euo pipefail
+          cd "$REMOTE_PATH"
+
+          git remote set-url origin https://github.com/sg2499/MathPath-Platform.git
+          git fetch origin
+          # Pinned to this workflow run's own commit, not origin/main --
+          # main may already have moved on by the time this runs, and the
+          # verification step below only means something if we know
+          # exactly which commit we just told the server to run.
+          git reset --hard "$EXPECTED_SHA"
+          git clean -fd \
+            -e 'backend/.env' -e 'frontend/.env' -e 'frontend/.env.local' \
+            -e 'backend/.venv' -e 'backend/uploads' \
+            -e 'frontend/node_modules' -e 'frontend/.next'
+
+          cd backend
+          [ -d .venv ] || python3 -m venv .venv
+          . .venv/bin/activate
+          pip install -q -r requirements.txt
+          deactivate
+          cd ..
+
+          if [ "$FRONTEND_CHANGED" = "true" ]; then
+            rm -rf frontend/.next
+            tar -xzf /tmp/mathpath-frontend-build.tgz -C frontend
+            # Safety net carried over from DEPLOY_PLAYBOOK.md: a build
+            # artifact can occasionally land with a directory missing its
+            # execute bit, which Next.js crash-loops on at runtime
+            # (EACCES/scandir). No-op when permissions are already fine.
+            chmod -R a+rX frontend/.next
+            cd frontend
+            npm ci --omit=dev
+            cd ..
+            pm2 restart mathpath-frontend
+            rm -f /tmp/mathpath-frontend-build.tgz
+          fi
+
+          sudo systemctl restart mathpath-backend
+          sleep 5
+
+          ACTUAL_SHA=$(curl -fsS http://127.0.0.1:8000/api/health | python3 -c "import sys, json; print(json.load(sys.stdin)['deployedCommitFull'])")
+          if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
+            echo "DEPLOY VERIFICATION FAILED: /api/health reports commit $ACTUAL_SHA, expected $EXPECTED_SHA"
+            exit 1
+          fi
+          echo "Deploy verified live: backend is running $ACTUAL_SHA"
+          pm2 status || true
+          REMOTE_SCRIPT
+
+      - name: Clean up local deploy key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

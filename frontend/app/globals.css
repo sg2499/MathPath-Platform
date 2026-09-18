@@ -674,6 +674,14 @@ html.dark {
     width: calc(100% - 1.5rem);
   }
 
+  /* 2026-09-18: admin-only "what's actually deployed right now" widget
+     inside the account menu -- see components/common/BuildInfoBadge.tsx. */
+  .math-account-menu-buildinfo {
+    @apply mx-3 mb-3 rounded-2xl border px-3 py-2;
+    background: var(--theme-elevated-soft);
+    border-color: var(--theme-border);
+  }
+
   .math-account-signout:hover {
     @apply text-rose-700 dark:text-rose-200;
     background: rgba(244, 63, 94, 0.10);
