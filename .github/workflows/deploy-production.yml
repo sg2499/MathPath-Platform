@@ -290,11 +290,34 @@ jobs:
           fi
 
           sudo systemctl restart mathpath-backend
-          sleep 5
 
-          ACTUAL_SHA=$(curl -fsS http://127.0.0.1:8000/api/health | python3 -c "import sys, json; print(json.load(sys.stdin)['deployedCommitFull'])")
+          # 2026-09-21 (Shailesh -- once the SSH key issue was finally
+          # fixed, THIS became the new failure: /api/health reported
+          # deployedCommitFull as "unknown" even though a manual
+          # `git rev-parse HEAD`, run as the exact same `ubuntu` user in
+          # the exact same directory moments later, worked instantly and
+          # returned the right commit -- ruling out a permissions/PATH
+          # problem. Real cause: `systemctl restart` on a Type=simple unit
+          # returns as soon as the process is launched, not once gunicorn
+          # has actually finished importing the app and is ready to serve
+          # -- a fixed `sleep 5` was a guess that can lose that race under
+          # normal startup variance (e.g. right after a `pip install` that
+          # may have evicted disk cache). Poll instead of guessing a fixed
+          # delay: retry for up to ~60s, exiting the instant the reported
+          # commit matches, so a fast restart isn't slowed down and a slow
+          # one still gets a fair chance before this step gives up.
+          ACTUAL_SHA="unknown"
+          for Attempt in $(seq 1 20); do
+            sleep 3
+            ACTUAL_SHA=$(curl -fsS http://127.0.0.1:8000/api/health 2>/dev/null | python3 -c "import sys, json; print(json.load(sys.stdin).get('deployedCommitFull', 'unknown'))" 2>/dev/null || echo "unknown")
+            if [ "$ACTUAL_SHA" = "$EXPECTED_SHA" ]; then
+              break
+            fi
+            echo "Waiting for backend to report the new commit (attempt $Attempt/20, currently: $ACTUAL_SHA)..."
+          done
+
           if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
-            echo "DEPLOY VERIFICATION FAILED: /api/health reports commit $ACTUAL_SHA, expected $EXPECTED_SHA"
+            echo "DEPLOY VERIFICATION FAILED: /api/health reports commit $ACTUAL_SHA, expected $EXPECTED_SHA (after ~60s of polling)"
             exit 1
           fi
           echo "Deploy verified live: backend is running $ACTUAL_SHA"
