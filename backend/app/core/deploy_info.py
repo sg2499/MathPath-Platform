@@ -28,6 +28,7 @@ so any failure -- `.git` missing, `git` not on PATH, a shallow clone
 without full history, a sandboxed test environment -- falls back to
 "unknown" rather than raising.
 """
+import os
 import subprocess
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -49,6 +50,23 @@ def _RunGit(*Args: str) -> str | None:
     Root = _RepoRoot()
     if Root is None:
         return None
+    # 2026-09-21 (Shailesh -- /api/health reported deployedCommitFull as
+    # "unknown" on every real deploy, persistently, never recovering even
+    # after a full minute of polling. Root-caused on the server itself: the
+    # mathpath-backend systemd unit deliberately restricts its PATH to just
+    # the venv's own bin/ (Environment="PATH=.../backend/.venv/bin"), which
+    # doesn't include /usr/bin -- so `git` was never actually found, this
+    # function's own defensive except clause caught the resulting
+    # FileNotFoundError, and GetDeployedCommitInfo()'s @lru_cache then
+    # locked in "unknown" for the rest of that worker's life. Rather than
+    # loosen the service's PATH (a reasonable bit of hardening for
+    # everything else this process does), give just this subprocess call
+    # its own augmented PATH with the standard system binary directories,
+    # so it can find git regardless of how narrow the inherited PATH is.
+    GitEnv = dict(os.environ)
+    GitEnv["PATH"] = os.pathsep.join(
+        filter(None, [GitEnv.get("PATH", ""), "/usr/bin", "/bin", "/usr/local/bin"])
+    )
     try:
         Result = subprocess.run(
             ["git", *Args],
@@ -57,6 +75,7 @@ def _RunGit(*Args: str) -> str | None:
             text=True,
             timeout=5,
             check=False,
+            env=GitEnv,
         )
     except (OSError, subprocess.SubprocessError):
         return None
