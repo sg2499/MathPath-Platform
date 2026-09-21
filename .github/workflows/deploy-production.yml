@@ -171,11 +171,31 @@ jobs:
           path: /tmp/mp-artifact
 
       - name: Configure deploy SSH key
+        # 2026-09-18 (Shailesh bug report -- both the very first automated
+        # deploy, for #556, and this PR's deploy failed with "Load key
+        # .../deploy_key: error in libcrypto" / "Permission denied
+        # (publickey)"). Root cause: interpolating a multi-line secret
+        # directly into a `run:` script body via `${{ secrets.X }}` is a
+        # documented GitHub Actions anti-pattern -- the substitution happens
+        # as a literal text splice into the composed script before the
+        # runner's shell ever sees it, which is exactly the kind of
+        # multi-line-value handling that produces a subtly corrupted key on
+        # disk (never a shell-syntax error, so the step "runs" and fails
+        # only when OpenSSH tries to parse the resulting file). The fix
+        # GitHub's own docs recommend: pass the secret through `env:`
+        # instead, so the runner's normal environment-variable mechanism
+        # carries the exact bytes, and the script only ever references
+        # `$DEPLOY_SSH_KEY_CONTENTS` -- never `${{ }}` inline in the body.
+        # Nothing about the secret's own stored value was wrong; this was a
+        # bug in this workflow file from the start, never triggered until
+        # the first real deploy.
+        env:
+          DEPLOY_SSH_KEY_CONTENTS: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
           umask 077
-          printf '%s\n' "${{ secrets.PROD_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_SSH_KEY_CONTENTS" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$PROD_SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
