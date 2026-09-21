@@ -29,6 +29,43 @@ repository secret named `PROD_SSH_PRIVATE_KEY`, containing the contents of
 GitHub -- Settings -> Secrets and variables -> Actions -> New repository
 secret. Cowork never has and never will see this key's contents.
 
+**If this secret ever needs re-setting** (2026-09-21 incident: the deploy
+workflow failed with "Load key ... error in libcrypto" / "Permission
+denied (publickey)" through two rounds of fixing how the *workflow*
+handles the secret, which changed nothing -- the corruption turned out to
+be in the stored secret value itself, not the script). Setting a
+multi-line secret through GitHub's web UI textarea, or through a
+PowerShell string pipe (`Get-Content -Raw file | gh secret set ...`), can
+silently re-encode line endings before the bytes ever reach GitHub.
+**Use this instead** -- it writes the file's raw bytes directly to `gh`'s
+stdin with no PowerShell string/encoding layer in between:
+
+```powershell
+$repo = "sg2499/MathPath-Platform"
+$keyPath = "C:\Users\shail\.ssh\mathpath-platform.pem"
+$bytes = [System.IO.File]::ReadAllBytes($keyPath)
+
+$psi = New-Object System.Diagnostics.ProcessStartInfo
+$psi.FileName = "gh"
+$psi.Arguments = "secret set PROD_SSH_PRIVATE_KEY -R $repo"
+$psi.RedirectStandardInput = $true
+$psi.UseShellExecute = $false
+$psi.CreateNoWindow = $true
+
+$proc = [System.Diagnostics.Process]::Start($psi)
+$stream = $proc.StandardInput.BaseStream
+$stream.Write($bytes, 0, $bytes.Length)
+$stream.Close()
+$proc.WaitForExit()
+Write-Host "gh secret set exit code: $($proc.ExitCode)"
+```
+
+The "Configure deploy SSH key" step in `deploy-production.yml` validates
+the key with `ssh-keygen -y` immediately after writing it and fails loudly
+with structural diagnostics (never the key's own content) if it's still
+malformed -- so the next deploy run after a re-set is the fast way to
+confirm this actually worked.
+
 ---
 
 Last documented: 2026-08-21, by a Cowork session, from Shailesh's own pasted

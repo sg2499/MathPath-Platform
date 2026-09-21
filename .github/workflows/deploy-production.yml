@@ -211,6 +211,31 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$PROD_SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
+          # 2026-09-21 (Shailesh -- two straight fixes to *how* this script
+          # handles the secret (env: routing, then CRLF-stripping) each
+          # failed to change the "Load key ... error in libcrypto" symptom
+          # on the very next real deploy run. That's strong evidence the
+          # corruption was never in this script -- it was already baked
+          # into whatever bytes are stored as PROD_SSH_PRIVATE_KEY itself
+          # (most likely from an earlier manual paste into GitHub's web UI,
+          # or a PowerShell pipe that silently re-encoded line endings when
+          # the secret was set). Validating the key right here, right after
+          # writing it, turns that entire class of failure into an
+          # immediate, readable error at this step -- instead of the
+          # opaque "error in libcrypto" / "Permission denied (publickey)"
+          # two steps later on the actual SSH connection. Never prints the
+          # key's own content -- only structural facts (byte/line counts,
+          # `file` output) that can't leak the secret.
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null 2>&1; then
+            echo "::error::PROD_SSH_PRIVATE_KEY does not parse as a valid private key -- the secret's stored value is corrupted or malformed, not this script's handling of it."
+            echo "Structural info only (never the key content):"
+            wc -c ~/.ssh/deploy_key
+            wc -l ~/.ssh/deploy_key
+            file ~/.ssh/deploy_key
+            echo "Fix: re-set the secret from C:\Users\shail\.ssh\mathpath-platform.pem using the byte-safe method in DEPLOY_PLAYBOOK.md, then re-run this workflow."
+            exit 1
+          fi
+
       - name: Upload frontend build to server
         if: needs.detect-frontend-changes.outputs.frontend_changed == 'true'
         run: |
