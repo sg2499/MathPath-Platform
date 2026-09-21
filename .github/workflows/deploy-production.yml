@@ -195,7 +195,19 @@ jobs:
           set -euo pipefail
           mkdir -p ~/.ssh
           umask 077
-          printf '%s\n' "$DEPLOY_SSH_KEY_CONTENTS" > ~/.ssh/deploy_key
+          # 2026-09-21 (Shailesh -- deploy still failed with the exact same
+          # "error in libcrypto" / "Permission denied (publickey)" even
+          # after routing the secret through env: above). The env: fix was
+          # correct and necessary, but it only stops GitHub Actions from
+          # mangling the value during script composition -- it does not
+          # sanitize the secret's own stored bytes. This machine/repo has
+          # hit CRLF corruption repeatedly (OneDrive-synced Windows working
+          # tree), and a PEM private key with stray \r bytes in it is a
+          # well-known cause of OpenSSL's "error in libcrypto" when
+          # OpenSSH tries to parse it. Stripping any \r here is a no-op if
+          # the secret is already clean, and a fix if it isn't -- this
+          # never requires looking at the secret's actual value.
+          printf '%s\n' "$DEPLOY_SSH_KEY_CONTENTS" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$PROD_SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
