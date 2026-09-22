@@ -1372,24 +1372,34 @@ function TeacherAnnualCompetitionMonitorPageContent() {
               official event&apos;s own ranked results.
             </p>
 
-            <div className="mt-4">
-              <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                Level
-                {/* 2026-09-22 (Shailesh): the level select was cramming long
-                    labels ("Bloomers (Below 8 Years)", "Beginners (Above 8
-                    Years)") right up against the native dropdown arrow at
-                    min-w-[200px] -- widened so both fit with room to spare. */}
+            {/* 2026-09-22 (Shailesh, round 2 -- widening min-w alone didn't
+                fix it): the real cause was this select relying on the
+                browser's OWN native dropdown-arrow rendering, which
+                (confirmed against a live Windows screenshot) crowds long
+                text against the arrow regardless of width -- this is exactly
+                the failure mode this codebase's OTHER leaderboard filters
+                (student/teacher DPS leaderboard, student/teacher mock
+                leaderboard -- all four use this identical recipe) already
+                avoid with appearance-none + a custom, absolutely-positioned
+                ChevronDown + explicit pr-10. Matched here verbatim rather
+                than reinvented, so this filter finally renders the same way
+                every other leaderboard's filter on this platform already
+                does. */}
+            <div className="mt-4 max-w-xs">
+              <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Level</label>
+              <div className="relative">
                 <select
                   aria-label="Select level for the leaderboard"
                   value={LeaderboardLevelCode}
                   onChange={(EventValue) => SetLeaderboardLevelCode(EventValue.target.value)}
-                  className="math-input w-auto min-w-[260px]"
+                  className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-[var(--mp-role-primary)] focus:outline-none"
                 >
                   {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
                     <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
                   ))}
                 </select>
-              </label>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              </div>
             </div>
 
             <div className="mt-5">
