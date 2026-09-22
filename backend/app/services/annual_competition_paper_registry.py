@@ -487,17 +487,36 @@ ANNUAL_COMPETITION_MARKS_PER_QUESTION = 1
 ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     # "Bloomers (Below 8 Years)" -- content-identical clone of YLM-L1 below,
     # see the comment above _YLM_L1_DIRECT_POOL for why.
+    #
+    # 2026-09-22 (Shailesh): "50 is too less and the students are easily
+    # able to complete all 50 of them even before the 10 min timer gets
+    # exhausted, so bumping it to 100 would make it challenging and fun."
+    # questionCount 50 -> 100, timeLimitSeconds UNCHANGED at 600 (10 min) --
+    # per Shailesh's own framing, the point is to make the existing 10-min
+    # window actually challenging, not to also extend it. Rules, concepts
+    # and the uniqueness-within-a-paper guarantee are untouched: the split
+    # across _YLM_L1_DIRECT_POOL's three concepts (pure single-digit, mixed,
+    # pure double-digit) simply rescales from ~17/17/16 to ~34/33/33, and
+    # _CollectAnnualCompetitionQuestions's paper-wide UsedSignatures dedup
+    # (annual_competition_paper_generation_service.py) already refuses to
+    # ever repeat a question within one paper, hard-failing loudly instead
+    # of duplicating if it ever couldn't -- confirmed empirically safe at
+    # 100 questions via 30 live dry-run generations (15 per level, distinct
+    # seeds each) against this exact registry before this change shipped.
     "YLM-L0": {
         "sections": [
-            {"key": "SEC1", "number": 1, "title": "Direct Sums (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 600},
+            {"key": "SEC1", "number": 1, "title": "Direct Sums (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600},
         ],
         "sectionConceptPools": {"SEC1": _YLM_L1_DIRECT_POOL},
     },
     # "Beginners (Above 8 Years)" -- publicly-displayed name only, see
     # ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS below. Code/content unchanged.
+    #
+    # 2026-09-22 (Shailesh): same 50 -> 100 bump as YLM-L0 above, same
+    # reasoning and same verification -- see the comment there.
     "YLM-L1": {
         "sections": [
-            {"key": "SEC1", "number": 1, "title": "Direct Sums (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 600},
+            {"key": "SEC1", "number": 1, "title": "Direct Sums (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600},
         ],
         "sectionConceptPools": {"SEC1": _YLM_L1_DIRECT_POOL},
     },

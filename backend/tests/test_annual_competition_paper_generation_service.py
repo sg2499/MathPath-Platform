@@ -63,7 +63,7 @@ def _module_and_level(db, module_code, level_code, level_name):
 # module_code against the level code.
 # ---------------------------------------------------------------------------
 EXPECTED = {
-    "YLM-L1": ("YLM", 1, 50, 10 * 60),
+    "YLM-L1": ("YLM", 1, 100, 10 * 60),  # 2026-09-22 bump: 50 -> 100 (Shailesh)
     "PM-L1": ("PM", 1, 100, 10 * 60),
     "PM-L2": ("PM", 2, 100, 10 * 60),
     "PM-L3": ("PM", 3, 200, 20 * 60),
@@ -600,7 +600,10 @@ def test_ylm_bloomers_beginners_paper_mixes_single_and_double_digit_direct_add_l
         .order_by(CompetitionMockQuestion.question_number)
         .all()
     )
-    assert len(questions) == 50
+    # 2026-09-22 (Shailesh, 100-question bump): "50 is too less ... bumping
+    # it to 100 would make it challenging." questionCount 50 -> 100, still
+    # one section, still 10 minutes -- see annual_competition_paper_registry.py.
+    assert len(questions) == 100
     assert len(set(q.section_number for q in questions)) == 1  # still exactly one section
     assert payload["durationSeconds"] == 10 * 60  # still 10 minutes -- unchanged
 
@@ -611,16 +614,16 @@ def test_ylm_bloomers_beginners_paper_mixes_single_and_double_digit_direct_add_l
     assert widths == {"1D", "2D"}  # a genuine mix -- not all single-digit, not all double-digit
 
     # A real, substantial double-digit presence -- not just a token handful.
-    # The dedicated pure-"2D" pool entry alone contributes ~16 of the 50
-    # (50 // 3), plus a further slice from the mixed "1D_AND_2D" entry, so
-    # requiring at least 15 catches a regression where the new entry was
+    # The dedicated pure-"2D" pool entry alone contributes ~33 of the 100
+    # (100 // 3), plus a further slice from the mixed "1D_AND_2D" entry, so
+    # requiring at least 30 catches a regression where the new entry was
     # dropped or silently ignored, without being brittle about the exact
     # random split the mixed entry contributes on top of it.
     double_digit_count = sum(1 for q in questions if _ylm_base_digit_width(q) == "2D")
-    assert double_digit_count >= 15
+    assert double_digit_count >= 30
 
     single_digit_count = sum(1 for q in questions if _ylm_base_digit_width(q) == "1D")
-    assert single_digit_count >= 10  # single-digit still meaningfully represented, not squeezed to near-zero
+    assert single_digit_count >= 25  # single-digit still meaningfully represented, not squeezed to near-zero
 
 
 def test_ylm_double_digit_pool_entry_only_ever_produces_double_digit_bases():
@@ -643,7 +646,8 @@ def test_ylm_double_digit_pool_entry_only_ever_produces_double_digit_bases():
         q for q in questions
         if json.loads(q.metadata_json or "{}").get("annualCompetitionConceptTitle") == "Direct Add-Less (Double Digit)"
     ]
-    assert len(double_digit_entry_questions) >= 15
+    # 2026-09-22 bump: ~33 of 100 (100 // 3) now expected from this entry alone.
+    assert len(double_digit_entry_questions) >= 30
     for q in double_digit_entry_questions:
         assert _ylm_base_digit_width(q) == "2D"
         assert json.loads(q.metadata_json or "{}").get("digit_pattern") == "2D"
