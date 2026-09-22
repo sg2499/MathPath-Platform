@@ -111,10 +111,14 @@ function PodiumCard({ Row }: { Row: PracticeLeaderboardRow }) {
         {Row.avgScore == null ? "-" : `${Row.avgScore}/${Row.avgMaxScore ?? "-"}`}
       </p>
       <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">Avg Score</p>
+      {/* 2026-09-22 (Shailesh): "Accuracy" capitalized to match its own
+          earlier display convention, and the bare time value now gets the
+          same "<value> Avg Time" treatment as accuracy -- a lone "35:00"
+          with no label read as ambiguous. */}
       <div className="mt-3 flex items-center justify-center gap-3 text-xs font-bold text-slate-500 dark:text-slate-400">
-        <span>{FormatPercent(Row.avgAccuracyPercentage)} accuracy</span>
+        <span>{FormatPercent(Row.avgAccuracyPercentage)} Accuracy</span>
         <span>&middot;</span>
-        <span>{FormatSecondsAsMinSec(Row.avgTimeTakenSeconds)}</span>
+        <span>{FormatSecondsAsMinSec(Row.avgTimeTakenSeconds)} Avg Time</span>
       </div>
     </div>
   );
@@ -192,8 +196,12 @@ export function PracticeLeaderboardPodium({
                 key={Row.studentId}
                 className="grid grid-cols-[0.5fr_1.4fr_0.9fr_0.9fr_0.9fr_0.9fr] items-center gap-3 px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100"
               >
+                {/* 2026-09-22 (Shailesh): text-slate-300 was near-invisible
+                    against the light-mode row background -- darkened for
+                    real contrast in both themes while staying visually
+                    subordinate to the bold rank number next to it. */}
                 <div className="flex items-center gap-1.5 font-black text-slate-950 dark:text-white">
-                  <Award size={12} className="text-slate-300 dark:text-slate-600" />
+                  <Award size={12} className="text-slate-400 dark:text-slate-500" />
                   {Row.rank}
                 </div>
                 <div className="min-w-0">
