@@ -696,4 +696,3 @@ def GetAnnualCompetitionPracticeReportOverview(db: Session) -> dict[str, Any]:
         ByLevel.append(Stats)
 
     return {"byLevel": ByLevel}
-

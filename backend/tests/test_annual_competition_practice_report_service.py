@@ -776,4 +776,3 @@ def test_overview_excludes_official_attempts():
     row = next(r for r in report["byLevel"] if r["competitionLevelCode"] == "PM-L2")
     assert row["attemptsCount"] == 0
     assert row["studentsWithAttemptsCount"] == 0
-
