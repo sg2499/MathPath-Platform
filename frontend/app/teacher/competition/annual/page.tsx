@@ -1368,18 +1368,22 @@ function TeacherAnnualCompetitionMonitorPageContent() {
             <h2 className="mt-1 text-lg font-black text-slate-950 dark:text-white">Practice Leaderboard</h2>
             <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
               Level-wise rankings across your own students&apos; Annual Competition practice papers at this level --
-              highest average accuracy first, average time taken as tiebreak. Practice only, never mixed with the
+              highest average score first, average time taken as tiebreak. Practice only, never mixed with the
               official event&apos;s own ranked results.
             </p>
 
             <div className="mt-4">
               <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                 Level
+                {/* 2026-09-22 (Shailesh): the level select was cramming long
+                    labels ("Bloomers (Below 8 Years)", "Beginners (Above 8
+                    Years)") right up against the native dropdown arrow at
+                    min-w-[200px] -- widened so both fit with room to spare. */}
                 <select
                   aria-label="Select level for the leaderboard"
                   value={LeaderboardLevelCode}
                   onChange={(EventValue) => SetLeaderboardLevelCode(EventValue.target.value)}
-                  className="math-input w-auto min-w-[200px]"
+                  className="math-input w-auto min-w-[260px]"
                 >
                   {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
                     <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
