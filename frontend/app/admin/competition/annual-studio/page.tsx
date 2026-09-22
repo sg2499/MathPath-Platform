@@ -41,13 +41,17 @@ import type { AdminTeacher } from "@/types/teacher";
 import { GroupPracticePapersByLevel } from "@/lib/annualCompetitionPracticeGrouping";
 import { PracticeLeaderboardPodium } from "@/components/common/PracticeLeaderboardPodium";
 import {
-  LevelComparisonChart,
-  ScoreDistributionChart,
-  SectionDifficultyChart,
-  StudentSectionRadarChart,
-  StudentTrendChart,
-  StudentVsCohortChart,
-  TimeVsScoreScatterChart,
+  LEVEL_CHART_OPTIONS,
+  LevelChartPanel,
+  OVERVIEW_CHART_OPTIONS,
+  OverviewChartPanel,
+  STUDENT_CHART_OPTIONS,
+  StudentChartPanel,
+} from "@/components/common/AnnualCompetitionAnalyticsCharts";
+import type {
+  LevelChartKey,
+  OverviewChartKey,
+  StudentChartKey,
 } from "@/components/common/AnnualCompetitionAnalyticsCharts";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -1159,6 +1163,18 @@ function AdminAnnualCompetitionStudioPageContent() {
   const [VisualizationStudentSearchText, SetVisualizationStudentSearchText] = useState("");
   const [VisualizationSelectedStudentId, SetVisualizationSelectedStudentId] = useState<string | null>(null);
 
+  // Redesign package (Shailesh, 2026-09-22 review round): the Visualization
+  // tab itself now has 3 real sub-tabs (Overview / Level Analysis / Student
+  // Analysis) instead of everything stacked on one page, and each scope has
+  // its own chart-type picker so the admin can choose which chart/metric to
+  // look at rather than seeing one fixed chart per scope. One selected-chart
+  // key per scope, each defaulting to that scope's first menu option.
+  const VisualizationSubTabList = ["OVERVIEW", "LEVEL", "STUDENT"] as const;
+  const [VisualizationSubTab, SetVisualizationSubTab] = useState<(typeof VisualizationSubTabList)[number]>("OVERVIEW");
+  const [VisualizationOverviewChartKey, SetVisualizationOverviewChartKey] = useState<OverviewChartKey>(OVERVIEW_CHART_OPTIONS[0].Key);
+  const [VisualizationLevelChartKey, SetVisualizationLevelChartKey] = useState<LevelChartKey>(LEVEL_CHART_OPTIONS[0].Key);
+  const [VisualizationStudentChartKey, SetVisualizationStudentChartKey] = useState<StudentChartKey>(STUDENT_CHART_OPTIONS[0].Key);
+
   const TeachersQuery = useQuery({
     queryKey: ["admin-teachers"],
     queryFn: getAdminTeachers,
@@ -2167,109 +2183,94 @@ function AdminAnnualCompetitionStudioPageContent() {
 
                 {PracticeReportsSubTab === "VISUALIZATION" && (
                   <div className="space-y-6">
+                    {/* Redesign package (Shailesh, 2026-09-22 review round):
+                        3 real sub-tabs -- Overview / Level Analysis / Student
+                        Analysis -- instead of everything stacked on one page,
+                        using the same pill-button convention as
+                        PracticeReportsSubTabList itself just above. Each
+                        scope below owns its own chart-type picker so the
+                        admin chooses which chart/metric to look at instead
+                        of seeing one fixed chart. */}
+                    <div className="math-card p-3">
+                      <div className="flex flex-wrap gap-3">
+                        {VisualizationSubTabList.map((Tab) => (
+                          <button
+                            key={Tab}
+                            type="button"
+                            onClick={() => SetVisualizationSubTab(Tab)}
+                            aria-selected={VisualizationSubTab === Tab}
+                            className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${VisualizationSubTab === Tab ? "is-active math-admin-tab-force-selected" : ""}`}
+                          >
+                            {Tab === "OVERVIEW" ? "Overview" : Tab === "LEVEL" ? "Level Analysis" : "Student Analysis"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Overview -- cross-level comparison, unconditional (no
-                        filter needed, backed by the new GetAnnualCompetitionPracticeReportOverview
+                        filter needed, backed by the GetAnnualCompetitionPracticeReportOverview
                         endpoint -- see that function's own docstring for why
                         avgPercentage is rebased onto each level's own
                         canonical total so levels of different sizes are
-                        fairly comparable here). */}
-                    <div className="math-card p-5">
-                      <SectionTitle
-                        icon={<Sparkles size={14} />}
-                        kicker="Analytics Visualization"
-                        title="Overview"
-                        description="Every level's average practice performance, side by side, so a weak spot across the whole platform is visible at a glance before drilling into any one level."
-                      />
-                      <div className="mt-5">
-                        {VisualizationOverviewQuery.isLoading ? (
-                          <LoadingState label="Loading overview..." />
-                        ) : VisualizationOverviewQuery.data ? (
-                          <LevelComparisonChart Rows={VisualizationOverviewQuery.data.byLevel} />
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {/* Level Analysis -- section difficulty, score spread,
-                        and speed-vs-accuracy for one level's whole cohort.
-                        Independent VisualizationLevelCode state, same
-                        precedent as Leaderboard's own separate level filter
-                        (see this file's comment on LeaderboardLevelCode). */}
-                    <div className="math-card p-5">
-                      <SectionTitle
-                        icon={<Medal size={14} />}
-                        kicker="Analytics Visualization"
-                        title="Level Analysis"
-                        description="Which section this cohort finds hardest, how scores are spread across the roster, and whether students who spend longer are actually scoring higher."
-                      />
-                      <div className="mt-4 max-w-xs">
-                        <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Level</label>
-                        <div className="relative">
-                          <select
-                            aria-label="Select level for Level Analysis"
-                            value={VisualizationLevelCode}
-                            onChange={(EventValue) => SetVisualizationLevelCode(EventValue.target.value)}
-                            className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-[var(--mp-role-primary)] focus:outline-none"
-                          >
-                            {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                              <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
-                            ))}
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                        fairly comparable here). Six chart/metric options to
+                        choose from instead of one fixed chart. */}
+                    {VisualizationSubTab === "OVERVIEW" && (
+                      <div className="math-card p-5">
+                        <SectionTitle
+                          icon={<Sparkles size={14} />}
+                          kicker="Analytics Visualization"
+                          title="Overview"
+                          description="Every level's average practice performance, side by side, so a weak spot across the whole platform is visible at a glance before drilling into any one level. Choose a metric below to change what's plotted."
+                        />
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {OVERVIEW_CHART_OPTIONS.map((Option) => (
+                            <button
+                              key={Option.Key}
+                              type="button"
+                              onClick={() => SetVisualizationOverviewChartKey(Option.Key)}
+                              aria-pressed={VisualizationOverviewChartKey === Option.Key}
+                              className={`rounded-xl border px-3.5 py-2 text-xs font-black transition ${
+                                VisualizationOverviewChartKey === Option.Key
+                                  ? "border-[color:var(--mp-role-primary)] bg-[color:var(--mp-role-primary)]/10 text-[color:var(--mp-role-primary)] dark:bg-[color:var(--mp-role-primary)]/20"
+                                  : "border-[color:var(--mp-role-border)] bg-white text-slate-700 hover:-translate-y-px hover:bg-slate-50 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-white/5"
+                              }`}
+                            >
+                              {Option.Label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="mt-5">
+                          {VisualizationOverviewQuery.isLoading ? (
+                            <LoadingState label="Loading overview..." />
+                          ) : VisualizationOverviewQuery.data ? (
+                            <OverviewChartPanel ChartKey={VisualizationOverviewChartKey} Rows={VisualizationOverviewQuery.data.byLevel} />
+                          ) : null}
                         </div>
                       </div>
+                    )}
 
-                      <div className="mt-5">
-                        {VisualizationLevelReportQuery.isLoading ? (
-                          <LoadingState label="Loading level analysis..." />
-                        ) : VisualizationLevelReportQuery.data ? (
-                          <div className="grid gap-6 lg:grid-cols-2">
-                            <SectionDifficultyChart Sections={VisualizationLevelReportQuery.data.perSection} />
-                            <ScoreDistributionChart Students={VisualizationLevelReportQuery.data.perStudent} />
-                            <div className="lg:col-span-2">
-                              <TimeVsScoreScatterChart Students={VisualizationLevelReportQuery.data.perStudent} />
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {/* Student Analysis -- one student's trend, section
-                        strengths, and standing against their level's cohort.
-                        The picker below reuses Individual Student's own
-                        roster search UX (Search icon input + level filter),
-                        scoped to VisualizationStudentLevelCode -- narrowing
-                        by level here also fixes WHICH level's report loads
-                        once a student is picked, since perSection/trend are
-                        only meaningful within one level's shared paper
-                        structure (see GetAnnualCompetitionPracticeReportForStudent's
-                        own docstring). */}
-                    <div className="math-card p-5">
-                      <SectionTitle
-                        icon={<ClipboardList size={14} />}
-                        kicker="Analytics Visualization"
-                        title="Student Analysis"
-                        description="Pick a student and a level to see their own score/accuracy trend across attempts, their section-by-section strengths, and how they compare to their level's cohort average."
-                      />
-
-                      <div className="mt-4 flex flex-wrap items-center gap-3">
-                        <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
-                          <Search size={16} className="text-[color:var(--mp-role-primary)]" />
-                          <input
-                            value={VisualizationStudentSearchText}
-                            onChange={(EventValue) => SetVisualizationStudentSearchText(EventValue.target.value)}
-                            placeholder="Search student name or code"
-                            className="w-full bg-transparent outline-none placeholder:text-slate-400"
-                          />
-                        </label>
-                        <div className="w-auto min-w-[170px]">
+                    {/* Level Analysis -- section difficulty, score spread,
+                        time usage, completion depth/rate, and speed-vs-accuracy
+                        for one level's whole cohort. Independent
+                        VisualizationLevelCode state, same precedent as
+                        Leaderboard's own separate level filter (see this
+                        file's comment on LeaderboardLevelCode). Six chart
+                        options to choose from. */}
+                    {VisualizationSubTab === "LEVEL" && (
+                      <div className="math-card p-5">
+                        <SectionTitle
+                          icon={<Medal size={14} />}
+                          kicker="Analytics Visualization"
+                          title="Level Analysis"
+                          description="Which section this cohort finds hardest, how scores are spread across the roster, and whether students who spend longer are actually scoring higher. Pick a level, then choose a chart below."
+                        />
+                        <div className="mt-4 max-w-xs">
+                          <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Level</label>
                           <div className="relative">
                             <select
-                              aria-label="Select level for Student Analysis"
-                              value={VisualizationStudentLevelCode}
-                              onChange={(EventValue) => {
-                                SetVisualizationStudentLevelCode(EventValue.target.value);
-                                SetVisualizationSelectedStudentId(null);
-                              }}
+                              aria-label="Select level for Level Analysis"
+                              value={VisualizationLevelCode}
+                              onChange={(EventValue) => SetVisualizationLevelCode(EventValue.target.value)}
                               className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-[var(--mp-role-primary)] focus:outline-none"
                             >
                               {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
@@ -2279,57 +2280,146 @@ function AdminAnnualCompetitionStudioPageContent() {
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                           </div>
                         </div>
-                      </div>
 
-                      <div className="mt-4">
-                        {VisualizationRosterQuery.isLoading ? (
-                          <LoadingState label="Loading students..." />
-                        ) : VisualizationFilteredStudentRows.length > 0 ? (
-                          <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto rounded-2xl border border-[color:var(--mp-role-border)] bg-white/60 p-3 dark:bg-slate-950/30">
-                            {VisualizationFilteredStudentRows.map((Row) => {
-                              const IsSelected = Row.studentId === VisualizationSelectedStudentId;
-                              return (
-                                <button
-                                  key={Row.studentId}
-                                  type="button"
-                                  onClick={() => SetVisualizationSelectedStudentId(Row.studentId)}
-                                  aria-pressed={IsSelected}
-                                  className={`rounded-xl border px-3 py-2 text-left text-xs font-black transition ${
-                                    IsSelected
-                                      ? "border-[color:var(--mp-role-primary)] bg-[color:var(--mp-role-primary)]/10 text-[color:var(--mp-role-primary)] dark:bg-[color:var(--mp-role-primary)]/20"
-                                      : "border-[color:var(--mp-role-border)] bg-white text-slate-700 hover:-translate-y-px hover:bg-slate-50 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-white/5"
-                                  }`}
-                                >
-                                  {Row.studentName || Row.studentCode || Row.studentId}
-                                  {Row.studentCode ? <span className="ml-1.5 opacity-60">{Row.studentCode}</span> : null}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <EmptyState title="No students found" description="No student has practice activity at this level matching your search yet." />
-                        )}
-                      </div>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {LEVEL_CHART_OPTIONS.map((Option) => (
+                            <button
+                              key={Option.Key}
+                              type="button"
+                              onClick={() => SetVisualizationLevelChartKey(Option.Key)}
+                              aria-pressed={VisualizationLevelChartKey === Option.Key}
+                              className={`rounded-xl border px-3.5 py-2 text-xs font-black transition ${
+                                VisualizationLevelChartKey === Option.Key
+                                  ? "border-[color:var(--mp-role-primary)] bg-[color:var(--mp-role-primary)]/10 text-[color:var(--mp-role-primary)] dark:bg-[color:var(--mp-role-primary)]/20"
+                                  : "border-[color:var(--mp-role-border)] bg-white text-slate-700 hover:-translate-y-px hover:bg-slate-50 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-white/5"
+                              }`}
+                            >
+                              {Option.Label}
+                            </button>
+                          ))}
+                        </div>
 
-                      <div className="mt-5">
-                        {!VisualizationSelectedStudentId ? (
-                          <EmptyState title="Pick a student above" description="Select a student to see their trend, section strengths, and cohort comparison." />
-                        ) : VisualizationStudentReportQuery.isLoading ? (
-                          <LoadingState label="Loading student analysis..." />
-                        ) : VisualizationStudentReportQuery.data ? (
-                          <div className="grid gap-6 lg:grid-cols-2">
-                            <StudentTrendChart Trend={VisualizationStudentReportQuery.data.trend} />
-                            <StudentSectionRadarChart Sections={VisualizationStudentReportQuery.data.perSection} />
-                            <div className="lg:col-span-2">
-                              <StudentVsCohortChart
-                                Summary={VisualizationStudentReportQuery.data.summary}
-                                LevelComparison={VisualizationStudentReportQuery.data.levelComparison}
-                              />
+                        <div className="mt-5">
+                          {VisualizationLevelReportQuery.isLoading ? (
+                            <LoadingState label="Loading level analysis..." />
+                          ) : VisualizationLevelReportQuery.data ? (
+                            <LevelChartPanel ChartKey={VisualizationLevelChartKey} Report={VisualizationLevelReportQuery.data} />
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Student Analysis -- one student's trend, time-per-attempt
+                        trend, section strengths, and standing against their
+                        level's cohort. The picker below reuses Individual
+                        Student's own roster search UX (Search icon input +
+                        level filter), scoped to VisualizationStudentLevelCode
+                        -- narrowing by level here also fixes WHICH level's
+                        report loads once a student is picked, since
+                        perSection/trend are only meaningful within one
+                        level's shared paper structure (see
+                        GetAnnualCompetitionPracticeReportForStudent's own
+                        docstring). Five chart options to choose from. */}
+                    {VisualizationSubTab === "STUDENT" && (
+                      <div className="math-card p-5">
+                        <SectionTitle
+                          icon={<ClipboardList size={14} />}
+                          kicker="Analytics Visualization"
+                          title="Student Analysis"
+                          description="Pick a student and a level, then choose a chart below to see their score/accuracy trend, time-per-attempt trend, section-by-section strengths, or how they compare to their level's cohort average."
+                        />
+
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                          <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
+                            <Search size={16} className="text-[color:var(--mp-role-primary)]" />
+                            <input
+                              value={VisualizationStudentSearchText}
+                              onChange={(EventValue) => SetVisualizationStudentSearchText(EventValue.target.value)}
+                              placeholder="Search student name or code"
+                              className="w-full bg-transparent outline-none placeholder:text-slate-400"
+                            />
+                          </label>
+                          <div className="w-auto min-w-[170px]">
+                            <div className="relative">
+                              <select
+                                aria-label="Select level for Student Analysis"
+                                value={VisualizationStudentLevelCode}
+                                onChange={(EventValue) => {
+                                  SetVisualizationStudentLevelCode(EventValue.target.value);
+                                  SetVisualizationSelectedStudentId(null);
+                                }}
+                                className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-[var(--mp-role-primary)] focus:outline-none"
+                              >
+                                {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                                  <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                                ))}
+                              </select>
+                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                             </div>
                           </div>
-                        ) : null}
+                        </div>
+
+                        <div className="mt-4">
+                          {VisualizationRosterQuery.isLoading ? (
+                            <LoadingState label="Loading students..." />
+                          ) : VisualizationFilteredStudentRows.length > 0 ? (
+                            <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto rounded-2xl border border-[color:var(--mp-role-border)] bg-white/60 p-3 dark:bg-slate-950/30">
+                              {VisualizationFilteredStudentRows.map((Row) => {
+                                const IsSelected = Row.studentId === VisualizationSelectedStudentId;
+                                return (
+                                  <button
+                                    key={Row.studentId}
+                                    type="button"
+                                    onClick={() => SetVisualizationSelectedStudentId(Row.studentId)}
+                                    aria-pressed={IsSelected}
+                                    className={`rounded-xl border px-3 py-2 text-left text-xs font-black transition ${
+                                      IsSelected
+                                        ? "border-[color:var(--mp-role-primary)] bg-[color:var(--mp-role-primary)]/10 text-[color:var(--mp-role-primary)] dark:bg-[color:var(--mp-role-primary)]/20"
+                                        : "border-[color:var(--mp-role-border)] bg-white text-slate-700 hover:-translate-y-px hover:bg-slate-50 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-white/5"
+                                    }`}
+                                  >
+                                    {Row.studentName || Row.studentCode || Row.studentId}
+                                    {Row.studentCode ? <span className="ml-1.5 opacity-60">{Row.studentCode}</span> : null}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <EmptyState title="No students found" description="No student has practice activity at this level matching your search yet." />
+                          )}
+                        </div>
+
+                        {VisualizationSelectedStudentId && (
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {STUDENT_CHART_OPTIONS.map((Option) => (
+                              <button
+                                key={Option.Key}
+                                type="button"
+                                onClick={() => SetVisualizationStudentChartKey(Option.Key)}
+                                aria-pressed={VisualizationStudentChartKey === Option.Key}
+                                className={`rounded-xl border px-3.5 py-2 text-xs font-black transition ${
+                                  VisualizationStudentChartKey === Option.Key
+                                    ? "border-[color:var(--mp-role-primary)] bg-[color:var(--mp-role-primary)]/10 text-[color:var(--mp-role-primary)] dark:bg-[color:var(--mp-role-primary)]/20"
+                                    : "border-[color:var(--mp-role-border)] bg-white text-slate-700 hover:-translate-y-px hover:bg-slate-50 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-white/5"
+                                }`}
+                              >
+                                {Option.Label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="mt-5">
+                          {!VisualizationSelectedStudentId ? (
+                            <EmptyState title="Pick a student above" description="Select a student to see their trend, section strengths, and cohort comparison." />
+                          ) : VisualizationStudentReportQuery.isLoading ? (
+                            <LoadingState label="Loading student analysis..." />
+                          ) : VisualizationStudentReportQuery.data ? (
+                            <StudentChartPanel ChartKey={VisualizationStudentChartKey} Report={VisualizationStudentReportQuery.data} />
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
