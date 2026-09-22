@@ -43,19 +43,6 @@ function triggerBlobDownload(BlobValue: Blob, FileName: string) {
   window.URL.revokeObjectURL(Url);
 }
 
-// 2026-09-17 (Shailesh): "the percentages shown every where should be
-// following the round off logic and must show case whole numbers only no
-// decimals whatsoever ... across all the 3 logins for admin, teacher and
-// student wherever applicable. no decimals at all for practice and official
-// both the competition flows." This page had no rounding helper at all --
-// both render sites showed the raw value straight through. Mirrors the
-// admin/teacher review pages' own FormatNumber, as a defensive second layer
-// on top of the backend's own RoundPercentageForDisplay rounding.
-function FormatPercentNumber(Value: number | null | undefined): string {
-  if (Value === null || Value === undefined || Number.isNaN(Number(Value))) return "-";
-  return String(Math.round(Number(Value)));
-}
-
 export default function AnnualCompetitionAttemptPage() {
   return <AnnualCompetitionAttemptContent />;
 }
@@ -437,24 +424,19 @@ function AnnualCompetitionAttemptContent() {
                   ? "This practice paper has been scored. Results below are yours alone -- practice is never ranked and has no certificate."
                   : "Your Annual Competition attempt has been scored. Your official rank and certificate will be released once every student at your level has completed their slot."}
               </p>
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="math-card p-3">
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Accuracy</div>
-                  <div className="text-xl font-black text-slate-950 dark:text-white">{FormatPercentNumber(result.accuracyPercentage)}%</div>
-                </div>
-                <div className="math-card p-3">
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Correct</div>
-                  <div className="text-xl font-black text-slate-950 dark:text-white">{result.correctCount}</div>
-                </div>
-                <div className="math-card p-3">
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Time Taken</div>
-                  <div className="text-xl font-black text-slate-950 dark:text-white">{Math.round((result.timeTakenSeconds || 0) / 60)}m</div>
-                </div>
+              {/* 2026-09-22 (Shailesh): "remove the accuracy parameter
+                  completely from the student view ... also the metric
+                  cards in the attempt view ... do not follow the
+                  guidelines and conventions." Accuracy dropped entirely;
+                  the remaining cards now use the same shared StatCard
+                  component (icon chip + label + value) the live in-
+                  progress metric row above already uses, instead of the
+                  ad-hoc unstyled math-card divs this block used before. */}
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <StatCard icon={<ListChecks size={16} />} label="CORRECT" value={result.correctCount} />
+                <StatCard icon={<Gauge size={16} />} label="TIME TAKEN" value={`${Math.round((result.timeTakenSeconds || 0) / 60)}m`} />
                 {!isPractice && result.rank ? (
-                  <div className="math-card p-3">
-                    <div className="text-xs text-slate-500 dark:text-slate-400">Rank</div>
-                    <div className="text-xl font-black text-slate-950 dark:text-white">#{result.rank}</div>
-                  </div>
+                  <StatCard icon={<Trophy size={16} />} label="RANK" value={`#${result.rank}`} />
                 ) : null}
               </div>
             </>
@@ -831,8 +813,6 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
   }));
   const totalQuestions = rows.reduce((sum, row) => sum + row.totalQuestions, 0);
   const totalMarksObtained = rows.reduce((sum, row) => sum + row.correctCount, 0);
-  const resultForBreakdown = review.result;
-  const attemptedCountForBreakdown = resultForBreakdown ? resultForBreakdown.correctCount + resultForBreakdown.wrongCount : 0;
 
   return (
     <div className="math-card p-5">
@@ -886,41 +866,6 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
           {totalMarksObtained}/{totalQuestions}
         </p>
       </div>
-
-      {/* 2026-09-14 (Shailesh, accuracy-formula fix): accuracy is CORRECT /
-          ATTEMPTED, never correct-out-of-every-question-in-the-paper -- an
-          unanswered question is excluded from this ratio entirely, unlike
-          "Total Marks Obtained" above (which stays completion-based, out of
-          every question). This breakdown makes that distinction visible
-          rather than just stating the percentage. Reuses review.result --
-          the same stored, backend-computed values already shown elsewhere
-          on this page -- never recomputed client-side. */}
-      {resultForBreakdown ? (
-        <div className="mt-4 rounded-[22px] border border-emerald-500/25 bg-emerald-500/5 p-5 dark:border-emerald-400/25 dark:bg-emerald-400/10">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Accuracy Breakdown</p>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Attempted</p>
-              <p className="text-lg font-black text-slate-950 dark:text-white">{attemptedCountForBreakdown}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Correct</p>
-              <p className="text-lg font-black text-slate-950 dark:text-white">{resultForBreakdown.correctCount}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Wrong</p>
-              <p className="text-lg font-black text-slate-950 dark:text-white">{resultForBreakdown.wrongCount}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Unanswered</p>
-              <p className="text-lg font-black text-slate-950 dark:text-white">{resultForBreakdown.unansweredCount}</p>
-            </div>
-          </div>
-          <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-            Accuracy = Correct ÷ Attempted = {resultForBreakdown.correctCount}/{attemptedCountForBreakdown} = {FormatPercentNumber(resultForBreakdown.accuracyPercentage)}%
-          </p>
-        </div>
-      ) : null}
     </div>
   );
 }
