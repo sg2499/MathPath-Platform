@@ -1,14 +1,13 @@
-"""Regression coverage for scripts/backfill_annual_competition_ylm_direct_
-add_less_digit_mix.py (2026-09-17) -- the one-time backfill that regenerates
+"""Regression coverage for scripts/backfill_annual_competition_ylm_100_
+question_bump.py (2026-09-22) -- the one-time backfill that regenerates
 already-assigned, never-attempted Annual Competition PRACTICE papers for
 YLM-L0 (Bloomers) and YLM-L1 (Beginners) so they pick up the same-day
-registry/generator digit-mix fix (single/double/mixed direct add/less,
-instead of the old 25/25 single-digit/mixed-only split).
+registry questionCount bump (50 -> 100).
 
-Mirrors test_backfill_annual_competition_add_less_difficulty_ease.py's own
-structure and conventions almost exactly -- same underlying situation (a
-registry pool content change a frozen, already-assigned practice paper can't
-pick up on its own), same production pipeline (GenerateAnnualCompetitionLevelPaper),
+Mirrors test_backfill_annual_competition_ylm_direct_add_less_digit_mix.py's
+own structure and conventions almost exactly -- same underlying situation (a
+registry content change a frozen, already-assigned practice paper can't pick
+up on its own), same production pipeline (GenerateAnnualCompetitionLevelPaper),
 same real in-memory SQLite database, loaded by file path.
 """
 from __future__ import annotations
@@ -35,12 +34,12 @@ from app.models.models import (
     User,
 )
 
-_SCRIPT_PATH = Path(__file__).resolve().parent.parent / "scripts" / "backfill_annual_competition_ylm_direct_add_less_digit_mix.py"
+_SCRIPT_PATH = Path(__file__).resolve().parent.parent / "scripts" / "backfill_annual_competition_ylm_100_question_bump.py"
 
 
 @pytest.fixture()
 def backfill_module():
-    spec = importlib.util.spec_from_file_location("backfill_annual_competition_ylm_direct_add_less_digit_mix", _SCRIPT_PATH)
+    spec = importlib.util.spec_from_file_location("backfill_annual_competition_ylm_100_question_bump", _SCRIPT_PATH)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
@@ -68,8 +67,8 @@ def _module_and_level(db, module_code, level_code):
     return m, l
 
 
-def _student(db, code="MP-ST-DIRECTMIX"):
-    user = User(full_name="DirectMix Backfill Student", email=f"{code.lower()}@test.local", password_hash="x", role="STUDENT")
+def _student(db, code="MP-ST-Q100BUMP"):
+    user = User(full_name="Q100Bump Backfill Student", email=f"{code.lower()}@test.local", password_hash="x", role="STUDENT")
     db.add(user)
     db.flush()
     student = Student(user_id=user.id, student_code=code)
@@ -81,9 +80,9 @@ def _student(db, code="MP-ST-DIRECTMIX"):
 def _seed_practice_paper(db, level_code, student, mock_code="OLD-MOCK-CODE"):
     """A real, previously-generated exam+paper pair -- exactly what
     _GeneratePracticePapersForOneStudent leaves behind for a student who was
-    assigned before the digit-mix fix landed (old 25/25 single/mixed-only
-    content, standing in for it here with a single stub question -- the
-    backfill never inspects a paper's existing question content, only its
+    assigned before the 100-question bump landed (old 50-question content,
+    standing in for it here with a single stub question -- the backfill
+    never inspects a paper's existing question content, only its
     attempt/consumed_at state, so a stub is sufficient)."""
     _module, level = _module_and_level(db, "YLM", level_code if level_code != "YLM-L0" else "YLM-L1")
     exam = CompetitionMockExam(
@@ -161,7 +160,7 @@ def test_practice_dry_run_reports_without_writing(backfill_module):
 
 
 @pytest.mark.parametrize("level_code", ["YLM-L1", "YLM-L0"])
-def test_practice_apply_regenerates_with_the_new_digit_mix_and_deletes_old_exam(backfill_module, level_code):
+def test_practice_apply_regenerates_at_100_questions_and_deletes_old_exam(backfill_module, level_code):
     db = _session()
     student = _student(db)
     scenario = _seed_practice_paper(db, level_code, student)
@@ -177,7 +176,7 @@ def test_practice_apply_regenerates_with_the_new_digit_mix_and_deletes_old_exam(
 
     new_exam = db.get(CompetitionMockExam, paper.mock_exam_id)
     assert new_exam is not None
-    assert "DIRECTMIX" in new_exam.mock_code
+    assert "Q100BUMP" in new_exam.mock_code
 
     old_exam = db.get(CompetitionMockExam, scenario["exam_id"])
     assert old_exam is None  # cleaned up via DeleteCompetitionMockExam
@@ -187,13 +186,23 @@ def test_practice_apply_regenerates_with_the_new_digit_mix_and_deletes_old_exam(
         .filter(CompetitionMockQuestion.mock_exam_id == paper.mock_exam_id)
         .all()
     )
-    # 2026-09-22 (Shailesh, 100-question bump): questionCount for these two
-    # levels is now 100, not 50 -- this test only cares that the digit-mix
-    # fix survives regeneration, not the exact count, but it must match
-    # whatever GenerateAnnualCompetitionLevelPaper actually produces from
-    # the live registry or this assertion is just stale.
-    assert len(new_questions) == 100
+    assert len(new_questions) == 100  # the whole point of this backfill
     assert {q.concept_family for q in new_questions} == {"DIRECT_ADD_LESS"}  # concept never changes
+
+    signatures = {
+        json.dumps(
+            {
+                "questionText": q.question_text,
+                "operands": json.loads(q.operands_json or "[]"),
+                "operators": json.loads(q.operators_json or "[]"),
+                "correctAnswer": q.correct_answer,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        for q in new_questions
+    }
+    assert len(signatures) == 100  # no repeats anywhere in the regenerated paper
 
     def _base_width(q):
         operands = json.loads(q.operands_json or "[]")
@@ -201,7 +210,7 @@ def test_practice_apply_regenerates_with_the_new_digit_mix_and_deletes_old_exam(
         return "1D" if base < 10 else "2D"
 
     widths = {_base_width(q) for q in new_questions}
-    assert widths == {"1D", "2D"}  # the regenerated paper actually has the new mix, not the old stub content
+    assert widths == {"1D", "2D"}  # the regenerated paper still has the digit-mix fix, not just the old stub content
 
 
 def test_practice_skipped_once_any_attempt_exists_any_status(backfill_module):
@@ -346,10 +355,10 @@ def test_official_papers_are_reported_but_apply_never_touches_them(backfill_modu
 # ---------------------------------------------------------------------------
 
 
-def test_is_already_backfilled_detects_the_directmix_tag(backfill_module):
+def test_is_already_backfilled_detects_the_q100bump_tag(backfill_module):
     db = _session()
     _module, level = _module_and_level(db, "YLM", "YLM-L1")
-    exam = CompetitionMockExam(title="x", mock_code="ANNUAL-PRACTICE-YLM-L1-DIRECTMIX-ABCD1234", module_id=level.module_id, level_id=level.id, total_questions=1, duration_seconds=60, status="DRAFT")
+    exam = CompetitionMockExam(title="x", mock_code="ANNUAL-PRACTICE-YLM-L1-Q100BUMP-ABCD1234", module_id=level.module_id, level_id=level.id, total_questions=1, duration_seconds=60, status="DRAFT")
     db.add(exam)
     db.commit()
 
