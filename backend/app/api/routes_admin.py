@@ -152,6 +152,7 @@ from app.services.annual_competition_monitoring_service import (
 from app.services.annual_competition_practice_report_service import (
     GetAnnualCompetitionPracticeReportForStudent,
     GetAnnualCompetitionPracticeReportForLevel,
+    GetAnnualCompetitionPracticeReportOverview,
 )
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -6270,6 +6271,18 @@ def admin_get_annual_competition_practice_report_for_level(
     competition_level_code: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
 ):
     return GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode=competition_level_code)
+
+
+# Analytics Visualization feature, package 1 (Shailesh, 2026-09-22): the
+# cross-level overview route backing the new admin-only Visualization
+# sub-tab's level-comparison chart. No path params, no filters -- see
+# GetAnnualCompetitionPracticeReportOverview's own docstring for why this is
+# always unrestricted (whole platform) and always includes every level.
+@router.get("/annual-competition/practice-reports/overview")
+def admin_get_annual_competition_practice_report_overview(
+    db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return GetAnnualCompetitionPracticeReportOverview(db)
 
 
 # 2026-09-14 (Shailesh): per-row delete icon in the admin Practice view --

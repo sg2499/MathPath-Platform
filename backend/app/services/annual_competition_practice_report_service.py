@@ -633,3 +633,67 @@ def GetAnnualCompetitionPracticeReportForLevel(
         "perSection": PerSection,
         "perStudent": PerStudent,
     }
+
+# Analytics Visualization feature, package 1 (Shailesh, 2026-09-22): the
+# cross-level "Overview" row -- one attempt-weighted summary PER LEVEL, in
+# the same canonical level order every dropdown in this app already uses.
+# Built for the new admin-only Visualization tab's level-comparison chart
+# (which level's cohort is scoring highest/lowest on average right now).
+#
+# avgPercentage here is deliberately re-based onto each level's own current
+# canonical total question count (_LevelCanonicalTotalQuestionCount), the
+# exact same denominator fix GetAnnualCompetitionPracticeReportForLevel
+# already applies per-student for its leaderboard (2026-09-22 fairness fix).
+# That fix mattered WITHIN one level (every student's raw avgScore becomes
+# comparable once everyone shares one denominator); it matters even more
+# HERE, since this is the one place in this feature that compares different
+# LEVELS against each other -- levels have different paper sizes entirely
+# (e.g. Bloomers/Beginners vs a full Intermediate paper), so raw avgScore
+# would never be a fair cross-level metric. avgPercentage, rebased onto each
+# level's own canonical total, is.
+#
+# Every level in _LEVEL_CODE_DISPLAY_ORDER is included even when it has zero
+# PRACTICE attempts yet (every summary field lands as None/0, exactly like
+# _AggregateAttemptLevelStats' own empty-input behavior) so the overview
+# chart's axis never silently drops a level that simply has no data yet --
+# an admin should see "no data" for a level, not have it vanish.
+#
+# Deliberately ONE query across every level (grouped in Python), not
+# _LEVEL_CODE_DISPLAY_ORDER separate _ResultRowsForLevel calls -- this route
+# has no level/student filter to narrow the result set the way the per-level
+# report route does, so avoiding N separate round trips matters here.
+def GetAnnualCompetitionPracticeReportOverview(db: Session) -> dict[str, Any]:
+    """The cross-level Practice Reports overview -- see the comment above
+    this function for the full design (why avgPercentage is rebased per
+    level, why every level is always included, why this is one query)."""
+    AllResultRecords = (
+        db.query(CompetitionEventResult)
+        .filter(
+            CompetitionEventResult.attempt_type == "PRACTICE",
+            CompetitionEventResult.is_voided == False,  # noqa: E712
+        )
+        .all()
+    )
+
+    ResultsByLevel: dict[str, list[CompetitionEventResult]] = {}
+    for ResultRecord in AllResultRecords:
+        ResultsByLevel.setdefault(ResultRecord.competition_level_code, []).append(ResultRecord)
+
+    ByLevel: list[dict[str, Any]] = []
+    for LevelCode in _LEVEL_CODE_DISPLAY_ORDER:
+        LevelResultRecords = ResultsByLevel.get(LevelCode, [])
+        Stats = _AggregateAttemptLevelStats(LevelResultRecords)
+        Stats["studentsWithAttemptsCount"] = len({ResultRecord.student_id for ResultRecord in LevelResultRecords})
+        Stats.update(_PracticeBankCompletionStats(db, CompetitionLevelCode=LevelCode))
+
+        CanonicalTotal = _LevelCanonicalTotalQuestionCount(LevelCode)
+        if CanonicalTotal is not None and Stats["avgScore"] is not None:
+            Stats["avgMaxScore"] = CanonicalTotal
+            if CanonicalTotal > 0:
+                Stats["avgPercentage"] = _RoundToInt((Stats["avgScore"] / CanonicalTotal) * 100)
+
+        Stats["competitionLevelCode"] = LevelCode
+        ByLevel.append(Stats)
+
+    return {"byLevel": ByLevel}
+
