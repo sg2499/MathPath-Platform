@@ -2107,17 +2107,22 @@ function AdminAnnualCompetitionStudioPageContent() {
                   icon={<Trophy size={14} />}
                   kicker="Leaderboard"
                   title="Practice Leaderboard"
-                  description="Level-wise rankings across every student's Annual Competition practice papers at this level -- highest average accuracy first, average time taken as tiebreak. Practice only, never mixed with the official event's own ranked results."
+                  description="Level-wise rankings across every student's Annual Competition practice papers at this level -- highest average score first, average time taken as tiebreak. Practice only, never mixed with the official event's own ranked results."
                 />
 
                 <div className="mt-4">
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     Level
+                    {/* 2026-09-22 (Shailesh): the level select was cramming
+                        long labels ("Bloomers (Below 8 Years)", "Beginners
+                        (Above 8 Years)") right up against the native dropdown
+                        arrow at min-w-[200px] -- widened so both fit with
+                        room to spare. */}
                     <select
                       aria-label="Select level for the leaderboard"
                       value={LeaderboardLevelCode}
                       onChange={(EventValue) => SetLeaderboardLevelCode(EventValue.target.value)}
-                      className="math-input w-auto min-w-[200px]"
+                      className="math-input w-auto min-w-[260px]"
                     >
                       {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
                         <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>

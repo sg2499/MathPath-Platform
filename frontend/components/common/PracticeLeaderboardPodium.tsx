@@ -103,10 +103,16 @@ function PodiumCard({ Row }: { Row: PracticeLeaderboardRow }) {
       {Row.studentCode ? (
         <p className="text-[11px] font-black uppercase tracking-[0.1em] text-[color:var(--mp-role-primary)]">{Row.studentCode}</p>
       ) : null}
-      <p className="mt-3 text-2xl font-black text-slate-950 dark:text-white">{FormatPercent(Row.avgAccuracyPercentage)}</p>
-      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">Avg Accuracy</p>
+      {/* 2026-09-22 (Shailesh): avg score is the ranking key now, not avg
+          accuracy -- so the podium's bold primary figure leads with score,
+          and accuracy (still worth showing, just no longer what earned this
+          rank) moves down into the secondary row alongside avg time. */}
+      <p className="mt-3 text-2xl font-black text-slate-950 dark:text-white">
+        {Row.avgScore == null ? "-" : `${Row.avgScore}/${Row.avgMaxScore ?? "-"}`}
+      </p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">Avg Score</p>
       <div className="mt-3 flex items-center justify-center gap-3 text-xs font-bold text-slate-500 dark:text-slate-400">
-        <span>{Row.avgScore == null ? "-" : `${Row.avgScore}/${Row.avgMaxScore ?? "-"}`} score</span>
+        <span>{FormatPercent(Row.avgAccuracyPercentage)} accuracy</span>
         <span>&middot;</span>
         <span>{FormatSecondsAsMinSec(Row.avgTimeTakenSeconds)}</span>
       </div>

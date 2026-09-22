@@ -2125,12 +2125,29 @@ export type AnnualCompetitionPracticeBatchAssignResult = {
   failed: AnnualCompetitionPracticeBatchAssignFailedRow[];
 };
 
+// 2026-09-22 (Shailesh, live incident: a single-student, 25-paper batch
+// assign genuinely succeeded server-side -- papers landed in the bank --
+// but the admin still saw "This batch call did not complete", because the
+// full round trip (25x paper generation, each with its own DB writes, plus
+// the post-generation per-student/teacher/admin notification loop --
+// BatchAssignAnnualCompetitionPracticePapers's own docstring) ran long
+// enough to exceed this call's timeout, which was previously just the
+// generic DEFAULT_API_TIMEOUT_MS (90s, api.ts) with no override -- unlike
+// bulkUploadStudents (120s) and the mock-exam draft generator (60s) above,
+// both of which already give their own heavy actions explicit headroom.
+// 180s matches the same "give a known-heavy action its own generous
+// ceiling" pattern rather than inflating the shared default for every
+// other call on this instance.
 export async function batchAssignAnnualCompetitionPracticePapers(payload: {
   studentIds: string[];
   competitionLevelCode: string;
   quantity: number;
 }): Promise<AnnualCompetitionPracticeBatchAssignResult> {
-  const { data } = await api.post<AnnualCompetitionPracticeBatchAssignResult>(`/admin/annual-competition/practice-bank/assign`, payload);
+  const { data } = await api.post<AnnualCompetitionPracticeBatchAssignResult>(
+    `/admin/annual-competition/practice-bank/assign`,
+    payload,
+    { timeout: 180000 }
+  );
   return data;
 }
 
