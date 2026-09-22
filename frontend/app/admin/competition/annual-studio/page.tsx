@@ -22,6 +22,7 @@ import {
   getAdminTeachers,
   getAnnualCompetitionPracticeReportForLevel,
   getAnnualCompetitionPracticeReportForStudent,
+  getAnnualCompetitionPracticeReportOverview,
   listAnnualCompetitionEvents,
   listAnnualCompetitionPracticeResults,
   listStudentsForAnnualCompetitionPracticeBank,
@@ -32,12 +33,22 @@ import {
   type AnnualCompetitionPracticeBatchAssignFailedRow,
   type AnnualCompetitionPracticeReportForLevel,
   type AnnualCompetitionPracticeReportForStudent,
+  type AnnualCompetitionPracticeReportOverview,
   type AnnualCompetitionPracticeReportSectionRow,
   type AnnualCompetitionPracticeRosterStudent,
 } from "@/lib/api/admin";
 import type { AdminTeacher } from "@/types/teacher";
 import { GroupPracticePapersByLevel } from "@/lib/annualCompetitionPracticeGrouping";
 import { PracticeLeaderboardPodium } from "@/components/common/PracticeLeaderboardPodium";
+import {
+  LevelComparisonChart,
+  ScoreDistributionChart,
+  SectionDifficultyChart,
+  StudentSectionRadarChart,
+  StudentTrendChart,
+  StudentVsCohortChart,
+  TimeVsScoreScatterChart,
+} from "@/components/common/AnnualCompetitionAnalyticsCharts";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -586,7 +597,7 @@ type TopTabKey = (typeof TopTabList)[number];
 const PracticeSubTabList = ["BANK", "RESULTS", "REPORTS", "LEADERBOARD"] as const;
 type PracticeSubTabKey = (typeof PracticeSubTabList)[number];
 
-const PracticeReportsSubTabList = ["STUDENT", "LEVEL"] as const;
+const PracticeReportsSubTabList = ["STUDENT", "LEVEL", "VISUALIZATION"] as const;
 type PracticeReportsSubTabKey = (typeof PracticeReportsSubTabList)[number];
 
 // 2026-09-17 (Shailesh): Individual Level's own two further sub-tabs --
@@ -1136,6 +1147,18 @@ function AdminAnnualCompetitionStudioPageContent() {
   // default level, with zero extra fetch.
   const [ModalStudentRow, SetModalStudentRow] = useState<AnnualCompetitionPracticeRosterStudent | null>(null);
 
+  // Analytics Visualization feature, package 2 (Shailesh, 2026-09-22): the
+  // 3rd Reports sub-tab earmarked back on 2026-09-18 (see PracticeReportsSubTabList's
+  // own comment above) -- three independent scopes, each with its own state/
+  // query, following this file's own established precedent (Leaderboard's
+  // LeaderboardLevelCode being kept separate from Reports' ReportsLevelCode
+  // "so the two tabs [don't fight] over one shared filter") rather than
+  // reusing Individual Level/Individual Student's own state.
+  const [VisualizationLevelCode, SetVisualizationLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
+  const [VisualizationStudentLevelCode, SetVisualizationStudentLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
+  const [VisualizationStudentSearchText, SetVisualizationStudentSearchText] = useState("");
+  const [VisualizationSelectedStudentId, SetVisualizationSelectedStudentId] = useState<string | null>(null);
+
   const TeachersQuery = useQuery({
     queryKey: ["admin-teachers"],
     queryFn: getAdminTeachers,
@@ -1164,6 +1187,46 @@ function AdminAnnualCompetitionStudioPageContent() {
     queryFn: () => getAnnualCompetitionPracticeReportForLevel(ReportsLevelCode),
     enabled:
       Ready && TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "LEVEL" && Boolean(ReportsLevelCode),
+  });
+
+  // Analytics Visualization feature, package 2: four independent queries,
+  // one per chart scope -- Overview is unconditional (whole platform, no
+  // filter); Level Analysis follows VisualizationLevelCode; Student
+  // Analysis first lists a roster to search/pick a student (scoped by
+  // VisualizationStudentLevelCode, same convention as Individual Student's
+  // own ReportsBlockLevelFilter), then fetches that one student's report
+  // once selected.
+  const VisualizationEnabled = Ready && TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "VISUALIZATION";
+
+  const VisualizationOverviewQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "practice-report-overview"],
+    queryFn: () => getAnnualCompetitionPracticeReportOverview(),
+    enabled: VisualizationEnabled,
+  });
+
+  const VisualizationLevelReportQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "visualization-level-report", VisualizationLevelCode],
+    queryFn: () => getAnnualCompetitionPracticeReportForLevel(VisualizationLevelCode),
+    enabled: VisualizationEnabled && Boolean(VisualizationLevelCode),
+  });
+
+  const VisualizationRosterQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "visualization-roster", VisualizationStudentLevelCode],
+    queryFn: () => listAnnualCompetitionPracticeResults({ competitionLevelCode: VisualizationStudentLevelCode }),
+    enabled: VisualizationEnabled,
+  });
+
+  const VisualizationStudentSearchLower = VisualizationStudentSearchText.trim().toLowerCase();
+  const VisualizationFilteredStudentRows = (VisualizationRosterQuery.data?.students || []).filter((Row) => {
+    if (!VisualizationStudentSearchLower) return true;
+    const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
+    return Haystack.includes(VisualizationStudentSearchLower);
+  });
+
+  const VisualizationStudentReportQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "visualization-student-report", VisualizationSelectedStudentId, VisualizationStudentLevelCode],
+    queryFn: () => getAnnualCompetitionPracticeReportForStudent(VisualizationSelectedStudentId as string, VisualizationStudentLevelCode),
+    enabled: VisualizationEnabled && Boolean(VisualizationSelectedStudentId),
   });
 
   // ---------------------------------------------------------------------
@@ -1198,6 +1261,9 @@ function AdminAnnualCompetitionStudioPageContent() {
     (TopTab === "PRACTICE" && PracticeSubTab === "RESULTS" ? PracticeResultsQuery.error : null) ||
     (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "STUDENT" ? ReportsRosterQuery.error : null) ||
     (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "LEVEL" ? PracticeReportLevelQuery.error : null) ||
+    (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "VISUALIZATION"
+      ? VisualizationOverviewQuery.error || VisualizationLevelReportQuery.error || VisualizationRosterQuery.error
+      : null) ||
     (TopTab === "PRACTICE" && PracticeSubTab === "LEADERBOARD" ? PracticeLeaderboardQuery.error : null);
 
   return (
@@ -1939,7 +2005,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                         aria-selected={PracticeReportsSubTab === Tab}
                         className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${PracticeReportsSubTab === Tab ? "is-active math-admin-tab-force-selected" : ""}`}
                       >
-                        {Tab === "STUDENT" ? "Individual Student" : "Individual Level"}
+                        {Tab === "STUDENT" ? "Individual Student" : Tab === "LEVEL" ? "Individual Level" : "Visualization"}
                       </button>
                     ))}
                   </div>
@@ -2096,6 +2162,174 @@ function AdminAnnualCompetitionStudioPageContent() {
                         <LevelStudentWiseAnalyticsView Report={PracticeReportLevelQuery.data} />
                       )
                     ) : null}
+                  </div>
+                )}
+
+                {PracticeReportsSubTab === "VISUALIZATION" && (
+                  <div className="space-y-6">
+                    {/* Overview -- cross-level comparison, unconditional (no
+                        filter needed, backed by the new GetAnnualCompetitionPracticeReportOverview
+                        endpoint -- see that function's own docstring for why
+                        avgPercentage is rebased onto each level's own
+                        canonical total so levels of different sizes are
+                        fairly comparable here). */}
+                    <div className="math-card p-5">
+                      <SectionTitle
+                        icon={<Sparkles size={14} />}
+                        kicker="Analytics Visualization"
+                        title="Overview"
+                        description="Every level's average practice performance, side by side, so a weak spot across the whole platform is visible at a glance before drilling into any one level."
+                      />
+                      <div className="mt-5">
+                        {VisualizationOverviewQuery.isLoading ? (
+                          <LoadingState label="Loading overview..." />
+                        ) : VisualizationOverviewQuery.data ? (
+                          <LevelComparisonChart Rows={VisualizationOverviewQuery.data.byLevel} />
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {/* Level Analysis -- section difficulty, score spread,
+                        and speed-vs-accuracy for one level's whole cohort.
+                        Independent VisualizationLevelCode state, same
+                        precedent as Leaderboard's own separate level filter
+                        (see this file's comment on LeaderboardLevelCode). */}
+                    <div className="math-card p-5">
+                      <SectionTitle
+                        icon={<Medal size={14} />}
+                        kicker="Analytics Visualization"
+                        title="Level Analysis"
+                        description="Which section this cohort finds hardest, how scores are spread across the roster, and whether students who spend longer are actually scoring higher."
+                      />
+                      <div className="mt-4 max-w-xs">
+                        <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Level</label>
+                        <div className="relative">
+                          <select
+                            aria-label="Select level for Level Analysis"
+                            value={VisualizationLevelCode}
+                            onChange={(EventValue) => SetVisualizationLevelCode(EventValue.target.value)}
+                            className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-[var(--mp-role-primary)] focus:outline-none"
+                          >
+                            {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                              <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      <div className="mt-5">
+                        {VisualizationLevelReportQuery.isLoading ? (
+                          <LoadingState label="Loading level analysis..." />
+                        ) : VisualizationLevelReportQuery.data ? (
+                          <div className="grid gap-6 lg:grid-cols-2">
+                            <SectionDifficultyChart Sections={VisualizationLevelReportQuery.data.perSection} />
+                            <ScoreDistributionChart Students={VisualizationLevelReportQuery.data.perStudent} />
+                            <div className="lg:col-span-2">
+                              <TimeVsScoreScatterChart Students={VisualizationLevelReportQuery.data.perStudent} />
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {/* Student Analysis -- one student's trend, section
+                        strengths, and standing against their level's cohort.
+                        The picker below reuses Individual Student's own
+                        roster search UX (Search icon input + level filter),
+                        scoped to VisualizationStudentLevelCode -- narrowing
+                        by level here also fixes WHICH level's report loads
+                        once a student is picked, since perSection/trend are
+                        only meaningful within one level's shared paper
+                        structure (see GetAnnualCompetitionPracticeReportForStudent's
+                        own docstring). */}
+                    <div className="math-card p-5">
+                      <SectionTitle
+                        icon={<ClipboardList size={14} />}
+                        kicker="Analytics Visualization"
+                        title="Student Analysis"
+                        description="Pick a student and a level to see their own score/accuracy trend across attempts, their section-by-section strengths, and how they compare to their level's cohort average."
+                      />
+
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
+                          <Search size={16} className="text-[color:var(--mp-role-primary)]" />
+                          <input
+                            value={VisualizationStudentSearchText}
+                            onChange={(EventValue) => SetVisualizationStudentSearchText(EventValue.target.value)}
+                            placeholder="Search student name or code"
+                            className="w-full bg-transparent outline-none placeholder:text-slate-400"
+                          />
+                        </label>
+                        <div className="w-auto min-w-[170px]">
+                          <div className="relative">
+                            <select
+                              aria-label="Select level for Student Analysis"
+                              value={VisualizationStudentLevelCode}
+                              onChange={(EventValue) => {
+                                SetVisualizationStudentLevelCode(EventValue.target.value);
+                                SetVisualizationSelectedStudentId(null);
+                              }}
+                              className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-[var(--mp-role-primary)] focus:outline-none"
+                            >
+                              {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                                <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        {VisualizationRosterQuery.isLoading ? (
+                          <LoadingState label="Loading students..." />
+                        ) : VisualizationFilteredStudentRows.length > 0 ? (
+                          <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto rounded-2xl border border-[color:var(--mp-role-border)] bg-white/60 p-3 dark:bg-slate-950/30">
+                            {VisualizationFilteredStudentRows.map((Row) => {
+                              const IsSelected = Row.studentId === VisualizationSelectedStudentId;
+                              return (
+                                <button
+                                  key={Row.studentId}
+                                  type="button"
+                                  onClick={() => SetVisualizationSelectedStudentId(Row.studentId)}
+                                  aria-pressed={IsSelected}
+                                  className={`rounded-xl border px-3 py-2 text-left text-xs font-black transition ${
+                                    IsSelected
+                                      ? "border-[color:var(--mp-role-primary)] bg-[color:var(--mp-role-primary)]/10 text-[color:var(--mp-role-primary)] dark:bg-[color:var(--mp-role-primary)]/20"
+                                      : "border-[color:var(--mp-role-border)] bg-white text-slate-700 hover:-translate-y-px hover:bg-slate-50 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-white/5"
+                                  }`}
+                                >
+                                  {Row.studentName || Row.studentCode || Row.studentId}
+                                  {Row.studentCode ? <span className="ml-1.5 opacity-60">{Row.studentCode}</span> : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <EmptyState title="No students found" description="No student has practice activity at this level matching your search yet." />
+                        )}
+                      </div>
+
+                      <div className="mt-5">
+                        {!VisualizationSelectedStudentId ? (
+                          <EmptyState title="Pick a student above" description="Select a student to see their trend, section strengths, and cohort comparison." />
+                        ) : VisualizationStudentReportQuery.isLoading ? (
+                          <LoadingState label="Loading student analysis..." />
+                        ) : VisualizationStudentReportQuery.data ? (
+                          <div className="grid gap-6 lg:grid-cols-2">
+                            <StudentTrendChart Trend={VisualizationStudentReportQuery.data.trend} />
+                            <StudentSectionRadarChart Sections={VisualizationStudentReportQuery.data.perSection} />
+                            <div className="lg:col-span-2">
+                              <StudentVsCohortChart
+                                Summary={VisualizationStudentReportQuery.data.summary}
+                                LevelComparison={VisualizationStudentReportQuery.data.levelComparison}
+                              />
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

@@ -2406,3 +2406,25 @@ export async function getAnnualCompetitionPracticeReportForLevel(
   );
   return data;
 }
+
+// Analytics Visualization feature, package 1 (Shailesh, 2026-09-22): the
+// cross-level Overview row backing the new admin-only Visualization
+// sub-tab's level-comparison chart. avgPercentage on each row is already
+// rebased onto that level's own canonical total question count server-side
+// -- see GetAnnualCompetitionPracticeReportOverview's own docstring -- so
+// it is directly comparable across levels with no further adjustment here.
+export type AnnualCompetitionPracticeReportOverviewRow = AnnualCompetitionPracticeReportSummary & {
+  competitionLevelCode: string;
+  studentsWithAttemptsCount: number;
+};
+
+export type AnnualCompetitionPracticeReportOverview = {
+  byLevel: AnnualCompetitionPracticeReportOverviewRow[];
+};
+
+export async function getAnnualCompetitionPracticeReportOverview(): Promise<AnnualCompetitionPracticeReportOverview> {
+  const { data } = await api.get<AnnualCompetitionPracticeReportOverview>(
+    "/admin/annual-competition/practice-reports/overview"
+  );
+  return data;
+}

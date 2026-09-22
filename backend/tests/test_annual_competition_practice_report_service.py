@@ -657,3 +657,122 @@ def test_round_to_int_uses_standard_round_half_up_not_bankers_rounding():
     assert report_service._RoundToInt(0.4) == 0
     assert report_service._RoundToInt(0.0) == 0
     assert report_service._RoundToInt(None) is None
+
+# ---------------------------------------------------------------------------
+# Cross-level overview (Analytics Visualization feature, package 1)
+# ---------------------------------------------------------------------------
+
+def test_overview_includes_every_level_even_with_zero_attempts():
+    """2026-09-22 (Analytics Visualization, Shailesh): the overview chart's
+    axis must never silently drop a level that has no PRACTICE attempts yet
+    -- every level in the canonical registry order shows up, with None/0
+    summary fields rather than being omitted."""
+    db = _session()
+    report = report_service.GetAnnualCompetitionPracticeReportOverview(db)
+
+    expected_codes = list(ANNUAL_COMPETITION_LEVEL_REGISTRY.keys())
+    actual_codes = [row["competitionLevelCode"] for row in report["byLevel"]]
+    assert actual_codes == expected_codes
+
+    for row in report["byLevel"]:
+        assert row["attemptsCount"] == 0
+        assert row["avgScore"] is None
+        assert row["avgPercentage"] is None
+        assert row["studentsWithAttemptsCount"] == 0
+
+
+def test_overview_aggregates_each_level_independently_without_blending():
+    """Attempts at two different levels must never bleed into each other's
+    row -- mirrors the per-level report's own isolation, just checked across
+    every row of the overview at once."""
+    db = _session()
+    pm_student = _student(db, "s-pm", name="PM Student")
+    im_student = _student(db, "s-im", name="IM Student")
+
+    _setup_practice_paper(db, pm_student.id, "PM-L2", (600,), [4], "exam-pm", "paper-pm", "pm")
+    db.commit()
+    _attempt_and_answer_all(db, pm_student, "PM-L2", "pm", [4], [True, True, True, False])
+
+    _setup_practice_paper(db, im_student.id, "IM-L1", (600,), [2], "exam-im", "paper-im", "im")
+    db.commit()
+    _attempt_and_answer_all(db, im_student, "IM-L1", "im", [2], [True, True])
+
+    report = report_service.GetAnnualCompetitionPracticeReportOverview(db)
+    by_level = {row["competitionLevelCode"]: row for row in report["byLevel"]}
+
+    assert by_level["PM-L2"]["attemptsCount"] == 1
+    assert by_level["PM-L2"]["studentsWithAttemptsCount"] == 1
+    assert by_level["IM-L1"]["attemptsCount"] == 1
+    assert by_level["IM-L1"]["studentsWithAttemptsCount"] == 1
+    # Every other level in the registry stays at zero -- these two attempts
+    # must not leak anywhere else.
+    for level_code, row in by_level.items():
+        if level_code not in ("PM-L2", "IM-L1"):
+            assert row["attemptsCount"] == 0
+
+
+def test_overview_rebases_avg_percentage_onto_canonical_total_per_level():
+    """Same fairness fix as the per-level leaderboard's avgMaxScore
+    override (2026-09-22), applied here across levels instead of across
+    students within one level -- see GetAnnualCompetitionPracticeReportOverview's
+    own module comment for why raw avgScore would not be a fair cross-level
+    metric while avgPercentage, rebased onto each level's own canonical
+    total, is."""
+    db = _session()
+    student = _student(db, "s-overview-canon", name="Overview Canonical")
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [4], "exam-ov-canon", "paper-ov-canon", "ovcanon")
+    db.commit()
+    _attempt_and_answer_all(db, student, "PM-L2", "ovcanon", [4], [True, True, False, False])
+
+    canonical_total = sum(
+        section["questionCount"] for section in ANNUAL_COMPETITION_LEVEL_REGISTRY["PM-L2"]["sections"]
+    )
+    assert canonical_total != 4  # sanity check this test actually exercises the override
+
+    report = report_service.GetAnnualCompetitionPracticeReportOverview(db)
+    row = next(r for r in report["byLevel"] if r["competitionLevelCode"] == "PM-L2")
+    assert row["avgScore"] == 2.0
+    assert row["avgMaxScore"] == canonical_total
+    assert row["avgPercentage"] == report_service._RoundToInt((2.0 / canonical_total) * 100)
+
+
+def test_overview_excludes_official_attempts():
+    """PRACTICE-only, same convention as the per-level report's own
+    equivalent test -- an OFFICIAL attempt must never inflate a level's
+    overview row."""
+    db = _session()
+    student = _student(db, "s-ov-official")
+    event = CompetitionEvent(
+        id="event-ov-1", name="Annual Competition 2026", status="SCHEDULED",
+        competition_date=datetime.now(timezone.utc),
+    )
+    db.add(event)
+    m, l = _module_and_level(db, level_code="PM-L2")
+    exam = _mock_exam(db, l.id, m.id, "exam-ov-official")
+    _question_with_options(db, exam.id, 1, 1, qid="ov-official-q-1-1")
+    db.add(CompetitionEventAssignment(
+        id="assign-ov-1", event_id=event.id, student_id=student.id,
+        assigned_level_code="PM-L2", assignment_source="AUTO", is_active=True,
+    ))
+    db.flush()
+    paper = CompetitionEventLevelPaper(
+        id="official-ov-paper-1", event_id=event.id, competition_level_code="PM-L2",
+        mock_exam_id=exam.id, status="READY",
+    )
+    db.add(paper)
+    db.flush()
+    db.add(CompetitionEventSectionTimer(
+        id="official-ov-paper-1-timer-1", level_paper_id=paper.id, section_number=1,
+        section_title="Section 1", mode="MIXED", time_limit_seconds=600, display_order=1,
+    ))
+    db.commit()
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_id, token = started["attemptId"], started["sessionToken"]
+    _answer(db, student, attempt_id, token, 1, "ov-official-q-1-1", correct=True)
+    attempt_engine.SubmitCompetitionEventSection(db, student, attempt_id, token, 1)
+
+    report = report_service.GetAnnualCompetitionPracticeReportOverview(db)
+    row = next(r for r in report["byLevel"] if r["competitionLevelCode"] == "PM-L2")
+    assert row["attemptsCount"] == 0
+    assert row["studentsWithAttemptsCount"] == 0
