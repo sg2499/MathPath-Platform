@@ -163,6 +163,37 @@ def _SectionTitleLookup(CompetitionLevelCode: str) -> dict[int, str]:
     }
 
 
+def _LevelCanonicalTotalQuestionCount(CompetitionLevelCode: str) -> int | None:
+    """The CURRENT total question count for one competition level's paper --
+    the sum of every section's questionCount in ANNUAL_COMPETITION_LEVEL_
+    REGISTRY (annual_competition_paper_registry.py), the same registry every
+    fresh paper is generated from today. Returns None for an unknown level
+    code rather than raising, matching _SectionTitleLookup's own defensive
+    convention just above.
+
+    Why this exists (Shailesh, 2026-09-22, Practice Leaderboard fix): the
+    per-student leaderboard rows used to display each student's own attempt-
+    averaged max score (_AggregateAttemptLevelStats' avgMaxScore -- an
+    average of each ResultRecord.max_score, i.e. whatever paper size that
+    attempt actually had). That is correct for a single attempt's own
+    Scorecard, but wrong for a cohort leaderboard: a level's paper size can
+    change over time (e.g. the 2026-09-22 YLM-L0/L1 50->100 bump), so two
+    students with identical raw performance could show different
+    denominators purely from when they attempted, and worse, their avgScore
+    values would then no longer be comparable on a shared scale -- exactly
+    the ambiguity that made ranking by raw avgScore alone unsafe before this
+    fix. The client's own explicit, confirmed decision: always display (and
+    rank against) the level's CURRENT canonical total, the same fixed number
+    for every student in that level's leaderboard, even for older attempts
+    taken under a smaller paper size. GetAnnualCompetitionPracticeReportForLevel
+    is the only caller -- a student's own single-attempt Scorecard keeps
+    showing that attempt's real, actual max_score, untouched by this."""
+    LevelDefinition = ANNUAL_COMPETITION_LEVEL_REGISTRY.get(CompetitionLevelCode)
+    if not LevelDefinition:
+        return None
+    return sum(Section.get("questionCount", 0) for Section in LevelDefinition.get("sections", []))
+
+
 def _SafeJsonList(RawJson: str | None) -> list[dict[str, Any]]:
     if not RawJson:
         return []
@@ -514,6 +545,24 @@ def GetAnnualCompetitionPracticeReportForLevel(
         if not StudentRecord:
             continue
         StudentStats = _AggregateAttemptLevelStats(StudentResultRecords)
+        # Denominator override (Shailesh, 2026-09-22, Practice Leaderboard
+        # fix): always display this student's avgScore out of the level's
+        # CURRENT canonical total question count -- never the average of
+        # each attempt's own (possibly older, smaller) max_score. See
+        # _LevelCanonicalTotalQuestionCount's own docstring for the full
+        # reasoning. avgPercentage is recomputed to match for consistency
+        # (it is no longer used as a sort key -- see the sort below -- but
+        # other callers/consumers of this dict should never see a
+        # percentage that disagrees with the displayed score/maxScore
+        # fraction). Falls back to the attempt-averaged value only if the
+        # level code is somehow unrecognized (defensive; cannot happen for
+        # a level code that already passed _ValidateCompetitionLevelCode
+        # above).
+        CanonicalTotal = _LevelCanonicalTotalQuestionCount(CompetitionLevelCode)
+        if CanonicalTotal is not None:
+            StudentStats["avgMaxScore"] = CanonicalTotal
+            if StudentStats["avgScore"] is not None and CanonicalTotal > 0:
+                StudentStats["avgPercentage"] = _RoundToInt((StudentStats["avgScore"] / CanonicalTotal) * 100)
         StudentStats.update(_PracticeBankCompletionStats(db, StudentId=SId, CompetitionLevelCode=CompetitionLevelCode))
         StudentStats["studentId"] = StudentRecord.id
         StudentStats["studentName"] = _StudentDisplayName(StudentRecord)
@@ -529,24 +578,41 @@ def GetAnnualCompetitionPracticeReportForLevel(
         StudentStats["lastAttemptAt"] = LastAttemptAt.isoformat() if LastAttemptAt else None
         PerStudent.append(StudentStats)
 
-    # Leaderboard-style default order: highest avg accuracy first, average
-    # time taken ascending as tiebreak -- 2026-09-18 (Shailesh, Annual
-    # Competition Practice Leaderboard feature): mirrors the exact tiebreak
-    # rule every other leaderboard in this codebase already uses (see
-    # leaderboard_service.py's own module docstring, "pooled accuracy
-    # descending, then average time taken ascending as tiebreaker"), so an
-    # admin/teacher who already knows how DPS/Mock leaderboards break ties
-    # sees the same rule here. A None accuracy (zero attempted questions
-    # across every attempt -- unusual but possible) sorts last, never
-    # mistaken for a genuine 0%; a None avg time (should not occur for a row
-    # with real attempts, but handled defensively) sorts after every real
-    # time value rather than being treated as an implicit zero/fastest.
+    # Leaderboard default order -- CHANGED 2026-09-22 (Shailesh, Practice
+    # Leaderboard fix), superseding the accuracy-first rule this sort used
+    # since 2026-09-18. Accuracy (correct/attempted) rewarded a student who
+    # attempted only a handful of questions and got them all right over a
+    # student who attempted far more of the paper at a slightly lower hit
+    # rate -- Shailesh's own words: "very misleading and unfair to the
+    # students who are attempting more questions." Ranking now uses avgScore
+    # (this student's own average raw score across their attempts)
+    # descending instead. This is mathematically sound specifically because
+    # avgMaxScore is now the SAME fixed canonical total for every student in
+    # this level's leaderboard (see _LevelCanonicalTotalQuestionCount above)
+    # -- with an identical denominator across every row, ranking by raw
+    # avgScore descending is exactly equivalent to ranking by percentage
+    # descending, so no separate percentage computation is needed here
+    # purely for ranking purposes. avgAccuracyPercentage is still returned
+    # in each row (still displayable) -- it is simply no longer the sort
+    # key. Tiebreak chain, in order: avgTimeTakenSeconds ascending (faster
+    # wins, same convention as every other leaderboard in this codebase --
+    # see leaderboard_service.py's own module docstring), then
+    # papersCompletedCount descending (more completed practice papers wins
+    # a tie), then studentCode ascending as a final deterministic
+    # alphabetical fallback so two students tied on every real metric still
+    # get a stable, reproducible order rather than one that can silently
+    # flip between two runs. A None avgScore (should not occur for a row
+    # with real attempts, but handled defensively, matching this function's
+    # existing None-handling convention) sorts last, never mistaken for a
+    # genuine zero score.
     PerStudent.sort(
         key=lambda Row: (
-            Row["avgAccuracyPercentage"] is None,
-            -(Row["avgAccuracyPercentage"] or 0.0),
+            Row["avgScore"] is None,
+            -(Row["avgScore"] or 0.0),
             Row["avgTimeTakenSeconds"] is None,
             Row["avgTimeTakenSeconds"] if Row["avgTimeTakenSeconds"] is not None else 0,
+            -(Row.get("papersCompletedCount") or 0),
+            Row["studentCode"] or "",
         )
     )
     # "rank" (Shailesh, 2026-09-18): an explicit 1-based field, not just

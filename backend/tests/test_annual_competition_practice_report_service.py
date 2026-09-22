@@ -37,6 +37,7 @@ from fastapi import HTTPException
 import pytest
 from app.services import annual_competition_attempt_service as attempt_engine
 from app.services import annual_competition_practice_report_service as report_service
+from app.services.annual_competition_paper_registry import ANNUAL_COMPETITION_LEVEL_REGISTRY
 
 
 def _session():
@@ -320,18 +321,26 @@ def test_student_report_invalid_level_code_raises_400():
 # Per-level (cohort) report
 # ---------------------------------------------------------------------------
 
-def test_level_report_aggregates_across_students_and_sorts_by_accuracy_desc():
+def test_level_report_aggregates_across_students_and_sorts_by_avg_score_desc():
+    """2026-09-22 (Practice Leaderboard fix, Shailesh): ranking switched
+    from avg accuracy to avg score -- this is the exact scenario Shailesh
+    flagged as unfair under the old rule. "sparse" attempts only 1 of the
+    level's questions and gets it right (100% accuracy, score 1); "broad"
+    attempts 4 questions and gets 3 right (75% accuracy, score 3). Under the
+    old accuracy-first sort, sparse would have ranked #1 despite doing
+    genuinely less; under the new avgScore-first sort, broad -- who
+    objectively performed better -- ranks #1."""
     db = _session()
-    high = _student(db, "s-high", name="High Scorer")
-    low = _student(db, "s-low", name="Low Scorer")
+    sparse = _student(db, "s-sparse", name="Sparse Attempter")
+    broad = _student(db, "s-broad", name="Broad Attempter")
 
-    _setup_practice_paper(db, high.id, "PM-L2", (600,), [4], "exam-high", "paper-high", "high")
+    _setup_practice_paper(db, sparse.id, "PM-L2", (600,), [1], "exam-sparse", "paper-sparse", "sparse")
     db.commit()
-    _attempt_and_answer_all(db, high, "PM-L2", "high", [4], [True, True, True, True])
+    _attempt_and_answer_all(db, sparse, "PM-L2", "sparse", [1], [True])
 
-    _setup_practice_paper(db, low.id, "PM-L2", (600,), [4], "exam-low", "paper-low", "low")
+    _setup_practice_paper(db, broad.id, "PM-L2", (600,), [4], "exam-broad", "paper-broad", "broad")
     db.commit()
-    _attempt_and_answer_all(db, low, "PM-L2", "low", [4], [True, False, False, False])
+    _attempt_and_answer_all(db, broad, "PM-L2", "broad", [4], [True, True, True, False])
 
     report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
 
@@ -339,11 +348,17 @@ def test_level_report_aggregates_across_students_and_sorts_by_accuracy_desc():
     assert report["summary"]["attemptsCount"] == 2
     assert report["summary"]["studentsWithAttemptsCount"] == 2
     assert len(report["perStudent"]) == 2
-    # Highest accuracy first.
-    assert report["perStudent"][0]["studentId"] == "s-high"
-    assert report["perStudent"][0]["avgAccuracyPercentage"] == 100.0
-    assert report["perStudent"][1]["studentId"] == "s-low"
-    assert report["perStudent"][1]["avgAccuracyPercentage"] == 25.0
+
+    by_student = {row["studentId"]: row for row in report["perStudent"]}
+    assert by_student["s-sparse"]["avgAccuracyPercentage"] == 100.0
+    assert by_student["s-sparse"]["avgScore"] == 1.0
+    assert by_student["s-broad"]["avgAccuracyPercentage"] == 75.0
+    assert by_student["s-broad"]["avgScore"] == 3.0
+
+    # Highest avg SCORE first -- NOT highest avg accuracy (sparse has the
+    # higher accuracy but must not rank above broad any more).
+    assert report["perStudent"][0]["studentId"] == "s-broad"
+    assert report["perStudent"][1]["studentId"] == "s-sparse"
     # 2026-09-18 (Practice Leaderboard feature): explicit 1-based rank field,
     # not just array order -- see GetAnnualCompetitionPracticeReportForLevel's
     # own comment.
@@ -351,12 +366,42 @@ def test_level_report_aggregates_across_students_and_sorts_by_accuracy_desc():
     assert report["perStudent"][1]["rank"] == 2
 
 
-def test_level_report_ties_on_accuracy_break_by_avg_time_ascending():
-    """2026-09-18 (Practice Leaderboard feature): two students with identical
-    avg accuracy rank by avg time taken ascending -- the same tiebreak rule
-    leaderboard_service.py's DPS/Mock leaderboards already use (see that
-    module's own docstring), so the Practice Leaderboard tab breaks ties the
-    same way every other leaderboard in this app already does."""
+def test_level_report_avg_max_score_uses_current_canonical_total_not_paper_size():
+    """2026-09-22 (Practice Leaderboard fix, Shailesh): "it should always be
+    shown out of the total number of questions in that particular level" --
+    every perStudent row's avgMaxScore must be the level's CURRENT canonical
+    total question count from ANNUAL_COMPETITION_LEVEL_REGISTRY, never the
+    average of this student's own (possibly much smaller, test-fixture-sized)
+    attempted paper. avgPercentage is recomputed to match that same fixed
+    denominator."""
+    db = _session()
+    student = _student(db, "s-canonical", name="Canonical Denominator")
+    # This fixture's own practice paper only has 4 questions -- deliberately
+    # far smaller than PM-L2's real registry total, to prove the displayed
+    # denominator comes from the registry, not from this attempt's actual
+    # max_score.
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [4], "exam-canon", "paper-canon", "canon")
+    db.commit()
+    _attempt_and_answer_all(db, student, "PM-L2", "canon", [4], [True, True, False, False])
+
+    canonical_total = sum(
+        section["questionCount"] for section in ANNUAL_COMPETITION_LEVEL_REGISTRY["PM-L2"]["sections"]
+    )
+    assert canonical_total != 4  # sanity check that this test is actually exercising the override
+
+    report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
+    row = report["perStudent"][0]
+    assert row["avgScore"] == 2.0
+    assert row["avgMaxScore"] == canonical_total
+    assert row["avgPercentage"] == report_service._RoundToInt((2.0 / canonical_total) * 100)
+
+
+def test_level_report_ties_on_avg_score_break_by_avg_time_ascending():
+    """2026-09-22 (Practice Leaderboard fix, Shailesh): two students tied on
+    avg score rank by avg time taken ascending -- unchanged from the
+    tiebreak rule leaderboard_service.py's DPS/Mock leaderboards already use
+    (see that module's own docstring), now applied as the SECOND key behind
+    avgScore instead of behind avgAccuracyPercentage."""
     db = _session()
     fast = _student(db, "s-fast", name="Fast Student")
     slow = _student(db, "s-slow", name="Slow Student")
@@ -369,14 +414,14 @@ def test_level_report_ties_on_accuracy_break_by_avg_time_ascending():
     db.commit()
     _attempt_and_answer_all(db, slow, "PM-L2", "slow", [4], [True, True, False, False])
 
-    # Both students now have identical 50% accuracy -- force distinct
+    # Both students now have identical score (2/4) -- force distinct
     # time_taken_seconds directly (mirrors this file's own established
     # pattern of post-hoc-patching a field to test ordering, see
     # test_level_report_per_student_last_attempt_at_sources_from_submitted_at
-    # above) so the tiebreak, not accuracy, decides the order.
+    # above) so the tiebreak, not the tied score, decides the order.
     fast_result = db.query(CompetitionEventResult).filter(CompetitionEventResult.student_id == fast.id).one()
     slow_result = db.query(CompetitionEventResult).filter(CompetitionEventResult.student_id == slow.id).one()
-    assert fast_result.accuracy_percentage == slow_result.accuracy_percentage == 50.0
+    assert fast_result.score == slow_result.score == 2
     fast_result.time_taken_seconds = 120
     slow_result.time_taken_seconds = 300
     db.commit()
@@ -384,6 +429,84 @@ def test_level_report_ties_on_accuracy_break_by_avg_time_ascending():
     report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
 
     assert [row["studentId"] for row in report["perStudent"]] == ["s-fast", "s-slow"]
+    assert report["perStudent"][0]["rank"] == 1
+    assert report["perStudent"][1]["rank"] == 2
+
+
+def test_level_report_ties_on_score_and_time_break_by_papers_completed_desc():
+    """2026-09-22 (Practice Leaderboard fix, Shailesh): the NEW third
+    tiebreak level -- two students tied on both avg score and avg time
+    taken rank by papersCompletedCount descending (more completed practice
+    papers wins a tie)."""
+    db = _session()
+    prolific = _student(db, "s-prolific", name="Prolific Practicer")
+    single = _student(db, "s-single", name="Single Attempt")
+
+    # `prolific` completes two identically-scored, identically-timed papers
+    # -- attempt-weighted avgScore/avgTime land on the SAME per-attempt
+    # values as `single`'s one paper, but papersCompletedCount is 2 vs 1.
+    _setup_practice_paper(db, prolific.id, "PM-L2", (600,), [2], "exam-prolific-a", "paper-prolific-a", "prolific-a")
+    db.commit()
+    _attempt_and_answer_all(db, prolific, "PM-L2", "prolific-a", [2], [True, False])
+    _setup_practice_paper(db, prolific.id, "PM-L2", (600,), [2], "exam-prolific-b", "paper-prolific-b", "prolific-b")
+    db.commit()
+    _attempt_and_answer_all(db, prolific, "PM-L2", "prolific-b", [2], [True, False])
+
+    _setup_practice_paper(db, single.id, "PM-L2", (600,), [2], "exam-single", "paper-single", "single")
+    db.commit()
+    _attempt_and_answer_all(db, single, "PM-L2", "single", [2], [True, False])
+
+    for result in db.query(CompetitionEventResult).all():
+        result.time_taken_seconds = 180
+    db.commit()
+
+    report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
+    by_student = {row["studentId"]: row for row in report["perStudent"]}
+    assert by_student["s-prolific"]["avgScore"] == by_student["s-single"]["avgScore"] == 1.0
+    assert (
+        by_student["s-prolific"]["avgTimeTakenSeconds"]
+        == by_student["s-single"]["avgTimeTakenSeconds"]
+        == 180
+    )
+    assert by_student["s-prolific"]["papersCompletedCount"] == 2
+    assert by_student["s-single"]["papersCompletedCount"] == 1
+
+    assert [row["studentId"] for row in report["perStudent"]] == ["s-prolific", "s-single"]
+    assert report["perStudent"][0]["rank"] == 1
+    assert report["perStudent"][1]["rank"] == 2
+
+
+def test_level_report_ties_on_everything_break_by_student_code_ascending():
+    """2026-09-22 (Practice Leaderboard fix, Shailesh): the final,
+    deterministic fallback -- two students tied on avg score, avg time
+    taken, AND papersCompletedCount sort by studentCode ascending, so tied
+    rows never silently flip order between runs."""
+    db = _session()
+    # Deliberately non-alphabetical creation order, so a passing test can't
+    # be an accident of insertion/array order.
+    zed = _student(db, "z-student", name="Zed Student")
+    alpha = _student(db, "a-student", name="Alpha Student")
+    assert zed.student_code == "MP-z-student"
+    assert alpha.student_code == "MP-a-student"
+
+    _setup_practice_paper(db, zed.id, "PM-L2", (600,), [2], "exam-zed", "paper-zed", "zed")
+    db.commit()
+    _attempt_and_answer_all(db, zed, "PM-L2", "zed", [2], [True, False])
+
+    _setup_practice_paper(db, alpha.id, "PM-L2", (600,), [2], "exam-alpha", "paper-alpha", "alpha")
+    db.commit()
+    _attempt_and_answer_all(db, alpha, "PM-L2", "alpha", [2], [True, False])
+
+    for result in db.query(CompetitionEventResult).all():
+        result.time_taken_seconds = 180
+    db.commit()
+
+    report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
+    by_student = {row["studentId"]: row for row in report["perStudent"]}
+    assert by_student["z-student"]["avgScore"] == by_student["a-student"]["avgScore"] == 1.0
+    assert by_student["z-student"]["papersCompletedCount"] == by_student["a-student"]["papersCompletedCount"] == 1
+
+    assert [row["studentId"] for row in report["perStudent"]] == ["a-student", "z-student"]
     assert report["perStudent"][0]["rank"] == 1
     assert report["perStudent"][1]["rank"] == 2
 

@@ -147,6 +147,12 @@ export function PracticeLeaderboardPodium({
   const PodiumOrder = [2, 1, 3].map((Rank) => TopThree.find((Row) => Row.rank === Rank)).filter(
     (Row): Row is PracticeLeaderboardRow => Boolean(Row)
   );
+  // Table shows the REST of the field only (Shailesh, 2026-09-22, Practice
+  // Leaderboard fix): the podium above already shows the top 3, so
+  // repeating them in the table below was pure redundancy. Every row here
+  // is guaranteed rank > 3, so the table no longer needs any top-three
+  // styling/icon branch -- see the row render below.
+  const RestRows = Rows.filter((Row) => Row.rank > 3);
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -164,36 +170,24 @@ export function PracticeLeaderboardPodium({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)]">
-        <div className="grid grid-cols-[0.5fr_1.4fr_0.9fr_0.9fr_0.9fr_0.9fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
-          <span>Rank</span>
-          <span>Student</span>
-          <span>Avg Accuracy</span>
-          <span>Avg Score</span>
-          <span>Avg Time</span>
-          <span>Papers</span>
-        </div>
-        <div className="divide-y divide-slate-100 dark:divide-white/10">
-          {Rows.map((Row) => {
-            const IsTopThree = Row.rank <= 3;
-            const Tone = PODIUM_TONE[Row.rank];
-            return (
+      {RestRows.length > 0 ? (
+        <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)]">
+          <div className="grid grid-cols-[0.5fr_1.4fr_0.9fr_0.9fr_0.9fr_0.9fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+            <span>Rank</span>
+            <span>Student</span>
+            <span>Avg Accuracy</span>
+            <span>Avg Score</span>
+            <span>Avg Time</span>
+            <span>Papers</span>
+          </div>
+          <div className="divide-y divide-slate-100 dark:divide-white/10">
+            {RestRows.map((Row) => (
               <div
                 key={Row.studentId}
-                className={`grid grid-cols-[0.5fr_1.4fr_0.9fr_0.9fr_0.9fr_0.9fr] items-center gap-3 px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100 ${
-                  IsTopThree ? "bg-slate-50/60 dark:bg-white/[0.03]" : ""
-                }`}
+                className="grid grid-cols-[0.5fr_1.4fr_0.9fr_0.9fr_0.9fr_0.9fr] items-center gap-3 px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100"
               >
                 <div className="flex items-center gap-1.5 font-black text-slate-950 dark:text-white">
-                  {IsTopThree ? (
-                    Row.rank === 1 ? (
-                      <Trophy size={14} className={Tone.Icon} />
-                    ) : (
-                      <Medal size={14} className={Tone.Icon} />
-                    )
-                  ) : (
-                    <Award size={12} className="text-slate-300 dark:text-slate-600" />
-                  )}
+                  <Award size={12} className="text-slate-300 dark:text-slate-600" />
                   {Row.rank}
                 </div>
                 <div className="min-w-0">
@@ -207,10 +201,10 @@ export function PracticeLeaderboardPodium({
                 <div>{FormatSecondsAsMinSec(Row.avgTimeTakenSeconds)}</div>
                 <div>{Row.papersCompletedCount}/{Row.papersAssignedCount}</div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
