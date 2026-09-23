@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 
-from app.question_engine.ylm.config import YLMConfig, enrich_config_with_lesson_rule
+from app.question_engine.ylm.config import YLMConfig, enrich_config_with_lesson_rule, lesson_rule_for
 from app.question_engine.ylm.validators import (
     DIRECT_ADD_ALLOWED,
     DIRECT_SUB_ALLOWED,
@@ -308,7 +308,7 @@ def _extend_stem_with_support_chain(
     return partials
 
 
-def _candidate_pool_for_templates(config: YLMConfig, templates: tuple[str, ...]) -> list[list[int]]:
+def _compute_candidate_pool_for_templates(config: YLMConfig, templates: tuple[str, ...]) -> list[list[int]]:
     pool: list[list[int]] = []
     seen: set[tuple[int, ...]] = set()
     support_row_count = max(1, config.rows - 2)
@@ -322,6 +322,61 @@ def _candidate_pool_for_templates(config: YLMConfig, templates: tuple[str, ...])
                     pool.append(operands)
                     seen.add(key)
     return pool
+
+
+# 2026-09-23 (Shailesh, live 504/partial-batch-assign incident -- root
+# cause of a large chunk of the real-world cost of generating an Annual
+# Competition practice paper): generate_ylm_question_set() used to call
+# _candidate_pool_for_templates()/build_candidate_pool() FRESH for every
+# single question in a paper (up to 100 times for a YLM-L1 paper), even
+# though the pool it builds is a pure function of the lesson's own fixed
+# shape, not of which question number is being generated. Live-measured
+# (see docs/project-memory -- this session's own timing script): YLM-L1
+# cost ~5.3s PER PAPER before this fix, dwarfing every other level, purely
+# from this one redundant recomputation, not from anything data-driven.
+#
+# Why this cache is provably safe for the config space it actually caches
+# (not just "probably safe" -- this function generates real student-facing
+# exam content, so a wrong cache key would be a correctness bug, not just
+# a perf regression): enrich_config_with_lesson_rule() is a PURE,
+# deterministic function of (lesson_number, dps_number,
+# digit_pattern_override) ONLY WHEN lesson_rule_for(lesson_number) finds a
+# real registry rule -- every field _compute_candidate_pool_for_templates()
+# reads (rows, digit_pattern, target_numbers, concept_family,
+# operation_focus, abacus_rule, place_value, allow_negative_operands,
+# allowed/required_movement_types) is then SET by that same call,
+# deterministically, from those three identity fields alone.
+#
+# 2026-09-23 bug found and fixed before this landed on main (CI caught it:
+# test_ylm_full_http_round_trip, a stub Level with lesson_number=0 outside
+# the registry): for an UNRECOGNIZED lesson_number, lesson_rule_for()
+# returns None and enrich_config_with_lesson_rule() is a straight no-op --
+# it leaves concept_family/target_numbers/digit_pattern/etc exactly as the
+# CALLER set them, whatever those happen to be. The first version of this
+# cache keyed ONLY on (lesson_number, dps_number, digit_pattern_override,
+# templates), which is unsound for that case: two different callers using
+# the same unrecognized lesson_number but different concept_family/
+# target_numbers/etc would incorrectly share one cached pool. Real Annual
+# Competition papers always use real registry lesson numbers (1-32), which
+# is exactly why the exhaustive verification sweep across every real
+# lesson/dps combination never caught this -- it never exercised an
+# unrecognized lesson_number. Fix: only use the cache when
+# lesson_rule_for(config.lesson_number) actually found a rule (i.e.
+# enrichment was NOT a no-op); any other case -- unrecognized lesson
+# number, or module_code != "YLM" -- bypasses straight to the uncached
+# function, exactly like the non-YLM bypass already did.
+_YLM_CANDIDATE_POOL_CACHE: dict[tuple, list[list[int]]] = {}
+
+
+def _candidate_pool_for_templates(config: YLMConfig, templates: tuple[str, ...]) -> list[list[int]]:
+    if str(config.module_code or "").upper() != "YLM" or lesson_rule_for(config.lesson_number) is None:
+        return _compute_candidate_pool_for_templates(config, templates)
+    cache_key = (config.lesson_number, config.dps_number, config.digit_pattern_override, templates)
+    cached = _YLM_CANDIDATE_POOL_CACHE.get(cache_key)
+    if cached is None:
+        cached = _compute_candidate_pool_for_templates(config, templates)
+        _YLM_CANDIDATE_POOL_CACHE[cache_key] = cached
+    return cached
 
 
 def build_candidate_pool(config: YLMConfig) -> list[list[int]]:

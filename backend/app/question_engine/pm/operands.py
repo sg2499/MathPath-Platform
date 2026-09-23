@@ -514,7 +514,7 @@ def _template_for_question(config: PMConfig, question_index: int) -> str | None:
     return templates[question_index % len(templates)]
 
 
-def _candidate_pool_for_templates(config: PMConfig, templates: tuple[str, ...]) -> list[list[int]]:
+def _compute_candidate_pool_for_templates(config: PMConfig, templates: tuple[str, ...]) -> list[list[int]]:
     pool: list[list[int]] = []
     seen: set[tuple[int, ...]] = set()
 
@@ -550,6 +550,57 @@ def _candidate_pool_for_templates(config: PMConfig, templates: tuple[str, ...]) 
             for support in _safe_supports(current, source_template):
                 _consider([base, primary, support])
     return pool
+
+
+# 2026-09-23 (Shailesh, live 504/partial-batch-assign incident -- same root
+# cause and same fix as YLM's operands.py; see that file's own comment on
+# _candidate_pool_for_templates for the full incident writeup). PM-L2
+# measured ~1.7-2.0s per Annual Competition paper, the worst of any level
+# after YLM's own fix -- traced to this exact same pattern: the candidate
+# pool gets rebuilt from scratch for every single question in a paper
+# (annual_competition_paper_generation_service.py calls generate_pm_
+# question_set() once per question, question_count=1 each time), even
+# though the pool is a pure function of the lesson's own fixed shape.
+#
+# Unlike YLM, PMConfig has no enrich_config_with_lesson_rule() equivalent
+# to lean on for a short, provably-sufficient cache key -- every field is
+# set directly by the caller, not re-derived from a small identity tuple.
+# The key below was built by an exhaustive grep of every `config.<field>`
+# reference in this entire file (operands.py is fully self-contained --
+# only imports PMConfig and validators.py, both checked too) reachable
+# from _candidate_pool_for_templates()/build_candidate_pool(): digit_
+# pattern, generation_template, revision_templates, operation_focus,
+# place_value, rows, target_numbers, allow_negative_answer, plus the
+# lesson/dps/module identity fields. Any two calls sharing every one of
+# these values are reading from the exact same inputs this pure
+# computation depends on, so they are guaranteed to produce the same pool.
+# Verified directly (not just reasoned about) against the uncached
+# function across every real PM lesson/dps combination -- see this
+# session's own verification script.
+_PM_CANDIDATE_POOL_CACHE: dict[tuple, list[list[int]]] = {}
+
+
+def _candidate_pool_for_templates(config: PMConfig, templates: tuple[str, ...]) -> list[list[int]]:
+    cache_key = (
+        config.module_code,
+        config.level_code,
+        config.lesson_number,
+        config.dps_number,
+        config.digit_pattern,
+        config.generation_template,
+        tuple(config.revision_templates or ()),
+        config.operation_focus,
+        config.place_value,
+        config.rows,
+        tuple(config.target_numbers or []),
+        config.allow_negative_answer,
+        templates,
+    )
+    cached = _PM_CANDIDATE_POOL_CACHE.get(cache_key)
+    if cached is None:
+        cached = _compute_candidate_pool_for_templates(config, templates)
+        _PM_CANDIDATE_POOL_CACHE[cache_key] = cached
+    return cached
 
 
 def build_candidate_pool(config: PMConfig) -> list[list[int]]:

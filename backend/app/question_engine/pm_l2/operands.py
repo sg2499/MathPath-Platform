@@ -360,7 +360,7 @@ def _template_for_question(config: PML2Config, question_index: int) -> str | Non
     return templates[question_index % len(templates)]
 
 
-def _candidate_pool_for_templates(config: PML2Config, templates: tuple[str, ...]) -> list[list[int]]:
+def _compute_candidate_pool_for_templates(config: PML2Config, templates: tuple[str, ...]) -> list[list[int]]:
     pool: list[list[int]] = []
     seen: set[tuple[int, ...]] = set()
 
@@ -388,6 +388,46 @@ def _candidate_pool_for_templates(config: PML2Config, templates: tuple[str, ...]
             for support in _safe_supports(current, source_template):
                 _consider([base, primary, support])
     return pool
+
+
+# 2026-09-23 (Shailesh, live 504/partial-batch-assign incident): identical
+# fix, identical rationale, as app/question_engine/pm/operands.py and
+# app/question_engine/ylm/operands.py -- see either's own comment on this
+# same function for the full incident writeup. PM-L2 (this module) was the
+# single worst-measured level of all twelve after YLM's own fix landed --
+# ~1.7-2.0s per Annual Competition paper, traced to this exact same
+# redundant per-question pool rebuild. Cache key built the same way as
+# pm/operands.py's: an exhaustive grep of every `config.<field>` reference
+# in this file (self-contained -- only imports PML2Config and this
+# package's own validators.py, both checked) reachable from
+# _candidate_pool_for_templates()/build_candidate_pool(). Verified directly
+# against the uncached function across real PM-L2 registry configs before
+# shipping (see this session's own verification script) -- not just
+# reasoned about.
+_PM_L2_CANDIDATE_POOL_CACHE: dict[tuple, list[list[int]]] = {}
+
+
+def _candidate_pool_for_templates(config: PML2Config, templates: tuple[str, ...]) -> list[list[int]]:
+    cache_key = (
+        config.module_code,
+        config.level_code,
+        config.lesson_number,
+        config.dps_number,
+        config.digit_pattern,
+        config.generation_template,
+        tuple(config.revision_templates or ()),
+        config.operation_focus,
+        config.place_value,
+        config.rows,
+        tuple(config.target_numbers or []),
+        config.allow_negative_answer,
+        templates,
+    )
+    cached = _PM_L2_CANDIDATE_POOL_CACHE.get(cache_key)
+    if cached is None:
+        cached = _compute_candidate_pool_for_templates(config, templates)
+        _PM_L2_CANDIDATE_POOL_CACHE[cache_key] = cached
+    return cached
 
 
 def build_candidate_pool(config: PML2Config) -> list[list[int]]:

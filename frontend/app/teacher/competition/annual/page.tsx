@@ -826,13 +826,24 @@ function TeacherAnnualCompetitionMonitorPageContent() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             {TopTab === "PRACTICE" && PracticeSubTab === "RESULTS" ? (
               <div className="flex flex-wrap items-end gap-3">
-                <label className="flex items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
+                {/* 2026-09-23 (Shailesh): "the search bar and level filters
+                    do not follow the conventions ... they need to be
+                    aligned in a single line perfectly as in other places
+                    and also the level filter needs to be of the standard
+                    size instead of a full block." Same min-w-[220px]
+                    flex-1 search / w-auto min-w-[150px] select pattern
+                    already used by this page's own Individual Student
+                    Analytics filter below, applied here for the first
+                    time -- .math-select/.math-input default to w-full
+                    (globals.css) which is right for a form field but wrong
+                    for an inline filter, hence the per-instance override. */}
+                <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
                   <Search size={16} className="text-[color:var(--mp-role-primary)]" />
                   <input
                     value={PracticeSearchText}
                     onChange={(EventValue) => SetPracticeSearchText(EventValue.target.value)}
                     placeholder="Search student name or code"
-                    className="w-64 bg-transparent outline-none placeholder:text-slate-400"
+                    className="w-full bg-transparent outline-none placeholder:text-slate-400"
                   />
                 </label>
                 {/* 2026-09-14 (Shailesh): "pls remove the level filter text
@@ -843,7 +854,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                   aria-label="Filter by level"
                   value={PracticeLevelFilter}
                   onChange={(EventValue) => SetPracticeLevelFilter(EventValue.target.value)}
-                  className="math-input min-w-[200px]"
+                  className="math-input w-auto min-w-[150px]"
                 >
                   <option value="ALL">All Levels</option>
                   {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
