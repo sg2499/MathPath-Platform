@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 
-from app.question_engine.ylm.config import YLMConfig, enrich_config_with_lesson_rule
+from app.question_engine.ylm.config import YLMConfig, enrich_config_with_lesson_rule, lesson_rule_for
 from app.question_engine.ylm.validators import (
     DIRECT_ADD_ALLOWED,
     DIRECT_SUB_ALLOWED,
@@ -335,43 +335,41 @@ def _compute_candidate_pool_for_templates(config: YLMConfig, templates: tuple[st
 # cost ~5.3s PER PAPER before this fix, dwarfing every other level, purely
 # from this one redundant recomputation, not from anything data-driven.
 #
-# Why this cache is provably safe (not just "probably safe" -- this
-# function generates real student-facing exam content, so a wrong cache
-# key would be a correctness bug, not just a perf regression): both
-# _candidate_pool_for_templates() and build_candidate_pool() are called
-# only on a config that has ALREADY been run through
-# enrich_config_with_lesson_rule() (build_candidate_pool does this itself
-# as its own first line; every other caller in this module does it before
-# reaching either function -- see generate_unique_operands()). For
-# module_code == "YLM" (the only case enrich_config_with_lesson_rule does
-# anything at all -- it's a no-op for every other module), that function
-# is itself a PURE, fully deterministic function of exactly four inputs:
-# config.lesson_number, config.dps_number, and config.digit_pattern_override
-# (lesson_rule_for()/dps_rows_for()/dps_digit_pattern_for() are all pure
-# lookups keyed on lesson_number/dps_number alone -- see config.py's own
-# body), plus the `templates` tuple this function itself takes as a
-# parameter. Every OTHER field _compute_candidate_pool_for_templates() (or
-# anything it calls -- _template_stems, validate_question, etc.) reads off
-# config -- rows, digit_pattern, target_numbers, concept_family,
+# Why this cache is provably safe for the config space it actually caches
+# (not just "probably safe" -- this function generates real student-facing
+# exam content, so a wrong cache key would be a correctness bug, not just
+# a perf regression): enrich_config_with_lesson_rule() is a PURE,
+# deterministic function of (lesson_number, dps_number,
+# digit_pattern_override) ONLY WHEN lesson_rule_for(lesson_number) finds a
+# real registry rule -- every field _compute_candidate_pool_for_templates()
+# reads (rows, digit_pattern, target_numbers, concept_family,
 # operation_focus, abacus_rule, place_value, allow_negative_operands,
-# allowed/required_movement_types -- is itself SET by that same enrichment
-# call, deterministically, from those same three identity fields. So two
-# calls sharing (lesson_number, dps_number, digit_pattern_override,
-# templates) are GUARANTEED -- not just observed in practice -- to compute
-# byte-identical pools. Cache key space is small and fixed (32 YLM lessons
-# x a handful of dps_number/template combinations), lives only for one
-# worker process's lifetime, and every reader downstream only ever
-# iterates/filters the returned list into a NEW list -- nothing mutates it
-# in place -- so returning the same cached list object to many callers is
-# safe. Scoped to module_code == "YLM" only (this file's only real caller
-# today), with a bypass straight to the uncached function for anything
-# else, so a hypothetical future non-YLM caller of this exact function
-# never risks an incorrect cache hit.
+# allowed/required_movement_types) is then SET by that same call,
+# deterministically, from those three identity fields alone.
+#
+# 2026-09-23 bug found and fixed before this landed on main (CI caught it:
+# test_ylm_full_http_round_trip, a stub Level with lesson_number=0 outside
+# the registry): for an UNRECOGNIZED lesson_number, lesson_rule_for()
+# returns None and enrich_config_with_lesson_rule() is a straight no-op --
+# it leaves concept_family/target_numbers/digit_pattern/etc exactly as the
+# CALLER set them, whatever those happen to be. The first version of this
+# cache keyed ONLY on (lesson_number, dps_number, digit_pattern_override,
+# templates), which is unsound for that case: two different callers using
+# the same unrecognized lesson_number but different concept_family/
+# target_numbers/etc would incorrectly share one cached pool. Real Annual
+# Competition papers always use real registry lesson numbers (1-32), which
+# is exactly why the exhaustive verification sweep across every real
+# lesson/dps combination never caught this -- it never exercised an
+# unrecognized lesson_number. Fix: only use the cache when
+# lesson_rule_for(config.lesson_number) actually found a rule (i.e.
+# enrichment was NOT a no-op); any other case -- unrecognized lesson
+# number, or module_code != "YLM" -- bypasses straight to the uncached
+# function, exactly like the non-YLM bypass already did.
 _YLM_CANDIDATE_POOL_CACHE: dict[tuple, list[list[int]]] = {}
 
 
 def _candidate_pool_for_templates(config: YLMConfig, templates: tuple[str, ...]) -> list[list[int]]:
-    if str(config.module_code or "").upper() != "YLM":
+    if str(config.module_code or "").upper() != "YLM" or lesson_rule_for(config.lesson_number) is None:
         return _compute_candidate_pool_for_templates(config, templates)
     cache_key = (config.lesson_number, config.dps_number, config.digit_pattern_override, templates)
     cached = _YLM_CANDIDATE_POOL_CACHE.get(cache_key)
