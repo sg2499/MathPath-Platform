@@ -1025,6 +1025,101 @@ PRACTICE_BULK_MAX_STUDENTS_PER_CALL = 25
 # calibrate against yet (see this module's own "no scheduler/cron" note
 # above re: infrastructure gaps), so it should be tightened or loosened
 # once real timing data from production is available.
+# 2026-09-23 (Shailesh, live incident -- a 4-student x 25-papers MM-1 batch
+# still 504'd despite being under the old flat 125-paper limit: Shailesh
+# Gupta got all 25, Sakshi Agarwal got 20/25, the other two got 0, and the
+# frontend reported "0 succeeded" for all four -- root-caused, not
+# guessed). The flat PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL=125 assumed
+# every level costs "well under a second per paper" -- that was NEVER
+# actually measured (the old comment admitted as much). Direct timing (see
+# this session's own benchmark script; local in-memory DB, so these are a
+# LOWER bound on real Postgres-over-network cost) found real per-paper
+# cost varies by up to 8x across levels and is NOT proportional to
+# question count -- PM-L2 costs ~1.7-2.0s/paper (100 questions) vs PM-L1's
+# ~0.4s/paper (also 100 questions). A flat, level-agnostic cap can never be
+# safe for the expensive levels without being needlessly restrictive for
+# the cheap ones.
+#
+# This table replaces the flat cap with a per-level safe ceiling, each
+# entry computed as floor(SAFETY_TARGET_SECONDS / (MeasuredAvgSecondsPerPaper
+# * PESSIMISM_MULTIPLIER)): SAFETY_TARGET_SECONDS=25 (comfortable margin
+# under a conservative 30s default gunicorn/proxy worker timeout -- this
+# backend's actual configured timeout is not yet known; tighten or loosen
+# this once real production timing/telemetry exists) and
+# PESSIMISM_MULTIPLIER=4 (real Postgres over the network, connection-pool
+# contention, and concurrent load are all absent from the local benchmark
+# this table is based on). A level not listed here (should not happen --
+# every ANNUAL_COMPETITION_LEVEL_CODES entry has an explicit row) falls
+# back to PRACTICE_BULK_SAFE_PAPERS_PER_CALL_DEFAULT, deliberately the most
+# conservative number in the table rather than the most generous one, so a
+# future level added to the registry without a measured entry here fails
+# SAFE (more chunking, never a timeout) rather than silently inheriting an
+# unsafe generous default.
+#
+# 2026-09-15's YLM per-question candidate-pool rebuild fix (see
+# app/question_engine/ylm/operands.py's own comment) already brought
+# YLM-L1 down from ~5.3s/paper to ~0.7s/paper -- the number below reflects
+# the FIXED cost.
+#
+# 2026-09-23 update (Shailesh, same live incident, "no matter how many
+# students... no matter 5/10/15/20/25 papers... always flawless"): PM-L1
+# and PM-L2 had the identical underlying architecture/bug
+# (build_candidate_pool()/generate_unique_operands() rebuilding the same
+# pool from scratch on every single question) as YLM -- confirmed by direct
+# code reading, NOT assumed from YLM's fix alone, because PMConfig/PML2Config
+# have no enrich_config_with_lesson_rule() purity guarantee to lean on the
+# way YLM's config does. Fixed separately for each (app/question_engine/
+# pm/operands.py and app/question_engine/pm_l2/operands.py are fully
+# separate modules/packages -- PM-L2 is NOT built on PM-L1's engine, see
+# PML2Config's own docstring), each with its own exhaustive field-dependency
+# audit for a correct cache key, each independently verified (0 mismatches
+# cached-vs-uncached across every real registry lesson/dps spec for that
+# level, same-seed determinism preserved, full existing regression suites
+# green) before shipping. End-to-end re-measurement below (via
+# GenerateAnnualCompetitionLevelPaper, in-memory DB, includes real per-paper
+# commit cost -- not just raw generation) confirms the fix: PM-L1
+# ~0.43s/paper -> ~0.18s/paper; PM-L2 ~1.7-2.0s/paper -> ~0.45s/paper.
+#
+# IMPORTANT -- this table alone does NOT guarantee "any single student's
+# max 25-paper request always fits in one call": most levels below cap out
+# well under 25 (only PM-L3 clears it). That guarantee is provided one
+# layer up, in the frontend's call planner (see admin.ts's
+# planAnnualCompetitionPracticeBulkAssignCalls / BulkAssignMutation in
+# annual-studio/page.tsx and annual/page.tsx), which slices a single
+# student's own requested Quantity into multiple additive calls (each a
+# multiple of 5, each within this level's own cap) whenever Quantity alone
+# exceeds the cap -- BatchAssignAnnualCompetitionPracticePapers is
+# deliberately safe to call repeatedly for the same student/level (each
+# call only ever ADDS papers, see its own docstring), which is what makes
+# that slicing safe. This table's job is only to say how much work ONE
+# HTTP call may safely take on; it is never the sole thing standing between
+# a large request and a 504.
+PRACTICE_BULK_SAFE_PAPERS_PER_CALL_BY_LEVEL: dict[str, int] = {
+    "YLM-L0": 8,   # same generator/cost profile as YLM-L1 (shared paper spec)
+    "YLM-L1": 8,   # measured ~0.70s/paper (post-fix)
+    "PM-L1": 35,   # measured ~0.18s/paper (post-fix, 2026-09-23)
+    "PM-L2": 13,   # measured ~0.45s/paper (post-fix, 2026-09-23)
+    "PM-L3": 29,   # measured ~0.21s/paper
+    "PM-L4": 19,   # measured ~0.32s/paper
+    "IM-L1": 20,   # measured ~0.31s/paper
+    "IM-L2": 20,   # measured ~0.31s/paper
+    "IM-L3": 16,   # measured ~0.37s/paper
+    "IM-L4": 15,   # measured ~0.41s/paper
+    "MM-L1": 7,    # measured ~0.89s/paper (450 questions -- DB-round-trip bound, not a generator bug)
+    "MM-L2": 7,    # alias of MM-L1's own content/cost per GenerateAnnualCompetitionLevelPaper's own docstring
+}
+# 2026-09-23: was "matches PM-L2" (3) before PM-L2's own fix landed above --
+# that value was BELOW PRACTICE_BATCH_MIN_QUANTITY (5), which would have
+# rejected even the smallest possible legal request. Now tracks the actual
+# lowest entry in the table above (MM-L1/MM-L2, still >= 5) so a level added
+# to the registry without a measured row here still fails safe, never below
+# the platform's own minimum quantity.
+PRACTICE_BULK_SAFE_PAPERS_PER_CALL_DEFAULT = 7
+
+# Kept as an absolute, defense-in-depth ceiling independent of level (a
+# per-level cap alone would still allow an absurd number of near-zero-cost
+# calls if some future level were pathologically cheap) -- unchanged from
+# its original 2026-09-12 value.
 PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL = 125
 
 
@@ -1044,22 +1139,29 @@ def _ValidatePracticeBatchQuantity(Quantity: int) -> None:
         )
 
 
-def _ValidatePracticeBulkWorkload(StudentCount: int, Quantity: int) -> None:
-    """The real, cross-dimensional guard against the 2026-09-16 504 bug --
-    see PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL's own comment above. Checked
-    before any Level lookup or generation work starts."""
+def _ValidatePracticeBulkWorkload(StudentCount: int, Quantity: int, CompetitionLevelCode: str) -> None:
+    """The real, cross-dimensional guard against the 2026-09-16/2026-09-23
+    504 bugs -- see PRACTICE_BULK_SAFE_PAPERS_PER_CALL_BY_LEVEL's own
+    comment above. Checked before any Level lookup or generation work
+    starts. Level-aware: the safe total-papers ceiling for one call is
+    never the same for every level, because real per-paper generation cost
+    isn't either."""
+    SafePapersForLevel = PRACTICE_BULK_SAFE_PAPERS_PER_CALL_BY_LEVEL.get(
+        CompetitionLevelCode, PRACTICE_BULK_SAFE_PAPERS_PER_CALL_DEFAULT
+    )
+    EffectiveLimit = min(SafePapersForLevel, PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL)
     TotalPapers = StudentCount * Quantity
-    if TotalPapers > PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL:
-        MaxStudentsAtThisQuantity = max(1, PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL // max(1, Quantity))
+    if TotalPapers > EffectiveLimit:
+        MaxStudentsAtThisQuantity = max(1, EffectiveLimit // max(1, Quantity))
         api_error(
             400,
             "PRACTICE_BULK_TOO_MUCH_WORK",
-            f"This action would generate {TotalPapers:,} papers in one call "
+            f"This action would generate {TotalPapers:,} papers of {CompetitionLevelCode} in one call "
             f"({StudentCount} student{'s' if StudentCount != 1 else ''} x {Quantity} paper{'s' if Quantity != 1 else ''} each), "
-            f"over the {PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL:,}-paper safe limit for one call -- select fewer "
+            f"over the {EffectiveLimit:,}-paper safe limit for this level in one call -- select fewer "
             "students, a smaller quantity, or call this action again for the rest.",
             {
-                "maxPapersPerCall": PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL,
+                "maxPapersPerCall": EffectiveLimit,
                 "maxStudentsAtThisQuantity": MaxStudentsAtThisQuantity,
             },
         )
@@ -1248,7 +1350,7 @@ def BatchAssignAnnualCompetitionPracticePapers(
     # PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL's own comment above. Checked
     # before the Level lookup/any generation work starts, so an oversized
     # ask fails fast with a clear error instead of running long.
-    _ValidatePracticeBulkWorkload(len(CleanedStudentIds), Quantity)
+    _ValidatePracticeBulkWorkload(len(CleanedStudentIds), Quantity, CompetitionLevelCode)
 
     # Same curriculum-lookup override and "no curriculum Level yet" guard
     # GenerateAndLinkCompetitionEventLevelPaper already applies for the
@@ -1403,6 +1505,47 @@ def ListMyAnnualCompetitionPracticeScopes(db: Session, StudentRecord: Student) -
     Scopes.sort(key=lambda S: S["competitionLevelCode"])
 
     return {"scopes": Scopes}
+
+
+def GetAnnualCompetitionPracticeBankCounts(
+    db: Session, *, CompetitionLevelCode: str, StudentIds: list[str]
+) -> dict[str, int]:
+    """2026-09-23 (Shailesh, 504/partial-batch-assign incident): the
+    reconciliation half of the fix, alongside the per-level workload
+    ceilings in _ValidatePracticeBulkWorkload above. Deliberately a single,
+    cheap, read-only grouped COUNT query -- no generation work, no writes --
+    so this call can never itself be the thing that times out.
+
+    A bulk-assign call can fail at the HTTP layer (a 504, a network drop)
+    AFTER real papers were already durably committed server-side (each
+    paper commits immediately -- see _GeneratePracticePapersForOneStudent's
+    own docstring), leaving the caller with no parsed response body and no
+    way to know what actually happened. The frontend's bulk-assign flow
+    calls this once for the full selection BEFORE starting (a baseline),
+    and again for just the affected students after any chunk-level HTTP
+    failure -- the difference between the two tells it exactly how many
+    papers that interrupted call actually created per student, rather than
+    assuming zero. Returns {studentId: currentPracticePaperCount}, always
+    one entry per requested id (0 for a student with no papers at this
+    level yet, never an omitted key).
+    """
+    CleanedStudentIds = [Id for Id in dict.fromkeys([str(Item or "").strip() for Item in (StudentIds or [])]) if Id]
+    Counts: dict[str, int] = {Id: 0 for Id in CleanedStudentIds}
+    if not CleanedStudentIds:
+        return Counts
+    Rows = (
+        db.query(CompetitionEventLevelPaper.assigned_student_id, func.count(CompetitionEventLevelPaper.id))
+        .filter(
+            CompetitionEventLevelPaper.paper_kind == "PRACTICE",
+            CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode,
+            CompetitionEventLevelPaper.assigned_student_id.in_(CleanedStudentIds),
+        )
+        .group_by(CompetitionEventLevelPaper.assigned_student_id)
+        .all()
+    )
+    for StudentId, Count in Rows:
+        Counts[StudentId] = int(Count)
+    return Counts
 
 
 def GetAnnualCompetitionPracticeBankForStudent(

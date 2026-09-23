@@ -117,6 +117,7 @@ from app.services.annual_competition_studio_service import (
     SuspendCompetitionEvent,
     LiftCompetitionEventSuspension,
     BatchAssignAnnualCompetitionPracticePapers,
+    GetAnnualCompetitionPracticeBankCounts,
     GetAnnualCompetitionPracticeBankForStudent,
     ListStudentsForPracticeBank,
     DeleteAnnualCompetitionPracticeAttempt,
@@ -6172,6 +6173,25 @@ def admin_get_annual_competition_practice_bank(
     return GetAnnualCompetitionPracticeBankForStudent(
         db, StudentId=studentId, CompetitionLevelCode=competitionLevelCode
     )
+
+
+# 2026-09-23 (Shailesh, 504/partial-batch-assign incident): a fast, read-only
+# reconciliation lookup -- see GetAnnualCompetitionPracticeBankCounts's own
+# docstring. The frontend's bulk-assign flow calls this before AND (only for
+# any chunk that fails at the HTTP layer) after, so it can report exactly
+# how many papers an interrupted call actually created per student instead
+# of assuming zero. studentIds arrives as a comma-separated query param
+# (kept simple/GET-cacheable rather than a POST body, since this is a pure
+# read with no side effects).
+@router.get("/annual-competition/practice-bank/counts")
+def admin_get_annual_competition_practice_bank_counts(
+    competitionLevelCode: str,
+    studentIds: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    ParsedStudentIds = [Item.strip() for Item in studentIds.split(",") if Item.strip()]
+    return GetAnnualCompetitionPracticeBankCounts(db, CompetitionLevelCode=competitionLevelCode, StudentIds=ParsedStudentIds)
 
 
 # --- Annual Competition (Package 4): section-timer + pause engine ----------

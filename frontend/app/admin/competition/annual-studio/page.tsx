@@ -12,9 +12,9 @@ import {
   FormatCompetitionLevelLabel,
   FormatMasterCurrentLevelSuffix,
   PRACTICE_BATCH_QUANTITY_OPTIONS,
-  PRACTICE_BULK_MAX_STUDENTS_PER_CALL,
-  PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL,
   batchAssignAnnualCompetitionPracticePapers,
+  getAnnualCompetitionPracticeBankCounts,
+  planAnnualCompetitionPracticeBulkAssignCalls,
   createAnnualCompetitionEvent,
   deleteAllAnnualCompetitionPracticeRecordsForStudent,
   deleteAnnualCompetitionEvent,
@@ -762,12 +762,29 @@ function AdminAnnualCompetitionStudioPageContent() {
   // creating unnecessary events." Fully event-independent -- the roster
   // below is every active student, tagged with the level they're currently
   // eligible for, so the admin can select all, many, or a filtered subset
-  // and assign in one action. A selection is chunked into sequential calls
-  // client-side (this backend has no background job queue -- see
-  // PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL's own comment in
-  // lib/api/admin.ts) with progress shown below. 2026-09-16 (504 fix):
-  // chunk size is bounded by total PAPER count (students x quantity), not
-  // just student count -- see BulkAssignMutation.
+  // and assign in one action. A selection is planned into a sequence of
+  // individually-safe calls client-side (this backend has no background
+  // job queue -- see planAnnualCompetitionPracticeBulkAssignCalls's own
+  // comment in lib/api/admin.ts) with progress shown below.
+  //
+  // 2026-09-23 (Shailesh, live incident -- 4 students, 25 papers of MM-1
+  // each: one got all 25, one got 20/25, two got 0, yet the UI reported
+  // "0 succeeded, 4 failed... 504" -- "this is a recurring problem and
+  // needs to be fixed once and for all and should never occur ever" /
+  // "no matter how many students are selected together and no matter
+  // whether we wanna assign 5,10,15,20 or 25 papers at once it should
+  // always work flawlessly and seamlessly"): three-layer fix --
+  // (1) the two slowest generators (YLM, then PM-L1/PM-L2 in this same
+  // pass) had a redundant per-question recomputation bug fixed at the
+  // source (see their own operands.py comments); (2) the per-call safe
+  // ceiling is now measured per level, not one flat guess (see
+  // PRACTICE_BULK_SAFE_PAPERS_PER_CALL_BY_LEVEL); (3) the planner below
+  // slices along BOTH student count AND quantity-per-student, so a single
+  // student's own requested quantity can never itself exceed a level's
+  // cap; and on a chunk-level HTTP failure, real bank counts are checked
+  // before assuming zero papers landed (see the reconciliation block in
+  // BulkAssignMutation below), since papers commit one at a time
+  // server-side and a timeout doesn't mean nothing happened.
   // ---------------------------------------------------------------------
 
   const [PracticeSearchText, SetPracticeSearchText] = useState("");
@@ -858,57 +875,139 @@ function AdminAnnualCompetitionStudioPageContent() {
   const BulkAssignMutation = useMutation({
     mutationFn: async () => {
       const StudentIds = Array.from(SelectedStudentIdsForPractice);
-      // 2026-09-16 (Shailesh, 504 fix): the true unit of work for one call
-      // is students x quantity (total papers), not student count alone --
-      // see PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL's own comment in
-      // lib/api/admin.ts. The chunk size must shrink as quantity grows, not
-      // stay flat at PRACTICE_BULK_MAX_STUDENTS_PER_CALL regardless of what
-      // quantity is selected (that flat cap is kept too, as a
-      // defense-in-depth ceiling).
-      const MaxStudentsByWorkload = Math.max(1, Math.floor(PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL / PracticeAssignQuantity));
-      const ChunkSize = Math.min(PRACTICE_BULK_MAX_STUDENTS_PER_CALL, MaxStudentsByWorkload);
-      const Chunks: string[][] = [];
-      for (let Index = 0; Index < StudentIds.length; Index += ChunkSize) {
-        Chunks.push(StudentIds.slice(Index, Index + ChunkSize));
+      // Layer 2 (this level's own measured safe-per-call ceiling) + the
+      // quantity-slicing that makes a single student's own requested
+      // quantity always fit somewhere -- see planAnnualCompetitionPractice
+      // BulkAssignCalls's own comment in lib/api/admin.ts for why both
+      // axes (student count AND quantity-per-student) have to be sliced,
+      // not just student count.
+      const Plan = planAnnualCompetitionPracticeBulkAssignCalls(StudentIds, PracticeAssignQuantity, PracticeAssignLevelCode);
+      SetBulkAssignProgress({ Done: 0, Total: Plan.length });
+
+      // Layer 3 (2026-09-23, same live incident -- a bulk assign reported
+      // "0 succeeded... 504" while papers had actually landed for some
+      // students): a chunk-level HTTP-layer failure can leave real,
+      // already-committed papers behind that the failed response never
+      // reports, because papers commit one at a time server-side (see
+      // _GeneratePracticePapersForOneStudent's own docstring) -- an
+      // interrupted call can still have generated some of its papers
+      // before the connection broke. Capture a "before" snapshot of every
+      // selected student's current bank count for this level up front, so
+      // a chunk failure can be reconciled against REAL bank counts instead
+      // of assumed as a total loss. If this read itself fails, reconcili-
+      // ation on a later chunk failure degrades to "unknown" (the old,
+      // pre-fix behavior) rather than blocking the assignment outright.
+      let BeforeCounts: Record<string, number> = {};
+      try {
+        BeforeCounts = await getAnnualCompetitionPracticeBankCounts(PracticeAssignLevelCode, StudentIds);
+      } catch {
+        BeforeCounts = {};
       }
-      SetBulkAssignProgress({ Done: 0, Total: Chunks.length });
-      let StudentsSucceeded = 0;
-      let StudentsFailed = 0;
-      let TotalPapersAssigned = 0;
+
+      // Papers confirmed via explicit, trustworthy success responses this
+      // run (a student can appear in more than one Plan entry, once per
+      // quantity slice) -- this is what lets the reconciliation below tell
+      // "papers from THIS failed call" apart from "papers already
+      // confirmed from an earlier, successful call in this same batch."
+      const ConfirmedThisRun = new Map<string, number>();
       const FailedRows: AnnualCompetitionPracticeBatchAssignFailedRow[] = [];
+      let TotalPapersAssigned = 0;
       let ChunkCallError: unknown = null;
-      for (let Index = 0; Index < Chunks.length; Index++) {
+      let StoppedAtIndex: number | null = null;
+
+      for (let Index = 0; Index < Plan.length; Index++) {
+        const Chunk = Plan[Index];
         try {
           const Result = await batchAssignAnnualCompetitionPracticePapers({
-            studentIds: Chunks[Index],
+            studentIds: Chunk.studentIds,
             competitionLevelCode: PracticeAssignLevelCode,
-            quantity: PracticeAssignQuantity,
+            quantity: Chunk.quantity,
           });
-          StudentsSucceeded += Result.studentsSucceeded;
-          StudentsFailed += Result.studentsFailed;
-          TotalPapersAssigned += Result.totalPapersAssigned;
+          Result.succeeded.forEach((Row) => {
+            ConfirmedThisRun.set(Row.studentId, (ConfirmedThisRun.get(Row.studentId) || 0) + Row.quantityAssigned);
+            TotalPapersAssigned += Row.quantityAssigned;
+          });
           FailedRows.push(...Result.failed);
         } catch (Error) {
-          // 2026-09-16 (Shailesh, 504 fix): a call-level failure (network
-          // hiccup, an unlucky 504 despite the sizing above, etc.) must
-          // never discard whatever EARLIER chunks in this same batch
-          // already succeeded -- those papers are already durably
-          // committed server-side, one commit per paper (see
-          // _GeneratePracticePapersForOneStudent's own docstring). Stop
-          // here, but still report every earlier chunk's real success
-          // rather than throwing it all away.
+          // A call-level failure (network hiccup, an unlucky 504 despite
+          // the per-level sizing above, etc.) must never discard whatever
+          // EARLIER calls in this same batch already succeeded -- those
+          // papers are already durably committed. Stop the batch here
+          // (same behavior as before), then reconcile exactly this failed
+          // chunk's students against real bank counts below, rather than
+          // assuming zero.
           ChunkCallError = Error;
-          Chunks[Index].forEach((StudentId) => {
-            FailedRows.push({
-              studentIdentifier: StudentId,
-              reason: "This batch call did not complete -- unknown whether papers were generated for this student. Check their practice bank before reassigning.",
-            });
-          });
-          StudentsFailed += Chunks[Index].length;
+          StoppedAtIndex = Index;
           break;
         }
-        SetBulkAssignProgress({ Done: Index + 1, Total: Chunks.length });
+        SetBulkAssignProgress({ Done: Index + 1, Total: Plan.length });
       }
+
+      if (ChunkCallError !== null && StoppedAtIndex !== null) {
+        const FailedChunkStudentIds = Plan[StoppedAtIndex].studentIds;
+        let AfterCounts: Record<string, number> = {};
+        try {
+          AfterCounts = await getAnnualCompetitionPracticeBankCounts(PracticeAssignLevelCode, FailedChunkStudentIds);
+        } catch {
+          AfterCounts = {};
+        }
+        FailedChunkStudentIds.forEach((StudentId) => {
+          const Before = BeforeCounts[StudentId];
+          const After = AfterCounts[StudentId];
+          const ConfirmedSoFar = ConfirmedThisRun.get(StudentId) || 0;
+          if (typeof Before === "number" && typeof After === "number") {
+            const ActualTotalThisRun = After - Before;
+            const FromThisFailedCall = ActualTotalThisRun - ConfirmedSoFar;
+            if (FromThisFailedCall > 0) {
+              // Some or all of this call's papers actually landed despite
+              // the HTTP-layer failure -- report the real, confirmed
+              // number instead of assuming zero (this is the exact
+              // scenario from the live incident: Sakshi Agarwal's 20/25).
+              ConfirmedThisRun.set(StudentId, ActualTotalThisRun);
+              TotalPapersAssigned += FromThisFailedCall;
+              FailedRows.push({
+                studentIdentifier: StudentId,
+                reason: `The request failed (${apiErrorMessage(ChunkCallError)}), but ${ActualTotalThisRun} of ${PracticeAssignQuantity} papers were confirmed already assigned for this level -- re-run this action to top up the rest.`,
+              });
+            } else {
+              FailedRows.push({
+                studentIdentifier: StudentId,
+                reason: `This batch call did not complete (${apiErrorMessage(ChunkCallError)}) -- confirmed 0 papers were generated for this student from this call.`,
+              });
+            }
+          } else {
+            FailedRows.push({
+              studentIdentifier: StudentId,
+              reason: "This batch call did not complete, and the follow-up check to confirm how many papers actually landed also failed -- check this student's practice bank before reassigning.",
+            });
+          }
+        });
+
+        // Students in a LATER, never-reached call also need an honest row
+        // -- they were never attempted at all this run, not "failed" in
+        // the sense of a rejected request.
+        for (let LaterIndex = StoppedAtIndex + 1; LaterIndex < Plan.length; LaterIndex++) {
+          Plan[LaterIndex].studentIds.forEach((StudentId) => {
+            FailedRows.push({
+              studentIdentifier: StudentId,
+              reason: "This batch stopped before reaching this student -- no papers were requested for them in this run.",
+            });
+          });
+        }
+      }
+
+      // Final per-student rollup: did each selected student end this run
+      // with the FULL requested quantity, based on real confirmed counts
+      // (explicit success responses, plus reconciled counts on the one
+      // chunk that failed) -- never on an assumption.
+      let StudentsSucceeded = 0;
+      let StudentsFailed = 0;
+      StudentIds.forEach((StudentId) => {
+        const Confirmed = ConfirmedThisRun.get(StudentId) || 0;
+        if (Confirmed >= PracticeAssignQuantity) StudentsSucceeded += 1;
+        else StudentsFailed += 1;
+      });
+
       return { StudentsSucceeded, StudentsFailed, TotalPapersAssigned, FailedRows, ChunkCallError };
     },
     onMutate: ClearActionResult,
@@ -921,7 +1020,7 @@ function AdminAnnualCompetitionStudioPageContent() {
           "Assign Practice Papers",
           new Error(
             `${BaseMessage} The batch stopped early after a request failed (${apiErrorMessage(Result.ChunkCallError)}) -- ` +
-              "check the affected students' practice banks before retrying, since some papers may already have been generated."
+              "see the details below for exactly how many papers were confirmed for each affected student."
           )
         );
       } else {
@@ -1799,13 +1898,24 @@ function AdminAnnualCompetitionStudioPageContent() {
                   description="Never ranked, and always released to the student the instant it's computed -- a separate surface from any OFFICIAL event's own Rank &amp; Release list, and never scoped to any one event."
                 />
                 <div className="mt-4 flex flex-wrap items-end gap-3">
-                  <label className="flex items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
+                  {/* 2026-09-23 (Shailesh): "the search bar and level filters
+                      do not follow the conventions ... they need to be
+                      aligned in a single line perfectly as in other places
+                      and also the level filter needs to be of the standard
+                      size instead of a full block." Same min-w-[220px]
+                      flex-1 search / w-auto min-w-[150px] select pattern
+                      already used by the Individual Student Analytics
+                      filter below, applied here for the first time --
+                      .math-select/.math-input default to w-full (globals.css)
+                      which is right for a form field but wrong for an
+                      inline filter, hence the per-instance override. */}
+                  <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
                     <Search size={16} className="text-[color:var(--mp-role-primary)]" />
                     <input
                       value={PracticeResultsSearchText}
                       onChange={(EventValue) => SetPracticeResultsSearchText(EventValue.target.value)}
                       placeholder="Search student name or code"
-                      className="w-64 bg-transparent outline-none placeholder:text-slate-400"
+                      className="w-full bg-transparent outline-none placeholder:text-slate-400"
                     />
                   </label>
                   {/* 2026-09-14 (Shailesh): "remove the level filter text
@@ -1816,7 +1926,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                     aria-label="Filter by level"
                     value={PracticeResultsLevelFilter}
                     onChange={(EventValue) => SetPracticeResultsLevelFilter(EventValue.target.value)}
-                    className="math-input"
+                    className="math-input w-auto min-w-[150px]"
                   >
                     <option value="ALL">All Levels</option>
                     {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (

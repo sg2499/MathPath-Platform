@@ -1325,9 +1325,16 @@ def test_batch_assign_practice_papers_for_ylm_l0_bloomers_succeeds():
 
 def test_batch_assign_creates_papers_for_every_student_in_one_call():
     """2026-09-12 (Shailesh, bulk assignment): "let the admin just assign
-    papers to all the students" -- one call, several students."""
+    papers to all the students" -- one call, several students.
+
+    2026-09-23: switched from PM-L2 to PM-L1 -- this test is about the
+    generic multi-student-in-one-call behavior, not about PM-L2 specifically,
+    and PM-L2's own per-call safe-papers cap (see
+    PRACTICE_BULK_SAFE_PAPERS_PER_CALL_BY_LEVEL) is now correctly tight
+    enough that 3 students x 5 papers = 15 legitimately exceeds it (13).
+    PM-L1 has ample headroom (35) for this generic 15-paper case."""
     db = _session()
-    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    module, level = _module_and_level(db, "PM", "PM-L1", "Preparatory Level 1")
     admin = _admin(db)
     student_a = _student(db, "s1", module_id=module.id, level_id=level.id)
     student_b = _student(db, "s2", module_id=module.id, level_id=level.id)
@@ -1335,7 +1342,7 @@ def test_batch_assign_creates_papers_for_every_student_in_one_call():
     db.commit()
 
     outcome = studio.BatchAssignAnnualCompetitionPracticePapers(
-        db, CompetitionLevelCode="PM-L2", StudentIds=[student_a.id, student_b.id, student_c.id], Quantity=5, AssignedBy=admin,
+        db, CompetitionLevelCode="PM-L1", StudentIds=[student_a.id, student_b.id, student_c.id], Quantity=5, AssignedBy=admin,
     )
     assert outcome["studentsRequested"] == 3
     assert outcome["studentsSucceeded"] == 3
@@ -2073,3 +2080,117 @@ def test_delete_all_practice_records_for_student_with_no_records_is_a_safe_noop(
 
     result = studio.DeleteAllAnnualCompetitionPracticeRecordsForStudent(db, StudentId=student.id)
     assert result == {"studentId": student.id, "deletedPaperCount": 0}
+
+
+# ---------------------------------------------------------------------------
+# 2026-09-23 (Shailesh, live 504/partial-batch-assign incident): tests for
+# the two new pieces added in this fix --
+# _ValidatePracticeBulkWorkload's level-aware cap (Layer 2) and
+# GetAnnualCompetitionPracticeBankCounts (Layer 3's backend reconciliation
+# lookup). See annual_competition_studio_service.py's own comments on
+# PRACTICE_BULK_SAFE_PAPERS_PER_CALL_BY_LEVEL for the full incident writeup.
+# ---------------------------------------------------------------------------
+def test_batch_assign_rejects_a_call_that_fits_the_old_flat_cap_but_exceeds_this_levels_own_cap():
+    """PM-L2's own safe-per-call cap (13) is well under the old flat
+    125-paper cap -- 3 students x 5 papers = 15 papers used to sail through
+    that flat cap and would have risked the exact 504/partial-failure this
+    fix exists to prevent. It must now be rejected with a clear, honest
+    per-level reason."""
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    student_ids = []
+    for index in range(3):
+        student = _student(db, f"s{index}", module_id=module.id, level_id=level.id)
+        student_ids.append(student.id)
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        studio.BatchAssignAnnualCompetitionPracticePapers(
+            db, CompetitionLevelCode="PM-L2", StudentIds=student_ids, Quantity=5, AssignedBy=admin,
+        )
+    assert exc_info.value.detail["code"] == "PRACTICE_BULK_TOO_MUCH_WORK"
+    assert exc_info.value.detail["details"]["maxPapersPerCall"] == 13
+
+
+def test_batch_assign_succeeds_within_this_levels_own_tighter_cap():
+    """2 students x 5 papers = 10 papers, under PM-L2's own 13-paper cap --
+    must succeed even though it would have also succeeded under the old
+    flat cap, proving the level-aware check isn't just stricter, it's
+    correctly calibrated."""
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    student_a = _student(db, "s1", module_id=module.id, level_id=level.id)
+    student_b = _student(db, "s2", module_id=module.id, level_id=level.id)
+    db.commit()
+
+    outcome = studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student_a.id, student_b.id], Quantity=5, AssignedBy=admin,
+    )
+    assert outcome["studentsSucceeded"] == 2
+    assert outcome["totalPapersAssigned"] == 10
+
+
+def test_batch_assign_single_student_minimum_quantity_always_fits_every_levels_cap():
+    """The platform's own minimum batch quantity (5) for a single student
+    must NEVER be rejected by any level's per-call cap -- this is the exact
+    calibration bug caught and fixed before shipping (PM-L2's first-draft
+    cap was 3, below this minimum). Every level in
+    PRACTICE_BULK_SAFE_PAPERS_PER_CALL_BY_LEVEL, plus the fallback default,
+    must be >= PRACTICE_BATCH_MIN_QUANTITY."""
+    for level_code, cap in studio.PRACTICE_BULK_SAFE_PAPERS_PER_CALL_BY_LEVEL.items():
+        assert cap >= studio.PRACTICE_BATCH_MIN_QUANTITY, f"{level_code}'s cap ({cap}) is below the platform minimum quantity"
+    assert studio.PRACTICE_BULK_SAFE_PAPERS_PER_CALL_DEFAULT >= studio.PRACTICE_BATCH_MIN_QUANTITY
+
+
+def test_get_annual_competition_practice_bank_counts_returns_correct_per_student_counts():
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L1", "Preparatory Level 1")
+    admin = _admin(db)
+    student_a = _student(db, "s1", module_id=module.id, level_id=level.id)
+    student_b = _student(db, "s2", module_id=module.id, level_id=level.id)
+    student_c = _student(db, "s3", module_id=module.id, level_id=level.id)
+    db.commit()
+
+    studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="PM-L1", StudentIds=[student_a.id], Quantity=10, AssignedBy=admin,
+    )
+    studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="PM-L1", StudentIds=[student_b.id], Quantity=5, AssignedBy=admin,
+    )
+    # student_c gets none -- must come back as 0, not absent.
+
+    counts = studio.GetAnnualCompetitionPracticeBankCounts(
+        db, CompetitionLevelCode="PM-L1", StudentIds=[student_a.id, student_b.id, student_c.id],
+    )
+    assert counts == {student_a.id: 10, student_b.id: 5, student_c.id: 0}
+
+
+def test_get_annual_competition_practice_bank_counts_is_scoped_to_exactly_the_requested_level():
+    """Papers at a different level for the same student must never leak
+    into this level's count."""
+    db = _session()
+    module, level_l1 = _module_and_level(db, "PM", "PM-L1", "Preparatory Level 1")
+    _, level_l2 = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    student = _student(db, "s1", module_id=module.id, level_id=level_l1.id)
+    db.commit()
+
+    studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="PM-L1", StudentIds=[student.id], Quantity=10, AssignedBy=admin,
+    )
+    studio.BatchAssignAnnualCompetitionPracticePapers(
+        db, CompetitionLevelCode="PM-L2", StudentIds=[student.id], Quantity=5, AssignedBy=admin,
+    )
+
+    counts_l1 = studio.GetAnnualCompetitionPracticeBankCounts(db, CompetitionLevelCode="PM-L1", StudentIds=[student.id])
+    counts_l2 = studio.GetAnnualCompetitionPracticeBankCounts(db, CompetitionLevelCode="PM-L2", StudentIds=[student.id])
+    assert counts_l1 == {student.id: 10}
+    assert counts_l2 == {student.id: 5}
+
+
+def test_get_annual_competition_practice_bank_counts_empty_student_list_returns_empty_dict():
+    db = _session()
+    counts = studio.GetAnnualCompetitionPracticeBankCounts(db, CompetitionLevelCode="PM-L1", StudentIds=[])
+    assert counts == {}

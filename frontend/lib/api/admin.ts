@@ -2023,28 +2023,119 @@ export const PRACTICE_BATCH_QUANTITY_OPTIONS = [5, 10, 15, 20, 25] as const;
 // more accurate bound that actually protects against a timeout.
 export const PRACTICE_BULK_MAX_STUDENTS_PER_CALL = 25;
 
-// 2026-09-16 (Shailesh, 504 fix -- "we need to make sure this never happens
-// ... bulletproof end to end"): live bug -- a bulk practice-paper assign to
-// multiple students failed with a 504 from the reverse-proxy in front of
-// this backend. Root cause: PRACTICE_BULK_MAX_STUDENTS_PER_CALL alone
-// bounds how many STUDENTS one call covers, but not how much total work
-// that really is -- each paper is a full synchronous generation (this
-// backend has no background job queue), and the two multiply freely.
-// PRACTICE_BATCH_MAX_QUANTITY (see that constant's own comment, backend
-// side) already establishes 25 papers for ONE student -- even at the
-// heaviest level -- as an already-accepted, comfortably-safe workload; this
-// reuses that as its calibration anchor rather than guessing a fresh
-// number: 5x that single-student ceiling. Generous enough that an ordinary
-// bulk action rarely needs more than a couple of chunks, while still
-// forcing the previous worst case (25 students x 25 papers = 625 papers)
-// into several smaller, safer calls instead of one giant one. Matches
-// PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL in annual_competition_studio_
-// service.py -- keep both in sync; the backend enforces this as a hard
-// validation (so a call this frontend forgot to chunk correctly fails fast
-// with a clear error instead of running long and dying ambiguously at the
-// gateway), the frontend uses the same number to size its chunks so that
-// rejection should not actually happen in normal use.
+// 2026-09-16 (Shailesh, 504 fix): the original bug here -- a flat cap that
+// assumed every level costs "well under a second per paper" -- was never
+// actually measured. Kept only as an absolute, defense-in-depth ceiling
+// now (matches PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL in
+// annual_competition_studio_service.py, which plays the same backstop
+// role there): the REAL, per-level bound the planner below actually sizes
+// chunks against is PRACTICE_BULK_SAFE_PAPERS_PER_CALL_BY_LEVEL.
 export const PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL = 125;
+
+// 2026-09-23 (Shailesh, same live incident -- "no matter how many students
+// ... no matter 5/10/15/20/25 papers ... always flawless and seamless"):
+// direct measurement (see annual_competition_studio_service.py's own
+// comment on this table for the full methodology) found real per-paper
+// generation cost varies by up to 8x across levels and is NOT proportional
+// to question count, so a single flat cap can never be both safe for the
+// slow levels and not needlessly restrictive for the fast ones. Mirrors
+// the backend's own table exactly -- keep both in sync; the backend
+// enforces this as a hard validation (PRACTICE_BULK_TOO_MUCH_WORK) so a
+// call this frontend forgot to chunk correctly fails fast with a clear
+// reason instead of running long and dying ambiguously at the gateway.
+export const PRACTICE_BULK_SAFE_PAPERS_PER_CALL_BY_LEVEL: Record<string, number> = {
+  "YLM-L0": 8,
+  "YLM-L1": 8,
+  "PM-L1": 35,
+  "PM-L2": 13,
+  "PM-L3": 29,
+  "PM-L4": 19,
+  "IM-L1": 20,
+  "IM-L2": 20,
+  "IM-L3": 16,
+  "IM-L4": 15,
+  "MM-L1": 7,
+  "MM-L2": 7,
+};
+
+// A level missing from the table above (should not happen -- every
+// ANNUAL_COMPETITION_LEVEL_CODES entry has a measured row) falls back to
+// this, deliberately the most conservative number in the table (matches
+// the backend's own PRACTICE_BULK_SAFE_PAPERS_PER_CALL_DEFAULT) so an
+// unmeasured level fails safe -- more chunking, never a timeout -- rather
+// than silently inheriting a generous default.
+export const PRACTICE_BULK_SAFE_PAPERS_PER_CALL_DEFAULT = 7;
+
+export function getPracticeBulkSafePapersPerCall(competitionLevelCode: string): number {
+  return (
+    PRACTICE_BULK_SAFE_PAPERS_PER_CALL_BY_LEVEL[competitionLevelCode] ?? PRACTICE_BULK_SAFE_PAPERS_PER_CALL_DEFAULT
+  );
+}
+
+export type AnnualCompetitionPracticeBulkAssignCallPlanEntry = {
+  studentIds: string[];
+  quantity: number;
+};
+
+// 2026-09-23 (Shailesh, "no matter how many students are selected together
+// and no matter whether we wanna assign 5,10,15,20 or 25 papers at once it
+// should always work flawlessly and seamlessly ... whether we are
+// assigning 30 students 25 papers at once or one student 5 papers"):
+// splits one bulk-assign request into a sequence of individually-safe API
+// calls along BOTH axes that can make a single call too much work --
+// student count and quantity-per-student -- not just student count like
+// the previous version of this chunking did. That mattered in practice:
+// most levels' own measured safe-papers-per-call cap (see the table above)
+// is well UNDER 25, so a single student's own requested quantity can by
+// itself exceed a level's cap (e.g. one student asking for 25 papers of
+// PM-L2, whose cap is 13) -- the old student-count-only chunking had no
+// way to shrink that below one student's worth of work and would have
+// rejected the very request this feature exists to support.
+//
+// This is safe because BatchAssignAnnualCompetitionPracticePapers is
+// explicitly safe to call repeatedly for the same student/level -- each
+// call only ever ADDS new papers to that student's bank (see that
+// function's own docstring) -- so slicing one student's quantity into
+// several additive calls produces exactly the same end state as one
+// larger call would have, just via more (individually safe) round trips.
+export function planAnnualCompetitionPracticeBulkAssignCalls(
+  studentIds: string[],
+  quantityPerStudent: number,
+  competitionLevelCode: string
+): AnnualCompetitionPracticeBulkAssignCallPlanEntry[] {
+  const EffectiveLimit = Math.min(
+    getPracticeBulkSafePapersPerCall(competitionLevelCode),
+    PRACTICE_BULK_MAX_TOTAL_PAPERS_PER_CALL
+  );
+  // Largest multiple of 5, at most PRACTICE_BATCH_MAX_QUANTITY (25, a hard
+  // per-call ceiling on quantity regardless of level -- see
+  // _ValidatePracticeBatchQuantity, backend) and at most this level's own
+  // EffectiveLimit, that a single call's quantity may use. Guaranteed >= 5
+  // as long as every PRACTICE_BULK_SAFE_PAPERS_PER_CALL_BY_LEVEL entry is
+  // >= PRACTICE_BATCH_MIN_QUANTITY (5) -- enforced by a backend test
+  // (test_batch_assign_single_student_minimum_quantity_always_fits_every_levels_cap).
+  const MaxChunkQuantity = Math.max(5, Math.min(25, Math.floor(EffectiveLimit / 5) * 5));
+
+  const QuantityChunks: number[] = [];
+  let Remaining = quantityPerStudent;
+  while (Remaining > 0) {
+    const Take = Math.min(MaxChunkQuantity, Remaining);
+    QuantityChunks.push(Take);
+    Remaining -= Take;
+  }
+
+  const Plan: AnnualCompetitionPracticeBulkAssignCallPlanEntry[] = [];
+  for (const QuantityChunk of QuantityChunks) {
+    const StudentsPerCall = Math.max(
+      1,
+      Math.min(PRACTICE_BULK_MAX_STUDENTS_PER_CALL, Math.floor(EffectiveLimit / QuantityChunk))
+    );
+    for (let Index = 0; Index < studentIds.length; Index += StudentsPerCall) {
+      Plan.push({ studentIds: studentIds.slice(Index, Index + StudentsPerCall), quantity: QuantityChunk });
+    }
+  }
+  return Plan;
+}
 
 export type AnnualCompetitionPracticeBankPaper = {
   levelPaperId: string;
@@ -2071,6 +2162,27 @@ export async function getAnnualCompetitionPracticeBank(
 ): Promise<AnnualCompetitionPracticeBank> {
   const { data } = await api.get<AnnualCompetitionPracticeBank>(`/admin/annual-competition/practice-bank`, {
     params: { studentId, competitionLevelCode: competitionLevelCode || undefined },
+  });
+  return data;
+}
+
+// 2026-09-23 (Shailesh, 504/partial-batch-assign incident -- Layer 3,
+// honest reconciliation): a chunk-level HTTP-layer failure (504, network
+// drop) can leave real, already-committed papers behind that the failed
+// response never reports, because papers commit one at a time server-side
+// (_GeneratePracticePapersForOneStudent's own docstring) -- an interrupted
+// call can still have generated some of its papers before the connection
+// broke. This read-only, grouped-COUNT lookup (GetAnnualCompetitionPractice
+// BankCounts, backend) lets the frontend take a "before" snapshot and, on a
+// chunk-level failure, an "after" snapshot for just the affected students,
+// so the real delta can be reported instead of assuming zero succeeded.
+export async function getAnnualCompetitionPracticeBankCounts(
+  competitionLevelCode: string,
+  studentIds: string[]
+): Promise<Record<string, number>> {
+  if (studentIds.length === 0) return {};
+  const { data } = await api.get<Record<string, number>>(`/admin/annual-competition/practice-bank/counts`, {
+    params: { competitionLevelCode, studentIds: studentIds.join(",") },
   });
   return data;
 }

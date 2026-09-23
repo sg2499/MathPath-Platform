@@ -308,7 +308,7 @@ def _extend_stem_with_support_chain(
     return partials
 
 
-def _candidate_pool_for_templates(config: YLMConfig, templates: tuple[str, ...]) -> list[list[int]]:
+def _compute_candidate_pool_for_templates(config: YLMConfig, templates: tuple[str, ...]) -> list[list[int]]:
     pool: list[list[int]] = []
     seen: set[tuple[int, ...]] = set()
     support_row_count = max(1, config.rows - 2)
@@ -322,6 +322,63 @@ def _candidate_pool_for_templates(config: YLMConfig, templates: tuple[str, ...])
                     pool.append(operands)
                     seen.add(key)
     return pool
+
+
+# 2026-09-23 (Shailesh, live 504/partial-batch-assign incident -- root
+# cause of a large chunk of the real-world cost of generating an Annual
+# Competition practice paper): generate_ylm_question_set() used to call
+# _candidate_pool_for_templates()/build_candidate_pool() FRESH for every
+# single question in a paper (up to 100 times for a YLM-L1 paper), even
+# though the pool it builds is a pure function of the lesson's own fixed
+# shape, not of which question number is being generated. Live-measured
+# (see docs/project-memory -- this session's own timing script): YLM-L1
+# cost ~5.3s PER PAPER before this fix, dwarfing every other level, purely
+# from this one redundant recomputation, not from anything data-driven.
+#
+# Why this cache is provably safe (not just "probably safe" -- this
+# function generates real student-facing exam content, so a wrong cache
+# key would be a correctness bug, not just a perf regression): both
+# _candidate_pool_for_templates() and build_candidate_pool() are called
+# only on a config that has ALREADY been run through
+# enrich_config_with_lesson_rule() (build_candidate_pool does this itself
+# as its own first line; every other caller in this module does it before
+# reaching either function -- see generate_unique_operands()). For
+# module_code == "YLM" (the only case enrich_config_with_lesson_rule does
+# anything at all -- it's a no-op for every other module), that function
+# is itself a PURE, fully deterministic function of exactly four inputs:
+# config.lesson_number, config.dps_number, and config.digit_pattern_override
+# (lesson_rule_for()/dps_rows_for()/dps_digit_pattern_for() are all pure
+# lookups keyed on lesson_number/dps_number alone -- see config.py's own
+# body), plus the `templates` tuple this function itself takes as a
+# parameter. Every OTHER field _compute_candidate_pool_for_templates() (or
+# anything it calls -- _template_stems, validate_question, etc.) reads off
+# config -- rows, digit_pattern, target_numbers, concept_family,
+# operation_focus, abacus_rule, place_value, allow_negative_operands,
+# allowed/required_movement_types -- is itself SET by that same enrichment
+# call, deterministically, from those same three identity fields. So two
+# calls sharing (lesson_number, dps_number, digit_pattern_override,
+# templates) are GUARANTEED -- not just observed in practice -- to compute
+# byte-identical pools. Cache key space is small and fixed (32 YLM lessons
+# x a handful of dps_number/template combinations), lives only for one
+# worker process's lifetime, and every reader downstream only ever
+# iterates/filters the returned list into a NEW list -- nothing mutates it
+# in place -- so returning the same cached list object to many callers is
+# safe. Scoped to module_code == "YLM" only (this file's only real caller
+# today), with a bypass straight to the uncached function for anything
+# else, so a hypothetical future non-YLM caller of this exact function
+# never risks an incorrect cache hit.
+_YLM_CANDIDATE_POOL_CACHE: dict[tuple, list[list[int]]] = {}
+
+
+def _candidate_pool_for_templates(config: YLMConfig, templates: tuple[str, ...]) -> list[list[int]]:
+    if str(config.module_code or "").upper() != "YLM":
+        return _compute_candidate_pool_for_templates(config, templates)
+    cache_key = (config.lesson_number, config.dps_number, config.digit_pattern_override, templates)
+    cached = _YLM_CANDIDATE_POOL_CACHE.get(cache_key)
+    if cached is None:
+        cached = _compute_candidate_pool_for_templates(config, templates)
+        _YLM_CANDIDATE_POOL_CACHE[cache_key] = cached
+    return cached
 
 
 def build_candidate_pool(config: YLMConfig) -> list[list[int]]:
