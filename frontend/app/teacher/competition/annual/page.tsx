@@ -9,6 +9,8 @@ import { apiErrorMessage } from "@/lib/api";
 import { ANNUAL_COMPETITION_LEVEL_CODES, FormatCompetitionLevelLabel } from "@/lib/api/admin";
 import { GroupPracticePapersByLevel } from "@/lib/annualCompetitionPracticeGrouping";
 import { PracticeLeaderboardPodium } from "@/components/common/PracticeLeaderboardPodium";
+import { SortByDropdown } from "@/components/common/SortByDropdown";
+import { useSortableTable, type SortFieldOption } from "@/lib/sortable";
 import {
   getTeacherAnnualCompetitionEvents,
   getTeacherAnnualCompetitionLive,
@@ -20,6 +22,7 @@ import {
   type TeacherAnnualCompetitionPracticeReportForLevel,
   type TeacherAnnualCompetitionPracticeReportForStudent,
   type TeacherAnnualCompetitionPracticeReportSectionRow,
+  type TeacherAnnualCompetitionPracticeReportStudentRow,
   type TeacherAnnualCompetitionPracticeRosterStudent,
   type TeacherAnnualCompetitionResultRow,
 } from "@/lib/api/teacher";
@@ -27,6 +30,37 @@ import { useQuery } from "@tanstack/react-query";
 import { Activity, CalendarClock, ChevronDown, ChevronRight, Eye, Flame, Medal, Repeat, RefreshCcw, Search, Sparkles, Trophy, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+
+// 2026-09-27 (Shailesh, Practice Leaderboard sort filter) -- see the
+// identical block on the admin page (admin/competition/annual-studio/
+// page.tsx) for the full reasoning. "just like the other sort filters we
+// have across the platform" -- reuses the exact same shared SortByDropdown
+// + useSortableTable infrastructure (lib/sortable.ts) every other sortable
+// table/list on this platform already uses.
+type PracticeLeaderboardSortKey = "avgAccuracy" | "avgScore" | "highestScore" | "avgTime" | "papers";
+
+const PRACTICE_LEADERBOARD_SORT_FIELDS: SortFieldOption<PracticeLeaderboardSortKey>[] = [
+  { key: "avgAccuracy", label: "Avg Accuracy" },
+  { key: "avgScore", label: "Avg Score" },
+  { key: "highestScore", label: "Highest Score" },
+  { key: "avgTime", label: "Avg Time" },
+  { key: "papers", label: "Papers" },
+];
+
+function PracticeLeaderboardSortValueFor(Row: TeacherAnnualCompetitionPracticeReportStudentRow, Key: PracticeLeaderboardSortKey): number | null {
+  switch (Key) {
+    case "avgAccuracy":
+      return Row.avgAccuracyPercentage;
+    case "avgScore":
+      return Row.avgScore;
+    case "highestScore":
+      return Row.highestScore;
+    case "avgTime":
+      return Row.avgTimeTakenSeconds;
+    case "papers":
+      return Row.papersCompletedCount;
+  }
+}
 
 // Read-only by design -- Teacher: monitor/review only, no assign/rank/
 // release path exists here (pkg-07 checklist item 3, same convention as
@@ -717,6 +751,25 @@ function TeacherAnnualCompetitionMonitorPageContent() {
     queryFn: () => getTeacherAnnualCompetitionPracticeReportForLevel(LeaderboardLevelCode),
     enabled: Ready && TopTab === "PRACTICE" && PracticeSubTab === "LEADERBOARD" && Boolean(LeaderboardLevelCode),
   });
+  // 2026-09-27 (Shailesh, Practice Leaderboard sort filter) -- see the
+  // identical block on the admin page for the full reasoning. Defaults to
+  // NATURAL_SORT_KEY (naturalOrder below is the identity function) so the
+  // leaderboard shows exactly today's server-computed order until the
+  // teacher actively picks a field from the dropdown.
+  const {
+    sortKey: LeaderboardSortKey,
+    sortDirection: LeaderboardSortDirection,
+    sortedRows: SortedPracticeLeaderboardRows,
+    setSort: SetLeaderboardSort,
+  } = useSortableTable<TeacherAnnualCompetitionPracticeReportStudentRow, PracticeLeaderboardSortKey>({
+    rows: PracticeLeaderboardQuery.data?.perStudent ?? [],
+    valueFor: PracticeLeaderboardSortValueFor,
+    naturalOrder: (Rows) => Rows,
+  });
+  // Rank must reflect whatever order is CURRENTLY showing -- sorting by a
+  // different field changes who is "Rank 1" and therefore who occupies the
+  // podium (PracticeLeaderboardPodium slices strictly on Row.rank <= 3 / > 3).
+  const RankedPracticeLeaderboardRows = SortedPracticeLeaderboardRows.map((Row, Index) => ({ ...Row, rank: Index + 1 }));
 
   // 2026-09-14 (Shailesh): same student-grouped view as the admin Practice
   // Results tab (admin/competition/annual-studio/page.tsx) -- "the teacher
@@ -1396,20 +1449,33 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                 than reinvented, so this filter finally renders the same way
                 every other leaderboard's filter on this platform already
                 does. */}
-            <div className="mt-4 max-w-xs">
-              <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Level</label>
-              <div className="relative">
-                <select
-                  aria-label="Select level for the leaderboard"
-                  value={LeaderboardLevelCode}
-                  onChange={(EventValue) => SetLeaderboardLevelCode(EventValue.target.value)}
-                  className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-[var(--mp-role-primary)] focus:outline-none"
-                >
-                  {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                    <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <div className="mt-4 flex flex-wrap items-end gap-3">
+              <div className="max-w-xs min-w-[200px] flex-1">
+                <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Level</label>
+                <div className="relative">
+                  <select
+                    aria-label="Select level for the leaderboard"
+                    value={LeaderboardLevelCode}
+                    onChange={(EventValue) => SetLeaderboardLevelCode(EventValue.target.value)}
+                    className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 pr-10 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-[var(--mp-role-primary)] focus:outline-none"
+                  >
+                    {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                      <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+              {/* 2026-09-27 (Shailesh): "just like the other sort filters we
+                  have across the platform" -- see the identical block on the
+                  admin page for why this has no label of its own. */}
+              <div className="w-full min-w-[200px] max-w-xs sm:w-auto">
+                <SortByDropdown
+                  fields={PRACTICE_LEADERBOARD_SORT_FIELDS}
+                  sortKey={LeaderboardSortKey}
+                  direction={LeaderboardSortDirection}
+                  onChange={SetLeaderboardSort}
+                />
               </div>
             </div>
 
@@ -1421,7 +1487,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
               ) : PracticeLeaderboardQuery.data ? (
                 <PracticeLeaderboardPodium
                   Summary={PracticeLeaderboardQuery.data.summary}
-                  Rows={PracticeLeaderboardQuery.data.perStudent}
+                  Rows={RankedPracticeLeaderboardRows}
                   EmptyDescription="None of your students have completed a practice paper at this level yet -- the leaderboard fills in as soon as the first paper is submitted."
                 />
               ) : null}
