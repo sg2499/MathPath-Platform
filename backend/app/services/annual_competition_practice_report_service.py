@@ -563,6 +563,27 @@ def GetAnnualCompetitionPracticeReportForLevel(
             StudentStats["avgMaxScore"] = CanonicalTotal
             if StudentStats["avgScore"] is not None and CanonicalTotal > 0:
                 StudentStats["avgPercentage"] = _RoundToInt((StudentStats["avgScore"] / CanonicalTotal) * 100)
+        # Highest Score (Shailesh, 2026-09-27, Practice Leaderboard feature
+        # -- "it should always be shown out of the total marks available in
+        # that particular level and nothing else"): this student's single
+        # highest-ever PRACTICE score at this level, deliberately shown out
+        # of the exact same denominator as avgScore/avgMaxScore above (this
+        # student's own avgMaxScore, already overridden to the level's
+        # current canonical total a few lines up) -- never a raw
+        # ResultRecord.max_score pulled from whichever attempt happened to
+        # score highest, which could be a stale, smaller paper size from
+        # before this level's registry grew (the exact same denominator-
+        # drift bug _LevelCanonicalTotalQuestionCount already fixed for
+        # avgScore). None (not 0) when this student has no scored attempts,
+        # matching this module's own None-means-no-data convention
+        # throughout -- cannot actually happen here since StudentResultRecords
+        # is never empty for a student who made it into ResultsByStudent,
+        # but kept defensive rather than assuming.
+        StudentStats["highestScore"] = max(
+            (ResultRecord.score for ResultRecord in StudentResultRecords if ResultRecord.score is not None),
+            default=None,
+        )
+        StudentStats["highestMaxScore"] = StudentStats["avgMaxScore"]
         StudentStats.update(_PracticeBankCompletionStats(db, StudentId=SId, CompetitionLevelCode=CompetitionLevelCode))
         StudentStats["studentId"] = StudentRecord.id
         StudentStats["studentName"] = _StudentDisplayName(StudentRecord)

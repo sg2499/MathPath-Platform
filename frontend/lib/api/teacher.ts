@@ -850,6 +850,12 @@ export type TeacherAnnualCompetitionPracticeReportStudentRow = TeacherAnnualComp
   // 2026-09-18 (Practice Leaderboard feature) -- see the identical field on
   // AnnualCompetitionPracticeReportStudentRow (lib/api/admin.ts) for why.
   rank: number;
+  // 2026-09-27 (Shailesh, Practice Leaderboard "Highest Score" feature) --
+  // see the identical fields on AnnualCompetitionPracticeReportStudentRow
+  // (lib/api/admin.ts) for why highestMaxScore is its own field rather than
+  // reusing avgMaxScore.
+  highestScore: number | null;
+  highestMaxScore: number | null;
 };
 
 export type TeacherAnnualCompetitionPracticeReportForLevel = {
