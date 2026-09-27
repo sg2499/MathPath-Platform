@@ -396,6 +396,59 @@ def test_level_report_avg_max_score_uses_current_canonical_total_not_paper_size(
     assert row["avgPercentage"] == report_service._RoundToInt((2.0 / canonical_total) * 100)
 
 
+def test_level_report_highest_score_is_the_max_across_this_students_own_attempts():
+    """2026-09-27 (Shailesh, Practice Leaderboard "Highest Score" feature):
+    highestScore must be this student's single best PRACTICE score at this
+    level across every one of their attempts -- not their average (that is
+    avgScore, a different field) and not simply their most recent attempt.
+    A student who scored low once and high another time must still show
+    their high score here."""
+    db = _session()
+    student = _student(db, "s-highest", name="Highest Scorer")
+
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [4], "exam-low", "paper-low", "low")
+    db.commit()
+    _attempt_and_answer_all(db, student, "PM-L2", "low", [4], [True, False, False, False])  # score 1
+
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [4], "exam-high", "paper-high", "high")
+    db.commit()
+    _attempt_and_answer_all(db, student, "PM-L2", "high", [4], [True, True, True, False])  # score 3
+
+    report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
+    row = report["perStudent"][0]
+    # Sanity check this test is genuinely exercising max-across-attempts,
+    # not accidentally passing because avgScore already equals the max.
+    assert row["avgScore"] == 2.0
+    assert row["highestScore"] == 3.0
+
+
+def test_level_report_highest_score_uses_current_canonical_total_not_paper_size():
+    """2026-09-27 (Shailesh, Practice Leaderboard "Highest Score" feature --
+    "it should always be shown out of the total marks available in that
+    particular level and nothing else"): highestMaxScore must be the
+    level's CURRENT canonical total question count, exactly matching this
+    same row's avgMaxScore -- never this attempt's own (possibly much
+    smaller, test-fixture-sized) max_score. Mirrors the exact same fix
+    test_level_report_avg_max_score_uses_current_canonical_total_not_paper_size
+    already proves for avgMaxScore."""
+    db = _session()
+    student = _student(db, "s-highest-canon", name="Highest Canonical")
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [4], "exam-hc", "paper-hc", "hc")
+    db.commit()
+    _attempt_and_answer_all(db, student, "PM-L2", "hc", [4], [True, True, False, False])
+
+    canonical_total = sum(
+        section["questionCount"] for section in ANNUAL_COMPETITION_LEVEL_REGISTRY["PM-L2"]["sections"]
+    )
+    assert canonical_total != 4  # sanity check this test actually exercises the override
+
+    report = report_service.GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="PM-L2")
+    row = report["perStudent"][0]
+    assert row["highestScore"] == 2.0
+    assert row["highestMaxScore"] == canonical_total
+    assert row["highestMaxScore"] == row["avgMaxScore"]
+
+
 def test_level_report_ties_on_avg_score_break_by_avg_time_ascending():
     """2026-09-22 (Practice Leaderboard fix, Shailesh): two students tied on
     avg score rank by avg time taken ascending -- unchanged from the

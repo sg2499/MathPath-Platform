@@ -2493,6 +2493,16 @@ export type AnnualCompetitionPracticeReportStudentRow = AnnualCompetitionPractic
   // rendered these rows in this same order; this field just makes that
   // order an explicit, addressable number instead of only array position.
   rank: number;
+  // 2026-09-27 (Shailesh, Practice Leaderboard "Highest Score" feature):
+  // this student's single highest-ever PRACTICE score at this level.
+  // highestMaxScore is ALWAYS this same row's avgMaxScore (the level's
+  // current canonical total, per Shailesh's explicit "out of the total
+  // marks available in that particular level and nothing else") -- carried
+  // as its own field rather than reusing avgMaxScore at the call site so
+  // this row's shape stays self-describing. See GetAnnualCompetitionPracticeReportForLevel's
+  // own comment on the Highest Score computation.
+  highestScore: number | null;
+  highestMaxScore: number | null;
 };
 
 export type AnnualCompetitionPracticeReportForLevel = {

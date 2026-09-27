@@ -34,6 +34,15 @@ export type PracticeLeaderboardRow = {
   avgTimeTakenSeconds: number | null;
   papersAssignedCount: number;
   papersCompletedCount: number;
+  // 2026-09-27 (Shailesh, "Highest Score" feature): this student's single
+  // highest-ever PRACTICE score at this level, shown out of highestMaxScore
+  // (always the level's current canonical total -- Shailesh's own explicit
+  // "out of the total marks available in that particular level and nothing
+  // else" -- identical denominator convention to avgScore/avgMaxScore
+  // above). See annual_competition_practice_report_service.py's own
+  // comment on this computation.
+  highestScore: number | null;
+  highestMaxScore: number | null;
 };
 
 export type PracticeLeaderboardSummary = {
@@ -103,14 +112,35 @@ function PodiumCard({ Row }: { Row: PracticeLeaderboardRow }) {
       {Row.studentCode ? (
         <p className="text-[11px] font-black uppercase tracking-[0.1em] text-[color:var(--mp-role-primary)]">{Row.studentCode}</p>
       ) : null}
-      {/* 2026-09-22 (Shailesh): avg score is the ranking key now, not avg
-          accuracy -- so the podium's bold primary figure leads with score,
-          and accuracy (still worth showing, just no longer what earned this
-          rank) moves down into the secondary row alongside avg time. */}
-      <p className="mt-3 text-2xl font-black text-slate-950 dark:text-white">
-        {Row.avgScore == null ? "-" : `${Row.avgScore}/${Row.avgMaxScore ?? "-"}`}
-      </p>
-      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">Avg Score</p>
+      {/* 2026-09-27 (Shailesh, "Highest Score" feature): "what if we put
+          the avg score metric and highest score metric side by side
+          perfectly aligned in the same line and in bold text?" -- Avg
+          Score and Highest Score now sit side by side as two equal-width,
+          equal-weight columns with a thin divider between them, replacing
+          the single centered figure this card used to show. avgScore
+          alone remains the actual ranking key (see the sort in
+          annual_competition_practice_report_service.py) -- this is purely
+          a display change. Font size dropped one notch from the previous
+          single-number text-2xl to text-xl so both numbers plus the
+          divider sit comfortably; applies identically to all three podium
+          ranks, which already share one card width (flex-1, see the row
+          below) -- Rank 1 only gets extra height/padding, never extra
+          width, so there is no per-rank sizing difference to account for. */}
+      <div className="mt-3 flex items-stretch justify-center gap-3">
+        <div className="min-w-0 flex-1 text-center">
+          <p className="truncate text-xl font-black text-slate-950 dark:text-white">
+            {Row.avgScore == null ? "-" : `${Row.avgScore}/${Row.avgMaxScore ?? "-"}`}
+          </p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">Avg Score</p>
+        </div>
+        <div className="w-px shrink-0 self-stretch bg-slate-200 dark:bg-white/10" />
+        <div className="min-w-0 flex-1 text-center">
+          <p className="truncate text-xl font-black text-slate-950 dark:text-white">
+            {Row.highestScore == null ? "-" : `${Row.highestScore}/${Row.highestMaxScore ?? "-"}`}
+          </p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">Highest Score</p>
+        </div>
+      </div>
       {/* 2026-09-22 (Shailesh): "Accuracy" capitalized to match its own
           earlier display convention, and the bare time value now gets the
           same "<value> Avg Time" treatment as accuracy -- a lone "35:00"
@@ -182,11 +212,12 @@ export function PracticeLeaderboardPodium({
 
       {RestRows.length > 0 ? (
         <div className="overflow-hidden rounded-2xl border border-[color:var(--mp-role-border)]">
-          <div className="grid grid-cols-[0.5fr_1.4fr_0.9fr_0.9fr_0.9fr_0.9fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+          <div className="grid grid-cols-[0.5fr_1.3fr_0.85fr_0.85fr_0.9fr_0.85fr_0.7fr] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
             <span>Rank</span>
             <span>Student</span>
             <span>Avg Accuracy</span>
             <span>Avg Score</span>
+            <span>Highest Score</span>
             <span>Avg Time</span>
             <span>Papers</span>
           </div>
@@ -194,7 +225,7 @@ export function PracticeLeaderboardPodium({
             {RestRows.map((Row) => (
               <div
                 key={Row.studentId}
-                className="grid grid-cols-[0.5fr_1.4fr_0.9fr_0.9fr_0.9fr_0.9fr] items-center gap-3 px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100"
+                className="grid grid-cols-[0.5fr_1.3fr_0.85fr_0.85fr_0.9fr_0.85fr_0.7fr] items-center gap-3 px-5 py-3 text-sm font-bold text-slate-800 dark:text-slate-100"
               >
                 {/* 2026-09-22 (Shailesh): text-slate-300 was near-invisible
                     against the light-mode row background -- darkened for
@@ -212,6 +243,7 @@ export function PracticeLeaderboardPodium({
                 </div>
                 <div>{FormatPercent(Row.avgAccuracyPercentage)}</div>
                 <div>{Row.avgScore == null ? "-" : `${Row.avgScore}/${Row.avgMaxScore ?? "-"}`}</div>
+                <div>{Row.highestScore == null ? "-" : `${Row.highestScore}/${Row.highestMaxScore ?? "-"}`}</div>
                 <div>{FormatSecondsAsMinSec(Row.avgTimeTakenSeconds)}</div>
                 <div>{Row.papersCompletedCount}/{Row.papersAssignedCount}</div>
               </div>

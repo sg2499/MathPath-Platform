@@ -809,9 +809,16 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
     sectionNumber: sectionReview.sectionNumber,
     sectionTitle: sectionReview.sectionTitle || `Section ${sectionReview.sectionNumber}`,
     totalQuestions: sectionReview.questions.length,
+    // 2026-09-27 (Shailesh, Scorecard "Total Attempted" feature): a
+    // question already carries isUnanswered on this exact review payload
+    // (mirrored verbatim across student/admin/teacher -- see this
+    // component's own file-level comment), so "attempted" is derivable
+    // with no new backend field or fetch.
+    attemptedCount: sectionReview.questions.filter((questionReview) => !questionReview.isUnanswered).length,
     correctCount: sectionReview.questions.filter((questionReview) => questionReview.isCorrect).length,
   }));
   const totalQuestions = rows.reduce((sum, row) => sum + row.totalQuestions, 0);
+  const totalAttempted = rows.reduce((sum, row) => sum + row.attemptedCount, 0);
   const totalMarksObtained = rows.reduce((sum, row) => sum + row.correctCount, 0);
 
   return (
@@ -827,11 +834,12 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-sm">
+          <table className="w-full min-w-[620px] border-collapse text-sm">
             <thead>
               <tr className="border-b-2 border-slate-200 dark:border-slate-700">
                 <th className="px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Section</th>
                 <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Total Questions</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Questions Attempted</th>
                 <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Correct Answers</th>
                 <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Marks Obtained</th>
               </tr>
@@ -843,6 +851,7 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
                     Section {row.sectionNumber} -- {row.sectionTitle}
                   </td>
                   <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.totalQuestions}</td>
+                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.attemptedCount}</td>
                   <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.correctCount}</td>
                   <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{row.correctCount}</td>
                 </tr>
@@ -852,6 +861,7 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
               <tr className="border-t-2 border-[#2563eb]/30 dark:border-cyan-300/30">
                 <td className="px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">Total</td>
                 <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalQuestions}</td>
+                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalAttempted}</td>
                 <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalMarksObtained}</td>
                 <td className="px-3 py-3 text-right text-lg font-black text-[#2563eb] dark:text-cyan-100">{totalMarksObtained}</td>
               </tr>
