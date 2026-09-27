@@ -31,10 +31,10 @@ function FormatDateTime(value?: string | null) {
 }
 
 // Reused verbatim from app/student/competition/mock-exams/page.tsx's own
-// RoundHalfUp/FormatScore/AccuracyChipTone/ScoreChipTone -- same rounding
-// and color-band rules, so a practice paper's score/accuracy chip reads
-// identically to a Mock/DPS sheet's, per Shailesh's requirement that
-// "Submitted Practice History" look like those, not plain text.
+// RoundHalfUp/FormatScore/PercentageChipTone -- same rounding and
+// color-band rules, so a practice paper's score chip reads identically to
+// a Mock/DPS sheet's, per Shailesh's requirement that "Submitted Practice
+// History" look like those, not plain text.
 function RoundHalfUp(value: number) {
   return Math.floor(Number(value) + 0.5);
 }
@@ -62,7 +62,20 @@ function FormatDuration(seconds?: number | null) {
   return `${secs} Sec${secs !== 1 ? "s" : ""}`;
 }
 
-function AccuracyChipTone(value: number | null): "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple" {
+// 2026-09-26 (Shailesh, recurrence of #564 -- "the accuracy metric ...
+// should be removed completely and entirely from the student login for
+// the annual competition flow ... still the students are being able to
+// see the accuracy percentage once they complete a practice paper"): #564
+// removed accuracy from the attempt detail page only (completion header +
+// Scorecard breakdown) -- this Practice Papers TABLE, on the page one
+// level up, was never touched by that pass and still had its own live
+// "Accuracy" column plus an accuracy-driven Score chip color. Renamed
+// AccuracyChipTone -> PercentageChipTone (it's a generic red/amber/green
+// percentage-banding helper, not accuracy-specific) and the Score chip
+// below now bands on the SCORE percentage, never accuracy, so accuracy no
+// longer drives anything a student sees here, not even indirectly via chip
+// color.
+function PercentageChipTone(value: number | null): "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple" {
   if (value === null) return "slate";
   if (value < 60) return "red";
   if (value < 80) return "amber";
@@ -70,7 +83,7 @@ function AccuracyChipTone(value: number | null): "slate" | "green" | "red" | "am
 }
 
 function ScoreChipTone(value: number | null) {
-  return AccuracyChipTone(value);
+  return PercentageChipTone(value);
 }
 
 function StatusChip({ assignment }: { assignment: AnnualCompetitionAssignmentForStudent }) {
@@ -441,7 +454,6 @@ function PracticeLevelPanel({
                   <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Paper Name</th>
                   <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Status</th>
                   <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Score</th>
-                  <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Accuracy</th>
                   <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Time Taken</th>
                   <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Submitted</th>
                   <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Action</th>
@@ -454,7 +466,10 @@ function PracticeLevelPanel({
                   const isSubmitted = attempt && !isInProgress;
                   const isNextToStart = !attempt && index === firstUntouchedIndex;
                   const result = attempt?.result;
-                  const accuracy = result ? Number(result.accuracyPercentage ?? result.percentage) : null;
+                  // 2026-09-26: was accuracyPercentage -- see this file's
+                  // own PercentageChipTone comment. The Score chip's color
+                  // must band on the SCORE percentage, never accuracy.
+                  const scorePercentage = result ? Number(result.percentage) : null;
 
                   return (
                     <tr key={paper.levelPaperId}>
@@ -465,13 +480,8 @@ function PracticeLevelPanel({
                         </Chip>
                       </td>
                       <td className="px-4 py-4 font-black">
-                        <Chip tone={ScoreChipTone(accuracy)}>
+                        <Chip tone={ScoreChipTone(scorePercentage)}>
                           {isSubmitted && result ? FormatScore(result.score, result.maxScore) : "-"}
-                        </Chip>
-                      </td>
-                      <td className="px-4 py-4 font-black">
-                        <Chip tone={AccuracyChipTone(accuracy)}>
-                          {isSubmitted && accuracy !== null && !Number.isNaN(accuracy) ? `${FormatScore(accuracy)}%` : "-"}
                         </Chip>
                       </td>
                       <td className="px-4 py-4 font-black text-slate-950 dark:text-white">
