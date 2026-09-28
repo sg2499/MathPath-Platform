@@ -1778,6 +1778,31 @@ export async function overrideAnnualCompetitionAssignment(
   return data;
 }
 
+// 2026-09-28 (Shailesh, "Universal Set Level"): the multi-select
+// counterpart to overrideAnnualCompetitionAssignment above -- same
+// ADMIN_OVERRIDE write, applied to every listed student in one call
+// instead of one Apply click per row. Mirrors the succeeded/failed
+// reporting shape batchAssignAnnualCompetitionPracticePapers already uses
+// for a bulk admin action, so a partial failure is never silently
+// swallowed here either.
+export type AnnualCompetitionBulkOverrideResult = {
+  eventId: string;
+  assignedLevelCode: string;
+  studentsRequested: number;
+  studentsSucceeded: number;
+  studentsFailed: number;
+  succeeded: Array<{ studentId: string; studentCode: string | null }>;
+  failed: Array<{ studentIdentifier: string; reason: string }>;
+};
+
+export async function bulkOverrideAnnualCompetitionAssignments(
+  eventId: string,
+  payload: { studentIds: string[]; assignedLevelCode: string }
+): Promise<AnnualCompetitionBulkOverrideResult> {
+  const { data } = await api.post(`/admin/annual-competition/events/${eventId}/assignments/override-bulk`, payload);
+  return data;
+}
+
 // ---------------------------------------------------------------------------
 // Annual Competition -- Scoring + Results (Package 6). The computation/
 // rank/release endpoints themselves shipped with Package 6 as API-only

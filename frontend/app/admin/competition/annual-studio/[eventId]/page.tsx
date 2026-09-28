@@ -11,6 +11,7 @@ import {
   ANNUAL_COMPETITION_LEVEL_CODES,
   FormatCompetitionLevelLabel,
   FormatMasterCurrentLevelSuffix,
+  bulkOverrideAnnualCompetitionAssignments,
   createAnnualCompetitionSlot,
   downloadAnnualCompetitionCertificate,
   generateAnnualCompetitionLevelPaper,
@@ -44,6 +45,7 @@ import {
   Award,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
   Link2,
   Lock,
@@ -206,18 +208,23 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   // --- Link-existing-paper form state, keyed by level code ---
   const [LinkMockExamIdByLevel, SetLinkMockExamIdByLevel] = useState<Record<string, string>>({});
 
-  // --- Manual override form state ---
-  const [OverrideStudentId, SetOverrideStudentId] = useState("");
-  const [OverrideLevelCode, SetOverrideLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
-
   // --- Point 1 (2026-09-08): inline per-row override on the Assignments
   // preview table itself. This is a pure UX front-end onto the exact same
-  // overrideAnnualCompetitionAssignment call the Manual Override form below
-  // already uses -- the auto-picker stays the source of truth by default,
-  // this only ever fires when an admin explicitly picks a row's dropdown
-  // and clicks Apply. Keyed by studentId so each row's pending selection is
-  // independent and never clobbers another row's.
+  // overrideAnnualCompetitionAssignment call the Universal Set Level bulk
+  // action below also uses -- the auto-picker stays the source of truth by
+  // default, this only ever fires when an admin explicitly picks a row's
+  // dropdown and clicks Apply. Keyed by studentId so each row's pending
+  // selection is independent and never clobbers another row's.
   const [RowOverrideLevelByStudentId, SetRowOverrideLevelByStudentId] = useState<Record<string, string>>({});
+
+  // 2026-09-28 (Shailesh, "Universal Set Level"): the level picked for a
+  // bulk override of every checked student, shown beside "Run Assignment
+  // Engine". Replaces the old standalone "Manual Override" form -- that
+  // form did the exact same single-student ADMIN_OVERRIDE write as the
+  // per-row Apply above, and everything it could do (override one student
+  // by code) is already covered by searching for that student in this
+  // table and using this same control on a selection of one.
+  const [BulkOverrideLevelCode, SetBulkOverrideLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
 
   // --- Points 2 & 3 (Shailesh, 2026-09-08): search/filter the Assignments
   // preview table, and select a subset of students to run the assignment
@@ -397,20 +404,9 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     },
   });
 
-  const OverrideMutation = useMutation({
-    mutationFn: () => overrideAnnualCompetitionAssignment(EventId, { studentId: OverrideStudentId.trim(), assignedLevelCode: OverrideLevelCode }),
-    onSuccess: () => {
-      SetLastMessage(`Assignment overridden for student ${OverrideStudentId.trim()}.`);
-      SetOverrideStudentId("");
-      InvalidatePreview();
-    },
-  });
-
-  // Point 1: same call as OverrideMutation above, just fed from a preview
-  // row's own dropdown instead of the separate text-field form. Tracked as
-  // its own mutation (rather than reusing OverrideMutation) so a save on
-  // one row never shows a pending/disabled state on an unrelated row or on
-  // the Manual Override form.
+  // Point 1: fed from a preview row's own dropdown -- one student at a
+  // time, independent of the bulk action below so a save on one row never
+  // shows a pending/disabled state on an unrelated row.
   const RowOverrideMutation = useMutation({
     mutationFn: (Vars: { StudentId: string; LevelCode: string }) =>
       overrideAnnualCompetitionAssignment(EventId, { studentId: Vars.StudentId, assignedLevelCode: Vars.LevelCode }),
@@ -421,6 +417,30 @@ export default function AdminAnnualCompetitionEventDetailPage() {
         delete Next[Vars.StudentId];
         return Next;
       });
+      InvalidatePreview();
+    },
+  });
+
+  // 2026-09-28 (Shailesh, "Universal Set Level"): fed from the checkbox
+  // selection already used to scope an engine run, plus BulkOverrideLevelCode
+  // -- one call, same ADMIN_OVERRIDE write as the per-row Apply above,
+  // applied to every selected student at once. A partial failure (e.g. one
+  // stale student id in a large selection) is surfaced in the message
+  // rather than silently swallowed, same as the failure reporting the
+  // Practice Bank's bulk-assign action already gives.
+  const BulkOverrideMutation = useMutation({
+    mutationFn: () =>
+      bulkOverrideAnnualCompetitionAssignments(EventId, {
+        studentIds: Array.from(SelectedStudentIdsForRun),
+        assignedLevelCode: BulkOverrideLevelCode,
+      }),
+    onSuccess: (Result) => {
+      SetLastMessage(
+        Result.studentsFailed > 0
+          ? `Set ${FormatCompetitionLevelLabel(Result.assignedLevelCode)} for ${Result.studentsSucceeded} of ${Result.studentsRequested} selected students -- ${Result.studentsFailed} failed (${Result.failed.map((F) => F.studentIdentifier).join(", ")}).`
+          : `Set ${FormatCompetitionLevelLabel(Result.assignedLevelCode)} for all ${Result.studentsSucceeded} selected students.`
+      );
+      SetSelectedStudentIdsForRun(new Set());
       InvalidatePreview();
     },
   });
@@ -521,7 +541,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     LinkPaperMutation.error ||
     UpdateTimerMutation.error ||
     RunEngineMutation.error ||
-    OverrideMutation.error ||
+    BulkOverrideMutation.error ||
     SetLockedMutation.error ||
     ReleaseResultsMutation.error ||
     (ActiveTab === "MONITORING" ? LiveMonitoringQuery.error : null) ||
@@ -972,6 +992,42 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                       ? `Run For ${SelectedStudentIdsForRun.size} Selected`
                       : "Run Assignment Engine (All Students)"}
                 </button>
+
+                {/* 2026-09-28 (Shailesh, "Universal Set Level"): set the SAME
+                    level for every checked student in one call, instead of one
+                    Set Level + Apply per row -- only meaningful once at least
+                    one row is checked, so it stays disabled (not hidden --
+                    the control's presence is the hint it exists) until then. */}
+                <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-2 py-1.5 dark:bg-slate-950/60">
+                  <UserCog size={14} className="ml-1 text-slate-400" />
+                  <div className="relative">
+                    <select
+                      aria-label="Level to set for every selected student"
+                      value={BulkOverrideLevelCode}
+                      disabled={SelectedStudentIdsForRun.size === 0}
+                      onChange={(EventValue) => SetBulkOverrideLevelCode(EventValue.target.value)}
+                      className="appearance-none rounded-full bg-transparent py-1 pl-2 pr-6 text-xs font-black text-slate-800 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-200"
+                    >
+                      {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                        <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={SelectedStudentIdsForRun.size === 0 || BulkOverrideMutation.isPending}
+                    onClick={() => BulkOverrideMutation.mutate()}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[image:var(--mp-role-action-bg)] px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {BulkOverrideMutation.isPending
+                      ? "Setting..."
+                      : SelectedStudentIdsForRun.size > 0
+                        ? `Set Level for ${SelectedStudentIdsForRun.size} Selected`
+                        : "Set Level for Selected"}
+                  </button>
+                </div>
+
                 {SelectedStudentIdsForRun.size > 0 && (
                   <button
                     type="button"
@@ -1183,38 +1239,6 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   />
                 </div>
               )}
-            </div>
-
-            <div className="math-card p-5">
-              <SectionTitle icon={<UserCog size={14} />} kicker="Manual Override" title="Override One Student's Assignment" description="Sets assignment_source = ADMIN_OVERRIDE -- the assignment engine will never touch this row again on a future run." />
-              <div className="mt-4 flex flex-wrap items-end gap-3">
-                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                  Student Code (or ID)
-                  <input
-                    value={OverrideStudentId}
-                    onChange={(EventValue) => SetOverrideStudentId(EventValue.target.value)}
-                    placeholder="e.g. MP-ST-005"
-                    className="math-input"
-                  />
-                </label>
-                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                  Assigned Level
-                  <select value={OverrideLevelCode} onChange={(EventValue) => SetOverrideLevelCode(EventValue.target.value)} className="math-input">
-                    {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                      <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  disabled={!OverrideStudentId.trim() || OverrideMutation.isPending}
-                  onClick={() => OverrideMutation.mutate()}
-                  className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <UserCog size={16} />
-                  {OverrideMutation.isPending ? "Saving..." : "Override Assignment"}
-                </button>
-              </div>
             </div>
           </div>
         )}
