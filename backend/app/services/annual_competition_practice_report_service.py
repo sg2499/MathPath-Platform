@@ -72,6 +72,7 @@ from __future__ import annotations
 
 import json
 import math
+from datetime import date as date_cls, datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -93,6 +94,20 @@ from app.services.annual_competition_studio_service import (
 # order for, so this list is what _PerLevelBreakdownForStudent actually
 # iterates.
 _LEVEL_CODE_DISPLAY_ORDER: list[str] = list(ANNUAL_COMPETITION_LEVEL_REGISTRY.keys())
+
+# Daily Practice Leaderboard feature (Shailesh, 2026-09-28): "which calendar
+# day did this attempt land on" is defined in IST -- the same timezone
+# convention attempt_service.py's own _PUNCTUALITY_IST already establishes
+# for the identical question (DPS on-time-submission checks). Kept as its
+# own local constant/helper here rather than imported from attempt_service.py,
+# matching that module's own stated reason for not centralizing it either.
+_IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def _aware(dt: datetime | None) -> datetime | None:
+    if dt is None:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def _RoundToInt(Value: float | int | None) -> int | None:
@@ -654,6 +669,137 @@ def GetAnnualCompetitionPracticeReportForLevel(
         "perSection": PerSection,
         "perStudent": PerStudent,
     }
+
+
+def _ParseDailyLeaderboardDate(RawDate: str) -> date_cls:
+    try:
+        return date_cls.fromisoformat((RawDate or "").strip())
+    except (TypeError, ValueError):
+        api_error(400, "VALIDATION_ERROR", "date must be in YYYY-MM-DD format.")
+
+
+# Daily Practice Leaderboard feature (Shailesh, 2026-09-28): "the teachers
+# want to see how each student performs on a particular day leading up to
+# the marquee event." A genuinely different view from
+# GetAnnualCompetitionPracticeReportForLevel above, not a filtered variant
+# of it -- that function's whole shape is attempt-WEIGHTED AVERAGES across
+# however many attempts a student has ever made ("avgScore", "avgTime", ...);
+# an "average" over a single day's attempts is not a meaningful concept the
+# same way (confirmed with Shailesh: daily mode drops the "avg" framing
+# entirely), and a student who practiced twice in one day needs one
+# coherent, real row -- not a blend of two different attempts' numbers that
+# never happened together.
+#
+# The resolved rule for a multi-attempt day (Shailesh, 2026-09-28, explicit
+# confirmation): the day's leaderboard row is that student's BEST attempt of
+# the day -- highest score wins, and that same winning attempt's own
+# accuracy and time taken travel with it. This is deliberate: pairing this
+# attempt's score with a DIFFERENT attempt's accuracy/time would describe a
+# performance that never actually happened. "Highest score day-wise" (also
+# requested) falls directly out of this -- it IS the score column once
+# you're already ranking on the day's best attempt, not a second stat to
+# compute separately. papersToday (this student's attempt count for the
+# selected day) rides along so a multi-attempt day stays visible/legible
+# rather than silently collapsing to one number with no context.
+def GetAnnualCompetitionPracticeDailyLeaderboardForLevel(
+    db: Session, *, CompetitionLevelCode: str, Date: str, StudentIdsFilter: list[str] | None = None
+) -> dict[str, Any]:
+    """Per-level Practice Leaderboard for exactly one IST calendar day.
+    Mirrors GetAnnualCompetitionPracticeReportForLevel's own roster-scoping
+    convention (StudentIdsFilter: None = unrestricted, explicit list =
+    that roster, explicit empty list = no students) and level validation.
+    See the comment above this function for the full "why" on best-attempt-
+    of-the-day and why this is a separate function rather than a date filter
+    bolted onto the cumulative one."""
+    _ValidateCompetitionLevelCode(CompetitionLevelCode)
+    TargetDate = _ParseDailyLeaderboardDate(Date)
+
+    ResultRecords = _ResultRowsForLevel(db, CompetitionLevelCode, StudentIdsFilter=StudentIdsFilter)
+    SubmittedAtByAttemptId = _SubmittedAtByAttemptId(db, ResultRecords)
+
+    # Keep only attempts whose IST calendar day matches TargetDate. A result
+    # whose attempt has no submitted_at (should not occur for a finalized
+    # PRACTICE result -- see _SubmittedAtByAttemptId's own docstring -- but
+    # handled defensively, matching this module's existing conventions)
+    # cannot be placed on any specific day and is excluded rather than
+    # guessed at.
+    DayRecords: list[CompetitionEventResult] = []
+    for ResultRecord in ResultRecords:
+        SubmittedAt = _aware(SubmittedAtByAttemptId.get(ResultRecord.attempt_id))
+        if SubmittedAt and SubmittedAt.astimezone(_IST).date() == TargetDate:
+            DayRecords.append(ResultRecord)
+
+    ResultsByStudent: dict[str, list[CompetitionEventResult]] = {}
+    for ResultRecord in DayRecords:
+        ResultsByStudent.setdefault(ResultRecord.student_id, []).append(ResultRecord)
+
+    StudentIds = list(ResultsByStudent.keys())
+    StudentsById = {
+        StudentRecord.id: StudentRecord for StudentRecord in db.query(Student).filter(Student.id.in_(StudentIds)).all()
+    } if StudentIds else {}
+
+    # Same denominator fix as the cumulative leaderboard (Shailesh,
+    # 2026-09-22): every student's score is shown/ranked out of the level's
+    # CURRENT canonical total, never whichever paper size their attempt
+    # happened to be generated under.
+    CanonicalTotal = _LevelCanonicalTotalQuestionCount(CompetitionLevelCode)
+
+    PerStudent: list[dict[str, Any]] = []
+    for SId, StudentResultRecords in ResultsByStudent.items():
+        StudentRecord = StudentsById.get(SId)
+        if not StudentRecord:
+            continue
+        # Best attempt of the day: highest score first, then time taken
+        # ascending (faster wins -- same tiebreak convention as the Official
+        # ranking fix and the cumulative leaderboard above), then this
+        # student's earliest attempt of the day as a final deterministic
+        # fallback if still tied on both.
+        BestRecord = min(
+            StudentResultRecords,
+            key=lambda R: (
+                -(R.score or 0.0),
+                R.time_taken_seconds if R.time_taken_seconds is not None else 10**9,
+                _aware(SubmittedAtByAttemptId.get(R.attempt_id)) or datetime.max.replace(tzinfo=timezone.utc),
+            ),
+        )
+        PerStudent.append(
+            {
+                "studentId": StudentRecord.id,
+                "studentName": _StudentDisplayName(StudentRecord),
+                "studentCode": StudentRecord.student_code,
+                "score": _RoundToInt(BestRecord.score),
+                "maxScore": CanonicalTotal if CanonicalTotal is not None else _RoundToInt(BestRecord.max_score),
+                "accuracyPercentage": _RoundToInt(BestRecord.accuracy_percentage),
+                "timeTakenSeconds": BestRecord.time_taken_seconds,
+                "papersToday": len(StudentResultRecords),
+            }
+        )
+
+    # Same score-first, time-second, studentCode-fallback ordering as the
+    # cumulative leaderboard's avgScore sort above -- deliberately not
+    # accuracy-first, for the exact same fairness reasoning.
+    PerStudent.sort(
+        key=lambda Row: (
+            Row["score"] is None,
+            -(Row["score"] or 0),
+            Row["timeTakenSeconds"] is None,
+            Row["timeTakenSeconds"] if Row["timeTakenSeconds"] is not None else 0,
+            Row["studentCode"] or "",
+        )
+    )
+    for Index, Row in enumerate(PerStudent):
+        Row["rank"] = Index + 1
+
+    return {
+        "competitionLevelCode": CompetitionLevelCode,
+        "date": TargetDate.isoformat(),
+        "summary": {
+            "studentsWithAttemptsCount": len(PerStudent),
+            "attemptsCount": len(DayRecords),
+        },
+        "perStudent": PerStudent,
+    }
+
 
 # Analytics Visualization feature, package 1 (Shailesh, 2026-09-22): the
 # cross-level "Overview" row -- one attempt-weighted summary PER LEVEL, in

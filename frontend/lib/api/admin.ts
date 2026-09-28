@@ -2529,6 +2529,59 @@ export async function getAnnualCompetitionPracticeReportForLevel(
   return data;
 }
 
+// Daily Practice Leaderboard feature (Shailesh, 2026-09-28): a genuinely
+// different shape from AnnualCompetitionPracticeReportStudentRow above, not
+// a filtered variant of it -- there is no "avg" anything here (a single
+// day isn't an average), and each row is that student's single BEST
+// attempt of the selected day, with accuracyPercentage/timeTakenSeconds
+// always sourced from that same winning attempt (never mixed with a
+// different attempt's numbers). See GetAnnualCompetitionPracticeDailyLeaderboardForLevel's
+// own docstring for the full "why".
+export type AnnualCompetitionPracticeDailyLeaderboardRow = {
+  studentId: string;
+  studentName: string | null;
+  studentCode: string | null;
+  rank: number;
+  score: number | null;
+  maxScore: number | null;
+  accuracyPercentage: number | null;
+  timeTakenSeconds: number | null;
+  // This student's total attempt count on the selected day -- shown
+  // alongside score/accuracy/time so a multi-attempt day stays visible
+  // rather than silently collapsing into one number with no context.
+  papersToday: number;
+};
+
+export type AnnualCompetitionPracticeDailyLeaderboardForLevel = {
+  competitionLevelCode: string;
+  // The IST calendar day this leaderboard is scoped to, "YYYY-MM-DD" --
+  // echoes back the requested date (not a UTC-shifted one), so the caller
+  // can confirm what it actually got.
+  date: string;
+  summary: {
+    studentsWithAttemptsCount: number;
+    attemptsCount: number;
+  };
+  // Sorted server-side, highest score first, faster time as tiebreak --
+  // see GetAnnualCompetitionPracticeDailyLeaderboardForLevel's own docstring.
+  perStudent: AnnualCompetitionPracticeDailyLeaderboardRow[];
+};
+
+// date must be "YYYY-MM-DD" -- the IST calendar day to show. Required, no
+// "all dates" mode, mirroring why getAnnualCompetitionPracticeReportForLevel
+// has no "all levels" mode: a leaderboard has to be scoped to one
+// comparable thing at a time.
+export async function getAnnualCompetitionPracticeDailyLeaderboardForLevel(
+  competitionLevelCode: string,
+  date: string
+): Promise<AnnualCompetitionPracticeDailyLeaderboardForLevel> {
+  const { data } = await api.get<AnnualCompetitionPracticeDailyLeaderboardForLevel>(
+    `/admin/annual-competition/practice-reports/level/${competitionLevelCode}/daily`,
+    { params: { date } }
+  );
+  return data;
+}
+
 // Analytics Visualization feature, package 1 (Shailesh, 2026-09-22): the
 // cross-level Overview row backing the new admin-only Visualization
 // sub-tab's level-comparison chart. avgPercentage on each row is already

@@ -633,6 +633,177 @@ def test_level_report_invalid_level_code_raises_400():
 
 
 # ---------------------------------------------------------------------------
+# Daily Practice Leaderboard (2026-09-28, Shailesh) --
+# GetAnnualCompetitionPracticeDailyLeaderboardForLevel
+# ---------------------------------------------------------------------------
+
+def test_daily_leaderboard_only_includes_attempts_on_the_selected_ist_day():
+    db = _session()
+    student = _student(db, "s-day")
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [1], "exam-day-a", "paper-day-a", "daya")
+    db.commit()
+    attempt_day1 = _attempt_and_answer_all(db, student, "PM-L2", "daya", [1], [True])
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [1], "exam-day-b", "paper-day-b", "dayb")
+    db.commit()
+    attempt_day2 = _attempt_and_answer_all(db, student, "PM-L2", "dayb", [1], [True])
+
+    # 10:00 IST on the 15th = 04:30 UTC; 10:00 IST on the 16th = 04:30 UTC
+    # the next day. Both comfortably inside their own IST calendar day.
+    db.get(CompetitionEventAttempt, attempt_day1).submitted_at = datetime(2026, 9, 15, 4, 30, 0, tzinfo=timezone.utc)
+    db.get(CompetitionEventAttempt, attempt_day2).submitted_at = datetime(2026, 9, 16, 4, 30, 0, tzinfo=timezone.utc)
+    db.commit()
+
+    day1 = report_service.GetAnnualCompetitionPracticeDailyLeaderboardForLevel(db, CompetitionLevelCode="PM-L2", Date="2026-09-15")
+    assert day1["date"] == "2026-09-15"
+    assert day1["summary"]["attemptsCount"] == 1
+    assert [row["studentId"] for row in day1["perStudent"]] == ["s-day"]
+
+    day2 = report_service.GetAnnualCompetitionPracticeDailyLeaderboardForLevel(db, CompetitionLevelCode="PM-L2", Date="2026-09-16")
+    assert day2["summary"]["attemptsCount"] == 1
+
+    empty_day = report_service.GetAnnualCompetitionPracticeDailyLeaderboardForLevel(db, CompetitionLevelCode="PM-L2", Date="2026-09-17")
+    assert empty_day["summary"]["attemptsCount"] == 0
+    assert empty_day["summary"]["studentsWithAttemptsCount"] == 0
+    assert empty_day["perStudent"] == []
+
+
+def test_daily_leaderboard_ist_boundary_near_midnight_utc():
+    """A submission just after UTC midnight can still be the PREVIOUS IST
+    calendar day (IST is UTC+5:30) -- 00:10 UTC on the 16th is 05:40 IST,
+    still the 16th; but 18:10 UTC on the 15th is 23:40 IST, still the 15th,
+    while 18:40 UTC on the 15th is 00:10 IST on the 16th. This test pins
+    that exact rollover so a naive UTC-date comparison could never pass it
+    by accident."""
+    db = _session()
+    student = _student(db, "s-boundary")
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [1], "exam-boundary", "paper-boundary", "bnd")
+    db.commit()
+    attempt_id = _attempt_and_answer_all(db, student, "PM-L2", "bnd", [1], [True])
+    # 18:40 UTC on 2026-09-15 = 00:10 IST on 2026-09-16.
+    db.get(CompetitionEventAttempt, attempt_id).submitted_at = datetime(2026, 9, 15, 18, 40, 0, tzinfo=timezone.utc)
+    db.commit()
+
+    still_the_15th_utc = report_service.GetAnnualCompetitionPracticeDailyLeaderboardForLevel(db, CompetitionLevelCode="PM-L2", Date="2026-09-15")
+    assert still_the_15th_utc["summary"]["attemptsCount"] == 0  # already the 16th in IST
+
+    correct_ist_day = report_service.GetAnnualCompetitionPracticeDailyLeaderboardForLevel(db, CompetitionLevelCode="PM-L2", Date="2026-09-16")
+    assert correct_ist_day["summary"]["attemptsCount"] == 1
+
+
+def test_daily_leaderboard_best_attempt_of_day_wins_and_papers_today_counts_both():
+    """2026-09-28 (Shailesh, explicit confirmation): a student who practices
+    twice in one day shows up as ONE row, driven by their best (highest-
+    score) attempt of that day -- and that attempt's own accuracy/time
+    travel with it, never averaged or mixed with the other attempt's
+    numbers. papersToday reports the real count (2) so the multi-attempt
+    day stays visible."""
+    db = _session()
+    student = _student(db, "s-multi")
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [4], "exam-multi-a", "paper-multi-a", "multia")
+    db.commit()
+    # Weaker attempt: 1/4 correct.
+    weak_attempt = _attempt_and_answer_all(db, student, "PM-L2", "multia", [4], [True, False, False, False])
+
+    _setup_practice_paper(db, student.id, "PM-L2", (600,), [4], "exam-multi-b", "paper-multi-b", "multib")
+    db.commit()
+    # Stronger attempt, later the same IST day: 3/4 correct.
+    strong_attempt = _attempt_and_answer_all(db, student, "PM-L2", "multib", [4], [True, True, True, False])
+
+    same_day = datetime(2026, 9, 15, 4, 0, 0, tzinfo=timezone.utc)
+    later_same_day = datetime(2026, 9, 15, 10, 0, 0, tzinfo=timezone.utc)
+    db.get(CompetitionEventAttempt, weak_attempt).submitted_at = same_day
+    db.get(CompetitionEventAttempt, strong_attempt).submitted_at = later_same_day
+    # Distinct, known time_taken_seconds on the strong result so the row's
+    # timeTakenSeconds is verifiably sourced from THIS attempt, not the weak
+    # one -- a mismatched pairing is exactly the bug this design avoids.
+    db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == weak_attempt).one().time_taken_seconds = 50
+    db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == strong_attempt).one().time_taken_seconds = 120
+    db.commit()
+
+    result = report_service.GetAnnualCompetitionPracticeDailyLeaderboardForLevel(db, CompetitionLevelCode="PM-L2", Date="2026-09-15")
+
+    assert result["summary"]["attemptsCount"] == 2  # both attempts counted in the day's total...
+    assert len(result["perStudent"]) == 1  # ...but collapse to one row for this student
+    Row = result["perStudent"][0]
+    assert Row["score"] == 3  # the STRONG attempt's score, not an average of 1 and 3
+    assert Row["accuracyPercentage"] == 75.0  # the strong attempt's own accuracy (3/4)
+    assert Row["timeTakenSeconds"] == 120  # the strong attempt's own time, never the weak one's
+    assert Row["papersToday"] == 2
+    assert Row["rank"] == 1
+
+
+def test_daily_leaderboard_time_taken_breaks_a_same_day_score_tie():
+    db = _session()
+    fast = _student(db, "s-fast")
+    slow = _student(db, "s-slow")
+    _setup_practice_paper(db, fast.id, "PM-L2", (600,), [2], "exam-fast", "paper-fast", "fast")
+    db.commit()
+    attempt_fast = _attempt_and_answer_all(db, fast, "PM-L2", "fast", [2], [True, True])
+    _setup_practice_paper(db, slow.id, "PM-L2", (600,), [2], "exam-slow", "paper-slow", "slow")
+    db.commit()
+    attempt_slow = _attempt_and_answer_all(db, slow, "PM-L2", "slow", [2], [True, True])
+
+    same_day = datetime(2026, 9, 15, 5, 0, 0, tzinfo=timezone.utc)
+    db.get(CompetitionEventAttempt, attempt_fast).submitted_at = same_day
+    db.get(CompetitionEventAttempt, attempt_slow).submitted_at = same_day
+    db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == attempt_fast).one().time_taken_seconds = 60
+    db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == attempt_slow).one().time_taken_seconds = 180
+    db.commit()
+
+    result = report_service.GetAnnualCompetitionPracticeDailyLeaderboardForLevel(db, CompetitionLevelCode="PM-L2", Date="2026-09-15")
+    by_student = {row["studentId"]: row for row in result["perStudent"]}
+    assert by_student["s-fast"]["score"] == by_student["s-slow"]["score"] == 2
+    assert by_student["s-fast"]["rank"] == 1  # tied score, faster time wins
+    assert by_student["s-slow"]["rank"] == 2
+
+
+def test_daily_leaderboard_roster_scoping_excludes_other_students():
+    db = _session()
+    mine = _student(db, "s-daily-mine")
+    other = _student(db, "s-daily-other")
+    _setup_practice_paper(db, mine.id, "PM-L2", (600,), [1], "exam-daily-mine", "paper-daily-mine", "dmine")
+    db.commit()
+    attempt_mine = _attempt_and_answer_all(db, mine, "PM-L2", "dmine", [1], [True])
+    _setup_practice_paper(db, other.id, "PM-L2", (600,), [1], "exam-daily-other", "paper-daily-other", "dother")
+    db.commit()
+    attempt_other = _attempt_and_answer_all(db, other, "PM-L2", "dother", [1], [True])
+
+    same_day = datetime(2026, 9, 15, 5, 0, 0, tzinfo=timezone.utc)
+    db.get(CompetitionEventAttempt, attempt_mine).submitted_at = same_day
+    db.get(CompetitionEventAttempt, attempt_other).submitted_at = same_day
+    db.commit()
+
+    result = report_service.GetAnnualCompetitionPracticeDailyLeaderboardForLevel(
+        db, CompetitionLevelCode="PM-L2", Date="2026-09-15", StudentIdsFilter=[mine.id]
+    )
+    assert result["summary"]["attemptsCount"] == 1
+    assert [row["studentId"] for row in result["perStudent"]] == ["s-daily-mine"]
+
+
+def test_daily_leaderboard_empty_roster_short_circuits():
+    db = _session()
+    result = report_service.GetAnnualCompetitionPracticeDailyLeaderboardForLevel(
+        db, CompetitionLevelCode="PM-L2", Date="2026-09-15", StudentIdsFilter=[]
+    )
+    assert result["summary"]["attemptsCount"] == 0
+    assert result["perStudent"] == []
+
+
+def test_daily_leaderboard_invalid_level_code_raises_400():
+    db = _session()
+    with pytest.raises(HTTPException) as excinfo:
+        report_service.GetAnnualCompetitionPracticeDailyLeaderboardForLevel(db, CompetitionLevelCode="NOT-A-LEVEL", Date="2026-09-15")
+    assert excinfo.value.status_code == 400
+
+
+def test_daily_leaderboard_invalid_date_raises_400():
+    db = _session()
+    with pytest.raises(HTTPException) as excinfo:
+        report_service.GetAnnualCompetitionPracticeDailyLeaderboardForLevel(db, CompetitionLevelCode="PM-L2", Date="not-a-date")
+    assert excinfo.value.status_code == 400
+
+
+# ---------------------------------------------------------------------------
 # Practice bank completion (assigned vs completed)
 # ---------------------------------------------------------------------------
 

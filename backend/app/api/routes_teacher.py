@@ -37,6 +37,7 @@ from app.services.annual_competition_attempt_service import GetCompetitionEventA
 from app.services.annual_competition_practice_report_service import (
     GetAnnualCompetitionPracticeReportForStudent,
     GetAnnualCompetitionPracticeReportForLevel,
+    GetAnnualCompetitionPracticeDailyLeaderboardForLevel,
 )
 from app.services.route_harmonization_service import EmptyTeacherAssignmentOptionsResponse, EmptyTeacherDpsOptionsResponse
 from app.services.assessment_feedback_service import upsert_assessment_remark, assessment_feedback_payload, active_assessment_remark
@@ -378,6 +379,19 @@ def teacher_get_annual_competition_practice_report_for_level(
     student_ids = [student.id for student in own_students_query(db, teacher).filter(Student.is_active == True).all()]
     return GetAnnualCompetitionPracticeReportForLevel(
         db, CompetitionLevelCode=competition_level_code, StudentIdsFilter=student_ids
+    )
+
+
+# Daily Practice Leaderboard feature (Shailesh, 2026-09-28): teacher's own
+# roster-scoped sibling of the admin daily route above, mirroring how the
+# cumulative level route is scoped just above this one.
+@router.get("/competition/annual/practice-reports/level/{competition_level_code}/daily")
+def teacher_get_annual_competition_practice_daily_leaderboard_for_level(
+    competition_level_code: str, date: str, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)
+):
+    student_ids = [student.id for student in own_students_query(db, teacher).filter(Student.is_active == True).all()]
+    return GetAnnualCompetitionPracticeDailyLeaderboardForLevel(
+        db, CompetitionLevelCode=competition_level_code, Date=date, StudentIdsFilter=student_ids
     )
 
 
