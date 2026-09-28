@@ -114,6 +114,7 @@ from app.services.annual_competition_studio_service import (
     ListCompetitionEventLevelPapers,
     UpdateCompetitionEventSectionTimer,
     OverrideCompetitionEventAssignment,
+    BulkOverrideCompetitionEventAssignments,
     SuspendCompetitionEvent,
     LiftCompetitionEventSuspension,
     BatchAssignAnnualCompetitionPracticePapers,
@@ -232,6 +233,14 @@ class AnnualCompetitionOverrideRequest(BaseModel):
     studentId: str
     assignedLevelCode: str
     slotId: str | None = None
+
+# 2026-09-28 (Shailesh, Universal Set Level): the multi-select counterpart
+# to AnnualCompetitionOverrideRequest above -- no slotId, same as the bulk
+# service function (no caller passes an explicit slot for a multi-student
+# override any more than the single-student form did).
+class AnnualCompetitionBulkOverrideRequest(BaseModel):
+    studentIds: list[str]
+    assignedLevelCode: str
 
 class AnnualCompetitionGrantRetryRequest(BaseModel):
     attemptId: str
@@ -6130,6 +6139,23 @@ def admin_override_annual_competition_assignment(
         AssignedLevelCode=payload.assignedLevelCode,
         OverriddenBy=user,
         SlotId=payload.slotId,
+    )
+
+
+# 2026-09-28 (Shailesh, Universal Set Level): multi-select counterpart to
+# the single-student override route above -- lives beside "Run Assignment
+# Engine" on the Assignments tab, driven by the same checkbox selection
+# already used to scope an engine run.
+@router.post("/annual-competition/events/{event_id}/assignments/override-bulk")
+def admin_bulk_override_annual_competition_assignments(
+    event_id: str, payload: AnnualCompetitionBulkOverrideRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return BulkOverrideCompetitionEventAssignments(
+        db,
+        EventId=event_id,
+        StudentIds=payload.studentIds,
+        AssignedLevelCode=payload.assignedLevelCode,
+        OverriddenBy=user,
     )
 
 

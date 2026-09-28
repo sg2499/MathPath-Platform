@@ -870,25 +870,31 @@ def _ResolveStudentByIdOrCode(db: Session, StudentIdentifier: str) -> Student:
     return StudentRecord
 
 
-def OverrideCompetitionEventAssignment(
+# 2026-09-28 (Shailesh, Universal Set Level): the per-student upsert core
+# shared by both OverrideCompetitionEventAssignment (single student -- the
+# per-row "Set Level" + Apply action) and BulkOverrideCompetitionEventAssignments
+# (the new "Universal Set Level" action for a multi-checkbox selection).
+# Deliberately does NOT commit -- the single-student caller commits once
+# immediately after; the bulk caller commits per-student inside its own
+# try/except so one bad student id in a large selection never rolls back
+# students already written earlier in the same call (identical isolation
+# strategy to BatchAssignAnnualCompetitionPracticePapers below).
+def _ApplyCompetitionEventAssignmentOverride(
     db: Session,
     *,
     EventId: str,
-    StudentId: str,
+    StudentRecord: Student,
     AssignedLevelCode: str,
     OverriddenBy: User,
     SlotId: str | None = None,
-) -> dict[str, Any]:
-    _GetEventOr404(db, EventId)
-    _ValidateCompetitionLevelCode(AssignedLevelCode)
-    StudentRecord = _ResolveStudentByIdOrCode(db, StudentId)
+) -> CompetitionEventAssignment:
     if SlotId is not None:
         SlotRecord = db.get(CompetitionEventSlot, SlotId)
         if not SlotRecord or SlotRecord.event_id != EventId:
             api_error(404, "COMPETITION_SLOT_NOT_FOUND", "The selected slot was not found for this event.")
     else:
-        # No caller passes an explicit SlotId today (the admin override form
-        # has no slot picker) -- auto-match by level code so this path isn't
+        # No caller passes an explicit SlotId today (neither override form
+        # has a slot picker) -- auto-match by level code so this path isn't
         # silently dead. See _ResolveSlotIdForLevelCode's own docstring.
         SlotId = _ResolveSlotIdForLevelCode(db, EventId, AssignedLevelCode)
 
@@ -915,6 +921,29 @@ def OverrideCompetitionEventAssignment(
             is_active=True,
         )
         db.add(AssignmentRecord)
+    return AssignmentRecord
+
+
+def OverrideCompetitionEventAssignment(
+    db: Session,
+    *,
+    EventId: str,
+    StudentId: str,
+    AssignedLevelCode: str,
+    OverriddenBy: User,
+    SlotId: str | None = None,
+) -> dict[str, Any]:
+    _GetEventOr404(db, EventId)
+    _ValidateCompetitionLevelCode(AssignedLevelCode)
+    StudentRecord = _ResolveStudentByIdOrCode(db, StudentId)
+    AssignmentRecord = _ApplyCompetitionEventAssignmentOverride(
+        db,
+        EventId=EventId,
+        StudentRecord=StudentRecord,
+        AssignedLevelCode=AssignedLevelCode,
+        OverriddenBy=OverriddenBy,
+        SlotId=SlotId,
+    )
     db.commit()
     db.refresh(AssignmentRecord)
     return {
@@ -925,6 +954,83 @@ def OverrideCompetitionEventAssignment(
         "slotId": AssignmentRecord.slot_id,
         "assignmentSource": AssignmentRecord.assignment_source,
         "overriddenByUserId": AssignmentRecord.overridden_by_user_id,
+    }
+
+
+# Safety cap for the bulk override call -- generous relative to
+# PRACTICE_BULK_MAX_STUDENTS_PER_CALL (25) because this is a single
+# lightweight upsert per student (no paper generation, no heavy work),
+# not a timeout risk at realistic roster sizes (a level's full roster
+# considered by the Assignment Engine preview has been ~150-200 students
+# in practice) -- the cap exists only to stop a pathological request, not
+# to force real admin usage into repeated calls.
+ANNUAL_COMPETITION_BULK_OVERRIDE_MAX_STUDENTS_PER_CALL = 500
+
+
+def BulkOverrideCompetitionEventAssignments(
+    db: Session,
+    *,
+    EventId: str,
+    StudentIds: list[str],
+    AssignedLevelCode: str,
+    OverriddenBy: User,
+) -> dict[str, Any]:
+    """Admin action (2026-09-28, "Universal Set Level"): the multi-select
+    counterpart to OverrideCompetitionEventAssignment -- sets the SAME
+    ADMIN_OVERRIDE assignment for every listed student at once, instead of
+    one Apply click per row. Lives beside the Run Assignment Engine button
+    on the Assignments tab, driven by the same checkbox selection already
+    used to scope an engine run.
+
+    Each student is processed and committed independently (same isolation
+    strategy as BatchAssignAnnualCompetitionPracticePapers): one bad
+    student id in a large selection is reported as a failure for that
+    student only, never loses the overrides already committed for students
+    processed earlier in the same call.
+    """
+    _GetEventOr404(db, EventId)
+    _ValidateCompetitionLevelCode(AssignedLevelCode)
+
+    CleanedStudentIds = [Id for Id in dict.fromkeys([str(Item or "").strip() for Item in (StudentIds or [])]) if Id]
+    if not CleanedStudentIds:
+        api_error(400, "VALIDATION_ERROR", "At least one student is required.")
+    if len(CleanedStudentIds) > ANNUAL_COMPETITION_BULK_OVERRIDE_MAX_STUDENTS_PER_CALL:
+        api_error(
+            400,
+            "ANNUAL_COMPETITION_BULK_OVERRIDE_TOO_MANY_STUDENTS",
+            f"This action sets the level for at most {ANNUAL_COMPETITION_BULK_OVERRIDE_MAX_STUDENTS_PER_CALL} "
+            "students per call -- call it again for the remaining students.",
+            {"maxStudentsPerCall": ANNUAL_COMPETITION_BULK_OVERRIDE_MAX_STUDENTS_PER_CALL},
+        )
+
+    Succeeded: list[dict[str, Any]] = []
+    Failed: list[dict[str, Any]] = []
+    for StudentIdentifier in CleanedStudentIds:
+        try:
+            StudentRecord = _ResolveStudentByIdOrCode(db, StudentIdentifier)
+            AssignmentRecord = _ApplyCompetitionEventAssignmentOverride(
+                db,
+                EventId=EventId,
+                StudentRecord=StudentRecord,
+                AssignedLevelCode=AssignedLevelCode,
+                OverriddenBy=OverriddenBy,
+            )
+            db.commit()
+            db.refresh(AssignmentRecord)
+        except Exception as Error:  # noqa: BLE001 -- one bad student must never abort the rest of the batch
+            db.rollback()
+            Failed.append({"studentIdentifier": StudentIdentifier, "reason": str(getattr(Error, "detail", None) or Error)})
+            continue
+        Succeeded.append({"studentId": AssignmentRecord.student_id, "studentCode": StudentRecord.student_code})
+
+    return {
+        "eventId": EventId,
+        "assignedLevelCode": AssignedLevelCode,
+        "studentsRequested": len(CleanedStudentIds),
+        "studentsSucceeded": len(Succeeded),
+        "studentsFailed": len(Failed),
+        "succeeded": Succeeded,
+        "failed": Failed,
     }
 
 

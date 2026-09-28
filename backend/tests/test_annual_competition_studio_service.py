@@ -1006,6 +1006,154 @@ def test_manual_override_unknown_student_identifier_is_a_clean_404():
 
 
 # ---------------------------------------------------------------------------
+# Universal Set Level (bulk override), 2026-09-28
+#
+# The multi-select counterpart to OverrideCompetitionEventAssignment above --
+# same ADMIN_OVERRIDE write, applied to every listed student in one call
+# instead of one Apply click per row. See BulkOverrideCompetitionEvent
+# Assignments's own docstring for the per-student commit isolation design.
+# ---------------------------------------------------------------------------
+
+def _three_students(db, module, level):
+    students = []
+    for i in range(1, 4):
+        user = User(
+            id=f"user-s{i}", full_name=f"S{i}", email=f"s{i}@example.test", password_hash="x", role="STUDENT", is_active=True
+        )
+        student = Student(
+            id=f"s{i}", user_id=user.id, student_code=f"MP-S{i}", current_module_id=module.id, current_level_id=level.id, is_active=True
+        )
+        db.add_all([user, student])
+        students.append(student)
+    return students
+
+
+def test_bulk_override_sets_the_same_level_for_every_selected_student():
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    _three_students(db, module, level)
+    _event(db)
+    db.commit()
+
+    result = studio.BulkOverrideCompetitionEventAssignments(
+        db, EventId="event-1", StudentIds=["s1", "s2", "s3"], AssignedLevelCode="PM-L1", OverriddenBy=admin
+    )
+    assert result["studentsRequested"] == 3
+    assert result["studentsSucceeded"] == 3
+    assert result["studentsFailed"] == 0
+    assert result["assignedLevelCode"] == "PM-L1"
+    assert {Entry["studentId"] for Entry in result["succeeded"]} == {"s1", "s2", "s3"}
+
+    Rows = db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.event_id == "event-1").all()
+    assert len(Rows) == 3
+    for Row in Rows:
+        assert Row.assigned_level_code == "PM-L1"
+        assert Row.assignment_source == "ADMIN_OVERRIDE"
+        assert Row.overridden_by_user_id == admin.id
+
+
+def test_bulk_override_one_bad_student_id_does_not_lose_the_others():
+    """Same isolation guarantee as BatchAssignAnnualCompetitionPracticePapers:
+    a bad id anywhere in the selection must not roll back students already
+    committed earlier in the same call, and must be reported back as its
+    own failure entry rather than aborting the whole request."""
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    _three_students(db, module, level)
+    _event(db)
+    db.commit()
+
+    result = studio.BulkOverrideCompetitionEventAssignments(
+        db,
+        EventId="event-1",
+        StudentIds=["s1", "MP-ST-999-DOES-NOT-EXIST", "s2"],
+        AssignedLevelCode="PM-L1",
+        OverriddenBy=admin,
+    )
+    assert result["studentsRequested"] == 3
+    assert result["studentsSucceeded"] == 2
+    assert result["studentsFailed"] == 1
+    assert result["failed"][0]["studentIdentifier"] == "MP-ST-999-DOES-NOT-EXIST"
+    assert {Entry["studentId"] for Entry in result["succeeded"]} == {"s1", "s2"}
+
+    Rows = db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.event_id == "event-1").all()
+    assert len(Rows) == 2
+
+
+def test_bulk_override_dedupes_repeated_student_ids():
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    _three_students(db, module, level)
+    _event(db)
+    db.commit()
+
+    result = studio.BulkOverrideCompetitionEventAssignments(
+        db, EventId="event-1", StudentIds=["s1", "s1", " s1 "], AssignedLevelCode="PM-L1", OverriddenBy=admin
+    )
+    assert result["studentsRequested"] == 1
+    assert result["studentsSucceeded"] == 1
+    assert db.query(CompetitionEventAssignment).count() == 1
+
+
+def test_bulk_override_updates_an_existing_assignment_not_a_duplicate_row():
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    _three_students(db, module, level)
+    _event(db)
+    db.commit()
+
+    studio.OverrideCompetitionEventAssignment(db, EventId="event-1", StudentId="s1", AssignedLevelCode="PM-L2", OverriddenBy=admin)
+    assert db.query(CompetitionEventAssignment).count() == 1
+
+    studio.BulkOverrideCompetitionEventAssignments(
+        db, EventId="event-1", StudentIds=["s1", "s2"], AssignedLevelCode="PM-L1", OverriddenBy=admin
+    )
+    assert db.query(CompetitionEventAssignment).count() == 2
+    Row = db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.student_id == "s1").one()
+    assert Row.assigned_level_code == "PM-L1"
+
+
+def test_bulk_override_rejects_invalid_level_code():
+    db = _session()
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+    with pytest.raises(HTTPException):
+        studio.BulkOverrideCompetitionEventAssignments(
+            db, EventId="event-1", StudentIds=["s1"], AssignedLevelCode="BM-L1", OverriddenBy=admin
+        )
+
+
+def test_bulk_override_requires_at_least_one_student():
+    db = _session()
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+    with pytest.raises(HTTPException) as excinfo:
+        studio.BulkOverrideCompetitionEventAssignments(
+            db, EventId="event-1", StudentIds=[], AssignedLevelCode="PM-L1", OverriddenBy=admin
+        )
+    assert excinfo.value.status_code == 400
+
+
+def test_bulk_override_rejects_more_than_the_per_call_cap():
+    db = _session()
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+    TooMany = [f"s{i}" for i in range(studio.ANNUAL_COMPETITION_BULK_OVERRIDE_MAX_STUDENTS_PER_CALL + 1)]
+    with pytest.raises(HTTPException) as excinfo:
+        studio.BulkOverrideCompetitionEventAssignments(
+            db, EventId="event-1", StudentIds=TooMany, AssignedLevelCode="PM-L1", OverriddenBy=admin
+        )
+    assert excinfo.value.status_code == 400
+
+
+# ---------------------------------------------------------------------------
 # Manual override -- auto-linking a matching slot (2026-09-08 regression)
 #
 # Found live: an admin created an IM-L4 slot, then manually overrode two
