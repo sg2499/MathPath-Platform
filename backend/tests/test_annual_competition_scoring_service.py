@@ -581,7 +581,7 @@ def _submit_full_attempt(db, student, event_id, answers_by_question_id, section_
     return attempt_id
 
 
-def test_ranking_orders_by_accuracy_then_time():
+def test_ranking_orders_by_score_then_time():
     db = _session()
     event = _event(db)
     # Both students share the SAME exam/level-paper (shared paper fairness).
@@ -589,9 +589,9 @@ def test_ranking_orders_by_accuracy_then_time():
     student_b = _setup_student_with_questions(db, "sB", event.id, section_seconds=(600,), questions_per_section=[2], exam_id="exam-shared", level_paper_id="paper-shared")
     db.commit()
 
-    # Student A: both correct (100% accuracy).
+    # Student A: both correct (score 2).
     _submit_full_attempt(db, student_a, event.id, {"q-1-1": True, "q-1-2": True})
-    # Student B: one correct, one wrong (50% accuracy).
+    # Student B: one correct, one wrong (score 1).
     _submit_full_attempt(db, student_b, event.id, {"q-1-1": True, "q-1-2": False})
 
     outcome = scoring.RankCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode="PM-L2")
@@ -599,18 +599,20 @@ def test_ranking_orders_by_accuracy_then_time():
 
     result_a = db.query(CompetitionEventResult).filter_by(student_id="sA").one()
     result_b = db.query(CompetitionEventResult).filter_by(student_id="sB").one()
+    assert result_a.score == 2
+    assert result_b.score == 1
     assert result_a.rank == 1
     assert result_b.rank == 2
 
 
-def test_ranking_time_breaks_accuracy_tie():
+def test_ranking_time_breaks_score_tie():
     db = _session()
     event = _event(db)
     student_a = _setup_student_with_questions(db, "sA", event.id, section_seconds=(600,), questions_per_section=[2], exam_id="exam-shared", level_paper_id="paper-shared")
     student_b = _setup_student_with_questions(db, "sB", event.id, section_seconds=(600,), questions_per_section=[2], exam_id="exam-shared", level_paper_id="paper-shared")
     db.commit()
 
-    # Both get 100% accuracy, but student A finishes faster.
+    # Both score 2/2, but student A finishes faster.
     started_a = attempt_engine.StartCompetitionEventAttempt(db, student_a, event.id)
     _answer(db, student_a, started_a["attemptId"], started_a["sessionToken"], 1, "q-1-1", correct=True)
     _answer(db, student_a, started_a["attemptId"], started_a["sessionToken"], 1, "q-1-2", correct=True)
@@ -631,7 +633,8 @@ def test_ranking_time_breaks_accuracy_tie():
 
     result_a = db.query(CompetitionEventResult).filter_by(student_id="sA").one()
     result_b = db.query(CompetitionEventResult).filter_by(student_id="sB").one()
-    assert result_a.rank == 1  # faster, same accuracy
+    assert result_a.score == result_b.score
+    assert result_a.rank == 1  # faster, same score
     assert result_b.rank == 2
 
 
@@ -642,7 +645,7 @@ def test_ranking_later_first_mistake_wins_full_tie():
     student_b = _setup_student_with_questions(db, "sB", event.id, section_seconds=(600,), questions_per_section=[4], exam_id="exam-shared", level_paper_id="paper-shared")
     db.commit()
 
-    # Both: 2 correct, 2 wrong (50% accuracy), same time taken.
+    # Both: 2 correct, 2 wrong (score 2, tied), same time taken.
     # Student A's first mistake is on question 1 (early).
     # Student B's first mistake is on question 3 (later) -- B should win.
     started_a = attempt_engine.StartCompetitionEventAttempt(db, student_a, event.id)
@@ -669,24 +672,25 @@ def test_ranking_later_first_mistake_wins_full_tie():
 
     result_a = db.query(CompetitionEventResult).filter_by(student_id="sA").one()
     result_b = db.query(CompetitionEventResult).filter_by(student_id="sB").one()
-    assert result_a.accuracy_percentage == result_b.accuracy_percentage
+    assert result_a.score == result_b.score
     assert result_a.time_taken_seconds == result_b.time_taken_seconds
     assert result_b.rank == 1  # B's first mistake (Q3) came later than A's (Q1)
     assert result_a.rank == 2
 
 
-def test_ranking_zero_wrong_outranks_one_wrong_via_accuracy_alone():
-    """2026-09-14 (Shailesh, accuracy-formula fix): before the fix, this
-    exact scenario (A: 3 correct + 1 unanswered; B: 3 correct + 1 wrong)
-    computed as a 75%/75% ACCURACY TIE under the old total-questions
-    denominator, requiring the first-mistake tie-break
-    (test_ranking_later_first_mistake_wins_full_tie, above) to separate
-    them. Under the corrected attempted-questions denominator, a student
-    with zero wrong answers always reads 100% accuracy the moment they've
-    attempted anything, so A (3 correct / 3 attempted = 100%) now
-    genuinely outranks B (3 correct / 4 attempted = 75%) on accuracy% alone
-    -- no tie, no tie-break needed. This is a direct regression test for
-    the accuracy fix itself, exercised through the real ranking pipeline.
+def test_ranking_score_tie_falls_through_to_first_mistake_tiebreak():
+    """2026-09-28 (Shailesh, ranking-formula correction): this scenario
+    (A: 3 correct + 1 unanswered; B: 3 correct + 1 wrong) used to be
+    decided by accuracy_percentage alone (A=100%, B=75%, no tie) back when
+    accuracy was the primary ranking key -- see the module docstring's
+    "2026-09-28 correction". Now that raw `score` is the primary key, A
+    and B are tied (score 3 each: unanswered and wrong both earn zero, but
+    only the wrong one counts as a "mistake"), same time taken, so the
+    result now falls all the way through to the first-mistake tiebreak: A
+    never made a mistake (sentinel) and B's first mistake is question 4, so
+    A still wins -- same final ranking as before, but via the tiebreak
+    chain instead of accuracy%, confirming accuracy is no longer consulted
+    for ranking at all.
     """
     db = _session()
     event = _event(db)
@@ -720,11 +724,59 @@ def test_ranking_zero_wrong_outranks_one_wrong_via_accuracy_alone():
 
     result_a = db.query(CompetitionEventResult).filter_by(student_id="sA").one()
     result_b = db.query(CompetitionEventResult).filter_by(student_id="sB").one()
+    assert result_a.score == result_b.score == 3
     assert result_a.accuracy_percentage == 100.0
     assert result_b.accuracy_percentage == 75.0
     assert result_a.time_taken_seconds == result_b.time_taken_seconds
-    assert result_a.rank == 1  # 100% accuracy beats 75%, no tie-break involved
+    assert result_a.rank == 1  # score tied -> time tied -> A's later (no) first mistake wins
     assert result_b.rank == 2
+
+
+def test_ranking_higher_score_beats_higher_accuracy_percentage():
+    """The exact glitch Shailesh reported live from the Test Competition
+    standings (2026-09-28): a student who attempts very few questions and
+    gets them all right reads 100% accuracy and was outranking a student
+    who attempted and scored far more but missed a couple along the way --
+    backwards for a competition, where raw score should win. Student A
+    attempts just 1 question and gets it right (score 1, 100% accuracy).
+    Student B attempts all 4 and gets 3 right, 1 wrong (score 3, 75%
+    accuracy). B has the lower accuracy but the higher score, and must
+    rank #1.
+    """
+    db = _session()
+    event = _event(db)
+    student_a = _setup_student_with_questions(db, "sA", event.id, section_seconds=(600,), questions_per_section=[4], exam_id="exam-shared", level_paper_id="paper-shared")
+    student_b = _setup_student_with_questions(db, "sB", event.id, section_seconds=(600,), questions_per_section=[4], exam_id="exam-shared", level_paper_id="paper-shared")
+    db.commit()
+
+    started_a = attempt_engine.StartCompetitionEventAttempt(db, student_a, event.id)
+    _answer(db, student_a, started_a["attemptId"], started_a["sessionToken"], 1, "q-1-1", correct=True)
+    # q-1-2, q-1-3, q-1-4 left unanswered.
+    section_a = db.query(CompetitionEventAttemptSectionState).filter_by(attempt_id=started_a["attemptId"], section_number=1).first()
+    section_a.remaining_seconds_at_last_heartbeat = 400
+    db.commit()
+    attempt_engine.SubmitCompetitionEventSection(db, student_a, started_a["attemptId"], started_a["sessionToken"], 1)
+
+    started_b = attempt_engine.StartCompetitionEventAttempt(db, student_b, event.id)
+    _answer(db, student_b, started_b["attemptId"], started_b["sessionToken"], 1, "q-1-1", correct=True)
+    _answer(db, student_b, started_b["attemptId"], started_b["sessionToken"], 1, "q-1-2", correct=True)
+    _answer(db, student_b, started_b["attemptId"], started_b["sessionToken"], 1, "q-1-3", correct=True)
+    _answer(db, student_b, started_b["attemptId"], started_b["sessionToken"], 1, "q-1-4", correct=False)
+    section_b = db.query(CompetitionEventAttemptSectionState).filter_by(attempt_id=started_b["attemptId"], section_number=1).first()
+    section_b.remaining_seconds_at_last_heartbeat = 100  # slower than A, must not matter -- score decides first
+    db.commit()
+    attempt_engine.SubmitCompetitionEventSection(db, student_b, started_b["attemptId"], started_b["sessionToken"], 1)
+
+    scoring.RankCompetitionEventResults(db, EventId=event.id, CompetitionLevelCode="PM-L2")
+
+    result_a = db.query(CompetitionEventResult).filter_by(student_id="sA").one()
+    result_b = db.query(CompetitionEventResult).filter_by(student_id="sB").one()
+    assert result_a.score == 1
+    assert result_b.score == 3
+    assert result_a.accuracy_percentage == 100.0
+    assert result_b.accuracy_percentage == 75.0
+    assert result_b.rank == 1  # higher score wins despite lower accuracy and slower time
+    assert result_a.rank == 2
 
 
 def test_ranking_unknown_level_yields_zero_ranked():

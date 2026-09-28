@@ -400,8 +400,13 @@ def test_full_rehearsal_across_five_slots_with_disconnects_and_abandonment():
     assert by_student[student_intl.id]["accuracyPercentage"] == 50.0
     assert by_student[student_off_1.id]["accuracyPercentage"] == 0.0  # abandoned -- both questions unanswered
 
-    # Ranking: accuracy desc, then time asc among ties. off_2 (100%, 0s)
-    # beats india (100%, 90s) beats intl (50%) beats the abandoned off_1 (0%).
+    # Ranking: score desc, then time asc among ties (2026-09-28: score
+    # replaced accuracy as the primary key). off_2 (score 2, 0s) beats
+    # india (score 2, 90s) beats intl (score 1) beats the abandoned off_1
+    # (score 0) -- same final order here since score and accuracy agree
+    # on this particular field; test_ranking_higher_score_beats_higher_
+    # accuracy_percentage in test_annual_competition_scoring_service.py is
+    # the regression test for the case where they disagree.
     assert by_student[student_off_2.id]["rank"] == 1
     assert by_student[student_india.id]["rank"] == 2
     assert by_student[student_intl.id]["rank"] == 3

@@ -27,17 +27,17 @@ reasoning Package 4 already used for auto-advance itself.
 
 ## The confirmed scoring formula (REQUIREMENTS.md outstanding item 4)
 
-Client's answer, verbatim: "accuracy and completion time, If tie to check
-who made mistake first the latter will win then. If unanswered no marks to
-be given." Read as:
+Ranking formula (Shailesh, 2026-09-28 correction -- see below for why this
+supersedes the original client answer): score, then completion time, then
+the first-mistake tiebreak. Read as:
 - Unanswered questions earn zero score, exactly like a wrong answer, but
   are tracked as their own count (never folded into wrong_count) -- same
   distinction Competition Mock's own scoring already makes
   (competition_mock_attempt_service.py's SubmitCompetitionMockAttempt).
-- Ranking is by accuracy% (not raw score) descending, then completion time
-  ascending -- exactly the two factors the client named, in that order.
+- Ranking is by raw `score` descending first, then completion time
+  ascending, then the first-mistake tiebreak below.
 - "If tie[d], check who made a mistake first, the latter will win": between
-  two students tied on both accuracy AND time, the one whose FIRST wrong
+  two students tied on both score AND time, the one whose FIRST wrong
   answer came LATER in the shared question order (identical order for
   every student on the same level's paper -- see the "Paper fairness" note
   in REQUIREMENTS.md) held it together longer and wins. A student with no
@@ -49,6 +49,22 @@ be given." Read as:
   `submitted_at - started_at`, which would include any genuine pause time
   the Package 4 pause mechanic exists specifically to exclude from a
   student's competitive time.
+
+### 2026-09-28 correction: accuracy% dropped as the primary ranking key
+
+The original client answer (still quoted in history/comments below) named
+"accuracy and completion time" as the ranking factors, and that is what
+shipped first. Shailesh flagged a live glitch in the Test Competition
+standings: `accuracy_percentage` is `correct / attempted` (see the
+2026-09-14 accuracy fix further down), so a student who attempts very few
+questions and gets them all right reads 100% accuracy and outranks a
+student who attempted and scored far more but missed a couple along the
+way -- exactly backwards for a competition, where raw score is what
+should win. Ranking now sorts on raw `score` first; accuracy_percentage is
+still computed and stored on every result (still shown to students/admins)
+but is no longer a ranking factor at all. Time and the first-mistake
+tiebreak are unchanged, just demoted one rung to apply on a score tie
+instead of an accuracy tie.
 
 Per pkg-06's own checklist ("a swappable ranking function ... not inlined
 into the computation path"), the formula above lives in exactly one place
@@ -526,11 +542,16 @@ def _DefaultRankingSortKey(db: Session, ResultRecord: CompetitionEventResult) ->
     """The confirmed formula (module docstring), isolated in this one
     function per pkg-06's own checklist ("a swappable ranking function").
     Ascending sort on the returned tuple gives rank 1 to the best result.
+
+    2026-09-28 (Shailesh): primary key switched from accuracy_percentage to
+    raw `score` -- see the module docstring's "2026-09-28 correction"
+    section for why. Time and the first-mistake tiebreak are unchanged,
+    just now applied on a score tie instead of an accuracy tie.
     """
     FirstMistakeQuestionNumber = _FirstMistakeQuestionNumberForAttempt(db, ResultRecord.attempt_id)
     NoMistakeSentinel = float("inf")  # never having made a mistake beats any real question number
     TieBreakValue = -(FirstMistakeQuestionNumber if FirstMistakeQuestionNumber is not None else NoMistakeSentinel)
-    return (-(ResultRecord.accuracy_percentage or 0.0), ResultRecord.time_taken_seconds or 0, TieBreakValue)
+    return (-(ResultRecord.score or 0.0), ResultRecord.time_taken_seconds or 0, TieBreakValue)
 
 
 def _RankResultsForLevel(db: Session, EventId: str, CompetitionLevelCode: str) -> int:
