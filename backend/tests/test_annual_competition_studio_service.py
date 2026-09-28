@@ -706,6 +706,64 @@ def test_generate_for_mm_l2_succeeds_via_mm_l1_curriculum_fallback():
     assert result["mockExamId"] is not None
 
 
+def test_generate_for_mm_l2_official_paper_has_its_own_distinct_sections_from_mm_l1():
+    """2026-09-28 (Shailesh, pre-11-Oct readiness audit): MM-L2 must have
+    "everything for itself" on the OFFICIAL side, exactly as it already does
+    on the PRACTICE side -- confirmed live in production (admin Annual
+    Competition Studio: generated both official papers in one throwaway
+    test event, MM-L1 came back with Section 5 "Squares (Visual)"/Section 7
+    "Cube Roots (Visual)", MM-L2 came back with Section 5 "Squares and Cubes
+    (Visual)"/Section 7 "Roots (Visual)") before this test existed. This
+    pins that live-verified behavior down as an automated regression test so
+    it can never silently drift back to MM-L2 being treated as a plain alias
+    of MM-L1 (which it was, before the 2026-09-14 batch -- see
+    ANNUAL_COMPETITION_LEVEL_REGISTRY's own "MM-1 and MM-2 used to be a
+    plain alias" comment in annual_competition_paper_registry.py).
+
+    The MM-L1-curriculum-lookup fallback (test above) is only ever used to
+    satisfy the database's Module/Level foreign key for MM-L2, which has no
+    curriculum Level row of its own -- it must never leak into which
+    section content/timers actually get generated and persisted."""
+    db = _session()
+    admin = _admin(db)
+    _module_and_level(db, "MM", "MM-L1", "Master Module Level 1")
+    _event(db)
+    db.commit()
+
+    Mm1Result = studio.GenerateAndLinkCompetitionEventLevelPaper(
+        db, EventId="event-1", CompetitionLevelCode="MM-L1", CreatedBy=admin
+    )
+    Mm2Result = studio.GenerateAndLinkCompetitionEventLevelPaper(
+        db, EventId="event-1", CompetitionLevelCode="MM-L2", CreatedBy=admin
+    )
+
+    assert Mm1Result["mockExamTitle"] == "Annual Competition -- MM-L1 Official Paper"
+    assert Mm2Result["mockExamTitle"] == "Annual Competition -- MM-L2 Official Paper"
+    # Two genuinely separate CompetitionMockExam rows -- MM-L2 must never be
+    # a re-link/alias pointing at MM-L1's own exam.
+    assert Mm1Result["mockExamId"] != Mm2Result["mockExamId"]
+
+    Mm1Titles = [Timer["sectionTitle"] for Timer in Mm1Result["sectionTimers"]]
+    Mm2Titles = [Timer["sectionTitle"] for Timer in Mm2Result["sectionTimers"]]
+    assert len(Mm1Titles) == 7
+    assert len(Mm2Titles) == 7
+
+    # Sections 1-4 and 6 are identical content between MM-1/MM-2 by design
+    # (registry's own "MM-L2 keeps the ORIGINAL content... only MM-L1 gets
+    # the new content" comment) -- assert the sameness explicitly, not just
+    # the difference, so a future edit that accidentally diverges an
+    # unrelated section is caught too, not just a total-mismatch check.
+    assert Mm1Titles[0:4] == Mm2Titles[0:4]
+    assert Mm1Titles[5] == Mm2Titles[5] == "Percentage (Visual)"
+
+    # Sections 5 and 7 are the two that must differ -- this is the actual
+    # regression this test exists to pin down.
+    assert Mm1Titles[4] == "Squares (Visual)"
+    assert Mm2Titles[4] == "Squares and Cubes (Visual)"
+    assert Mm1Titles[6] == "Cube Roots (Visual)"
+    assert Mm2Titles[6] == "Roots (Visual)"
+
+
 def test_generate_for_mm_l2_fails_cleanly_when_mm_l1_also_missing():
     """If the MM module hasn't been seeded at all (no MM-L1 Level row
     either), MM-L2 generation must still fail with a clear, specific error,
