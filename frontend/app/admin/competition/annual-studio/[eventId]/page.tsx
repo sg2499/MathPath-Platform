@@ -237,6 +237,16 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const [ResultsLevelFilter, SetResultsLevelFilter] = useState<string>("ALL");
   const [RankLevelCode, SetRankLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
 
+  // 2026-09-28 (Shailesh): the Recompute button sits next to Release All
+  // Levels and must stay on one line -- "Bloomers (Below 8 Years)" /
+  // "Beginners (Above 8 Years)" are too long and wrap it to a second line.
+  // Every other label on this tab (Rank/Release buttons, both dropdowns,
+  // the results table) keeps the full FormatCompetitionLevelLabel text on
+  // purpose -- only this one button drops the parenthetical age range.
+  // Levels with no "(...)" suffix (PM-L1, MM-1, etc.) are unaffected.
+  const ShortCompetitionLevelLabel = (LevelCode: string): string =>
+    FormatCompetitionLevelLabel(LevelCode).replace(/\s*\([^)]*\)\s*$/, "");
+
   const OverviewQuery = useQuery({
     queryKey: ["admin", "annual-competition", "overview", EventId],
     queryFn: () => getAnnualCompetitionEventOverview(EventId),
@@ -1380,7 +1390,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   disabled={RecomputeResultsMutation.isPending}
                   title="Refreshes already-computed scores under the current scoring rules -- never touches release status or rank."
                   onClick={() => {
-                    const Scope = ResultsLevelFilter === "ALL" ? "every level of this event" : FormatCompetitionLevelLabel(ResultsLevelFilter);
+                    const Scope = ResultsLevelFilter === "ALL" ? "every level of this event" : ShortCompetitionLevelLabel(ResultsLevelFilter);
                     if (window.confirm(`Recompute results for ${Scope}? This refreshes scores/marks under the current scoring rules -- release status and rank are never touched.`)) {
                       RecomputeResultsMutation.mutate();
                     }
@@ -1388,7 +1398,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950/60"
                 >
                   <RefreshCcw size={14} />
-                  {RecomputeResultsMutation.isPending ? "Recomputing..." : `Recompute ${ResultsLevelFilter === "ALL" ? "All Levels" : FormatCompetitionLevelLabel(ResultsLevelFilter)}`}
+                  {RecomputeResultsMutation.isPending ? "Recomputing..." : `Recompute ${ResultsLevelFilter === "ALL" ? "All Levels" : ShortCompetitionLevelLabel(ResultsLevelFilter)}`}
                 </button>
               </div>
 
