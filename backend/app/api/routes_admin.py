@@ -153,6 +153,7 @@ from app.services.annual_competition_monitoring_service import (
 from app.services.annual_competition_practice_report_service import (
     GetAnnualCompetitionPracticeReportForStudent,
     GetAnnualCompetitionPracticeReportForLevel,
+    GetAnnualCompetitionPracticeDailyLeaderboardForLevel,
     GetAnnualCompetitionPracticeReportOverview,
 )
 
@@ -6291,6 +6292,17 @@ def admin_get_annual_competition_practice_report_for_level(
     competition_level_code: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
 ):
     return GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode=competition_level_code)
+
+
+# Daily Practice Leaderboard feature (Shailesh, 2026-09-28): sibling of the
+# cumulative level route above, scoped to one IST calendar day -- see
+# GetAnnualCompetitionPracticeDailyLeaderboardForLevel's own docstring for
+# the full "why" (best-attempt-of-the-day). date is required, "YYYY-MM-DD".
+@router.get("/annual-competition/practice-reports/level/{competition_level_code}/daily")
+def admin_get_annual_competition_practice_daily_leaderboard_for_level(
+    competition_level_code: str, date: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return GetAnnualCompetitionPracticeDailyLeaderboardForLevel(db, CompetitionLevelCode=competition_level_code, Date=date)
 
 
 # Analytics Visualization feature, package 1 (Shailesh, 2026-09-22): the

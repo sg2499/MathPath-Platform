@@ -620,10 +620,16 @@ def test_teacher_annual_competition_routes_are_all_get_only():
     (GetAnnualCompetitionPracticeReportForStudent/ForLevel) -- also
     GET-only, same read-only guarantee; the per-student route enforces its
     own roster check inline (403 for a student not on this teacher's
-    roster) rather than via a write verb."""
+    roster) rather than via a write verb.
+
+    2026-09-28 (Shailesh, Daily Practice Leaderboard feature): bumped 7 -> 8
+    for the new /practice-reports/level/{competition_level_code}/daily route
+    (GetAnnualCompetitionPracticeDailyLeaderboardForLevel) -- also GET-only,
+    same read-only guarantee, automatically scoped to the teacher's own
+    roster server-side same as every other teacher Practice Reports call."""
     from app.api.routes_teacher import router as teacher_router
 
     annual_routes = [r for r in teacher_router.routes if "/competition/annual" in getattr(r, "path", "")]
-    assert len(annual_routes) == 7, "expected exactly the 7 pkg-07/Phase E/2026-09-14-batch/practice-reports teacher routes"
+    assert len(annual_routes) == 8, "expected exactly the 8 pkg-07/Phase E/2026-09-14-batch/practice-reports/daily-leaderboard teacher routes"
     for route in annual_routes:
         assert route.methods == {"GET"}, f"{route.path} must be GET-only -- teacher has no write path here"

@@ -20,6 +20,7 @@ import {
   deleteAnnualCompetitionEvent,
   deleteAnnualCompetitionPracticeAttempt,
   getAdminTeachers,
+  getAnnualCompetitionPracticeDailyLeaderboardForLevel,
   getAnnualCompetitionPracticeReportForLevel,
   getAnnualCompetitionPracticeReportForStudent,
   getAnnualCompetitionPracticeReportOverview,
@@ -31,6 +32,7 @@ import {
   updateAnnualCompetitionEvent,
   type AnnualCompetitionEvent,
   type AnnualCompetitionPracticeBatchAssignFailedRow,
+  type AnnualCompetitionPracticeDailyLeaderboardRow,
   type AnnualCompetitionPracticeReportForLevel,
   type AnnualCompetitionPracticeReportForStudent,
   type AnnualCompetitionPracticeReportOverview,
@@ -41,6 +43,7 @@ import {
 import type { AdminTeacher } from "@/types/teacher";
 import { GroupPracticePapersByLevel } from "@/lib/annualCompetitionPracticeGrouping";
 import { PracticeLeaderboardPodium } from "@/components/common/PracticeLeaderboardPodium";
+import { PracticeDailyLeaderboardPodium } from "@/components/common/PracticeDailyLeaderboardPodium";
 import { SortByDropdown } from "@/components/common/SortByDropdown";
 import { useSortableTable, type SortFieldOption } from "@/lib/sortable";
 import {
@@ -58,6 +61,7 @@ import type {
 } from "@/components/common/AnnualCompetitionAnalyticsCharts";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Calendar,
   CalendarClock,
   CheckCircle2,
   ChevronDown,
@@ -111,6 +115,42 @@ function PracticeLeaderboardSortValueFor(Row: AnnualCompetitionPracticeReportStu
     case "avgTime":
       return Row.avgTimeTakenSeconds;
   }
+}
+
+// Daily Practice Leaderboard (Shailesh, 2026-09-28): a sibling sort-field
+// set, not a reuse of PRACTICE_LEADERBOARD_SORT_FIELDS above -- daily mode
+// has no "avg" anything (a single day isn't an average, confirmed with
+// Shailesh) and, per his explicit call, drops "Papers Today" from the sort
+// options entirely even though that column still displays in the table.
+type PracticeDailyLeaderboardSortKey = "score" | "accuracy" | "time";
+
+const PRACTICE_DAILY_LEADERBOARD_SORT_FIELDS: SortFieldOption<PracticeDailyLeaderboardSortKey>[] = [
+  { key: "score", label: "Score" },
+  { key: "accuracy", label: "Accuracy" },
+  { key: "time", label: "Time Taken" },
+];
+
+function PracticeDailyLeaderboardSortValueFor(Row: AnnualCompetitionPracticeDailyLeaderboardRow, Key: PracticeDailyLeaderboardSortKey): number | null {
+  switch (Key) {
+    case "score":
+      return Row.score;
+    case "accuracy":
+      return Row.accuracyPercentage;
+    case "time":
+      return Row.timeTakenSeconds;
+  }
+}
+
+// Defaults the date picker to "today" in IST rather than the viewer's own
+// browser timezone -- matches the backend's _IST day-bucketing convention
+// (attempt_service.py's _PUNCTUALITY_IST pattern, reused for this feature)
+// so an admin/teacher in any timezone lands on the same calendar day the
+// server actually grouped attempts into.
+function TodayInIst(): string {
+  const IstMs = Date.now() + 5.5 * 60 * 60 * 1000;
+  const IstDate = new Date(IstMs);
+  const Pad = (N: number) => String(N).padStart(2, "0");
+  return `${IstDate.getUTCFullYear()}-${Pad(IstDate.getUTCMonth() + 1)}-${Pad(IstDate.getUTCDate())}`;
 }
 
 function SectionTitle({ kicker, title, description, icon }: { kicker: string; title: string; description: string; icon?: ReactNode }) {
@@ -1422,6 +1462,39 @@ function AdminAnnualCompetitionStudioPageContent() {
   // slices strictly on Row.rank <= 3 / > 3).
   const RankedPracticeLeaderboardRows = SortedPracticeLeaderboardRows.map((Row, Index) => ({ ...Row, rank: Index + 1 }));
 
+  // Daily Practice Leaderboard (2026-09-28, Shailesh): "before the level
+  // filter we need a calendar icon there ... where they will see the
+  // leaderboard stats" -- a Cumulative/Daily toggle plus a date picker,
+  // sharing the Level filter above but querying a separate endpoint/day-
+  // scoped service function, so this is its own query/sort pair rather
+  // than a mode flag threaded through the cumulative one above (the row
+  // shapes genuinely differ -- see PracticeDailyLeaderboardPodium's own
+  // comment on why it's a sibling component, not a variant).
+  const [LeaderboardMode, SetLeaderboardMode] = useState<"CUMULATIVE" | "DAILY">("CUMULATIVE");
+  const [LeaderboardDate, SetLeaderboardDate] = useState<string>(() => TodayInIst());
+  const PracticeDailyLeaderboardQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "practice-daily-leaderboard-level", LeaderboardLevelCode, LeaderboardDate],
+    queryFn: () => getAnnualCompetitionPracticeDailyLeaderboardForLevel(LeaderboardLevelCode, LeaderboardDate),
+    enabled:
+      Ready &&
+      TopTab === "PRACTICE" &&
+      PracticeSubTab === "LEADERBOARD" &&
+      LeaderboardMode === "DAILY" &&
+      Boolean(LeaderboardLevelCode) &&
+      Boolean(LeaderboardDate),
+  });
+  const {
+    sortKey: LeaderboardDailySortKey,
+    sortDirection: LeaderboardDailySortDirection,
+    sortedRows: SortedPracticeDailyLeaderboardRows,
+    setSort: SetLeaderboardDailySort,
+  } = useSortableTable<AnnualCompetitionPracticeDailyLeaderboardRow, PracticeDailyLeaderboardSortKey>({
+    rows: PracticeDailyLeaderboardQuery.data?.perStudent ?? [],
+    valueFor: PracticeDailyLeaderboardSortValueFor,
+    naturalOrder: (Rows) => Rows,
+  });
+  const RankedPracticeDailyLeaderboardRows = SortedPracticeDailyLeaderboardRows.map((Row, Index) => ({ ...Row, rank: Index + 1 }));
+
   if (!Ready) return null;
 
   // 2026-09-16 (Shailesh, 504 fix): a STANDING fact about page state (a
@@ -1439,7 +1512,11 @@ function AdminAnnualCompetitionStudioPageContent() {
     (TopTab === "PRACTICE" && PracticeSubTab === "REPORTS" && PracticeReportsSubTab === "VISUALIZATION"
       ? VisualizationOverviewQuery.error || VisualizationLevelReportQuery.error || VisualizationRosterQuery.error
       : null) ||
-    (TopTab === "PRACTICE" && PracticeSubTab === "LEADERBOARD" ? PracticeLeaderboardQuery.error : null);
+    (TopTab === "PRACTICE" && PracticeSubTab === "LEADERBOARD"
+      ? LeaderboardMode === "DAILY"
+        ? PracticeDailyLeaderboardQuery.error
+        : PracticeLeaderboardQuery.error
+      : null);
 
   return (
     <AppShell title="Annual Competition Studio">
@@ -2617,6 +2694,28 @@ function AdminAnnualCompetitionStudioPageContent() {
                     verbatim rather than reinvented, so this filter finally
                     renders the same way every other leaderboard's filter on
                     this platform already does. */}
+                {/* 2026-09-28 (Shailesh, Daily Practice Leaderboard):
+                    "before the level filter we need a calendar icon there
+                    ... a toggle between daily and cumulative leaderboards
+                    so that it does not create any confusion." A same-style
+                    two-button toggle (matching the Individual
+                    Student/Level/Visualization tab buttons elsewhere on
+                    this page) rather than a dropdown -- only two states,
+                    always visible together so switching is a single click. */}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {(["CUMULATIVE", "DAILY"] as const).map((Mode) => (
+                    <button
+                      key={Mode}
+                      type="button"
+                      onClick={() => SetLeaderboardMode(Mode)}
+                      aria-selected={LeaderboardMode === Mode}
+                      className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${LeaderboardMode === Mode ? "is-active math-admin-tab-force-selected" : ""}`}
+                    >
+                      {Mode === "CUMULATIVE" ? "Cumulative" : "Daily"}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="mt-4 flex flex-wrap items-end gap-3">
                   <div className="max-w-xs min-w-[200px] flex-1">
                     <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Level</label>
@@ -2634,25 +2733,62 @@ function AdminAnnualCompetitionStudioPageContent() {
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
+                  {LeaderboardMode === "DAILY" ? (
+                    <div className="max-w-xs min-w-[170px] flex-1">
+                      <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Date</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                        <input
+                          type="date"
+                          aria-label="Select date for the daily leaderboard"
+                          value={LeaderboardDate}
+                          onChange={(EventValue) => SetLeaderboardDate(EventValue.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-3 py-2.5 font-bold text-sm text-slate-800 dark:text-slate-200 focus:border-[var(--mp-role-primary)] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  ) : null}
                   {/* 2026-09-27 (Shailesh): "just like the other sort filters
                       we have across the platform" -- the shared SortByDropdown
                       never carries its own label anywhere else on this
                       platform (its trigger button already reads "Sort By"),
                       so it sits directly beside the Level filter, bottom-
                       aligned to it (items-end on the row above) rather than
-                      getting a redundant label of its own. */}
+                      getting a redundant label of its own. Daily mode swaps
+                      in its own field set/state (no "Papers Today" option,
+                      per Shailesh's explicit call) rather than reusing the
+                      cumulative one. */}
                   <div className="w-full min-w-[200px] max-w-xs sm:w-auto">
-                    <SortByDropdown
-                      fields={PRACTICE_LEADERBOARD_SORT_FIELDS}
-                      sortKey={LeaderboardSortKey}
-                      direction={LeaderboardSortDirection}
-                      onChange={SetLeaderboardSort}
-                    />
+                    {LeaderboardMode === "DAILY" ? (
+                      <SortByDropdown
+                        fields={PRACTICE_DAILY_LEADERBOARD_SORT_FIELDS}
+                        sortKey={LeaderboardDailySortKey}
+                        direction={LeaderboardDailySortDirection}
+                        onChange={SetLeaderboardDailySort}
+                      />
+                    ) : (
+                      <SortByDropdown
+                        fields={PRACTICE_LEADERBOARD_SORT_FIELDS}
+                        sortKey={LeaderboardSortKey}
+                        direction={LeaderboardSortDirection}
+                        onChange={SetLeaderboardSort}
+                      />
+                    )}
                   </div>
                 </div>
 
                 <div className="mt-5">
-                  {PracticeLeaderboardQuery.isLoading ? (
+                  {LeaderboardMode === "DAILY" ? (
+                    PracticeDailyLeaderboardQuery.isLoading ? (
+                      <LoadingState label="Loading daily leaderboard..." />
+                    ) : PracticeDailyLeaderboardQuery.data ? (
+                      <PracticeDailyLeaderboardPodium
+                        Summary={PracticeDailyLeaderboardQuery.data.summary}
+                        Rows={RankedPracticeDailyLeaderboardRows}
+                        EmptyDescription="No student completed a practice paper at this level on this date."
+                      />
+                    ) : null
+                  ) : PracticeLeaderboardQuery.isLoading ? (
                     <LoadingState label="Loading leaderboard..." />
                   ) : PracticeLeaderboardQuery.data ? (
                     <PracticeLeaderboardPodium

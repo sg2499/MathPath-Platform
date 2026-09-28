@@ -877,6 +877,46 @@ export async function getTeacherAnnualCompetitionPracticeReportForLevel(
   return data;
 }
 
+// Daily Practice Leaderboard feature (Shailesh, 2026-09-28) -- teacher's
+// own roster-scoped mirror of AnnualCompetitionPracticeDailyLeaderboardRow /
+// getAnnualCompetitionPracticeDailyLeaderboardForLevel (lib/api/admin.ts);
+// see that file for the full "why" on the shape.
+export type TeacherAnnualCompetitionPracticeDailyLeaderboardRow = {
+  studentId: string;
+  studentName: string | null;
+  studentCode: string | null;
+  rank: number;
+  score: number | null;
+  maxScore: number | null;
+  accuracyPercentage: number | null;
+  timeTakenSeconds: number | null;
+  papersToday: number;
+};
+
+export type TeacherAnnualCompetitionPracticeDailyLeaderboardForLevel = {
+  competitionLevelCode: string;
+  date: string;
+  summary: {
+    studentsWithAttemptsCount: number;
+    attemptsCount: number;
+  };
+  perStudent: TeacherAnnualCompetitionPracticeDailyLeaderboardRow[];
+};
+
+// Scoped server-side to this teacher's own roster, same as
+// getTeacherAnnualCompetitionPracticeReportForLevel above. date must be
+// "YYYY-MM-DD" (the IST calendar day to show).
+export async function getTeacherAnnualCompetitionPracticeDailyLeaderboardForLevel(
+  competitionLevelCode: string,
+  date: string
+): Promise<TeacherAnnualCompetitionPracticeDailyLeaderboardForLevel> {
+  const { data } = await api.get<TeacherAnnualCompetitionPracticeDailyLeaderboardForLevel>(
+    `/teacher/competition/annual/practice-reports/level/${competitionLevelCode}/daily`,
+    { params: { date } }
+  );
+  return data;
+}
+
 // 2026-09-14 batch (Shailesh): teacher-facing Answer Sheet + Scorecard --
 // the "View" action on both the Official results table
 // (TeacherAnnualCompetitionResultRow, gated on released/result above, same
