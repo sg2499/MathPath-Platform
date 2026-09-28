@@ -1307,7 +1307,25 @@ export default function AdminAnnualCompetitionEventDetailPage() {
               <div className="mt-4 flex flex-wrap items-end gap-3">
                 <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                   Filter by Level
-                  <select value={ResultsLevelFilter} onChange={(EventValue) => SetResultsLevelFilter(EventValue.target.value)} className="math-input">
+                  <select
+                    value={ResultsLevelFilter}
+                    onChange={(EventValue) => {
+                      const NewLevelFilter = EventValue.target.value;
+                      SetResultsLevelFilter(NewLevelFilter);
+                      // Rank Level has no "All Levels" option, so only sync
+                      // when a specific level was picked -- picking a real
+                      // level to review is the moment you'd also want to
+                      // rank/release that same level, so default Rank Level
+                      // to match rather than leaving it on whatever level it
+                      // was last set to. Rank Level can still be changed
+                      // independently afterward if a different level needs
+                      // ranking than the one being viewed.
+                      if (NewLevelFilter !== "ALL") {
+                        SetRankLevelCode(NewLevelFilter);
+                      }
+                    }}
+                    className="math-input"
+                  >
                     <option value="ALL">All Levels</option>
                     {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
                       <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
@@ -1362,7 +1380,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   disabled={RecomputeResultsMutation.isPending}
                   title="Refreshes already-computed scores under the current scoring rules -- never touches release status or rank."
                   onClick={() => {
-                    const Scope = ResultsLevelFilter === "ALL" ? "every level of this event" : ResultsLevelFilter;
+                    const Scope = ResultsLevelFilter === "ALL" ? "every level of this event" : FormatCompetitionLevelLabel(ResultsLevelFilter);
                     if (window.confirm(`Recompute results for ${Scope}? This refreshes scores/marks under the current scoring rules -- release status and rank are never touched.`)) {
                       RecomputeResultsMutation.mutate();
                     }
@@ -1370,7 +1388,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950/60"
                 >
                   <RefreshCcw size={14} />
-                  {RecomputeResultsMutation.isPending ? "Recomputing..." : `Recompute ${ResultsLevelFilter === "ALL" ? "All Levels" : ResultsLevelFilter}`}
+                  {RecomputeResultsMutation.isPending ? "Recomputing..." : `Recompute ${ResultsLevelFilter === "ALL" ? "All Levels" : FormatCompetitionLevelLabel(ResultsLevelFilter)}`}
                 </button>
               </div>
 
