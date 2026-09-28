@@ -37,14 +37,18 @@ import { Suspense, useEffect, useRef, useState } from "react";
 // have across the platform" -- reuses the exact same shared SortByDropdown
 // + useSortableTable infrastructure (lib/sortable.ts) every other sortable
 // table/list on this platform already uses.
-type PracticeLeaderboardSortKey = "avgAccuracy" | "avgScore" | "highestScore" | "avgTime" | "papers";
+// 2026-09-28 (Shailesh): "Papers" removed from the sort options -- ranking
+// by completed-paper count didn't hold up alongside the score-first
+// ranking philosophy already settled for this leaderboard (see the
+// 2026-09-22 avgScore-over-avgAccuracy fix's own reasoning) and just added
+// noise to the dropdown.
+type PracticeLeaderboardSortKey = "avgAccuracy" | "avgScore" | "highestScore" | "avgTime";
 
 const PRACTICE_LEADERBOARD_SORT_FIELDS: SortFieldOption<PracticeLeaderboardSortKey>[] = [
   { key: "avgAccuracy", label: "Avg Accuracy" },
   { key: "avgScore", label: "Avg Score" },
   { key: "highestScore", label: "Highest Score" },
   { key: "avgTime", label: "Avg Time" },
-  { key: "papers", label: "Papers" },
 ];
 
 function PracticeLeaderboardSortValueFor(Row: TeacherAnnualCompetitionPracticeReportStudentRow, Key: PracticeLeaderboardSortKey): number | null {
@@ -57,8 +61,6 @@ function PracticeLeaderboardSortValueFor(Row: TeacherAnnualCompetitionPracticeRe
       return Row.highestScore;
     case "avgTime":
       return Row.avgTimeTakenSeconds;
-    case "papers":
-      return Row.papersCompletedCount;
   }
 }
 
