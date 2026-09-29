@@ -434,7 +434,20 @@ function StudentAnalyticsModal({
   // ancestor subtlety to get right, and it wins on DOM order too, being
   // the very last node in <body>), which is the standard fix for this
   // class of bug rather than relying on z-index alone.
+  // 2026-09-29 second follow-up (Shailesh: "why does the new full screen
+  // view appear so shitty ... it should follow the role palette colours").
+  // The portal fix above solved the crop, but document.body is outside the
+  // AppShell's role-scoped wrapper div (`<div className="math-role-teacher">`
+  // etc.) that every `var(--mp-role-*)` custom property and `.math-role-*`
+  // selector in this modal's own markup depends on -- so once portaled,
+  // every one of those fell back to unstyled defaults, which is what made
+  // it look generic. This page is always the teacher surface, so re-wrapping
+  // with the same "math-role-teacher" class the real AppShell would apply
+  // restores every role-scoped color/border/button style. (dark mode is
+  // unaffected either way -- that's driven by the "dark" class on <html>,
+  // an ancestor of the portal target regardless of where it lands.)
   return createPortal(
+    <div className="math-role-teacher">
     <div className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-white dark:bg-slate-950" role="dialog" aria-modal="true" aria-label="Student practice analytics">
         <div className="flex items-center justify-between gap-4 border-b border-[color:var(--mp-role-border)] px-6 py-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -523,6 +536,7 @@ function StudentAnalyticsModal({
             )
           ) : null}
         </div>
+    </div>
     </div>,
     document.body,
   );
