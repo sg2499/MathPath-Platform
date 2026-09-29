@@ -418,7 +418,14 @@ function StudentAnalyticsModal({
   // alongside the existing close button. Identical conversion to the
   // admin's own copy of this component (annual-studio/page.tsx).
   return (
-    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white dark:bg-slate-950" role="dialog" aria-modal="true" aria-label="Student practice analytics">
+    <div className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-white dark:bg-slate-950" role="dialog" aria-modal="true" aria-label="Student practice analytics">
+      {/* z-[200]: the AppShell's sticky top nav is z-[100] (see .math-shell-header
+          in globals.css) and sits in normal document flow as a sibling of this
+          portal-less fixed overlay. At the modal's old z-50 the sticky header's
+          higher stacking layer rendered on top of it, cropping the modal's own
+          header/tabs beneath the nav bar instead of covering the full viewport.
+          z-[200] clears that (and the z-[140] nav dropdown panel) so the modal
+          is always the topmost layer. */}
         <div className="flex items-center justify-between gap-4 border-b border-[color:var(--mp-role-border)] px-6 py-4">
           <div className="flex min-w-0 items-center gap-3">
             <button
