@@ -428,6 +428,21 @@ def ComputeAndFinalizeCompetitionEventResult(db: Session, AttemptRecord: Competi
             LevelPaperRecord.consumed_at = _NowUtc()
 
     db.flush()
+
+    # 2026-09-29 (Shailesh: "rankings should always be displayed ... from 1
+    # till however many students are there in that level attempting the
+    # exam"). Every OFFICIAL result gets a live rank the instant it's
+    # finalized -- no more waiting on an admin to remember to click "Rank"
+    # first. _RankResultsForLevel already excludes voided/practice results
+    # and is a pure, no-commit mutation (module convention -- composes into
+    # this function's own caller's transaction), so calling it here is safe
+    # even though this function itself never commits. The manual "Rank"
+    # button (RankCompetitionEventResults) stays exactly as-is, unchanged,
+    # for an admin to re-run by hand if a discrepancy ever needs fixing --
+    # this is purely additive, not a replacement.
+    if AttemptRecord.attempt_type == "OFFICIAL" and ResultRecord.event_id and ResultRecord.competition_level_code:
+        _RankResultsForLevel(db, ResultRecord.event_id, ResultRecord.competition_level_code)
+
     return ResultRecord
 
 

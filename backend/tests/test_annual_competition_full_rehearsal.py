@@ -63,6 +63,7 @@ from app.models import (
     CompetitionEventAttemptSectionState,
     CompetitionEventLevelPaper,
     CompetitionEventResult,
+    CompetitionEventRoster,
     CompetitionEventSectionTimer,
     CompetitionEventSlot,
     CompetitionMockExam,
@@ -202,6 +203,9 @@ def _assignment(db, assignment_id, event_id, student_id, level_code, slot_id):
         assigned_level_code=level_code, slot_id=slot_id, assignment_source="AUTO", is_active=True,
     )
     db.add(a)
+    # 2026-09-29 (Shailesh, Event Roster hardening): StartCompetitionEventAttempt
+    # now requires the student to be on the event's roster.
+    db.add(CompetitionEventRoster(id=f"roster-{assignment_id}", event_id=event_id, student_id=student_id))
     db.flush()
     return a
 

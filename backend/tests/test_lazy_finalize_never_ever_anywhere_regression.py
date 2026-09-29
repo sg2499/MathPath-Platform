@@ -482,6 +482,7 @@ from app.models.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
     CompetitionEventAttempt,
+    CompetitionEventRoster,
     CompetitionMockQuestion,
 )
 from app.services import annual_competition_attempt_service as annual_attempt_engine
@@ -521,6 +522,9 @@ def test_annual_competition_admin_review_self_heals_an_abandoned_official_attemp
         assigned_level_code=world["level"].level_code, assignment_source="AUTO",
     )
     db.add(assignment)
+    # 2026-09-29 (Shailesh, Event Roster hardening): StartCompetitionEventAttempt
+    # now requires the student to be on the event's roster.
+    db.add(CompetitionEventRoster(event_id=event.id, student_id=world["student"].id))
     db.commit()
 
     level_paper = CompetitionEventLevelPaper(

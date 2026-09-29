@@ -152,6 +152,7 @@ from app.models import (
     CompetitionEventAttemptSectionState,
     CompetitionEventLevelPaper,
     CompetitionEventResult,
+    CompetitionEventRoster,
     CompetitionEventSectionTimer,
     CompetitionEventSlot,
     CompetitionMockExam,
@@ -750,6 +751,24 @@ def _BuildFreshPracticeAttempt(
     return AttemptRecord
 
 
+def _RequireStudentOnEventRoster(db: Session, *, EventId: str, StudentId: str) -> None:
+    """2026-09-29 (Shailesh, Event Roster hardening). See callers' own
+    comments for why this exists on top of the write-side roster gates in
+    annual_competition_assignment_service.py/annual_competition_studio_service.py."""
+    IsOnRoster = (
+        db.query(CompetitionEventRoster)
+        .filter(CompetitionEventRoster.event_id == EventId, CompetitionEventRoster.student_id == StudentId)
+        .first()
+        is not None
+    )
+    if not IsOnRoster:
+        api_error(
+            403,
+            "STUDENT_NOT_ON_EVENT_ROSTER",
+            "You are not on this event's roster. Please contact your admin.",
+        )
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -806,6 +825,20 @@ def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: s
             RetryGrant = _ActiveRetryGrant(db, AssignmentRecord.id)
             if not RetryGrant:
                 api_error(403, "COMPETITION_ATTEMPT_ALREADY_SUBMITTED", "This competition attempt has already been submitted.")
+            # 2026-09-29 (Shailesh, Event Roster hardening -- "ensure
+            # nothing like this ever happens again"): Roster already blocks
+            # every path that WRITES a CompetitionEventAssignment. It can't
+            # retroactively clean up an assignment that already existed
+            # before Roster shipped (e.g. the PM-L1 test-slot leak). This is
+            # the last line of defense: a brand-new attempt -- first ever,
+            # or a fresh retry -- can only be created for a student
+            # currently on this event's roster, even off a stale pre-Roster
+            # assignment. Deliberately NOT checked on the plain resume
+            # branch below (an attempt already IN_PROGRESS keeps resuming
+            # even if the student is later removed from the roster --
+            # matches "removing a student only stops FUTURE runs, never
+            # touches an existing attempt").
+            _RequireStudentOnEventRoster(db, EventId=EventId, StudentId=StudentRecord.id)
             NewAttempt = _BuildFreshAttempt(
                 db, EventId, AssignmentRecord, StudentRecord, NowUtc, AttemptNumber=ExistingAttempt.attempt_number + 1
             )
@@ -824,6 +857,10 @@ def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: s
         db.refresh(ExistingAttempt)
         return _AttemptPayload(db, ExistingAttempt, IncludeSessionToken=True)
 
+    # Same last-line-of-defense roster check as the retry-grant branch
+    # above, for the far more common case: a student's very first attempt
+    # off a (possibly stale, pre-Roster) assignment.
+    _RequireStudentOnEventRoster(db, EventId=EventId, StudentId=StudentRecord.id)
     AttemptRecord = _BuildFreshAttempt(db, EventId, AssignmentRecord, StudentRecord, NowUtc, AttemptNumber=1)
     db.commit()
     db.refresh(AttemptRecord)

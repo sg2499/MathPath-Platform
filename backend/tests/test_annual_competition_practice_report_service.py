@@ -24,6 +24,7 @@ from app.models import (
     CompetitionEventAttempt,
     CompetitionEventLevelPaper,
     CompetitionEventResult,
+    CompetitionEventRoster,
     CompetitionEventSectionTimer,
     CompetitionMockExam,
     CompetitionMockQuestion,
@@ -845,6 +846,9 @@ def test_level_report_excludes_official_attempts():
         id="assign-1", event_id=event.id, student_id=student.id,
         assigned_level_code="PM-L2", assignment_source="AUTO", is_active=True,
     ))
+    # 2026-09-29 (Shailesh, Event Roster hardening): StartCompetitionEventAttempt
+    # now requires the student to be on the event's roster.
+    db.add(CompetitionEventRoster(id="roster-1", event_id=event.id, student_id=student.id))
     db.flush()
     paper = CompetitionEventLevelPaper(
         id="official-paper-1", event_id=event.id, competition_level_code="PM-L2",
@@ -978,6 +982,9 @@ def test_overview_excludes_official_attempts():
         id="assign-ov-1", event_id=event.id, student_id=student.id,
         assigned_level_code="PM-L2", assignment_source="AUTO", is_active=True,
     ))
+    # 2026-09-29 (Shailesh, Event Roster hardening): StartCompetitionEventAttempt
+    # now requires the student to be on the event's roster.
+    db.add(CompetitionEventRoster(id="roster-ov-1", event_id=event.id, student_id=student.id))
     db.flush()
     paper = CompetitionEventLevelPaper(
         id="official-ov-paper-1", event_id=event.id, competition_level_code="PM-L2",
