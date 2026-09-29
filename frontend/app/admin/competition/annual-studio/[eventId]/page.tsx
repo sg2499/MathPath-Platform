@@ -425,6 +425,43 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     },
   });
 
+  // 2026-09-29 (Shailesh: "a universal button which would generate the
+  // papers for all the levels at once, the individual generate buttons stay
+  // as is"). Reuses the exact same per-level generate call the individual
+  // buttons already use -- just loops it across every level that's
+  // currently generatable (PENDING, or READY-but-not-LOCKED, matching each
+  // row's own CanGenerate condition), one at a time so a failure on one
+  // level never aborts the levels already succeeded before it (same
+  // per-student-isolation discipline this codebase's other bulk actions
+  // already follow). Reports a summary, not just the last level's message.
+  const GenerateAllPapersMutation = useMutation({
+    mutationFn: async () => {
+      const GenerableLevelCodes = ANNUAL_COMPETITION_LEVEL_CODES.filter((LevelCode) => {
+        const LevelPaper = (Overview?.levelPapers || []).find((Paper) => Paper.competitionLevelCode === LevelCode);
+        return !LevelPaper || LevelPaper.status !== "LOCKED";
+      });
+      const Succeeded: string[] = [];
+      const Failed: Array<{ levelCode: string; reason: string }> = [];
+      for (const LevelCode of GenerableLevelCodes) {
+        try {
+          await generateAnnualCompetitionLevelPaper(EventId, LevelCode);
+          Succeeded.push(LevelCode);
+        } catch (ErrorValue) {
+          Failed.push({ levelCode: LevelCode, reason: apiErrorMessage(ErrorValue) || "Failed" });
+        }
+      }
+      return { Succeeded, Failed, TotalConsidered: GenerableLevelCodes.length };
+    },
+    onSuccess: (Result) => {
+      SetLastMessage(
+        Result.Failed.length > 0
+          ? `Generated ${Result.Succeeded.length} of ${Result.TotalConsidered} papers -- ${Result.Failed.length} failed (${Result.Failed.map((F) => `${F.levelCode}: ${F.reason}`).join("; ")}).`
+          : `Generated all ${Result.Succeeded.length} official papers.`
+      );
+      InvalidateOverview();
+    },
+  });
+
   const LinkPaperMutation = useMutation({
     mutationFn: ({ LevelCode, MockExamId }: { LevelCode: string; MockExamId: string }) =>
       linkAnnualCompetitionLevelPaper(EventId, LevelCode, MockExamId),
@@ -616,6 +653,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     PreviewQuery.error ||
     CreateSlotMutation.error ||
     GeneratePaperMutation.error ||
+    GenerateAllPapersMutation.error ||
     LinkPaperMutation.error ||
     UpdateTimerMutation.error ||
     RunEngineMutation.error ||
@@ -638,7 +676,13 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   // search text + module/level dropdowns narrow which rows are VISIBLE;
   // selection (for the Run scope) is independent of the current filter so
   // switching filters never silently drops an earlier selection.
-  const AssignmentRows = PreviewQuery.data?.rows || [];
+  // 2026-09-29 (Shailesh: "wherever we have the list of students ... they
+  // should always follow the alphabetical order"). Sorted once here, before
+  // any filtering/selection derives from it, so every downstream view of
+  // this array (filtered rows, select-all) stays alphabetical for free.
+  const AssignmentRows = [...(PreviewQuery.data?.rows || [])].sort((Left, Right) =>
+    (Left.studentName || Left.studentCode || "").localeCompare(Right.studentName || Right.studentCode || "")
+  );
   const AssignmentModuleOptions = Array.from(
     new Set(AssignmentRows.map((Row) => Row.currentModuleCode).filter((Value): Value is string => Boolean(Value)))
   ).sort();
@@ -685,7 +729,9 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   // just kept out of the picker entirely so the admin isn't re-selecting
   // someone who's already there.
   const RosterStudentIds = new Set((RosterQuery.data?.rows || []).map((Row) => Row.studentId));
-  const RosterCandidateRows = (AllStudentsQuery.data?.students || []).filter((Row) => !RosterStudentIds.has(Row.studentId));
+  const RosterCandidateRows = (AllStudentsQuery.data?.students || [])
+    .filter((Row) => !RosterStudentIds.has(Row.studentId))
+    .sort((Left, Right) => (Left.studentName || Left.studentCode || "").localeCompare(Right.studentName || Right.studentCode || ""));
   const RosterAddModuleOptions = Array.from(
     new Set(RosterCandidateRows.map((Row) => Row.currentModuleCode).filter((Value): Value is string => Boolean(Value)))
   ).sort();
@@ -727,11 +773,13 @@ export default function AdminAnnualCompetitionEventDetailPage() {
 
   // Current roster's own search + bulk-remove selection.
   const RosterSearchLower = RosterSearchText.trim().toLowerCase();
-  const FilteredRosterRows = (RosterQuery.data?.rows || []).filter((Row) => {
-    if (!RosterSearchLower) return true;
-    const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
-    return Haystack.includes(RosterSearchLower);
-  });
+  const FilteredRosterRows = (RosterQuery.data?.rows || [])
+    .filter((Row) => {
+      if (!RosterSearchLower) return true;
+      const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
+      return Haystack.includes(RosterSearchLower);
+    })
+    .sort((Left, Right) => (Left.studentName || Left.studentCode || "").localeCompare(Right.studentName || Right.studentCode || ""));
   const AllFilteredRosterRowsSelected =
     FilteredRosterRows.length > 0 && FilteredRosterRows.every((Row) => SelectedStudentIdsForRosterRemove.has(Row.studentId));
   const ToggleSelectAllFilteredRosterRows = () => {
@@ -1037,6 +1085,25 @@ export default function AdminAnnualCompetitionEventDetailPage() {
 
         {ActiveTab === "PAPERS" && (
           <div className="space-y-4">
+            <div className="math-card p-5">
+              <SectionTitle
+                icon={<Sparkles size={14} />}
+                kicker="Bulk Action"
+                title="Generate All Official Papers"
+                description="Generates the official paper for every level that isn't locked yet, one at a time -- a level that already has a locked paper is skipped. The individual Generate/Link buttons on each level below are unaffected."
+              />
+              <div className="mt-4">
+                <button
+                  type="button"
+                  disabled={GenerateAllPapersMutation.isPending}
+                  onClick={() => GenerateAllPapersMutation.mutate()}
+                  className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Sparkles size={16} />
+                  {GenerateAllPapersMutation.isPending ? "Generating All Papers..." : "Generate All Official Papers"}
+                </button>
+              </div>
+            </div>
             {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => {
               const LevelPaper: AnnualCompetitionLevelPaper | undefined = Overview.levelPapers.find((Paper) => Paper.competitionLevelCode === LevelCode);
               // 2026-09-10: MM-L2 used to be excluded from generation here
@@ -1244,12 +1311,17 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                         </thead>
                         <tbody>
                           {FilteredRosterCandidateRows.map((Row: AnnualCompetitionPracticeBankStudentRow) => (
-                            <tr key={Row.studentId} className="border-t border-[color:var(--mp-role-border)]">
+                            <tr
+                              key={Row.studentId}
+                              onClick={() => ToggleOneRosterCandidateRowSelected(Row.studentId)}
+                              className="cursor-pointer border-t border-[color:var(--mp-role-border)] transition hover:bg-slate-50 dark:hover:bg-slate-900/40"
+                            >
                               <td className="px-2 py-2">
                                 <input
                                   type="checkbox"
                                   checked={SelectedStudentIdsForRosterAdd.has(Row.studentId)}
                                   onChange={() => ToggleOneRosterCandidateRowSelected(Row.studentId)}
+                                  onClick={(EventValue) => EventValue.stopPropagation()}
                                   aria-label={`Select ${Row.studentName || Row.studentCode || Row.studentId}`}
                                   className="h-3.5 w-3.5"
                                 />
@@ -1357,12 +1429,17 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                     </thead>
                     <tbody>
                       {FilteredRosterRows.map((Row) => (
-                        <tr key={Row.studentId} className="border-t border-[color:var(--mp-role-border)]">
+                        <tr
+                          key={Row.studentId}
+                          onClick={() => ToggleOneRosterRowSelected(Row.studentId)}
+                          className="cursor-pointer border-t border-[color:var(--mp-role-border)] transition hover:bg-slate-50 dark:hover:bg-slate-900/40"
+                        >
                           <td className="px-2 py-2">
                             <input
                               type="checkbox"
                               checked={SelectedStudentIdsForRosterRemove.has(Row.studentId)}
                               onChange={() => ToggleOneRosterRowSelected(Row.studentId)}
+                              onClick={(EventValue) => EventValue.stopPropagation()}
                               aria-label={`Select ${Row.studentName || Row.studentCode || Row.studentId}`}
                               className="h-3.5 w-3.5"
                             />
@@ -1373,7 +1450,8 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                             <button
                               type="button"
                               disabled={RemoveFromRosterMutation.isPending}
-                              onClick={() => {
+                              onClick={(EventValue) => {
+                                EventValue.stopPropagation();
                                 if (window.confirm(`Remove ${Row.studentName || Row.studentCode || Row.studentId} from this event's roster?`)) {
                                   RemoveFromRosterMutation.mutate([Row.studentId]);
                                 }
@@ -1585,12 +1663,17 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                           ANNUAL_COMPETITION_LEVEL_CODES[0];
                         const RowIsSaving = RowOverrideMutation.isPending && RowOverrideMutation.variables?.StudentId === Row.studentId;
                         return (
-                          <tr key={Row.studentId} className="border-t border-[color:var(--mp-role-border)]">
+                          <tr
+                            key={Row.studentId}
+                            onClick={() => ToggleOneAssignmentRowSelected(Row.studentId)}
+                            className="cursor-pointer border-t border-[color:var(--mp-role-border)] transition hover:bg-slate-50 dark:hover:bg-slate-900/40"
+                          >
                             <td className="px-2 py-2">
                               <input
                                 type="checkbox"
                                 checked={SelectedStudentIdsForRun.has(Row.studentId)}
                                 onChange={() => ToggleOneAssignmentRowSelected(Row.studentId)}
+                                onClick={(EventValue) => EventValue.stopPropagation()}
                                 aria-label={`Select ${Row.studentName || Row.studentCode || Row.studentId} for next run`}
                                 className="h-3.5 w-3.5"
                               />
@@ -1625,14 +1708,15 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                 <span className="text-slate-400">no change</span>
                               )}
                             </td>
-                            <td className="px-2 py-2">
+                            <td className="px-2 py-2" onClick={(EventValue) => EventValue.stopPropagation()}>
                               {/* Deliberately independent of the auto-picker above -- this
                                   never writes anything until Apply is clicked, and the
                                   auto-picker/Run Assignment Engine flow is completely
                                   unaffected by this control existing. Only for the
                                   "unavoidable circumstances" escape hatch (Shailesh,
                                   2026-09-08 point 1) -- the override option stays exactly
-                                  as it was otherwise. */}
+                                  as it was otherwise. onClick above stops this cell's clicks
+                                  from bubbling to the row's own onClick (row selection). */}
                               <div className="flex items-center gap-1.5">
                                 <select
                                   value={RowPendingLevel}

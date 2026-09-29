@@ -31,6 +31,7 @@ from app.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
     CompetitionEventLevelPaper,
+    CompetitionEventRoster,
     CompetitionEventSectionTimer,
     CompetitionMockExam,
     CompetitionMockQuestion,
@@ -289,6 +290,9 @@ def test_official_attempt_submission_does_not_send_any_practice_notification():
         assigned_level_code="PM-L2", assignment_source="AUTO", is_active=True,
     )
     db.add(assignment)
+    # 2026-09-29 (Shailesh, Event Roster hardening): StartCompetitionEventAttempt
+    # now requires the student to be on the event's roster.
+    db.add(CompetitionEventRoster(id="roster-s1", event_id=event.id, student_id=student.id))
     db.flush()
 
     paper = CompetitionEventLevelPaper(

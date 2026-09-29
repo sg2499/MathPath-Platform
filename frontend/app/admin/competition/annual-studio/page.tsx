@@ -61,6 +61,7 @@ import type {
 } from "@/components/common/AnnualCompetitionAnalyticsCharts";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   Calendar,
   CalendarClock,
   CheckCircle2,
@@ -484,18 +485,35 @@ function StudentAnalyticsModal({
     queryFn: () => getAnnualCompetitionPracticeReportForStudent(Row.studentId, ActiveLevelParam),
   });
 
+  // 2026-09-29 (Shailesh: "on clicking any student it opens a modal which
+  // does not look and is very clumsy ... clicking on a student card opens a
+  // full screen view with all the relevant info displayed as usual and then
+  // on hitting the cross button on that window or the back button ...
+  // professional touch without making it look clumsy and weird"). Same
+  // dialog contract as before (Row/OnClose props, Escape-to-close) -- only
+  // the outer chrome changes from a centered backdrop dialog to a
+  // full-viewport view, with a "Back" control added alongside the existing
+  // close button.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8" role="dialog" aria-modal="true" aria-label="Student practice analytics">
-      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={OnClose} />
-      <div className="relative flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-[color:var(--mp-role-border)] bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white dark:bg-slate-950" role="dialog" aria-modal="true" aria-label="Student practice analytics">
         <div className="flex items-center justify-between gap-4 border-b border-[color:var(--mp-role-border)] px-6 py-4">
-          <div className="min-w-0">
-            <p className="truncate text-lg font-black text-slate-950 dark:text-white">
-              {Row.studentName || Row.studentCode || Row.studentId}
-            </p>
-            {Row.studentCode ? (
-              <p className="text-xs font-black uppercase tracking-[0.1em] text-[color:var(--mp-role-primary)]">{Row.studentCode}</p>
-            ) : null}
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={OnClose}
+              aria-label="Back to Practice Reports"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-2 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+            >
+              <ArrowLeft size={15} /> Back
+            </button>
+            <div className="min-w-0">
+              <p className="truncate text-lg font-black text-slate-950 dark:text-white">
+                {Row.studentName || Row.studentCode || Row.studentId}
+              </p>
+              {Row.studentCode ? (
+                <p className="text-xs font-black uppercase tracking-[0.1em] text-[color:var(--mp-role-primary)]">{Row.studentCode}</p>
+              ) : null}
+            </div>
           </div>
           <button
             type="button"
@@ -565,7 +583,6 @@ function StudentAnalyticsModal({
             )
           ) : null}
         </div>
-      </div>
     </div>
   );
 }
@@ -914,6 +931,8 @@ function AdminAnnualCompetitionStudioPageContent() {
   ).sort();
 
   const PracticeSearchLower = PracticeSearchText.trim().toLowerCase();
+  // 2026-09-29 (Shailesh: "wherever we have the list of students ... they
+  // should always follow the alphabetical order").
   const FilteredStudentRows = StudentRows.filter((Row) => {
     if (PracticeModuleFilter !== "ALL" && Row.currentModuleCode !== PracticeModuleFilter) return false;
     if (PracticeLevelFilter !== "ALL" && Row.currentLevelCode !== PracticeLevelFilter) return false;
@@ -923,7 +942,7 @@ function AdminAnnualCompetitionStudioPageContent() {
       if (!Haystack.includes(PracticeSearchLower)) return false;
     }
     return true;
-  });
+  }).sort((Left, Right) => (Left.studentName || Left.studentCode || "").localeCompare(Right.studentName || Right.studentCode || ""));
 
   const AllFilteredStudentRowsSelected =
     FilteredStudentRows.length > 0 && FilteredStudentRows.every((Row) => SelectedStudentIdsForPractice.has(Row.studentId));
@@ -1369,11 +1388,13 @@ function AdminAnnualCompetitionStudioPageContent() {
   });
 
   const ReportsStudentSearchLower = ReportsStudentSearchText.trim().toLowerCase();
-  const ReportsFilteredStudentRows = (ReportsRosterQuery.data?.students || []).filter((Row) => {
-    if (!ReportsStudentSearchLower) return true;
-    const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
-    return Haystack.includes(ReportsStudentSearchLower);
-  });
+  const ReportsFilteredStudentRows = (ReportsRosterQuery.data?.students || [])
+    .filter((Row) => {
+      if (!ReportsStudentSearchLower) return true;
+      const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
+      return Haystack.includes(ReportsStudentSearchLower);
+    })
+    .sort((Left, Right) => (Left.studentName || Left.studentCode || "").localeCompare(Right.studentName || Right.studentCode || ""));
 
   const PracticeReportLevelQuery = useQuery({
     queryKey: ["admin", "annual-competition", "practice-report-level", ReportsLevelCode],
@@ -1979,12 +2000,17 @@ function AdminAnnualCompetitionStudioPageContent() {
                       </thead>
                       <tbody>
                         {FilteredStudentRows.map((Row) => (
-                          <tr key={Row.studentId} className="border-t border-[color:var(--mp-role-border)]">
+                          <tr
+                            key={Row.studentId}
+                            onClick={() => ToggleOneStudentRowSelected(Row.studentId)}
+                            className="cursor-pointer border-t border-[color:var(--mp-role-border)] transition hover:bg-slate-50 dark:hover:bg-slate-900/40"
+                          >
                             <td className="px-2 py-2">
                               <input
                                 type="checkbox"
                                 checked={SelectedStudentIdsForPractice.has(Row.studentId)}
                                 onChange={() => ToggleOneStudentRowSelected(Row.studentId)}
+                                onClick={(EventValue) => EventValue.stopPropagation()}
                                 aria-label={`Select ${Row.studentName || Row.studentCode || Row.studentId}`}
                                 className="h-3.5 w-3.5"
                               />

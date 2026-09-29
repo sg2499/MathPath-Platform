@@ -30,7 +30,7 @@ import {
   type TeacherAnnualCompetitionResultRow,
 } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Calendar, CalendarClock, ChevronDown, ChevronRight, Eye, Flame, Medal, Repeat, RefreshCcw, Search, Sparkles, Trophy, X } from "lucide-react";
+import { Activity, ArrowLeft, Calendar, CalendarClock, ChevronDown, ChevronRight, Eye, Flame, Medal, Repeat, RefreshCcw, Search, Sparkles, Trophy, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
@@ -407,18 +407,36 @@ function StudentAnalyticsModal({
     queryFn: () => getTeacherAnnualCompetitionPracticeReportForStudent(Row.studentId, ActiveLevelParam),
   });
 
+  // 2026-09-29 (Shailesh: "on clicking any student it opens a modal which
+  // does not look and is very clumsy ... clicking on a student card opens a
+  // full screen view with all the relevant info displayed as usual and then
+  // on hitting the cross button on that window or the back button ...
+  // professional touch without making it look clumsy and weird"). Same
+  // dialog contract as before (Row/OnClose/OnViewAttempt props,
+  // Escape-to-close) -- only the outer chrome changes from a centered
+  // backdrop dialog to a full-viewport view, with a "Back" control added
+  // alongside the existing close button. Identical conversion to the
+  // admin's own copy of this component (annual-studio/page.tsx).
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8" role="dialog" aria-modal="true" aria-label="Student practice analytics">
-      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={OnClose} />
-      <div className="relative flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-[color:var(--mp-role-border)] bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white dark:bg-slate-950" role="dialog" aria-modal="true" aria-label="Student practice analytics">
         <div className="flex items-center justify-between gap-4 border-b border-[color:var(--mp-role-border)] px-6 py-4">
-          <div className="min-w-0">
-            <p className="truncate text-lg font-black text-slate-950 dark:text-white">
-              {Row.studentName || Row.studentCode || Row.studentId}
-            </p>
-            {Row.studentCode ? (
-              <p className="text-xs font-black uppercase tracking-[0.1em] text-[color:var(--mp-role-primary)]">{Row.studentCode}</p>
-            ) : null}
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={OnClose}
+              aria-label="Back to Practice Reports"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-2 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+            >
+              <ArrowLeft size={15} /> Back
+            </button>
+            <div className="min-w-0">
+              <p className="truncate text-lg font-black text-slate-950 dark:text-white">
+                {Row.studentName || Row.studentCode || Row.studentId}
+              </p>
+              {Row.studentCode ? (
+                <p className="text-xs font-black uppercase tracking-[0.1em] text-[color:var(--mp-role-primary)]">{Row.studentCode}</p>
+              ) : null}
+            </div>
           </div>
           <button
             type="button"
@@ -488,7 +506,6 @@ function StudentAnalyticsModal({
             )
           ) : null}
         </div>
-      </div>
     </div>
   );
 }
@@ -669,6 +686,11 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   const [SelectedEventId, SetSelectedEventId] = useState<string>("");
   const [TopTab, SetTopTab] = useState<TopTabKey>(DeepLinkTab === "PRACTICE" ? "PRACTICE" : "OFFICIAL");
   const [ActiveTab, SetActiveTab] = useState<OfficialSubTabKey>("LIVE");
+  // 2026-09-29 (Shailesh: "we need the level filter as well where the
+  // teacher can filter out and see the results level wise") -- same "ALL"
+  // default + query-param pattern as the admin Results tab
+  // (annual-studio/[eventId]/page.tsx's ResultsLevelFilter).
+  const [ResultsLevelFilter, SetResultsLevelFilter] = useState<string>("ALL");
   const [PracticeLevelFilter, SetPracticeLevelFilter] = useState<string>("ALL");
   const [PracticeSearchText, SetPracticeSearchText] = useState("");
   const [ExpandedPracticeStudents, SetExpandedPracticeStudents] = useState<Set<string>>(new Set());
@@ -726,8 +748,8 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   });
 
   const ResultsQuery = useQuery({
-    queryKey: ["teacher", "annual-competition", "results", SelectedEventId],
-    queryFn: () => getTeacherAnnualCompetitionResults(SelectedEventId),
+    queryKey: ["teacher", "annual-competition", "results", SelectedEventId, ResultsLevelFilter],
+    queryFn: () => getTeacherAnnualCompetitionResults(SelectedEventId, ResultsLevelFilter === "ALL" ? undefined : ResultsLevelFilter),
     enabled: Ready && Boolean(SelectedEventId) && TopTab === "OFFICIAL" && ActiveTab === "RESULTS",
   });
 
@@ -766,11 +788,13 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   const ReportsRosterStudents = ReportsRosterQuery.data?.students || [];
 
   const ReportsStudentSearchLower = ReportsStudentSearchText.trim().toLowerCase();
+  // 2026-09-29 (Shailesh: "wherever we have the list of students ... they
+  // should always follow the alphabetical order").
   const ReportsFilteredStudentRows = ReportsRosterStudents.filter((Row) => {
     if (!ReportsStudentSearchLower) return true;
     const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
     return Haystack.includes(ReportsStudentSearchLower);
-  });
+  }).sort((Left, Right) => (Left.studentName || Left.studentCode || "").localeCompare(Right.studentName || Right.studentCode || ""));
 
   const PracticeReportLevelQuery = useQuery({
     queryKey: ["teacher", "annual-competition", "practice-report-level", ReportsLevelCode],
@@ -1095,7 +1119,24 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                 <p className="math-block-header"><Medal size={14} />Results</p>
                 <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
                   Kept hidden here too until Admin releases them -- exactly the same lock-down students and parents see.
+                  Ranked ascending by rank within each level -- this is the tab used to review who finished where.
                 </p>
+
+                <div className="mt-4 flex flex-wrap items-end gap-3">
+                  <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                    Filter by Level
+                    <select
+                      value={ResultsLevelFilter}
+                      onChange={(EventValue) => SetResultsLevelFilter(EventValue.target.value)}
+                      className="math-input"
+                    >
+                      <option value="ALL">All Levels</option>
+                      {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                        <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
 
                 {ResultsQuery.isLoading ? (
                   <div className="mt-4"><LoadingState label="Loading results..." /></div>

@@ -54,6 +54,7 @@ from app.models.models import (
     CompetitionEventAttempt,
     CompetitionEventAttemptAnswer,
     CompetitionEventLevelPaper,
+    CompetitionEventRoster,
     CompetitionEventSectionTimer,
     CompetitionMockExam,
     CompetitionMockQuestion,
@@ -138,6 +139,9 @@ def student_and_attempt(db):
 
     assignment = CompetitionEventAssignment(event_id=event.id, student_id=student.id, assigned_level_code="PM-L2", assignment_source="AUTO", is_active=True)
     db.add(assignment)
+    # 2026-09-29 (Shailesh, Event Roster hardening): StartCompetitionEventAttempt
+    # now requires the student to be on the event's roster.
+    db.add(CompetitionEventRoster(event_id=event.id, student_id=student.id))
     db.commit()
 
     level_paper = CompetitionEventLevelPaper(event_id=event.id, competition_level_code="PM-L2", mock_exam_id=exam.id, status="READY")

@@ -23,6 +23,7 @@ from app.models import (
     CompetitionEventAttempt,
     CompetitionEventAttemptAnswer,
     CompetitionEventLevelPaper,
+    CompetitionEventRoster,
     CompetitionEventSectionTimer,
     CompetitionMockExam,
     CompetitionMockQuestion,
@@ -112,6 +113,9 @@ def _setup_student_with_questions(db, student_id, event_id, section_seconds, que
         assigned_level_code=level_code, assignment_source="AUTO", is_active=True,
     )
     db.add(assignment)
+    # 2026-09-29 (Shailesh, Event Roster hardening): StartCompetitionEventAttempt
+    # now requires the student to be on the event's roster.
+    db.add(CompetitionEventRoster(id=f"roster-{student_id}", event_id=event_id, student_id=student.id))
     db.flush()
 
     level_paper_id = f"paper-{level_code}"
