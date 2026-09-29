@@ -33,6 +33,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Activity, ArrowLeft, Calendar, CalendarClock, ChevronDown, ChevronRight, Eye, Flame, Medal, Repeat, RefreshCcw, Search, Sparkles, Trophy, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 // 2026-09-27 (Shailesh, Practice Leaderboard sort filter) -- see the
 // identical block on the admin page (admin/competition/annual-studio/
@@ -417,15 +418,24 @@ function StudentAnalyticsModal({
   // backdrop dialog to a full-viewport view, with a "Back" control added
   // alongside the existing close button. Identical conversion to the
   // admin's own copy of this component (annual-studio/page.tsx).
-  return (
+  //
+  // 2026-09-29 follow-up: bumping this to z-[200] (above the AppShell's
+  // z-[100] sticky nav) was not enough on its own -- verified live in
+  // Chrome that document.elementFromPoint() over the modal's own Back
+  // button returned the nav's logo image, not the modal, even though both
+  // getComputedStyle and getBoundingClientRect agreed the modal (z-200,
+  // fixed, inset-0) covered that exact pixel. That's a real Chromium paint
+  // bug where the nav header's `position: sticky` + `backdrop-filter:
+  // blur(...)` (see .math-shell-header) escapes normal stacking-context
+  // z-order and paints above later, higher z-indexed siblings -- hiding
+  // the header (display:none) made the modal hit-testable again at the
+  // same pixel, confirming it. Portaling straight to document.body sidesteps
+  // the whole stacking-context relationship with the nav (no shared
+  // ancestor subtlety to get right, and it wins on DOM order too, being
+  // the very last node in <body>), which is the standard fix for this
+  // class of bug rather than relying on z-index alone.
+  return createPortal(
     <div className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-white dark:bg-slate-950" role="dialog" aria-modal="true" aria-label="Student practice analytics">
-      {/* z-[200]: the AppShell's sticky top nav is z-[100] (see .math-shell-header
-          in globals.css) and sits in normal document flow as a sibling of this
-          portal-less fixed overlay. At the modal's old z-50 the sticky header's
-          higher stacking layer rendered on top of it, cropping the modal's own
-          header/tabs beneath the nav bar instead of covering the full viewport.
-          z-[200] clears that (and the z-[140] nav dropdown panel) so the modal
-          is always the topmost layer. */}
         <div className="flex items-center justify-between gap-4 border-b border-[color:var(--mp-role-border)] px-6 py-4">
           <div className="flex min-w-0 items-center gap-3">
             <button
@@ -513,7 +523,8 @@ function StudentAnalyticsModal({
             )
           ) : null}
         </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
