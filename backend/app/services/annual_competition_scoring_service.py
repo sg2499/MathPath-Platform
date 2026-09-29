@@ -799,14 +799,32 @@ def ListCompetitionEventResultsForAdmin(db: Session, *, EventId: str, Competitio
     attempt_type == "OFFICIAL" -- this is the official competitive results
     list; practice results get their own, separately-scoped admin surface
     in a later phase, never mixed into this one.
+
+    2026-09-29 (Shailesh, "a practice paper attempt should never occur in
+    any official event whatsoever"): under current attempt-building code a
+    genuine practice attempt can't produce a row like that (its
+    attempt_type is stamped PRACTICE and it never gets an event_id at all,
+    see the 2026-09-12 decoupling), so a row matching this event with
+    attempt_type == "OFFICIAL" that's actually a practice paper can only be
+    stale/legacy data predating those fixes -- not something today's flow
+    can (re)create. Added a belt-and-braces join on the attempt's own
+    CompetitionEventLevelPaper.paper_kind here anyway, so this list is
+    self-defending even if a row's attempt_type is ever wrong again, rather
+    than relying solely on that denormalized flag.
     """
     EventRecord = db.get(CompetitionEvent, EventId)
     if not EventRecord:
         api_error(404, "COMPETITION_EVENT_NOT_FOUND", "The selected Annual Competition event was not found.")
 
-    Query = db.query(CompetitionEventResult).filter(
-        CompetitionEventResult.event_id == EventId,
-        CompetitionEventResult.attempt_type == "OFFICIAL",
+    Query = (
+        db.query(CompetitionEventResult)
+        .join(CompetitionEventAttempt, CompetitionEventAttempt.id == CompetitionEventResult.attempt_id)
+        .join(CompetitionEventLevelPaper, CompetitionEventLevelPaper.id == CompetitionEventAttempt.level_paper_id)
+        .filter(
+            CompetitionEventResult.event_id == EventId,
+            CompetitionEventResult.attempt_type == "OFFICIAL",
+            CompetitionEventLevelPaper.paper_kind == "OFFICIAL",
+        )
     )
     if CompetitionLevelCode:
         Query = Query.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)

@@ -333,15 +333,17 @@ def _finalized_attempt_with_result(db, student, event, assignment_id, *, is_rele
 
 
 def test_roster_results_hide_metrics_until_released():
+    # 2026-09-29 (Shailesh, "should only show the students whose results the
+    # admin has released"): an unreleased result no longer surfaces as a
+    # placeholder row -- it's dropped from the roster entirely.
     db = _session()
     student, event = _full_setup(db)
     _finalized_attempt_with_result(db, student, event, "assign-1", is_released=False)
 
     result = engine.ListAnnualCompetitionResultsForRoster(db, EventId=event.id, StudentIdsFilter=[student.id])
 
-    row = result["rows"][0]
-    assert row["released"] is False
-    assert row["result"] is None
+    assert result["totalResults"] == 0
+    assert result["rows"] == []
 
 
 def test_roster_results_show_full_metrics_once_released():
@@ -358,15 +360,16 @@ def test_roster_results_show_full_metrics_once_released():
 
 
 def test_roster_results_not_started_student_has_no_result():
+    # 2026-09-29 (Shailesh): a student with no attempt yet is dropped
+    # entirely from the teacher's Results roster now, not shown as a
+    # "Not started" placeholder row.
     db = _session()
     student, event = _full_setup(db)
 
     result = engine.ListAnnualCompetitionResultsForRoster(db, EventId=event.id, StudentIdsFilter=[student.id])
 
-    row = result["rows"][0]
-    assert row["released"] is False
-    assert row["result"] is None
-    assert row["attemptStatus"] == "NOT_STARTED"
+    assert result["totalResults"] == 0
+    assert result["rows"] == []
 
 
 def test_roster_results_empty_filter_short_circuits():
@@ -442,17 +445,18 @@ def test_live_monitoring_never_shows_a_practice_attempt():
 
 
 def test_roster_results_never_shows_a_practice_result():
+    # 2026-09-29 (Shailesh): a practice attempt never matches this
+    # assignment-keyed roster (see this module's own docstring on why), and
+    # with no OFFICIAL attempt either, the row is now dropped entirely
+    # rather than showing as an unreleased/not-started placeholder.
     db = _session()
     student, event = _full_setup(db)
     _practice_attempt_with_result(db, student.id)
 
     result = engine.ListAnnualCompetitionResultsForRoster(db, EventId=event.id, StudentIdsFilter=[student.id])
 
-    assert result["totalResults"] == 1
-    row = result["rows"][0]
-    assert row["released"] is False  # not "released" -- simply never found (NOT_STARTED)
-    assert row["result"] is None
-    assert row["attemptStatus"] == "NOT_STARTED"
+    assert result["totalResults"] == 0
+    assert result["rows"] == []
 
 
 # ---------------------------------------------------------------------------

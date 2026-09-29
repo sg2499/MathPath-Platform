@@ -943,61 +943,39 @@ function TeacherAnnualCompetitionMonitorPageContent() {
           </div>
         </div>
 
-        <div className="math-card p-5">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            {TopTab === "PRACTICE" && PracticeSubTab === "RESULTS" ? (
-              <div className="flex flex-wrap items-end gap-3">
-                {/* 2026-09-23 (Shailesh): "the search bar and level filters
-                    do not follow the conventions ... they need to be
-                    aligned in a single line perfectly as in other places
-                    and also the level filter needs to be of the standard
-                    size instead of a full block." Same min-w-[220px]
-                    flex-1 search / w-auto min-w-[150px] select pattern
-                    already used by this page's own Individual Student
-                    Analytics filter below, applied here for the first
-                    time -- .math-select/.math-input default to w-full
-                    (globals.css) which is right for a form field but wrong
-                    for an inline filter, hence the per-instance override. */}
-                <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
-                  <Search size={16} className="text-[color:var(--mp-role-primary)]" />
-                  <input
-                    value={PracticeSearchText}
-                    onChange={(EventValue) => SetPracticeSearchText(EventValue.target.value)}
-                    placeholder="Search student name or code"
-                    className="w-full bg-transparent outline-none placeholder:text-slate-400"
-                  />
+        {/* 2026-09-29 (Shailesh, "structurally not following the
+            conventions we have in place for the entire platform across all
+            the logins" / "completely blank on the left hand side"): this
+            card used to double up as BOTH the Official tab's Event
+            selector + Live/Results sub-tabs AND the Practice tab's
+            search/level filter + Results/Reports/Leaderboard sub-tabs,
+            sharing one row -- so on Practice's Reports/Leaderboard sub-tabs
+            (which have no search/filter of their own) the left side
+            rendered a literal empty <span/>. Split into two: this card now
+            only ever handles OFFICIAL (Event selector + its own sub-tabs,
+            unchanged from before), and Practice gets its own dedicated
+            tab-switcher card below, matching the admin Annual Competition
+            Studio's own Practice Bank/Results/Reports/Leaderboard
+            convention (admin/competition/annual-studio/page.tsx) -- a
+            standalone sub-tab switcher, with each sub-tab's own filters
+            living inside that sub-tab's own content card instead. */}
+        {TopTab === "OFFICIAL" && (
+          <div className="math-card p-5">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              {Events.length > 0 ? (
+                <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
+                  Event
+                  <select value={SelectedEventId} onChange={(EventValue) => SetSelectedEventId(EventValue.target.value)} className="math-input min-w-[280px]">
+                    {Events.map((EventItem) => (
+                      <option key={EventItem.eventId} value={EventItem.eventId}>
+                        {EventItem.name} -- {FormatEventDate(EventItem.competitionDate)}
+                      </option>
+                    ))}
+                  </select>
                 </label>
-                {/* 2026-09-14 (Shailesh): "pls remove the level filter text
-                    from top of the level filter dropdown as it is self
-                    explanatory" -- select kept, "Level" label text dropped
-                    (aria-label preserves accessibility). */}
-                <select
-                  aria-label="Filter by level"
-                  value={PracticeLevelFilter}
-                  onChange={(EventValue) => SetPracticeLevelFilter(EventValue.target.value)}
-                  className="math-input w-auto min-w-[150px]"
-                >
-                  <option value="ALL">All Levels</option>
-                  {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
-                    <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
-                  ))}
-                </select>
-              </div>
-            ) : TopTab === "OFFICIAL" && Events.length > 0 ? (
-              <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                Event
-                <select value={SelectedEventId} onChange={(EventValue) => SetSelectedEventId(EventValue.target.value)} className="math-input min-w-[280px]">
-                  {Events.map((EventItem) => (
-                    <option key={EventItem.eventId} value={EventItem.eventId}>
-                      {EventItem.name} -- {FormatEventDate(EventItem.competitionDate)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <span />
-            )}
-            {TopTab === "OFFICIAL" ? (
+              ) : (
+                <span />
+              )}
               <div className="flex flex-wrap gap-3">
                 {OfficialSubTabList.map((Tab) => (
                   <button
@@ -1011,28 +989,31 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                   </button>
                 ))}
               </div>
-            ) : TopTab === "PRACTICE" ? (
-              // Practice Reports feature, package 4 (Shailesh, 2026-09-16):
-              // mirrors the OFFICIAL Live Status/Results sub-tab bar above,
-              // one level down -- Results (the existing, unchanged practice
-              // table) vs. Reports (the new Individual Student/Individual
-              // Level analytics).
-              <div className="flex flex-wrap gap-3">
-                {PracticeSubTabList.map((Tab) => (
-                  <button
-                    key={Tab}
-                    type="button"
-                    onClick={() => SetPracticeSubTab(Tab)}
-                    aria-selected={PracticeSubTab === Tab}
-                    className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${PracticeSubTab === Tab ? "is-active" : ""}`}
-                  >
-                    {Tab === "RESULTS" ? "Practice Results" : Tab === "REPORTS" ? "Practice Reports" : "Leaderboard"}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* 2026-09-29 (Shailesh): Practice's own standalone sub-tab
+            switcher card -- mirrors the admin Annual Competition Studio's
+            Practice tab-switcher card exactly (its own math-card p-3, no
+            filters sharing the row), see this block's comment above. */}
+        {TopTab === "PRACTICE" && (
+          <div className="math-card p-3">
+            <div className="flex flex-wrap gap-3">
+              {PracticeSubTabList.map((Tab) => (
+                <button
+                  key={Tab}
+                  type="button"
+                  onClick={() => SetPracticeSubTab(Tab)}
+                  aria-selected={PracticeSubTab === Tab}
+                  className={`math-role-tab-button rounded-2xl px-4 py-2 text-sm font-black transition ${PracticeSubTab === Tab ? "is-active" : ""}`}
+                >
+                  {Tab === "RESULTS" ? "Practice Results" : Tab === "REPORTS" ? "Practice Reports" : "Leaderboard"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {TopTab === "OFFICIAL" && (ActiveTab === "LIVE" || ActiveTab === "RESULTS") && (
           EventsQuery.isLoading ? (
@@ -1184,6 +1165,35 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                   are visible to them the instant they're scored (no release gate, unlike Official). Not ranked --
                   practice papers are for building confidence and speed, never for competing against classmates.
                 </p>
+
+                {/* 2026-09-29 (Shailesh): moved here, under this tab's own
+                    heading, from the old shared filter+tabs row above --
+                    matches the admin Annual Competition Studio's own
+                    Practice Results filter placement exactly (same
+                    min-w-[220px] flex-1 search / w-auto min-w-[150px]
+                    select pattern). */}
+                <div className="mt-4 flex flex-wrap items-end gap-3">
+                  <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-2xl border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
+                    <Search size={16} className="text-[color:var(--mp-role-primary)]" />
+                    <input
+                      value={PracticeSearchText}
+                      onChange={(EventValue) => SetPracticeSearchText(EventValue.target.value)}
+                      placeholder="Search student name or code"
+                      className="w-full bg-transparent outline-none placeholder:text-slate-400"
+                    />
+                  </label>
+                  <select
+                    aria-label="Filter by level"
+                    value={PracticeLevelFilter}
+                    onChange={(EventValue) => SetPracticeLevelFilter(EventValue.target.value)}
+                    className="math-input w-auto min-w-[150px]"
+                  >
+                    <option value="ALL">All Levels</option>
+                    {ANNUAL_COMPETITION_LEVEL_CODES.map((LevelCode) => (
+                      <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
+                    ))}
+                  </select>
+                </div>
 
                 {PracticeQuery.data ? (
                   <div className="mt-4 flex flex-wrap gap-4 text-xs font-black text-slate-600 dark:text-slate-300">

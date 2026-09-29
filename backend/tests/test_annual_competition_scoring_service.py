@@ -1332,6 +1332,75 @@ def test_practice_result_excluded_from_admin_results_list():
     assert listing["rows"][0]["studentId"] == "s1"
 
 
+def test_admin_results_list_excludes_a_mistagged_practice_row_via_paper_kind():
+    """2026-09-29 (Shailesh, "a practice paper attempt should never occur in
+    any official event whatsoever ... this is also glitched out"): a live
+    stale-data report -- a CompetitionEventResult with attempt_type ==
+    'OFFICIAL' whose underlying attempt actually ran off a PRACTICE paper.
+    Today's attempt-building code can't create this shape (see this
+    function's own docstring), but a legacy/corrupted row could still carry
+    it, and the plain attempt_type == "OFFICIAL" filter alone would not
+    catch it -- this is the belt-and-braces join on
+    CompetitionEventLevelPaper.paper_kind that does.
+    """
+    db = _session()
+    event = _event(db)
+    student = _setup_student_with_questions(db, "s1", event.id, section_seconds=(600,), questions_per_section=[1])
+    _student(db, "sMistagged")
+    db.commit()
+    _submit_full_attempt(db, student, event.id, {"q-1-1": True})
+
+    # Same shape as _practice_result's practice paper/attempt, but the
+    # attempt and result are (wrongly) stamped attempt_type="OFFICIAL" and
+    # given this event's id -- the exact shape of the stale row found in
+    # production.
+    practice_paper = CompetitionEventLevelPaper(
+        id="mistagged-paper",
+        event_id=None,
+        competition_level_code="PM-L2",
+        paper_kind="PRACTICE",
+        status="READY",
+        assigned_student_id="sMistagged",
+    )
+    db.add(practice_paper)
+    db.flush()
+    mistagged_attempt = CompetitionEventAttempt(
+        id="mistagged-attempt",
+        event_id=event.id,
+        assignment_id=None,
+        level_paper_id=practice_paper.id,
+        student_id="sMistagged",
+        attempt_number=1,
+        attempt_type="OFFICIAL",
+        status="FINALIZED",
+    )
+    db.add(mistagged_attempt)
+    db.flush()
+    mistagged_result = CompetitionEventResult(
+        id="mistagged-result",
+        attempt_id=mistagged_attempt.id,
+        event_id=event.id,
+        assignment_id=None,
+        student_id="sMistagged",
+        attempt_type="OFFICIAL",
+        competition_level_code="PM-L2",
+        score=1,
+        max_score=1,
+        percentage=100.0,
+        accuracy_percentage=100.0,
+        correct_count=1,
+        wrong_count=0,
+        unanswered_count=0,
+        is_released=False,
+    )
+    db.add(mistagged_result)
+    db.commit()
+
+    listing = scoring.ListCompetitionEventResultsForAdmin(db, EventId=event.id)
+    assert listing["totalResults"] == 1
+    assert listing["rows"][0]["studentId"] == "s1"
+
+
 # ---------------------------------------------------------------------------
 # Practice's own finalize path, driven through a REAL attempt+submission
 # (unlike _practice_result above, which builds a synthetic result row

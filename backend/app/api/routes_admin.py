@@ -97,6 +97,9 @@ from app.services.competition_mock_assignment_service import (
 from app.services.annual_competition_assignment_service import (
     PreviewAnnualCompetitionAssignments,
     RunAnnualCompetitionAssignmentEngine,
+    AddStudentsToEventRoster,
+    RemoveStudentsFromEventRoster,
+    ListEventRoster,
 )
 
 from app.services.annual_competition_studio_service import (
@@ -241,6 +244,15 @@ class AnnualCompetitionOverrideRequest(BaseModel):
 class AnnualCompetitionBulkOverrideRequest(BaseModel):
     studentIds: list[str]
     assignedLevelCode: str
+
+# 2026-09-29 (Shailesh, Event Roster): studentIds accepts one id or many --
+# "we never know what will be required when so we need to cover all the
+# bases" -- both add and remove support a single student or a bulk list.
+class AnnualCompetitionRosterAddRequest(BaseModel):
+    studentIds: list[str]
+
+class AnnualCompetitionRosterRemoveRequest(BaseModel):
+    studentIds: list[str]
 
 class AnnualCompetitionGrantRetryRequest(BaseModel):
     attemptId: str
@@ -5978,6 +5990,35 @@ def admin_run_annual_competition_assignments(
     user: User = Depends(admin_dep),
 ):
     return RunAnnualCompetitionAssignmentEngine(db, EventId=event_id, RunBy=user, StudentIds=payload.studentIds)
+
+
+# --- Annual Competition Event Roster (2026-09-29, Shailesh) -----------------
+# The explicit, admin-maintained list of students eligible for a given
+# event -- the single gate the assignment engine ("All" and "Selected"
+# both) and the manual/bulk override now share. See
+# CompetitionEventRoster's own docstring in app/models/models.py, and
+# _RosterForEvent's in annual_competition_assignment_service.py, for the
+# full rationale. Add/remove both take one id or many in the same request
+# shape, so a single-student action and a bulk action both go through this
+# one route each.
+
+@router.get("/annual-competition/events/{event_id}/roster")
+def admin_list_annual_competition_event_roster(event_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return ListEventRoster(db, EventId=event_id)
+
+
+@router.post("/annual-competition/events/{event_id}/roster")
+def admin_add_students_to_annual_competition_event_roster(
+    event_id: str, payload: AnnualCompetitionRosterAddRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return AddStudentsToEventRoster(db, EventId=event_id, StudentIds=payload.studentIds, AddedBy=user)
+
+
+@router.post("/annual-competition/events/{event_id}/roster/remove")
+def admin_remove_students_from_annual_competition_event_roster(
+    event_id: str, payload: AnnualCompetitionRosterRemoveRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return RemoveStudentsFromEventRoster(db, EventId=event_id, StudentIds=payload.studentIds)
 
 
 # --- Annual Competition (Package 3): Admin Studio -----------------------

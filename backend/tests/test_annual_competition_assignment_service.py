@@ -18,6 +18,7 @@ from app.models import (
     Attempt,
     CompetitionEvent,
     CompetitionEventAssignment,
+    CompetitionEventRoster,
     DPS,
     Lesson,
     Level,
@@ -78,6 +79,15 @@ def _event(db):
     e = CompetitionEvent(id="event-1", name="Annual Competition 2026", status="DRAFT", competition_date=datetime.now(timezone.utc))
     db.add(e)
     return e
+
+
+def _roster(db, event_id, *student_ids):
+    """2026-09-29 (Shailesh, Event Roster): the engine/preview now only
+    ever considers students on this table for the given event -- every test
+    below that exercises the engine/preview must put its student(s) on the
+    roster first, same as a real admin would via the Event Roster panel."""
+    for StudentId in student_ids:
+        db.add(CompetitionEventRoster(id=f"roster-{event_id}-{StudentId}", event_id=event_id, student_id=StudentId))
 
 
 def _seed_curriculum(db):
@@ -350,6 +360,7 @@ def test_preview_surfaces_master_current_lesson_number_for_admin_ui():
     for n in range(1, 17):
         _clear_lesson(db, "s1", lessons[n][1].id)
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     preview = engine.PreviewAnnualCompetitionAssignments(db, EventId="event-1")
@@ -381,6 +392,7 @@ def test_run_creates_auto_assignment_rows():
     _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
     admin = _admin(db)
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     result = engine.RunAnnualCompetitionAssignmentEngine(db, EventId="event-1", RunBy=admin)
@@ -406,6 +418,7 @@ def test_run_never_overwrites_an_admin_override():
             is_active=True,
         )
     )
+    _roster(db, "event-1", "s1")
     db.commit()
 
     result = engine.RunAnnualCompetitionAssignmentEngine(db, EventId="event-1", RunBy=admin)
@@ -423,6 +436,7 @@ def test_run_updates_an_existing_auto_row_when_level_changes():
     _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
     admin = _admin(db)
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     first = engine.RunAnnualCompetitionAssignmentEngine(db, EventId="event-1", RunBy=admin)
@@ -451,6 +465,7 @@ def test_run_links_matching_slot_on_newly_created_assignment():
     _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
     admin = _admin(db)
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     slot = studio.CreateCompetitionEventSlot(
@@ -472,6 +487,7 @@ def test_run_relinks_slot_when_computed_level_changes_between_runs():
     _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
     admin = _admin(db)
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     SlotForPmL1 = studio.CreateCompetitionEventSlot(
@@ -509,6 +525,7 @@ def test_run_writes_no_row_for_students_with_no_rule_matched():
     _student(db, "s1", modules["YLM"].id, levels["YLM-L1"].id)  # excluded by default
     admin = _admin(db)
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     result = engine.RunAnnualCompetitionAssignmentEngine(db, EventId="event-1", RunBy=admin)
@@ -532,6 +549,7 @@ def test_preview_reports_would_overwrite_admin_override_without_changing_it():
             is_active=True,
         )
     )
+    _roster(db, "event-1", "s1")
     db.commit()
 
     preview = engine.PreviewAnnualCompetitionAssignments(db, EventId="event-1")
@@ -547,3 +565,215 @@ def test_preview_unknown_event_raises_404():
     db = _session()
     with pytest.raises(HTTPException):
         engine.PreviewAnnualCompetitionAssignments(db, EventId="does-not-exist")
+
+
+# ---------------------------------------------------------------------------
+# Event Roster (2026-09-29, Shailesh) -- the explicit per-event eligibility
+# list. Covers: the roster now being the only thing that scopes "Run
+# Assignment Engine (All Students)" (the exact live bug being fixed -- a
+# slot never officially assigned to real students leaking onto them because
+# the old code considered every active student on the platform), the
+# "Selected" run staying intersected with the roster, and the roster CRUD
+# itself (bulk + single add/remove, per-student isolation on a bad id).
+# ---------------------------------------------------------------------------
+
+def test_engine_all_students_run_only_covers_the_roster_not_the_whole_platform():
+    """The exact live bug this feature closes: "the real student accounts
+    are also getting [assigned a slot] when i have never assigned that
+    officially -- i had only allotted it to the test students." Two
+    students exist on the platform; only one is on this event's roster.
+    Running "All Students" (StudentIds=None) must never touch the other."""
+    db = _session()
+    modules, levels = _seed_curriculum(db)
+    _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)  # on the roster
+    _student(db, "s2", modules["PM"].id, levels["PM-L2"].id)  # NOT on the roster -- must never be touched
+    admin = _admin(db)
+    _event(db)
+    _roster(db, "event-1", "s1")
+    db.commit()
+
+    result = engine.RunAnnualCompetitionAssignmentEngine(db, EventId="event-1", RunBy=admin)
+    assert result["created"] == 1
+    Rows = db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.event_id == "event-1").all()
+    assert {Row.student_id for Row in Rows} == {"s1"}
+
+
+def test_engine_selected_students_run_is_intersected_with_the_roster():
+    """A StudentIds selection that includes someone off the roster must
+    silently exclude them, never assign them anyway."""
+    db = _session()
+    modules, levels = _seed_curriculum(db)
+    _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
+    _student(db, "s2", modules["PM"].id, levels["PM-L2"].id)  # not rostered
+    admin = _admin(db)
+    _event(db)
+    _roster(db, "event-1", "s1")
+    db.commit()
+
+    result = engine.RunAnnualCompetitionAssignmentEngine(db, EventId="event-1", RunBy=admin, StudentIds=["s1", "s2"])
+    assert result["created"] == 1
+    Rows = db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.event_id == "event-1").all()
+    assert {Row.student_id for Row in Rows} == {"s1"}
+
+
+def test_preview_all_students_only_covers_the_roster():
+    db = _session()
+    modules, levels = _seed_curriculum(db)
+    _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
+    _student(db, "s2", modules["PM"].id, levels["PM-L2"].id)
+    _event(db)
+    _roster(db, "event-1", "s1")
+    db.commit()
+
+    preview = engine.PreviewAnnualCompetitionAssignments(db, EventId="event-1")
+    assert {Row["studentId"] for Row in preview["rows"]} == {"s1"}
+
+
+def test_roster_add_bulk_then_list_returns_every_student():
+    db = _session()
+    modules, levels = _seed_curriculum(db)
+    _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
+    _student(db, "s2", modules["PM"].id, levels["PM-L2"].id)
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+
+    result = engine.AddStudentsToEventRoster(db, EventId="event-1", StudentIds=["s1", "s2"], AddedBy=admin)
+    assert result["studentsRequested"] == 2
+    assert result["studentsSucceeded"] == 2
+    assert result["studentsFailed"] == 0
+
+    listing = engine.ListEventRoster(db, EventId="event-1")
+    assert listing["totalStudents"] == 2
+    assert {Row["studentId"] for Row in listing["rows"]} == {"s1", "s2"}
+
+
+def test_roster_add_single_student_also_works():
+    db = _session()
+    modules, levels = _seed_curriculum(db)
+    _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+
+    result = engine.AddStudentsToEventRoster(db, EventId="event-1", StudentIds=["s1"], AddedBy=admin)
+    assert result["studentsSucceeded"] == 1
+    assert engine.ListEventRoster(db, EventId="event-1")["totalStudents"] == 1
+
+
+def test_roster_add_is_idempotent_for_an_already_rostered_student():
+    db = _session()
+    modules, levels = _seed_curriculum(db)
+    _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+
+    engine.AddStudentsToEventRoster(db, EventId="event-1", StudentIds=["s1"], AddedBy=admin)
+    result = engine.AddStudentsToEventRoster(db, EventId="event-1", StudentIds=["s1"], AddedBy=admin)
+    assert result["studentsSucceeded"] == 1  # already on the roster -- not an error, not a duplicate row
+    assert engine.ListEventRoster(db, EventId="event-1")["totalStudents"] == 1
+
+
+def test_roster_add_one_bad_student_id_does_not_lose_the_others():
+    db = _session()
+    modules, levels = _seed_curriculum(db)
+    _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+
+    result = engine.AddStudentsToEventRoster(db, EventId="event-1", StudentIds=["s1", "does-not-exist"], AddedBy=admin)
+    assert result["studentsSucceeded"] == 1
+    assert result["studentsFailed"] == 1
+    assert result["failed"][0]["studentId"] == "does-not-exist"
+    assert engine.ListEventRoster(db, EventId="event-1")["totalStudents"] == 1
+
+
+def test_roster_add_requires_at_least_one_student():
+    from fastapi import HTTPException
+
+    db = _session()
+    admin = _admin(db)
+    _event(db)
+    db.commit()
+    with pytest.raises(HTTPException):
+        engine.AddStudentsToEventRoster(db, EventId="event-1", StudentIds=[], AddedBy=admin)
+
+
+def test_roster_remove_bulk_leaves_the_others_untouched():
+    db = _session()
+    modules, levels = _seed_curriculum(db)
+    _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
+    _student(db, "s2", modules["PM"].id, levels["PM-L2"].id)
+    _student(db, "s3", modules["PM"].id, levels["PM-L2"].id)
+    admin = _admin(db)
+    _event(db)
+    _roster(db, "event-1", "s1", "s2", "s3")
+    db.commit()
+
+    result = engine.RemoveStudentsFromEventRoster(db, EventId="event-1", StudentIds=["s1", "s2"])
+    assert result["studentsRemoved"] == 2
+    listing = engine.ListEventRoster(db, EventId="event-1")
+    assert {Row["studentId"] for Row in listing["rows"]} == {"s3"}
+
+
+def test_roster_remove_single_student_also_works():
+    db = _session()
+    modules, levels = _seed_curriculum(db)
+    _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
+    _event(db)
+    _roster(db, "event-1", "s1")
+    db.commit()
+
+    result = engine.RemoveStudentsFromEventRoster(db, EventId="event-1", StudentIds=["s1"])
+    assert result["studentsRemoved"] == 1
+    assert engine.ListEventRoster(db, EventId="event-1")["totalStudents"] == 0
+
+
+def test_roster_remove_never_touches_an_existing_assignment():
+    """2026-09-29 (Shailesh, decision on removal mid-event): removing a
+    student from the roster only stops FUTURE assignment/override runs --
+    it must never cascade to (or otherwise disturb) an assignment they
+    already have."""
+    db = _session()
+    modules, levels = _seed_curriculum(db)
+    _student(db, "s1", modules["PM"].id, levels["PM-L2"].id)
+    admin = _admin(db)
+    _event(db)
+    _roster(db, "event-1", "s1")
+    db.commit()
+
+    engine.RunAnnualCompetitionAssignmentEngine(db, EventId="event-1", RunBy=admin)
+    assert db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.student_id == "s1").count() == 1
+
+    engine.RemoveStudentsFromEventRoster(db, EventId="event-1", StudentIds=["s1"])
+    assert db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.student_id == "s1").count() == 1
+
+    # And a re-run now excludes them entirely, but the earlier row is untouched.
+    student = db.get(Student, "s1")
+    student.current_level_id = levels["PM-L3"].id
+    db.commit()
+    result = engine.RunAnnualCompetitionAssignmentEngine(db, EventId="event-1", RunBy=admin)
+    assert result["created"] == 0
+    assert result["updated"] == 0
+    Row = db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.student_id == "s1").one()
+    assert Row.assigned_level_code == "PM-L1"  # untouched from the first run, not recomputed to PM-L2
+
+
+def test_roster_remove_requires_at_least_one_student():
+    from fastapi import HTTPException
+
+    db = _session()
+    _event(db)
+    db.commit()
+    with pytest.raises(HTTPException):
+        engine.RemoveStudentsFromEventRoster(db, EventId="event-1", StudentIds=[])
+
+
+def test_roster_list_unknown_event_raises_404():
+    from fastapi import HTTPException
+
+    db = _session()
+    with pytest.raises(HTTPException):
+        engine.ListEventRoster(db, EventId="does-not-exist")
