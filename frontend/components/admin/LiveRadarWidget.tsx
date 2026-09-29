@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Activity, Clock, Search, Users, X } from "lucide-react";
+import { Activity, Clock, Search, X } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface LiveStudent {
@@ -17,14 +17,23 @@ interface LiveStudent {
 // a robust and professional way in which we can have the total number in
 // one place and a way where we can also view which students are active."
 // The backend endpoint (/admin/live-students) already returns every active
-// student unpaginated -- the 5-row cap was purely a frontend display
-// choice, with a dead "+N more" text label for the rest. The dashboard
-// tile itself stays exactly this small (it lives in a fixed w-80 sidebar
-// slot next to the hero panel, so growing it isn't really an option) --
-// what's new is that the tile's own header count and the "+N more" line
-// are now buttons that open a full, scrollable, searchable list of every
-// active student, reusing this app's existing dialog-overlay visual
-// pattern (ConfirmDialog's fixed inset-0 blurred backdrop).
+// student unpaginated. The tile's header count is a button that opens a
+// full, scrollable, searchable list of every active student, reusing this
+// app's existing dialog-overlay visual pattern (ConfirmDialog's fixed
+// inset-0 blurred backdrop).
+//
+// 2026-09-29 (Shailesh, "in the hero block of the admin dashboard we only
+// need the Live Radar icon with the number of students active shown and on
+// clicking that the list that is visible should be seen instead of
+// unnecessarily crowding and making the main dashboard look clumsy"): this
+// tile lives directly inside the dashboard's hero section (see
+// app/admin/dashboard/page.tsx), so the previous inline "first 5 students,
+// then a '+N more' button" list grew the whole hero block taller with
+// every extra active student -- exactly the bloat/whitespace being
+// complained about. The tile itself now never renders the student list
+// inline: it's just the header + the "N Active Now" button, and every
+// student (whether there's 1 or 100) is only ever seen by opening the
+// modal below.
 function FormatLastActive(isoTimestamp: string) {
   const then = new Date(isoTimestamp).getTime();
   if (Number.isNaN(then)) return "Live";
@@ -170,28 +179,8 @@ export function LiveRadarWidget() {
           No students active in the last 5 minutes. Safe to deploy.
         </div>
       ) : (
-        <div className="space-y-3">
-          {liveStudents.slice(0, 5).map((student) => (
-            <div key={student.id} className="flex items-center justify-between bg-emerald-50/50 dark:bg-emerald-900/10 p-3 rounded-lg border border-emerald-100 dark:border-emerald-800/30">
-              <div>
-                <p className="font-semibold text-slate-900 dark:text-white text-sm">{student.full_name}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{student.student_code}</p>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                <Clock size={12} />
-                Live
-              </div>
-            </div>
-          ))}
-          {liveStudents.length > 5 && (
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="flex w-full items-center justify-center gap-1.5 text-center text-xs font-bold text-emerald-700 dark:text-emerald-300 pt-2 transition hover:underline"
-            >
-              <Users size={13} />+ {liveStudents.length - 5} more students online -- view all
-            </button>
-          )}
+        <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          Click "{liveStudents.length} Active Now" above to see who's online.
         </div>
       )}
 

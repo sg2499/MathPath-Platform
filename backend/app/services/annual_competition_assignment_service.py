@@ -113,6 +113,7 @@ from app.core.errors import api_error
 from app.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
+    CompetitionEventRoster,
     Level,
     Module,
     Student,
@@ -469,12 +470,140 @@ def IsRegistryBackedLevelCode(LevelCode: str | None) -> bool:
     return LevelCode in AllRegistries
 
 
-def _RosterForEvent(db: Session, StudentIds: list[str] | None) -> list[Student]:
-    Query = db.query(Student).filter(Student.is_active == True)
+def _RosterForEvent(db: Session, *, EventId: str, StudentIds: list[str] | None) -> list[Student]:
+    """2026-09-29 (Shailesh, "the real student accounts are also getting
+    [assigned a slot] when i have never assigned that ... officially"): used
+    to ignore EventId entirely and, when StudentIds was None (the "Run
+    Assignment Engine (All Students)" button with nothing checked), query
+    every active student on the ENTIRE PLATFORM -- that's how a slot meant
+    only for a handful of test students could leak onto real ones the
+    moment the engine was run unscoped on any event. Now always scoped to
+    this event's own CompetitionEventRoster: "All" means every student on
+    this event's roster, "Selected" (StudentIds provided) means the
+    selected subset intersected with the roster -- a student who was never
+    added to this event's roster can never be produced here, by either
+    path, so they can never be assigned into it.
+    """
+    RosterStudentIds = {
+        Row[0] for Row in db.query(CompetitionEventRoster.student_id).filter(CompetitionEventRoster.event_id == EventId).all()
+    }
+    Query = db.query(Student).filter(Student.is_active == True, Student.id.in_(RosterStudentIds))
     if StudentIds:
         UniqueIds = [Id for Id in dict.fromkeys([str(Item or "").strip() for Item in StudentIds]) if Id]
         Query = Query.filter(Student.id.in_(UniqueIds))
     return Query.order_by(Student.student_code.asc()).all()
+
+
+# ---------------------------------------------------------------------------
+# Event Roster (2026-09-29, Shailesh) -- the explicit per-event eligibility
+# list described above. Add/remove both support a single student or a bulk
+# list ("we never know what will be required when so we need to cover all
+# the bases"), mirroring the isolation pattern already used by
+# BulkOverrideCompetitionEventAssignments/BatchAssignAnnualCompetitionPracticePapers
+# elsewhere in this codebase -- one bad id never loses the rest of the
+# batch.
+# ---------------------------------------------------------------------------
+
+ANNUAL_COMPETITION_ROSTER_BULK_MAX_STUDENTS_PER_CALL = 500
+
+
+def AddStudentsToEventRoster(db: Session, *, EventId: str, StudentIds: list[str], AddedBy: User) -> dict[str, Any]:
+    EventRecord = db.get(CompetitionEvent, EventId)
+    if not EventRecord:
+        api_error(404, "COMPETITION_EVENT_NOT_FOUND", "The selected Annual Competition event was not found.")
+
+    UniqueIds = [Id for Id in dict.fromkeys([str(Item or "").strip() for Item in StudentIds]) if Id]
+    if not UniqueIds:
+        api_error(422, "NO_STUDENTS_PROVIDED", "Select at least one student to add to the roster.")
+    if len(UniqueIds) > ANNUAL_COMPETITION_ROSTER_BULK_MAX_STUDENTS_PER_CALL:
+        api_error(
+            422,
+            "TOO_MANY_STUDENTS",
+            f"Add at most {ANNUAL_COMPETITION_ROSTER_BULK_MAX_STUDENTS_PER_CALL} students to the roster per call.",
+        )
+
+    ExistingStudentIds = {
+        Row[0] for Row in db.query(CompetitionEventRoster.student_id).filter(CompetitionEventRoster.event_id == EventId).all()
+    }
+
+    Succeeded: list[str] = []
+    Failed: list[dict[str, str]] = []
+    for StudentId in UniqueIds:
+        # Per-student commit isolation, same discipline as
+        # BulkOverrideCompetitionEventAssignments -- one bad id never loses
+        # the rest of the batch.
+        try:
+            if StudentId in ExistingStudentIds:
+                Succeeded.append(StudentId)  # already on the roster -- idempotent, not a failure
+                continue
+            StudentRecord = db.get(Student, StudentId)
+            if not StudentRecord:
+                Failed.append({"studentId": StudentId, "reason": "Student not found."})
+                continue
+            db.add(CompetitionEventRoster(event_id=EventId, student_id=StudentId, added_by_user_id=AddedBy.id))
+            db.commit()
+            ExistingStudentIds.add(StudentId)
+            Succeeded.append(StudentId)
+        except Exception as Error:  # noqa: BLE001 -- isolate this student's failure, keep going
+            db.rollback()
+            Failed.append({"studentId": StudentId, "reason": str(Error)})
+
+    return {
+        "eventId": EventId,
+        "studentsRequested": len(UniqueIds),
+        "studentsSucceeded": len(Succeeded),
+        "studentsFailed": len(Failed),
+        "succeeded": Succeeded,
+        "failed": Failed,
+    }
+
+
+def RemoveStudentsFromEventRoster(db: Session, *, EventId: str, StudentIds: list[str]) -> dict[str, Any]:
+    """Removal only ever deletes the roster row itself -- see
+    CompetitionEventRoster's own docstring on why this never cascades to an
+    existing assignment/attempt/result. Accepts one id or many, same as
+    AddStudentsToEventRoster above.
+    """
+    EventRecord = db.get(CompetitionEvent, EventId)
+    if not EventRecord:
+        api_error(404, "COMPETITION_EVENT_NOT_FOUND", "The selected Annual Competition event was not found.")
+
+    UniqueIds = [Id for Id in dict.fromkeys([str(Item or "").strip() for Item in StudentIds]) if Id]
+    if not UniqueIds:
+        api_error(422, "NO_STUDENTS_PROVIDED", "Select at least one student to remove from the roster.")
+
+    RemovedCount = (
+        db.query(CompetitionEventRoster)
+        .filter(CompetitionEventRoster.event_id == EventId, CompetitionEventRoster.student_id.in_(UniqueIds))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {"eventId": EventId, "studentsRequested": len(UniqueIds), "studentsRemoved": RemovedCount}
+
+
+def ListEventRoster(db: Session, *, EventId: str) -> dict[str, Any]:
+    EventRecord = db.get(CompetitionEvent, EventId)
+    if not EventRecord:
+        api_error(404, "COMPETITION_EVENT_NOT_FOUND", "The selected Annual Competition event was not found.")
+
+    RosterRows = (
+        db.query(CompetitionEventRoster)
+        .filter(CompetitionEventRoster.event_id == EventId)
+        .order_by(CompetitionEventRoster.added_at.asc())
+        .all()
+    )
+    Rows: list[dict[str, Any]] = []
+    for RosterRow in RosterRows:
+        StudentRecord = db.get(Student, RosterRow.student_id)
+        Rows.append(
+            {
+                "studentId": RosterRow.student_id,
+                "studentCode": StudentRecord.student_code if StudentRecord else None,
+                "studentName": (StudentRecord.user.full_name if StudentRecord and StudentRecord.user else None),
+                "addedAt": RosterRow.added_at.isoformat() if RosterRow.added_at else None,
+            }
+        )
+    return {"eventId": EventId, "totalStudents": len(Rows), "rows": Rows}
 
 
 def PreviewAnnualCompetitionAssignments(
@@ -492,7 +621,7 @@ def PreviewAnnualCompetitionAssignments(
     if not EventRecord:
         api_error(404, "COMPETITION_EVENT_NOT_FOUND", "The selected Annual Competition event was not found.")
 
-    Students = _RosterForEvent(db, StudentIds)
+    Students = _RosterForEvent(db, EventId=EventId, StudentIds=StudentIds)
     Computations = ComputeAssignmentsForRoster(db, Students)
 
     ExistingRows = (
@@ -571,7 +700,7 @@ def RunAnnualCompetitionAssignmentEngine(
     if not EventRecord:
         api_error(404, "COMPETITION_EVENT_NOT_FOUND", "The selected Annual Competition event was not found.")
 
-    Students = _RosterForEvent(db, StudentIds)
+    Students = _RosterForEvent(db, EventId=EventId, StudentIds=StudentIds)
     Computations = ComputeAssignmentsForRoster(db, Students)
     Actionable = [Computation for Computation in Computations if not Computation.no_rule_matched]
 

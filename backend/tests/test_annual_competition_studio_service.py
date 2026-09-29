@@ -56,6 +56,7 @@ from app.models import (
     CompetitionEventAttemptSectionState,
     CompetitionEventLevelPaper,
     CompetitionEventResult,
+    CompetitionEventRoster,
     CompetitionEventSectionTimer,
     CompetitionEventSlot,
     CompetitionMockExam,
@@ -135,6 +136,17 @@ def _event(db, event_id="event-1", results_release_at=None):
     db.add(e)
     db.flush()
     return e
+
+
+def _roster(db, event_id, *student_ids):
+    """2026-09-29 (Shailesh, Event Roster): manual/bulk override now only
+    ever succeeds for a student already on this table for the given event
+    -- every test below that exercises OverrideCompetitionEventAssignment/
+    BulkOverrideCompetitionEventAssignments must roster its student(s)
+    first, same as a real admin would via the Event Roster panel."""
+    for StudentId in student_ids:
+        db.add(CompetitionEventRoster(id=f"roster-{event_id}-{StudentId}", event_id=event_id, student_id=StudentId))
+    db.flush()
 
 
 # ---------------------------------------------------------------------------
@@ -262,6 +274,7 @@ def test_delete_event_removes_it_and_every_child_row():
     user = User(id="user-s1", full_name="S1", email="s1@example.test", password_hash="x", role="STUDENT", is_active=True)
     student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
     db.add_all([user, student])
+    _roster(db, "event-1", "s1")
     db.commit()
     studio.OverrideCompetitionEventAssignment(db, EventId="event-1", StudentId="s1", AssignedLevelCode="PM-L2", OverriddenBy=admin)
 
@@ -923,6 +936,7 @@ def test_manual_override_creates_and_then_updates_assignment():
     student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
     db.add_all([user, student])
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     first = studio.OverrideCompetitionEventAssignment(
@@ -965,6 +979,7 @@ def test_manual_override_accepts_student_code_as_well_as_raw_id():
     )
     db.add_all([user, student])
     _event(db)
+    _roster(db, "event-1", "internal-uuid-s1")
     db.commit()
 
     ByCode = studio.OverrideCompetitionEventAssignment(
@@ -1005,6 +1020,30 @@ def test_manual_override_unknown_student_identifier_is_a_clean_404():
     assert db.query(CompetitionEventAssignment).count() == 0
 
 
+def test_manual_override_rejects_a_student_not_on_the_event_roster():
+    """2026-09-29 (Shailesh, Event Roster): "for every event all the options
+    should only be scoped to the students in the roster ... others should
+    never show up in order to avoid confusion and mistakes" -- manual
+    override is a path just as much as the assignment engine, so a student
+    who was never added to this event's roster must be rejected here too,
+    even though they're a perfectly real, existing student."""
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    user = User(id="user-s1", full_name="S1", email="s1@example.test", password_hash="x", role="STUDENT", is_active=True)
+    student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
+    db.add_all([user, student])
+    _event(db)
+    db.commit()  # deliberately no _roster(...) call -- s1 exists but isn't rostered
+
+    with pytest.raises(HTTPException) as excinfo:
+        studio.OverrideCompetitionEventAssignment(
+            db, EventId="event-1", StudentId="s1", AssignedLevelCode="PM-L2", OverriddenBy=admin
+        )
+    assert excinfo.value.status_code == 422
+    assert db.query(CompetitionEventAssignment).count() == 0
+
+
 # ---------------------------------------------------------------------------
 # Universal Set Level (bulk override), 2026-09-28
 #
@@ -1034,6 +1073,7 @@ def test_bulk_override_sets_the_same_level_for_every_selected_student():
     admin = _admin(db)
     _three_students(db, module, level)
     _event(db)
+    _roster(db, "event-1", "s1", "s2", "s3")
     db.commit()
 
     result = studio.BulkOverrideCompetitionEventAssignments(
@@ -1063,6 +1103,7 @@ def test_bulk_override_one_bad_student_id_does_not_lose_the_others():
     admin = _admin(db)
     _three_students(db, module, level)
     _event(db)
+    _roster(db, "event-1", "s1", "s2")
     db.commit()
 
     result = studio.BulkOverrideCompetitionEventAssignments(
@@ -1088,6 +1129,7 @@ def test_bulk_override_dedupes_repeated_student_ids():
     admin = _admin(db)
     _three_students(db, module, level)
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     result = studio.BulkOverrideCompetitionEventAssignments(
@@ -1104,6 +1146,7 @@ def test_bulk_override_updates_an_existing_assignment_not_a_duplicate_row():
     admin = _admin(db)
     _three_students(db, module, level)
     _event(db)
+    _roster(db, "event-1", "s1", "s2")
     db.commit()
 
     studio.OverrideCompetitionEventAssignment(db, EventId="event-1", StudentId="s1", AssignedLevelCode="PM-L2", OverriddenBy=admin)
@@ -1115,6 +1158,28 @@ def test_bulk_override_updates_an_existing_assignment_not_a_duplicate_row():
     assert db.query(CompetitionEventAssignment).count() == 2
     Row = db.query(CompetitionEventAssignment).filter(CompetitionEventAssignment.student_id == "s1").one()
     assert Row.assigned_level_code == "PM-L1"
+
+
+def test_bulk_override_reports_a_non_rostered_student_as_a_failure_not_a_lost_batch():
+    """Same roster gate as the single-student override, but bulk must
+    isolate it: a student who exists but isn't on this event's roster is
+    reported back as a failure for that student only, never aborts the
+    students around them in the same call."""
+    db = _session()
+    module, level = _module_and_level(db, "PM", "PM-L2", "Preparatory Level 2")
+    admin = _admin(db)
+    _three_students(db, module, level)
+    _event(db)
+    _roster(db, "event-1", "s1", "s3")  # s2 deliberately left off the roster
+    db.commit()
+
+    result = studio.BulkOverrideCompetitionEventAssignments(
+        db, EventId="event-1", StudentIds=["s1", "s2", "s3"], AssignedLevelCode="PM-L1", OverriddenBy=admin
+    )
+    assert result["studentsSucceeded"] == 2
+    assert result["studentsFailed"] == 1
+    assert result["failed"][0]["studentIdentifier"] == "s2"
+    assert {Entry["studentId"] for Entry in result["succeeded"]} == {"s1", "s3"}
 
 
 def test_bulk_override_rejects_invalid_level_code():
@@ -1174,6 +1239,7 @@ def test_manual_override_auto_links_the_one_matching_slot():
     student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
     db.add_all([user, student])
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     slot = studio.CreateCompetitionEventSlot(
@@ -1199,6 +1265,7 @@ def test_manual_override_leaves_slot_unset_when_no_slot_matches_the_level():
     student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
     db.add_all([user, student])
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     # A slot exists, but for a different level entirely -- must not be
@@ -1227,6 +1294,7 @@ def test_manual_override_leaves_slot_unset_when_two_slots_ambiguously_match():
     student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
     db.add_all([user, student])
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     studio.CreateCompetitionEventSlot(
@@ -1256,6 +1324,7 @@ def test_manual_override_ignores_an_inactive_slot_for_the_level():
     student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
     db.add_all([user, student])
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     DeletedSlot = studio.CreateCompetitionEventSlot(
@@ -1284,6 +1353,7 @@ def test_manual_override_still_honors_an_explicit_slot_id_when_given():
     student = Student(id="s1", user_id=user.id, student_code="MP-S1", current_module_id=module.id, current_level_id=level.id, is_active=True)
     db.add_all([user, student])
     _event(db)
+    _roster(db, "event-1", "s1")
     db.commit()
 
     SlotA = studio.CreateCompetitionEventSlot(

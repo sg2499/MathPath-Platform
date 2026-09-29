@@ -543,6 +543,37 @@ class CompetitionEventSectionTimer(Base):
     __table_args__ = (UniqueConstraint("level_paper_id", "section_number", name="uq_competition_event_section_timer"),)
 
 
+class CompetitionEventRoster(Base):
+    """2026-09-29 (Shailesh, "the real student accounts are also getting
+    [assigned a slot] when i have never assigned that ... officially"): the
+    explicit, admin-maintained list of students actually eligible for a
+    given event. Before this, "Run Assignment Engine (All Students)" with
+    no explicit selection would assign every active student on the entire
+    platform (see _RosterForEvent's old behavior), which is exactly how a
+    slot meant only for test students leaked onto real ones. Now this table
+    is the single gate for every assignment path -- the engine's own "All"
+    run, its "Selected" run, and the manual/bulk override -- so a student
+    who isn't on an event's roster can never be assigned into that event by
+    any route. Removing a student from the roster only stops *future*
+    assignment/override runs from touching them; it never touches (or
+    cascades to) any assignment/attempt/result they already have -- a
+    deliberate choice so removing someone mid-event can't quietly erase
+    what already happened.
+    """
+    __tablename__ = "competition_event_rosters"
+    id = Column(String, primary_key=True, default=uuid_str)
+    event_id = Column(String, ForeignKey("competition_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    added_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    added_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    event = relationship("CompetitionEvent")
+    student = relationship("Student")
+    added_by = relationship("User")
+
+    __table_args__ = (UniqueConstraint("event_id", "student_id", name="uq_competition_event_roster_student"),)
+
+
 class CompetitionEventAssignment(Base):
     __tablename__ = "competition_event_assignments"
     id = Column(String, primary_key=True, default=uuid_str)

@@ -262,6 +262,17 @@ def _TeacherResultRow(db: Session, AssignmentRecord: CompetitionEventAssignment)
     2). Mirrors GetCompetitionEventResultForStudent's own lock-down exactly
     (an unreleased -- or not-yet-computed -- result never surfaces its
     metrics), applied across a roster instead of a single student/attempt.
+
+    2026-09-29 (Shailesh, "should only show the students whose results the
+    admin has released and not everyone which makes it look much more
+    chaotic and weird"): this used to still return a row (with
+    released=False, result=None) for a student with no attempt yet or with
+    an unreleased result, and the teacher UI rendered those as "Not released
+    yet" placeholder rows -- exactly the noise being complained about.
+    Now returns None (dropped by ListAnnualCompetitionResultsForRoster's own
+    `if Row` filter) for any assignment that isn't a genuinely released
+    result, so the teacher's Results tab only ever lists students whose
+    result the admin has actually released.
     """
     StudentRecord = db.get(Student, AssignmentRecord.student_id)
     if not StudentRecord:
@@ -279,6 +290,13 @@ def _TeacherResultRow(db: Session, AssignmentRecord: CompetitionEventAssignment)
     if AttemptRecord and _ReconcileSingleAttemptIfAbandoned(db, AttemptRecord, _NowUtc()):
         db.commit()
 
+    if not AttemptRecord:
+        return None
+
+    ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).first()
+    if not ResultRecord or not ResultRecord.is_released:
+        return None
+
     BaseRow = {
         "assignmentId": AssignmentRecord.id,
         "studentId": StudentRecord.id,
@@ -288,13 +306,6 @@ def _TeacherResultRow(db: Session, AssignmentRecord: CompetitionEventAssignment)
         "attemptId": AttemptRecord.id if AttemptRecord else None,
         "attemptStatus": AttemptRecord.status if AttemptRecord else LIVE_STATUS_NOT_STARTED,
     }
-
-    if not AttemptRecord:
-        return {**BaseRow, "released": False, "result": None}
-
-    ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).first()
-    if not ResultRecord or not ResultRecord.is_released:
-        return {**BaseRow, "released": False, "result": None}
 
     return {
         **BaseRow,
@@ -331,14 +342,12 @@ def ListAnnualCompetitionResultsForRoster(
         db, EventId=EventId, StudentIdsFilter=StudentIdsFilter, CompetitionLevelCode=CompetitionLevelCode
     )
     Rows = [Row for Row in (_TeacherResultRow(db, AssignmentRecord) for AssignmentRecord in AssignmentRecords) if Row]
-    # Released+ranked rows first (by rank), then everything still unreleased
-    # (or unranked), by student name -- so a partially-released level still
-    # reads sensibly rather than in assignment-insertion order.
-    Rows.sort(
-        key=lambda Row: (0, Row["result"]["rank"] if Row["result"].get("rank") is not None else 10**9)
-        if Row["released"]
-        else (1, Row["studentName"] or "")
-    )
+    # 2026-09-29 (Shailesh): every row past _TeacherResultRow's gate above is
+    # now guaranteed released (unreleased/no-attempt assignments are dropped
+    # entirely, not just marked), so this only needs to sort by rank --
+    # unranked rows (no rank yet even though released) sort after ranked
+    # ones, by student name.
+    Rows.sort(key=lambda Row: (0, Row["result"]["rank"]) if Row["result"].get("rank") is not None else (1, Row["studentName"] or ""))
     return {"eventId": EventId, "competitionLevelCode": CompetitionLevelCode, "totalResults": len(Rows), "rows": Rows}
 
 

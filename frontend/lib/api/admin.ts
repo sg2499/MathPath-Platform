@@ -1804,6 +1804,59 @@ export async function bulkOverrideAnnualCompetitionAssignments(
 }
 
 // ---------------------------------------------------------------------------
+// Annual Competition -- Event Roster (2026-09-29, Shailesh): the explicit,
+// admin-maintained list of students eligible for a given event. Now the
+// single gate behind the assignment engine ("All" and "Selected" both,
+// since previewAnnualCompetitionAssignments/runAnnualCompetitionAssignments
+// above are scoped to it server-side) and manual/bulk override -- a student
+// who isn't added here can never show up in, or be assigned through, any of
+// those. Add/remove both take one id or many in the same request shape.
+// ---------------------------------------------------------------------------
+
+export type AnnualCompetitionRosterRow = {
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  addedAt: string | null;
+};
+
+export type AnnualCompetitionRosterList = {
+  eventId: string;
+  totalStudents: number;
+  rows: AnnualCompetitionRosterRow[];
+};
+
+export async function listAnnualCompetitionEventRoster(eventId: string): Promise<AnnualCompetitionRosterList> {
+  const { data } = await api.get<AnnualCompetitionRosterList>(`/admin/annual-competition/events/${eventId}/roster`);
+  return data;
+}
+
+export type AnnualCompetitionRosterMutationResult = {
+  eventId: string;
+  studentsRequested: number;
+  studentsSucceeded: number;
+  studentsFailed: number;
+  succeeded: string[];
+  failed: Array<{ studentId: string; reason: string }>;
+};
+
+export async function addStudentsToAnnualCompetitionEventRoster(
+  eventId: string,
+  studentIds: string[]
+): Promise<AnnualCompetitionRosterMutationResult> {
+  const { data } = await api.post(`/admin/annual-competition/events/${eventId}/roster`, { studentIds });
+  return data;
+}
+
+export async function removeStudentsFromAnnualCompetitionEventRoster(
+  eventId: string,
+  studentIds: string[]
+): Promise<{ eventId: string; studentsRequested: number; studentsRemoved: number }> {
+  const { data } = await api.post(`/admin/annual-competition/events/${eventId}/roster/remove`, { studentIds });
+  return data;
+}
+
+// ---------------------------------------------------------------------------
 // Annual Competition -- Scoring + Results (Package 6). The computation/
 // rank/release endpoints themselves shipped with Package 6 as API-only
 // (see annual_competition_scoring_service.py); these client functions and
@@ -1851,7 +1904,12 @@ export async function rankAnnualCompetitionResults(eventId: string, competitionL
   return data;
 }
 
-export async function releaseAnnualCompetitionResults(eventId: string, competitionLevelCode?: string | null): Promise<{ eventId: string; competitionLevelCode: string | null; releasedCount: number }> {
+// 2026-09-29 (Shailesh, "it says submitted undefined results in the success
+// message"): this type used to claim `releasedCount`, a field the backend
+// (ReleaseCompetitionEventResults) has never returned -- the real field is
+// `newlyReleasedCount`, alongside `levelsReleased`. That mismatch is why the
+// success message always rendered "Released undefined results".
+export async function releaseAnnualCompetitionResults(eventId: string, competitionLevelCode?: string | null): Promise<{ eventId: string; competitionLevelCode: string | null; levelsReleased: string[]; newlyReleasedCount: number }> {
   const { data } = await api.post(`/admin/annual-competition/events/${eventId}/results/release`, { competitionLevelCode: competitionLevelCode || null });
   return data;
 }

@@ -68,6 +68,7 @@ from app.models import (
     CompetitionEventAttemptSectionState,
     CompetitionEventLevelPaper,
     CompetitionEventResult,
+    CompetitionEventRoster,
     CompetitionEventSectionTimer,
     CompetitionEventSlot,
     CompetitionMockExam,
@@ -888,6 +889,27 @@ def _ApplyCompetitionEventAssignmentOverride(
     OverriddenBy: User,
     SlotId: str | None = None,
 ) -> CompetitionEventAssignment:
+    # 2026-09-29 (Shailesh, "for every event all the options should only be
+    # scoped to the students in the roster for that particular event"): this
+    # is the single core both OverrideCompetitionEventAssignment (one
+    # student) and BulkOverrideCompetitionEventAssignments (many) funnel
+    # through, so gating it here closes manual override the same way
+    # _RosterForEvent closes the assignment engine -- a student who isn't on
+    # this event's roster can't be assigned into it by any path, engine or
+    # manual.
+    IsOnRoster = (
+        db.query(CompetitionEventRoster)
+        .filter(CompetitionEventRoster.event_id == EventId, CompetitionEventRoster.student_id == StudentRecord.id)
+        .first()
+        is not None
+    )
+    if not IsOnRoster:
+        api_error(
+            422,
+            "STUDENT_NOT_ON_EVENT_ROSTER",
+            f"{StudentRecord.student_code or StudentRecord.id} is not on this event's roster -- add them to the roster before assigning a level.",
+        )
+
     if SlotId is not None:
         SlotRecord = db.get(CompetitionEventSlot, SlotId)
         if not SlotRecord or SlotRecord.event_id != EventId:

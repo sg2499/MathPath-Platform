@@ -11,6 +11,7 @@ import {
   ANNUAL_COMPETITION_LEVEL_CODES,
   FormatCompetitionLevelLabel,
   FormatMasterCurrentLevelSuffix,
+  addStudentsToAnnualCompetitionEventRoster,
   bulkOverrideAnnualCompetitionAssignments,
   createAnnualCompetitionSlot,
   downloadAnnualCompetitionCertificate,
@@ -20,13 +21,16 @@ import {
   grantAnnualCompetitionAttemptRetry,
   linkAnnualCompetitionLevelPaper,
   listAnnualCompetitionAttemptRetryGrants,
+  listAnnualCompetitionEventRoster,
   listAnnualCompetitionResults,
+  listStudentsForAnnualCompetitionPracticeBank,
   overrideAnnualCompetitionAssignment,
   previewAnnualCompetitionAssignments,
   rankAnnualCompetitionResults,
   recomputeAnnualCompetitionResults,
   reconcileAnnualCompetitionAttempts,
   releaseAnnualCompetitionResults,
+  removeStudentsFromAnnualCompetitionEventRoster,
   runAnnualCompetitionAssignments,
   updateAnnualCompetitionEvent,
   updateAnnualCompetitionSectionTimer,
@@ -34,6 +38,7 @@ import {
   type AnnualCompetitionAssignmentPreviewRow,
   type AnnualCompetitionLevelPaper,
   type AnnualCompetitionLiveMonitoringRow,
+  type AnnualCompetitionPracticeBankStudentRow,
   type AnnualCompetitionResultRow,
   type AnnualCompetitionSlot,
 } from "@/lib/api/admin";
@@ -60,6 +65,8 @@ import {
   Trash2,
   Trophy,
   UserCog,
+  UserPlus,
+  Users,
   X,
 } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -145,11 +152,19 @@ function ToLocalInputValue(IsoValue: string | null): string {
 // top-level Practice tab at /admin/competition/annual-studio, a sibling of
 // this whole per-event Official page rather than a tab inside it. This
 // page (and TabList below) is OFFICIAL-only from here on.
-const TabList = ["SLOTS", "PAPERS", "ASSIGNMENTS", "MONITORING", "RESULTS"] as const;
+// 2026-09-29 (Shailesh, Event Roster): new tab, sitting right before
+// Assignments since it's now the eligibility gate behind it -- the
+// assignment engine and manual/bulk override are all scoped server-side to
+// whoever is on this event's roster (see CompetitionEventRoster's own
+// docstring in app/models/models.py), so this is where an admin adds or
+// removes students in real time as the event's actual registrations
+// change.
+const TabList = ["SLOTS", "PAPERS", "ROSTER", "ASSIGNMENTS", "MONITORING", "RESULTS"] as const;
 type TabKey = (typeof TabList)[number];
 const TabLabels: Record<TabKey, string> = {
   SLOTS: "Slots",
   PAPERS: "Level Papers",
+  ROSTER: "Event Roster",
   ASSIGNMENTS: "Assignments",
   MONITORING: "Live Monitoring",
   RESULTS: "Results",
@@ -240,6 +255,24 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const [AssignmentLevelFilter, SetAssignmentLevelFilter] = useState<string>("ALL");
   const [SelectedStudentIdsForRun, SetSelectedStudentIdsForRun] = useState<Set<string>>(new Set());
 
+  // 2026-09-29 (Shailesh, Event Roster): "the search should be platform
+  // wide that is the admin can filter using levels and select the students
+  // who have registered for the event, either by using the filters or the
+  // search bar or the all view whatever we have there." Same search/module/
+  // level filter pattern as the Assignments preview table above and the
+  // Practice Bank student picker (admin/competition/annual-studio/page.tsx)
+  // -- pure client-side filters over one platform-wide student fetch.
+  const [RosterAddSearchText, SetRosterAddSearchText] = useState("");
+  const [RosterAddModuleFilter, SetRosterAddModuleFilter] = useState<string>("ALL");
+  const [RosterAddLevelFilter, SetRosterAddLevelFilter] = useState<string>("ALL");
+  const [SelectedStudentIdsForRosterAdd, SetSelectedStudentIdsForRosterAdd] = useState<Set<string>>(new Set());
+
+  // 2026-09-29 (Shailesh, Event Roster): "for removal also lets have both
+  // individual and bulk option same for adding" -- checkbox selection for
+  // bulk removal, plus a per-row Remove button for the one-off case.
+  const [RosterSearchText, SetRosterSearchText] = useState("");
+  const [SelectedStudentIdsForRosterRemove, SetSelectedStudentIdsForRosterRemove] = useState<Set<string>>(new Set());
+
   // --- Monitoring / Results (Package 7) ---
   const [ResultsLevelFilter, SetResultsLevelFilter] = useState<string>("ALL");
   const [RankLevelCode, SetRankLevelCode] = useState<string>(ANNUAL_COMPETITION_LEVEL_CODES[0]);
@@ -267,6 +300,22 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     enabled: Ready && Boolean(EventId) && ActiveTab === "ASSIGNMENTS",
   });
 
+  // 2026-09-29 (Shailesh, Event Roster): the roster itself, plus a
+  // platform-wide student fetch to pick new roster members from -- same
+  // student roster the Practice Bank picker already fetches (every active
+  // student, tagged with their current module/level), reused here rather
+  // than adding a second near-identical endpoint.
+  const RosterQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "roster", EventId],
+    queryFn: () => listAnnualCompetitionEventRoster(EventId),
+    enabled: Ready && Boolean(EventId) && ActiveTab === "ROSTER",
+  });
+  const AllStudentsQuery = useQuery({
+    queryKey: ["admin", "annual-competition", "all-students-for-roster"],
+    queryFn: listStudentsForAnnualCompetitionPracticeBank,
+    enabled: Ready && ActiveTab === "ROSTER",
+  });
+
   const LiveMonitoringQuery = useQuery({
     queryKey: ["admin", "annual-competition", "monitoring-live", EventId],
     queryFn: () => getAnnualCompetitionLiveMonitoring(EventId),
@@ -288,6 +337,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const InvalidateEventsList = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "events"] });
   const InvalidateLiveMonitoring = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "monitoring-live", EventId] });
   const InvalidateResults = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "results", EventId] });
+  const InvalidateRoster = () => QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "roster", EventId] });
 
   const SetLockedMutation = useMutation({
     mutationFn: (Status: string) => updateAnnualCompetitionEvent(EventId, { status: Status }),
@@ -404,6 +454,34 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     },
   });
 
+  // 2026-09-29 (Shailesh, Event Roster): bulk-add covers both "select one"
+  // and "select many" from the platform-wide picker below in one action.
+  const AddToRosterMutation = useMutation({
+    mutationFn: () => addStudentsToAnnualCompetitionEventRoster(EventId, Array.from(SelectedStudentIdsForRosterAdd)),
+    onSuccess: (Result) => {
+      SetLastMessage(
+        `Added ${Result.studentsSucceeded} student${Result.studentsSucceeded === 1 ? "" : "s"} to the roster` +
+          (Result.studentsFailed > 0 ? `, ${Result.studentsFailed} failed.` : ".")
+      );
+      SetSelectedStudentIdsForRosterAdd(new Set());
+      InvalidateRoster();
+      InvalidatePreview();
+    },
+  });
+
+  // Bulk removal (checkbox selection) -- a per-row Remove button below
+  // reuses this same mutation with a one-element array, so "remove one" and
+  // "remove many" both go through one code path.
+  const RemoveFromRosterMutation = useMutation({
+    mutationFn: (StudentIds: string[]) => removeStudentsFromAnnualCompetitionEventRoster(EventId, StudentIds),
+    onSuccess: (Result) => {
+      SetLastMessage(`Removed ${Result.studentsRemoved} student${Result.studentsRemoved === 1 ? "" : "s"} from the roster.`);
+      SetSelectedStudentIdsForRosterRemove(new Set());
+      InvalidateRoster();
+      InvalidatePreview();
+    },
+  });
+
   // Point 1: fed from a preview row's own dropdown -- one student at a
   // time, independent of the bulk action below so a save on one row never
   // shows a pending/disabled state on an unrelated row.
@@ -464,7 +542,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const ReleaseResultsForLevelMutation = useMutation({
     mutationFn: (LevelCode: string | null) => releaseAnnualCompetitionResults(EventId, LevelCode),
     onSuccess: (Result) => {
-      SetLastMessage(`Released ${Result.releasedCount} result${Result.releasedCount === 1 ? "" : "s"}${Result.competitionLevelCode ? ` for ${FormatCompetitionLevelLabel(Result.competitionLevelCode)}` : " across every level"}.`);
+      SetLastMessage(`Released ${Result.newlyReleasedCount} result${Result.newlyReleasedCount === 1 ? "" : "s"}${Result.competitionLevelCode ? ` for ${FormatCompetitionLevelLabel(Result.competitionLevelCode)}` : " across every level"}.`);
       InvalidateResults();
     },
   });
@@ -542,6 +620,9 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     UpdateTimerMutation.error ||
     RunEngineMutation.error ||
     BulkOverrideMutation.error ||
+    (ActiveTab === "ROSTER" ? RosterQuery.error || AllStudentsQuery.error : null) ||
+    AddToRosterMutation.error ||
+    RemoveFromRosterMutation.error ||
     SetLockedMutation.error ||
     ReleaseResultsMutation.error ||
     (ActiveTab === "MONITORING" ? LiveMonitoringQuery.error : null) ||
@@ -589,6 +670,83 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   };
   const ToggleOneAssignmentRowSelected = (StudentId: string) => {
     SetSelectedStudentIdsForRun((Prev) => {
+      const Next = new Set(Prev);
+      if (Next.has(StudentId)) Next.delete(StudentId);
+      else Next.add(StudentId);
+      return Next;
+    });
+  };
+
+  // 2026-09-29 (Shailesh, Event Roster) -- same search/module/level filter
+  // + checkbox-selection pattern as the Assignments table above, applied to
+  // the platform-wide student picker. Students already on the roster are
+  // excluded from the "add" candidate list (nothing to add twice), same
+  // idea as AddStudentsToEventRoster's own idempotent-add on the backend,
+  // just kept out of the picker entirely so the admin isn't re-selecting
+  // someone who's already there.
+  const RosterStudentIds = new Set((RosterQuery.data?.rows || []).map((Row) => Row.studentId));
+  const RosterCandidateRows = (AllStudentsQuery.data?.students || []).filter((Row) => !RosterStudentIds.has(Row.studentId));
+  const RosterAddModuleOptions = Array.from(
+    new Set(RosterCandidateRows.map((Row) => Row.currentModuleCode).filter((Value): Value is string => Boolean(Value)))
+  ).sort();
+  const RosterAddLevelOptions = Array.from(
+    new Set(RosterCandidateRows.map((Row) => Row.currentLevelCode).filter((Value): Value is string => Boolean(Value)))
+  ).sort();
+  const RosterAddSearchLower = RosterAddSearchText.trim().toLowerCase();
+  const FilteredRosterCandidateRows = RosterCandidateRows.filter((Row) => {
+    if (RosterAddModuleFilter !== "ALL" && Row.currentModuleCode !== RosterAddModuleFilter) return false;
+    if (RosterAddLevelFilter !== "ALL" && Row.currentLevelCode !== RosterAddLevelFilter) return false;
+    if (RosterAddSearchLower) {
+      const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
+      if (!Haystack.includes(RosterAddSearchLower)) return false;
+    }
+    return true;
+  });
+  const AllFilteredRosterCandidateRowsSelected =
+    FilteredRosterCandidateRows.length > 0 &&
+    FilteredRosterCandidateRows.every((Row) => SelectedStudentIdsForRosterAdd.has(Row.studentId));
+  const ToggleSelectAllFilteredRosterCandidateRows = () => {
+    SetSelectedStudentIdsForRosterAdd((Prev) => {
+      const Next = new Set(Prev);
+      if (AllFilteredRosterCandidateRowsSelected) {
+        FilteredRosterCandidateRows.forEach((Row) => Next.delete(Row.studentId));
+      } else {
+        FilteredRosterCandidateRows.forEach((Row) => Next.add(Row.studentId));
+      }
+      return Next;
+    });
+  };
+  const ToggleOneRosterCandidateRowSelected = (StudentId: string) => {
+    SetSelectedStudentIdsForRosterAdd((Prev) => {
+      const Next = new Set(Prev);
+      if (Next.has(StudentId)) Next.delete(StudentId);
+      else Next.add(StudentId);
+      return Next;
+    });
+  };
+
+  // Current roster's own search + bulk-remove selection.
+  const RosterSearchLower = RosterSearchText.trim().toLowerCase();
+  const FilteredRosterRows = (RosterQuery.data?.rows || []).filter((Row) => {
+    if (!RosterSearchLower) return true;
+    const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
+    return Haystack.includes(RosterSearchLower);
+  });
+  const AllFilteredRosterRowsSelected =
+    FilteredRosterRows.length > 0 && FilteredRosterRows.every((Row) => SelectedStudentIdsForRosterRemove.has(Row.studentId));
+  const ToggleSelectAllFilteredRosterRows = () => {
+    SetSelectedStudentIdsForRosterRemove((Prev) => {
+      const Next = new Set(Prev);
+      if (AllFilteredRosterRowsSelected) {
+        FilteredRosterRows.forEach((Row) => Next.delete(Row.studentId));
+      } else {
+        FilteredRosterRows.forEach((Row) => Next.add(Row.studentId));
+      }
+      return Next;
+    });
+  };
+  const ToggleOneRosterRowSelected = (StudentId: string) => {
+    SetSelectedStudentIdsForRosterRemove((Prev) => {
       const Next = new Set(Prev);
       if (Next.has(StudentId)) Next.delete(StudentId);
       else Next.add(StudentId);
@@ -962,6 +1120,284 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {ActiveTab === "ROSTER" && (
+          <div className="space-y-6">
+            {/* 2026-09-29 (Shailesh, Event Roster): this tab is the single
+                eligibility gate behind every assignment path for this event
+                (engine "All"/"Selected" runs, manual override, bulk
+                override) -- a student not added here can never be assigned
+                into this event by any route. Removing a student only stops
+                future runs; it never touches an assignment/attempt/result
+                that already exists for them. */}
+            <div className="math-card p-5">
+              <SectionTitle
+                icon={<UserPlus size={14} />}
+                kicker="Add To Roster"
+                title="Add Students"
+                description="Platform-wide search -- find and select the students who have registered for this event, then add them all at once. Students already on the roster are left out of this list."
+              />
+
+              {AllStudentsQuery.isLoading ? (
+                <div className="mt-4"><LoadingState label="Loading students..." /></div>
+              ) : (
+                <>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_200px_200px_auto]">
+                    <div className="relative sm:col-span-2 lg:col-span-1">
+                      <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        value={RosterAddSearchText}
+                        onChange={(EventValue) => SetRosterAddSearchText(EventValue.target.value)}
+                        placeholder="Search by name or student code..."
+                        className="math-input pl-11"
+                      />
+                    </div>
+                    <select
+                      value={RosterAddModuleFilter}
+                      onChange={(EventValue) => SetRosterAddModuleFilter(EventValue.target.value)}
+                      className="math-select"
+                      aria-label="Filter by module"
+                    >
+                      <option value="ALL">All Modules</option>
+                      {RosterAddModuleOptions.map((ModuleCode) => (
+                        <option key={ModuleCode} value={ModuleCode}>{ModuleCode}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={RosterAddLevelFilter}
+                      onChange={(EventValue) => SetRosterAddLevelFilter(EventValue.target.value)}
+                      className="math-select"
+                      aria-label="Filter by level"
+                    >
+                      <option value="ALL">All Levels</option>
+                      {RosterAddLevelOptions.map((LevelCode) => (
+                        <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                      ))}
+                    </select>
+                    <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-1 lg:justify-self-end">
+                      {(RosterAddSearchText || RosterAddModuleFilter !== "ALL" || RosterAddLevelFilter !== "ALL") && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            SetRosterAddSearchText("");
+                            SetRosterAddModuleFilter("ALL");
+                            SetRosterAddLevelFilter("ALL");
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2 text-sm font-bold text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
+                        >
+                          <X size={14} />
+                          Clear Filters
+                        </button>
+                      )}
+                      <span className="text-sm font-bold text-slate-400">
+                        {FilteredRosterCandidateRows.length} of {RosterCandidateRows.length} shown
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={SelectedStudentIdsForRosterAdd.size === 0 || AddToRosterMutation.isPending}
+                      onClick={() => AddToRosterMutation.mutate()}
+                      className="inline-flex items-center gap-2 rounded-full bg-[image:var(--mp-role-action-bg)] px-4 py-2 text-xs font-black text-white shadow-sm transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <UserPlus size={14} />
+                      {AddToRosterMutation.isPending
+                        ? "Adding..."
+                        : SelectedStudentIdsForRosterAdd.size > 0
+                          ? `Add ${SelectedStudentIdsForRosterAdd.size} Selected`
+                          : "Add Selected"}
+                    </button>
+                    {SelectedStudentIdsForRosterAdd.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => SetSelectedStudentIdsForRosterAdd(new Set())}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-2 text-xs font-black text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
+                      >
+                        <X size={12} />
+                        Deselect All ({SelectedStudentIdsForRosterAdd.size})
+                      </button>
+                    )}
+                  </div>
+
+                  {FilteredRosterCandidateRows.length > 0 ? (
+                    <div className="mt-4 overflow-x-auto">
+                      <table className="w-full min-w-[720px] text-left text-sm font-bold">
+                        <thead>
+                          <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                            <th className="px-2 py-1.5">
+                              <input
+                                type="checkbox"
+                                checked={AllFilteredRosterCandidateRowsSelected}
+                                onChange={ToggleSelectAllFilteredRosterCandidateRows}
+                                aria-label="Select all shown students"
+                                className="h-3.5 w-3.5"
+                              />
+                            </th>
+                            <th className="px-2 py-1.5">Student</th>
+                            <th className="px-2 py-1.5">Module</th>
+                            <th className="px-2 py-1.5">Current Level</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {FilteredRosterCandidateRows.map((Row: AnnualCompetitionPracticeBankStudentRow) => (
+                            <tr key={Row.studentId} className="border-t border-[color:var(--mp-role-border)]">
+                              <td className="px-2 py-2">
+                                <input
+                                  type="checkbox"
+                                  checked={SelectedStudentIdsForRosterAdd.has(Row.studentId)}
+                                  onChange={() => ToggleOneRosterCandidateRowSelected(Row.studentId)}
+                                  aria-label={`Select ${Row.studentName || Row.studentCode || Row.studentId}`}
+                                  className="h-3.5 w-3.5"
+                                />
+                              </td>
+                              <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                              <td className="px-2 py-2">{Row.currentModuleCode || "--"}</td>
+                              <td className="px-2 py-2">
+                                {Row.currentLevelCode || "--"}
+                                {Row.currentModuleCode === "MM" && (Row.currentLessonNumber != null || Row.masterLevelComplete) ? (
+                                  <span className="ml-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500">
+                                    ({FormatMasterCurrentLevelSuffix(Row.currentLessonNumber, Row.masterLevelComplete)})
+                                  </span>
+                                ) : null}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="mt-4">
+                      <EmptyState
+                        title={RosterCandidateRows.length > 0 ? "No students match these filters" : "Every eligible student is already on the roster"}
+                        description={RosterCandidateRows.length > 0 ? "Try clearing the search text or the module/level filter above." : ""}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="math-card p-5">
+              <SectionTitle
+                icon={<Users size={14} />}
+                kicker="Current Roster"
+                title="Students On This Event"
+                description="Only students on this roster can be assigned into this event -- by the assignment engine or by manual/bulk override. Removing a student only stops future runs; it never touches a result they've already earned."
+              />
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="relative w-full max-w-sm">
+                  <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={RosterSearchText}
+                    onChange={(EventValue) => SetRosterSearchText(EventValue.target.value)}
+                    placeholder="Search by name or student code..."
+                    className="math-input pl-11"
+                  />
+                </div>
+                <span className="text-sm font-bold text-slate-400">
+                  {FilteredRosterRows.length} of {(RosterQuery.data?.rows || []).length} shown
+                </span>
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  disabled={SelectedStudentIdsForRosterRemove.size === 0 || RemoveFromRosterMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm(`Remove ${SelectedStudentIdsForRosterRemove.size} student(s) from this event's roster? This never touches an assignment/attempt/result they already have -- it only stops future assignment runs.`)) {
+                      RemoveFromRosterMutation.mutate(Array.from(SelectedStudentIdsForRosterRemove));
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
+                >
+                  <Trash2 size={14} />
+                  {RemoveFromRosterMutation.isPending
+                    ? "Removing..."
+                    : SelectedStudentIdsForRosterRemove.size > 0
+                      ? `Remove ${SelectedStudentIdsForRosterRemove.size} Selected`
+                      : "Remove Selected"}
+                </button>
+                {SelectedStudentIdsForRosterRemove.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => SetSelectedStudentIdsForRosterRemove(new Set())}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-2 text-xs font-black text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
+                  >
+                    <X size={12} />
+                    Deselect All ({SelectedStudentIdsForRosterRemove.size})
+                  </button>
+                )}
+              </div>
+
+              {RosterQuery.isLoading ? (
+                <div className="mt-4"><LoadingState label="Loading roster..." /></div>
+              ) : FilteredRosterRows.length > 0 ? (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full min-w-[640px] text-left text-sm font-bold">
+                    <thead>
+                      <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                        <th className="px-2 py-1.5">
+                          <input
+                            type="checkbox"
+                            checked={AllFilteredRosterRowsSelected}
+                            onChange={ToggleSelectAllFilteredRosterRows}
+                            aria-label="Select all shown students"
+                            className="h-3.5 w-3.5"
+                          />
+                        </th>
+                        <th className="px-2 py-1.5">Student</th>
+                        <th className="px-2 py-1.5">Added</th>
+                        <th className="px-2 py-1.5" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {FilteredRosterRows.map((Row) => (
+                        <tr key={Row.studentId} className="border-t border-[color:var(--mp-role-border)]">
+                          <td className="px-2 py-2">
+                            <input
+                              type="checkbox"
+                              checked={SelectedStudentIdsForRosterRemove.has(Row.studentId)}
+                              onChange={() => ToggleOneRosterRowSelected(Row.studentId)}
+                              aria-label={`Select ${Row.studentName || Row.studentCode || Row.studentId}`}
+                              className="h-3.5 w-3.5"
+                            />
+                          </td>
+                          <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                          <td className="px-2 py-2 text-xs font-bold text-slate-500 dark:text-slate-400">{FormatDateTime(Row.addedAt)}</td>
+                          <td className="px-2 py-2 text-right">
+                            <button
+                              type="button"
+                              disabled={RemoveFromRosterMutation.isPending}
+                              onClick={() => {
+                                if (window.confirm(`Remove ${Row.studentName || Row.studentCode || Row.studentId} from this event's roster?`)) {
+                                  RemoveFromRosterMutation.mutate([Row.studentId]);
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 rounded-full border border-rose-300 bg-white px-2.5 py-1 text-[11px] font-black text-rose-600 transition hover:-translate-y-px hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-700/70 dark:bg-slate-950/60 dark:text-rose-300"
+                            >
+                              <Trash2 size={11} />
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <EmptyState
+                    title={(RosterQuery.data?.rows || []).length > 0 ? "No students match this search" : "No students on this roster yet"}
+                    description={(RosterQuery.data?.rows || []).length > 0 ? "Try clearing the search text above." : "Add students from the panel above."}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         )}
 
