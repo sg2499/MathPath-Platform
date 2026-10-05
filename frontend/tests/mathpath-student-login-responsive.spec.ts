@@ -50,6 +50,16 @@ async function OpenLogin(
   PageInstance.on("pageerror", (Error) => PageErrors.push(Error.message));
   await PageInstance.goto(`${BaseUrl}/login?role=${Role}`, { waitUntil: "domcontentloaded" });
   await expect(PageInstance.getByRole("heading", { name: RoleHeadings[Role] })).toBeVisible();
+  // Both logos are part of the layout contract below, so give the images a moment to arrive
+  // rather than racing them. If one genuinely fails to load, the branding assertions catch it.
+  await PageInstance.waitForFunction(
+    () =>
+      Array.from(
+        document.querySelectorAll<HTMLImageElement>('[data-testid="login-mathpath-logo"] img, [data-testid="login-zetta-link"] img')
+      ).every((Picture) => Picture.complete && Picture.naturalWidth > 0),
+    undefined,
+    { timeout: 15_000 }
+  ).catch(() => undefined);
   return { Context, PageInstance };
 }
 
@@ -72,20 +82,39 @@ async function ReadLayout(PageInstance: Page) {
     const Tabs = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
     const Identifier = document.querySelector<HTMLElement>("#mathpath-login-identifier");
 
-    const Brand = Rect(".math-login-mobile-brand");
-    const ThemeToggle = Rect(".math-login-theme-toggle");
+    const Brand = Rect('[data-testid="login-mathpath-logo"]');
+    const ThemeToggle = Rect('[data-testid="login-theme-toggle"]');
+
+    // How many lines a block of text occupies, from its own computed line height.
+    const LineCount = (Selector: string) => {
+      const Element = document.querySelector<HTMLElement>(Selector);
+      if (!Element) return 0;
+      const Box = Element.getBoundingClientRect();
+      const LineHeight = Number.parseFloat(window.getComputedStyle(Element).lineHeight);
+      if (!Box.height || !LineHeight) return 0;
+      return Math.round(Box.height / LineHeight);
+    };
+
+    const ZettaLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href*="zetta-metrics.com"]')).map((Link) => {
+      const Box = Link.getBoundingClientRect();
+      return { href: Link.href, target: Link.target, rel: Link.rel, left: Box.left, right: Box.right, width: Box.width, height: Box.height };
+    });
+    const LogoLoaded = (Selector: string) => {
+      const Picture = document.querySelector<HTMLImageElement>(Selector);
+      if (!Picture) return false;
+      const Box = Picture.getBoundingClientRect();
+      return Picture.complete && Picture.naturalWidth > 0 && Box.width > 0 && Box.height > 0;
+    };
 
     const FormZone = document.querySelector<HTMLElement>('[data-testid="login-form-zone"]');
     const Shell = document.querySelector<HTMLElement>('[data-testid="login-shell"]');
     const StoryPanel = document.querySelector<HTMLElement>('[data-testid="login-story-panel"]');
     const StoryPanelVisible = !!StoryPanel && StoryPanel.getBoundingClientRect().width > 0;
-    // The panel itself (StoryPanel) also contains two purely decorative, absolutely
-    // positioned glow circles that intentionally bleed outside its box (one offset
-    // bottom:-112px on purpose). Measuring scrollHeight on the panel counts that
-    // decorative bleed as if it were real overflowing content. The actual logo/copy/
-    // feature stack lives in .math-login-story-content, a sibling of those glow divs -
-    // measuring overflow there instead reflects only the real content.
-    const StoryContent = document.querySelector<HTMLElement>(".math-login-story-content");
+    // The stage (StoryPanel) holds a full-bleed decorative scene behind its content, so
+    // measuring scrollHeight on the panel itself would count decoration as if it were real
+    // overflowing content. The headline / description / live readout live in the title
+    // card (login-story-content) - measuring overflow there reflects only the real content.
+    const StoryContent = document.querySelector<HTMLElement>('[data-testid="login-story-content"]');
 
     return {
       viewportWidth: window.innerWidth,
@@ -97,6 +126,15 @@ async function ReadLayout(PageInstance: Page) {
       form: Rect('[data-testid="student-login-form"]'),
       submit: Rect('[data-testid="student-login-form"] button[type="submit"]'),
       mobileHeaderOverlap: OverlapArea(Brand, ThemeToggle),
+      brand: Brand,
+      themeToggle: ThemeToggle,
+      zettaLinks: ZettaLinks,
+      mathPathLogoLoaded: LogoLoaded('[data-testid="login-mathpath-logo"] img'),
+      zettaLogoLoaded: LogoLoaded('[data-testid="login-zetta-link"] img'),
+      headlineLines: LineCount('[data-testid="login-story-headline"]'),
+      descriptionLines: LineCount('[data-testid="login-story-description"]'),
+      tabsTop: Rect('[data-testid="login-role-tabs"]')?.top ?? null,
+      headingTop: Rect("#mathpath-login-heading")?.top ?? null,
       tabLabels: Tabs.map((Tab) => (Tab.textContent || "").trim()),
       clippedTabs: Tabs.filter((Tab) => Tab.scrollWidth > Tab.clientWidth + 1).length,
       identifierFontSize: Identifier ? Number.parseFloat(window.getComputedStyle(Identifier).fontSize) : 0,
@@ -106,39 +144,54 @@ async function ReadLayout(PageInstance: Page) {
       // Both are checked below instead of assumed.
       formZoneScrollOverflow: FormZone ? FormZone.scrollHeight - FormZone.clientHeight : 0,
       shellScrollOverflow: Shell ? Shell.scrollHeight - Shell.clientHeight : 0,
-      // The desktop "story" (brand/copy/feature) panel has its own fixed height to fit
-      // within, separate from the form column - only visible at wide-enough viewports.
-      // Checked the same way as the form column so a future content change can't silently
-      // clip the bottom feature-card row again without a real test catching it.
+      // The stage's title card (headline / description / live readout) has its own space
+      // to fit within, separate from the form column. Checked the same way as the form
+      // column so a future content change can't silently clip it without a real test
+      // catching it.
       storyPanelVisible: StoryPanelVisible,
       storyPanelScrollOverflow: StoryContent ? StoryContent.scrollHeight - StoryContent.clientHeight : 0,
     };
   });
 }
 
-// Diagnostic-only: measures each sub-section of the desktop story panel so a CI failure
-// tells us WHICH element is oversized instead of just the total overflow amount. Not part
-// of the layout contract itself - purely so the next failed run's log is self-explanatory.
+// Diagnostic-only: measures each part of the stage so a CI failure tells us WHICH element is
+// oversized instead of just the total overflow amount. Not part of the layout contract itself -
+// purely so the next failed run's log is self-explanatory.
 async function ReadStoryPanelBreakdown(PageInstance: Page) {
   return PageInstance.evaluate(() => {
     const HeightOf = (Selector: string) => {
       const Element = document.querySelector<HTMLElement>(Selector);
       return Element ? Math.round(Element.getBoundingClientRect().height) : null;
     };
-    const Feature = document.querySelectorAll<HTMLElement>(".math-login-feature");
     return {
       storyPanel: HeightOf('[data-testid="login-story-panel"]'),
-      storyContent: HeightOf(".math-login-story-content"),
-      logoCard: HeightOf(".math-login-logo-card"),
-      logoMark: HeightOf(".math-login-logo-mark"),
-      storyCopy: HeightOf(".math-login-story-copy"),
-      eyebrow: HeightOf(".math-login-eyebrow"),
-      headline: HeightOf(".math-login-story-headline"),
-      description: HeightOf(".math-login-story-description"),
-      featureGrid: HeightOf(".math-login-feature-grid"),
-      featureCards: Array.from(Feature).map((El) => Math.round(El.getBoundingClientRect().height)),
+      storyContent: HeightOf('[data-testid="login-story-content"]'),
+      stageSlot: HeightOf(".mp-si-slot"),
+      headline: HeightOf('[data-testid="login-story-headline"]'),
+      description: HeightOf('[data-testid="login-story-description"]'),
+      readout: HeightOf(".mp-si-readout"),
+      topBar: HeightOf(".mp-si-top"),
+      bottomBar: HeightOf(".mp-si-foot"),
     };
   });
+}
+
+// Shared by every case below: both logos are really on screen, and the Zetta Metrics credit
+// goes to the official site in a new tab.
+function ExpectBrandingContract(Layout: Awaited<ReturnType<typeof ReadLayout>>) {
+  expect(Layout.brand, "The MathPath logo must render").not.toBeNull();
+  expect(Layout.themeToggle, "The theme toggle must render").not.toBeNull();
+  expect(Layout.mathPathLogoLoaded, "The MathPath logo image must load and be visible").toBe(true);
+  expect(Layout.zettaLogoLoaded, "The Zetta Metrics logo image must load and be visible").toBe(true);
+  expect(Layout.zettaLinks.length, "The Zetta Metrics credit must be present").toBeGreaterThanOrEqual(1);
+  for (const Link of Layout.zettaLinks) {
+    expect(Link.href).toBe("https://www.zetta-metrics.com/");
+    expect(Link.target, "The Zetta Metrics link must open in a new tab").toBe("_blank");
+    expect(Link.rel).toContain("noopener");
+    expect(Link.width, "The Zetta Metrics link must be visible").toBeGreaterThan(0);
+    expect(Link.left).toBeGreaterThanOrEqual(-1);
+    expect(Link.right).toBeLessThanOrEqual(Layout.viewportWidth + 1);
+  }
 }
 
 for (const Theme of Themes) {
@@ -161,7 +214,8 @@ for (const Theme of Themes) {
         expect(Layout.submit!.left).toBeGreaterThanOrEqual(-1);
         expect(Layout.submit!.right).toBeLessThanOrEqual(Layout.viewportWidth + 1);
         expect(Layout.submit!.height, "The login action must remain touch friendly").toBeGreaterThanOrEqual(44);
-        expect(Layout.mobileHeaderOverlap, "The mobile brand and theme toggle must not overlap").toBe(0);
+        expect(Layout.mobileHeaderOverlap, "The MathPath logo and theme toggle must not overlap").toBe(0);
+        ExpectBrandingContract(Layout);
         expect(Layout.tabLabels).toEqual(["Admin", "Teacher", "Student"]);
         expect(Layout.clippedTabs, "Role labels must remain readable").toBe(0);
         expect(Layout.darkMode).toBe(Theme === "dark");
@@ -186,8 +240,12 @@ for (const Theme of Themes) {
           }
           expect(
             Layout.storyPanelScrollOverflow,
-            "The desktop story panel must not clip its bottom feature-card row"
+            "The stage must not clip its title card"
           ).toBeLessThanOrEqual(1);
+        }
+        if (Viewport.width >= 1280) {
+          expect(Layout.headlineLines, "The headline must stay on one line when there is room").toBe(1);
+          expect(Layout.descriptionLines, "The description must stay on one line when there is room").toBe(1);
         }
         expect(PageErrors).toEqual([]);
       } finally {
@@ -197,11 +255,10 @@ for (const Theme of Themes) {
   }
 }
 
-// The desktop "story" panel's content length depends on which role is active - Admin's
-// copy in particular ran noticeably longer than Teacher/Student's, so a fix verified only
-// against the Student role (the only one the suite above ever loads) could still leave
-// Admin and/or Teacher clipped. Covers just the viewport widths where the story panel is
-// actually visible (>=1180px), not the full matrix, to keep this addition proportionate.
+// The stage's copy length depends on which role is active - Admin's and Teacher's run
+// noticeably longer than Student's, so a fix verified only against the Student role (the
+// only one the suite above ever loads) could still leave them clipped or wrapped. Covers
+// the desktop widths, not the full matrix, to keep this addition proportionate.
 const DesktopViewports = Viewports.filter((V) => V.width >= 1280);
 const OtherRoles = ["admin", "teacher"] as const;
 
@@ -224,8 +281,15 @@ for (const Theme of Themes) {
           }
           expect(
             Layout.storyPanelScrollOverflow,
-            `The ${Role} story panel must not clip its bottom feature-card row`
+            `The ${Role} stage must not clip its title card`
           ).toBeLessThanOrEqual(1);
+          expect(Layout.headlineLines, `The ${Role} headline must stay on one line`).toBe(1);
+          expect(Layout.descriptionLines, `The ${Role} description must stay on one line`).toBe(1);
+          expect(
+            Layout.formZoneScrollOverflow,
+            "The form column must not need its own internal scrollbar"
+          ).toBeLessThanOrEqual(1);
+          ExpectBrandingContract(Layout);
           expect(
             Layout.documentHeight,
             "The login page must be visible in one go, with no page-level scroll"
@@ -237,4 +301,38 @@ for (const Theme of Themes) {
       });
     }
   }
+}
+
+// Switching role must never move the form: the tabs, the heading and the sign-in button
+// stay exactly where they are, whatever the role's copy length.
+for (const Theme of Themes) {
+  test(`role switch keeps the form in place in ${Theme} mode`, async ({ browser }) => {
+    const PageErrors: string[] = [];
+    const Viewport = { name: "desktop", width: 1440, height: 900 };
+    const { Context, PageInstance } = await OpenLogin(browser, Viewport, Theme, PageErrors, "student");
+
+    try {
+      const Positions: Array<{ tabsTop: number | null; headingTop: number | null; submitTop: number | null }> = [];
+      for (const Role of ["student", "teacher", "admin", "student"] as const) {
+        // A click that lands before the page has hydrated is dropped, so retry until the role takes.
+        await expect(async () => {
+          await PageInstance.locator(`#mathpath-login-tab-${Role}`).click();
+          await expect(PageInstance.getByRole("heading", { name: RoleHeadings[Role] })).toBeVisible({ timeout: 1_500 });
+        }).toPass({ timeout: 20_000 });
+        const Layout = await ReadLayout(PageInstance);
+        Positions.push({
+          tabsTop: Layout.tabsTop === null ? null : Math.round(Layout.tabsTop),
+          headingTop: Layout.headingTop === null ? null : Math.round(Layout.headingTop),
+          submitTop: Layout.submit ? Math.round(Layout.submit.top) : null,
+        });
+      }
+      for (const Position of Positions) {
+        expect(Position.tabsTop, "The role tabs must render").not.toBeNull();
+        expect(Position, "The form must not move when the role changes").toEqual(Positions[0]);
+      }
+      expect(PageErrors).toEqual([]);
+    } finally {
+      await Context.close();
+    }
+  });
 }
