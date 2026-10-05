@@ -1,0 +1,1011 @@
+/* MathPath sign-in page.
+   Layout: one frame with shared edges. A top bar (MathPath, theme) and a dark bottom bar (Zetta Metrics)
+   run the full width; between them a stage with one hero per role and its title card, and the sign-in
+   sheet docked right. Colour comes from the platform's role palettes (admin / teacher / student).
+   Everything here is scoped under .mp-si so nothing leaks into the rest of the app. */
+
+@property --si-dark { syntax: "<color>"; inherits: true; initial-value: #4c0519; }
+@property --si-primary { syntax: "<color>"; inherits: true; initial-value: #f97316; }
+@property --si-secondary { syntax: "<color>"; inherits: true; initial-value: #fb7185; }
+@property --si-accent { syntax: "<color>"; inherits: true; initial-value: #facc15; }
+@property --si-glow { syntax: "<color>"; inherits: true; initial-value: #facc15; }
+
+.mp-si {
+  /* role palette: student by default, swapped by [data-role] below */
+  --si-dark: #4c0519;
+  --si-primary: #f97316;
+  --si-secondary: #fb7185;
+  --si-accent: #facc15;
+  --si-glow: #facc15;
+  --si-bead-ms: 0.46s;
+  --si-bead-ease: cubic-bezier(0.3, 1.5, 0.5, 1);
+  /* light studio */
+  --si-wall: color-mix(in oklab, var(--si-primary) 6%, #fefefe);
+  --si-floor: color-mix(in oklab, var(--si-secondary) 17%, #f4f4f8);
+  --si-spot: color-mix(in oklab, var(--si-glow) 30%, #ffffff);
+  --si-ink: color-mix(in oklab, var(--si-dark) 88%, #0b1020);
+  --si-ink-soft: color-mix(in oklab, var(--si-ink) 68%, var(--si-wall));
+  --si-sheet: color-mix(in oklab, var(--si-primary) 2%, #ffffff);
+  --si-bar: color-mix(in oklab, var(--si-primary) 13%, #f3f3f7);
+  --si-line: color-mix(in srgb, var(--si-ink) 13%, transparent);
+  --si-field: #ffffff;
+  --si-field-line: color-mix(in srgb, var(--si-ink) 24%, transparent);
+  --si-tabs-bg: color-mix(in srgb, var(--si-ink) 5%, transparent);
+  --si-focus: var(--si-primary);
+  --si-shade: color-mix(in srgb, var(--si-ink) 22%, transparent);
+  --si-action: linear-gradient(135deg, var(--si-dark) 0%, var(--si-primary) 54%, var(--si-accent) 100%);
+  --si-on-action: #ffffff;
+  --si-tile: #ffffff;
+  --si-ok: #15803d;
+  --si-wait: #b45309;
+  --si-bad: #be123c;
+  --si-bad-bg: #fff1f2;
+  --si-bad-line: #fecdd3;
+  /* illustrated stages */
+  --si-frame: color-mix(in oklab, var(--si-dark) 80%, var(--si-primary));
+  --si-beam: color-mix(in oklab, var(--si-dark) 92%, var(--si-primary));
+  --si-rod: color-mix(in oklab, var(--si-secondary) 62%, #ffffff);
+  --si-bead: var(--si-primary);
+  --si-bead-hi: var(--si-accent);
+  --si-shadow2d: color-mix(in srgb, var(--si-ink) 30%, transparent);
+  /* Zetta Metrics bar: dark in both themes, because that is the ground the logo is drawn for */
+  --si-z-bg: #020507;
+  --si-z-edge: #22d3ee;
+  --si-z-ink: #e6f7fa;
+  --si-z-hi: #ffffff;
+  --si-z-sheen: rgba(160, 245, 255, 0.2);
+  --si-gut: clamp(20px, 3vw, 48px);
+  --si-display: var(--font-si-display), "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+
+  position: relative;
+  width: 100%;
+  height: 100svh;
+  height: 100dvh;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  background: var(--si-wall);
+  color: var(--si-ink);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: --si-dark 0.7s ease, --si-primary 0.7s ease, --si-secondary 0.7s ease, --si-accent 0.7s ease, --si-glow 0.7s ease;
+}
+
+.mp-si[data-role="admin"] {
+  --si-dark: #020617;
+  --si-primary: #2563eb;
+  --si-secondary: #22d3ee;
+  --si-accent: #c026d3;
+  --si-glow: #22d3ee;
+  --si-bead-ms: 0.3s;
+  --si-bead-ease: cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.mp-si[data-role="teacher"] {
+  --si-dark: #2b102d;
+  --si-primary: #6d2e5f;
+  --si-secondary: #b76e79;
+  --si-accent: #e6b8a2;
+  --si-glow: #e6b8a2;
+  --si-bead-ms: 0.52s;
+  --si-bead-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html.dark .mp-si {
+  --si-wall: color-mix(in oklab, color-mix(in oklab, var(--si-dark) 86%, var(--si-primary)) 58%, #03050b);
+  --si-floor: color-mix(in oklab, var(--si-primary) 15%, #04060c);
+  --si-spot: color-mix(in oklab, var(--si-primary) 42%, transparent);
+  --si-ink: #f7f8fc;
+  --si-ink-soft: color-mix(in oklab, #f7f8fc 74%, var(--si-dark));
+  --si-sheet: color-mix(in oklab, color-mix(in oklab, var(--si-dark) 90%, var(--si-primary)) 46%, #070a12);
+  --si-bar: var(--si-sheet);
+  --si-line: rgba(255, 255, 255, 0.12);
+  --si-field: rgba(255, 255, 255, 0.05);
+  --si-field-line: rgba(255, 255, 255, 0.22);
+  --si-tabs-bg: rgba(255, 255, 255, 0.05);
+  --si-focus: var(--si-secondary);
+  --si-shade: rgba(0, 0, 0, 0.55);
+  --si-ok: #4ade80;
+  --si-wait: #fbbf24;
+  --si-bad: #fda4af;
+  --si-bad-bg: rgba(244, 63, 94, 0.12);
+  --si-bad-line: rgba(251, 113, 133, 0.35);
+  --si-frame: color-mix(in oklab, var(--si-dark) 56%, var(--si-primary));
+  --si-beam: color-mix(in oklab, var(--si-dark) 70%, var(--si-primary));
+  --si-rod: color-mix(in oklab, var(--si-secondary) 78%, #ffffff);
+  --si-bead: color-mix(in oklab, var(--si-primary) 76%, var(--si-secondary));
+  --si-shadow2d: rgba(0, 0, 0, 0.6);
+}
+
+.mp-si *,
+.mp-si *::before,
+.mp-si *::after {
+  box-sizing: border-box;
+}
+
+.mp-si [hidden] {
+  display: none !important;
+}
+
+.mp-si :focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--si-focus) 60%, transparent);
+  outline-offset: 2px;
+}
+
+.mp-si-frame {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(380px, 34vw, 500px);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--si-wall);
+}
+
+/* ---- top bar: MathPath left, theme switch right, one centre line ---- */
+.mp-si-top {
+  grid-column: 1 / -1;
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: clamp(8px, 1.3vh, 12px);
+  padding-inline: var(--si-gut);
+  background: var(--si-bar);
+  border-bottom: 1px solid var(--si-line);
+}
+
+.mp-si-logo {
+  display: block;
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--si-line);
+  border-radius: 12px;
+  background: var(--si-tile);
+  box-shadow: 0 8px 18px -10px var(--si-shade);
+  transition: transform 0.2s ease;
+}
+
+.mp-si-logo:hover {
+  transform: translateY(-1px);
+}
+
+.mp-si-logo img {
+  display: block;
+  width: auto;
+  height: clamp(42px, 7vh, 62px);
+}
+
+.mp-si-theme svg,
+.mp-si-tab svg,
+.mp-si-eye svg {
+  flex: none;
+}
+
+.mp-si-theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border: 1px solid var(--si-line);
+  border-radius: 999px;
+  background: var(--si-tabs-bg);
+  color: var(--si-ink);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ---- stage: the scene has the space to itself; its title card sits underneath ---- */
+.mp-si-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: clamp(6px, 1.2vh, 14px);
+  padding-block: clamp(10px, 1.6vh, 18px) clamp(14px, 2.2vh, 24px);
+  padding-inline: var(--si-gut);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 56% 44% at 50% 42%, var(--si-spot) 0%, transparent 70%),
+    linear-gradient(180deg, var(--si-wall) 0%, var(--si-wall) 58%, var(--si-floor) 100%);
+}
+
+.mp-si-gl {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: pan-y;
+  transition: opacity 0.26s ease;
+}
+
+.mp-si-slot,
+.mp-si-title {
+  position: relative;
+  z-index: 1;
+}
+
+.mp-si-slot {
+  min-height: 0;
+  pointer-events: none;
+}
+
+.mp-si-flat {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.mp-si-flat > div {
+  position: absolute;
+  inset: 0;
+}
+
+.mp-si-flat svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.mp-si-bead {
+  cursor: pointer;
+  transition: transform var(--si-bead-ms) var(--si-bead-ease);
+}
+
+.mp-si-bead .body {
+  fill: var(--si-bead);
+  stroke: var(--si-bead);
+}
+
+.mp-si-bead.hi .body {
+  fill: var(--si-bead-hi);
+  stroke: var(--si-bead-hi);
+}
+
+.mp-si-bead:hover .gloss {
+  opacity: 0.7;
+}
+
+.mp-si-t2 .rail {
+  stroke: var(--si-rod);
+  stroke-width: 3;
+  opacity: 0.85;
+}
+
+.mp-si-t2 .gate {
+  stroke: var(--si-rod);
+  stroke-width: 2;
+  opacity: 0.4;
+}
+
+.mp-si-t2 .pearl {
+  animation: mp-si-run 30s linear infinite;
+}
+
+.mp-si-t2 .pearl circle:first-child {
+  fill: var(--si-bead-hi);
+}
+
+@keyframes mp-si-run {
+  0% { transform: translateX(0); opacity: 0; }
+  5% { opacity: 1; }
+  95% { opacity: 1; }
+  100% { transform: translateX(700px); opacity: 0; }
+}
+
+.mp-si-a2 path {
+  stroke: var(--si-rod);
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+}
+
+.mp-si-a2 .t { fill: var(--si-bead); }
+.mp-si-a2 .l { fill: var(--si-frame); }
+.mp-si-a2 .r { fill: var(--si-beam); }
+
+.mp-si-a2 .p {
+  fill: var(--si-secondary);
+  stroke: none;
+  opacity: 0;
+  animation: mp-si-pulse-tier 7s ease-in-out infinite;
+}
+
+@keyframes mp-si-pulse-tier {
+  0%, 9%, 100% { opacity: 0; }
+  3% { opacity: 0.9; }
+}
+
+.mp-si-title {
+  --si-ro-l: clamp(0.92rem, 0.78rem + 0.45vw, 1.25rem);
+  --si-ro-b: clamp(2.1rem, min(1rem + 3.2vw, 8.4vh), 4.2rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(calc(var(--si-ro-l) * 1.5 + var(--si-ro-b) * 0.9), auto) auto;
+  column-gap: clamp(14px, 2vw, 28px);
+  row-gap: 6px;
+  align-items: end;
+  align-items: last baseline;
+}
+
+.mp-si-headline {
+  grid-column: 1;
+  margin: 0;
+  color: var(--si-ink);
+  font-family: var(--si-display);
+  font-size: clamp(1.55rem, 0.6rem + 1.75vw, 3.1rem);
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.mp-si-challenge {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0.3em;
+}
+
+.mp-si:not([data-role="student"]) .mp-si-challenge,
+.mp-si:not([data-role="student"]) .mp-si-hint {
+  display: none;
+}
+
+.mp-si-chal {
+  min-height: 32px;
+  padding: 4px 14px;
+  border: 1.5px solid color-mix(in srgb, var(--si-primary) 55%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--si-primary) 13%, transparent);
+  color: var(--si-ink);
+  font-family: var(--si-display);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.mp-si-chal:hover {
+  background: color-mix(in srgb, var(--si-primary) 24%, transparent);
+}
+
+.mp-si-bar {
+  display: block;
+  width: 110px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--si-line);
+}
+
+.mp-si-bar i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--si-primary);
+  transform-origin: 0 50%;
+  animation: mp-si-drain 15s linear forwards;
+}
+
+@keyframes mp-si-drain {
+  to { transform: scaleX(0); }
+}
+
+.mp-si-readout {
+  grid-column: 3;
+  color: var(--si-ink);
+  font-family: var(--si-display);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* The readout's type size changes with its content (a sum, a time, a greeting). The platform's
+   reduced-motion rule turns every transition into a near-zero one rather than removing it, and
+   Safari then keeps the column at the size it had when that transition started, which pushed the
+   headline onto two lines. Nothing here is meant to transition, so switch it off outright. */
+.mp-si-ro-line,
+.mp-si-ro-big {
+  transition-property: none;
+}
+
+.mp-si-ro-line {
+  min-height: 1.5em;
+  color: var(--si-ink-soft);
+  font-size: var(--si-ro-l);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.mp-si-ro-big {
+  font-size: var(--si-ro-b);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+  transform-origin: 100% 100%;
+}
+
+.mp-si-ro-big.mid {
+  font-size: clamp(1.9rem, min(1rem + 2.3vw, 6.6vh), 3.2rem);
+  letter-spacing: -0.03em;
+}
+
+.mp-si-ro-big.text {
+  font-size: clamp(1.4rem, min(0.8rem + 1.2vw, 5vh), 2.2rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.mp-si-ro-big.tick {
+  animation: mp-si-tick 0.28s ease-out;
+}
+
+@keyframes mp-si-tick {
+  0% { transform: translateY(0.12em) scale(0.97); }
+  100% { transform: none; }
+}
+
+.mp-si-sub {
+  grid-column: 1 / -1;
+  align-self: start;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 1.45em;
+}
+
+.mp-si-desc {
+  min-width: 0;
+  margin: 0;
+  color: var(--si-ink-soft);
+  font-size: clamp(0.9rem, 0.82rem + 0.2vw, 1.02rem);
+  line-height: 1.45;
+}
+
+.mp-si-hint {
+  flex: none;
+  color: var(--si-ink-soft);
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ---- sign-in sheet: the same content height for every role, so nothing moves when the role changes ---- */
+.mp-si-sheet {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 0;
+  padding-block: clamp(16px, 3vh, 36px);
+  padding-inline: var(--si-gut);
+  overflow-y: auto;
+  border-left: 1px solid var(--si-line);
+  background: var(--si-sheet);
+  box-shadow: -40px 0 70px -50px var(--si-shade);
+}
+
+.mp-si-sheet-in {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  margin: auto 0;
+}
+
+.mp-si-tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 5px;
+  border: 1px solid var(--si-line);
+  border-radius: 16px;
+  background: var(--si-tabs-bg);
+}
+
+.mp-si-tab-ind {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+  width: calc((100% - 10px) / 3);
+  border-radius: 12px;
+  background: var(--si-action);
+  box-shadow: 0 10px 20px -12px var(--si-primary);
+  transform: translateX(calc(var(--tab-index, 2) * 100%));
+  transition: transform 0.5s cubic-bezier(0.3, 1.25, 0.5, 1);
+}
+
+.mp-si-tab > span {
+  display: inline-flex;
+}
+
+.mp-si-tab {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--si-ink-soft);
+  font-family: var(--si-display);
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.25s ease;
+}
+
+.mp-si-tab:hover {
+  color: var(--si-ink);
+}
+
+.mp-si-tab[aria-selected="true"] {
+  color: var(--si-on-action);
+}
+
+.mp-si-heading {
+  margin: 10px 0 0;
+  color: var(--si-ink);
+  font-family: var(--si-display);
+  font-size: clamp(1.9rem, 1.3rem + 1.3vw, 2.7rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+}
+
+.mp-si-swap {
+  animation: mp-si-swap 0.35s ease-out;
+}
+
+@keyframes mp-si-swap {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.mp-si-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.mp-si-label {
+  margin-top: 4px;
+  color: var(--si-ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.mp-si-in {
+  width: 100%;
+  height: 50px;
+  padding: 0 14px;
+  border: 1.5px solid var(--si-field-line);
+  border-radius: 12px;
+  background: var(--si-field);
+  color: var(--si-ink);
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mp-si-in::placeholder {
+  color: var(--si-ink-soft);
+  opacity: 0.75;
+}
+
+.mp-si-in:focus {
+  outline: none;
+  border-color: var(--si-focus);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--si-focus) 22%, transparent);
+}
+
+.mp-si-in.code {
+  text-align: center;
+  letter-spacing: 0.35em;
+}
+
+.mp-si-pw {
+  position: relative;
+}
+
+.mp-si-pw .mp-si-in {
+  padding-right: 50px;
+}
+
+.mp-si-eye {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 50px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--si-ink-soft);
+  cursor: pointer;
+}
+
+.mp-si-note {
+  margin: 2px 0 0;
+  color: var(--si-ink-soft);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.mp-si-err {
+  margin: 4px 0 0;
+  padding: 10px 14px;
+  border: 1px solid var(--si-bad-line);
+  border-radius: 12px;
+  background: var(--si-bad-bg);
+  color: var(--si-bad);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.mp-si-cta {
+  position: relative;
+  min-height: 52px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--si-action);
+  color: var(--si-on-action);
+  font-family: var(--si-display);
+  font-size: 1.06rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 16px 30px -16px var(--si-primary);
+  transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
+}
+
+.mp-si-cta:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.mp-si-cta:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.mp-si-cta:disabled {
+  cursor: progress;
+  filter: saturate(0.8);
+}
+
+.mp-si-forgot {
+  min-height: 1.45em;
+  margin: 6px 0 0;
+  color: var(--si-ink-soft);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.mp-si-forgot b {
+  display: block;
+  color: var(--si-ink);
+  font-weight: 600;
+}
+
+.mp-si-back {
+  align-self: center;
+  margin-top: 6px;
+  border: 0;
+  background: none;
+  color: var(--si-ink-soft);
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.mp-si-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--si-ink-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.mp-si-status i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--si-ok);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--si-ok) 22%, transparent);
+}
+
+.mp-si-status:not(.is-ready) i {
+  background: var(--si-wait);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--si-wait) 22%, transparent);
+  animation: mp-si-pulse 1s ease-in-out infinite;
+}
+
+@keyframes mp-si-pulse {
+  50% { transform: scale(1.5); opacity: 0.6; }
+}
+
+.mp-si-shake {
+  animation: mp-si-shake 0.4s ease;
+}
+
+@keyframes mp-si-shake {
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(2px); }
+}
+
+/* ---- bottom bar ---- */
+.mp-si-foot {
+  grid-column: 1 / -1;
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 20px;
+  padding-block: clamp(6px, 1vh, 10px);
+  padding-inline: var(--si-gut);
+  border-top: 1px solid color-mix(in srgb, var(--si-z-edge) 34%, transparent);
+  background: var(--si-z-bg);
+  color: var(--si-z-ink);
+}
+
+.mp-si-zetta {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 12px 3px 0;
+  overflow: hidden;
+  border-radius: 12px;
+  color: var(--si-z-ink);
+  text-decoration: none;
+}
+
+.mp-si-zetta span {
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mp-si-zetta img {
+  display: block;
+  width: auto;
+  height: clamp(46px, 7.6vh, 64px);
+}
+
+.mp-si-zetta svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  opacity: 0.85;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.mp-si-zetta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(105deg, transparent 36%, var(--si-z-sheen) 50%, transparent 64%);
+  transform: translateX(-120%);
+  transition: transform 0.8s ease;
+}
+
+.mp-si-zetta:hover svg,
+.mp-si-zetta:focus-visible svg {
+  transform: translate(2px, -2px);
+  opacity: 1;
+}
+
+.mp-si-zetta:hover::after,
+.mp-si-zetta:focus-visible::after {
+  transform: translateX(120%);
+}
+
+.mp-si-zurl {
+  padding-bottom: 2px;
+  border-bottom: 1px solid color-mix(in srgb, var(--si-z-edge) 55%, transparent);
+  color: var(--si-z-ink);
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.mp-si-zurl:hover,
+.mp-si-zurl:focus-visible {
+  border-color: var(--si-z-edge);
+  color: var(--si-z-hi);
+}
+
+.mp-si .mp-si-zetta:focus-visible,
+.mp-si .mp-si-zurl:focus-visible {
+  outline-color: var(--si-z-edge);
+}
+
+.mp-si-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* one orchestrated arrival; the frame itself stays still */
+.mp-si-title,
+.mp-si-sheet-in {
+  animation: mp-si-rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.mp-si-sheet-in {
+  animation-delay: 0.12s;
+}
+
+@keyframes mp-si-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 1699px) {
+  .mp-si-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 1240px) and (min-width: 900px) {
+  .mp-si-sub {
+    min-height: 2.9em;
+  }
+}
+
+@media (max-height: 720px) and (min-width: 900px) {
+  .mp-si-sheet { padding-block: 12px; }
+  .mp-si-sheet-in { gap: 8px; }
+  .mp-si-in,
+  .mp-si-eye { height: 44px; }
+  .mp-si-heading { margin-top: 2px; font-size: 1.75rem; }
+  .mp-si-form { gap: 6px; }
+  .mp-si-cta { min-height: 48px; margin-top: 8px; }
+  .mp-si-forgot { margin-top: 4px; }
+  .mp-si-err { padding: 8px 12px; font-size: 0.84rem; }
+}
+
+/* phones and narrow tablets: one column, illustrated stage above the form, bars top and bottom */
+@media (max-width: 899px) {
+  .mp-si-frame {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(auto, 1fr) auto;
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
+  .mp-si-logo img { height: 38px; }
+
+  .mp-si-stage {
+    grid-template-rows: auto auto;
+    gap: 8px;
+    min-height: auto;
+    padding-block: 12px 4px;
+    overflow: visible;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 40%, var(--si-spot) 0%, transparent 72%),
+      linear-gradient(180deg, var(--si-wall), var(--si-wall) 60%, var(--si-floor));
+  }
+
+  .mp-si-slot { height: clamp(104px, 31vw, 180px); }
+
+  /* The bottom space lives inside the title card, not under it: the big figure's glyph box is
+     taller than its line, and Firefox and Safari count that as overflow of a card with no padding. */
+  .mp-si-title {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto;
+    padding-bottom: 6px;
+  }
+
+  .mp-si-headline { font-size: 1.3rem; }
+
+  .mp-si-sub,
+  .mp-si .mp-si-challenge { display: none; }
+
+  .mp-si-readout { grid-column: 2; }
+  .mp-si-ro-line { min-height: 0; font-size: 0.85rem; }
+  .mp-si-ro-big { font-size: 1.75rem; line-height: 1.05; }
+  .mp-si-ro-big.mid { font-size: 1.5rem; }
+  .mp-si-ro-big.text { font-size: 1.15rem; }
+
+  .mp-si-sheet {
+    min-height: auto;
+    padding-block: 16px 22px;
+    overflow: visible;
+    border-top: 1px solid var(--si-line);
+    border-left: 0;
+    box-shadow: none;
+  }
+
+  .mp-si-sheet-in {
+    max-width: 30rem;
+    margin: 0 auto;
+    gap: 10px;
+  }
+
+  .mp-si-heading { margin-top: 4px; font-size: 1.7rem; }
+  .mp-si-in,
+  .mp-si-eye { height: 48px; }
+  .mp-si-cta { min-height: 50px; margin-top: 6px; }
+  .mp-si-zetta img { height: 46px; }
+}
+
+@media (max-width: 899px) and (max-height: 620px) {
+  .mp-si-slot { height: 84px; }
+  .mp-si-sheet { padding-block: 10px 14px; }
+  .mp-si-sheet-in { gap: 8px; }
+  .mp-si-heading { font-size: 1.45rem; }
+  .mp-si-in,
+  .mp-si-eye { height: 46px; }
+  .mp-si-zetta img { height: 40px; }
+}
+
+@media (max-width: 420px) {
+  .mp-si-tab { gap: 5px; padding-inline: 4px; font-size: 0.92rem; }
+  .mp-si-zurl { font-size: 0.8rem; }
+}
+
+@media (max-width: 350px) {
+  .mp-si-tab > span:first-child { display: none; }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.45s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* the arrival and copy swaps are switched off outright: shortening them alone would still
+     leave the sign-in sheet held 14px low for the length of its start delay */
+  .mp-si-title,
+  .mp-si-sheet-in,
+  .mp-si-swap {
+    animation: none;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

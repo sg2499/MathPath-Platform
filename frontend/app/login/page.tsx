@@ -1,4 +1,17 @@
+import localFont from "next/font/local";
 import LoginClient from "./LoginClient";
+import "./login.css";
+
+// Display typeface for the sign-in page only (headline, headings, numerals, buttons). Bundled with
+// the app (SIL Open Font License, see ./fonts/OFL.txt) so it looks the same on every device and
+// never waits on an outside font host.
+const SignInDisplayFont = localFont({
+  src: "./fonts/Gabarito-Variable.woff2",
+  weight: "400 900",
+  style: "normal",
+  display: "swap",
+  variable: "--font-si-display",
+});
 
 type LoginSearchParams = {
   role?: string | string[];
@@ -16,5 +29,9 @@ export default async function LoginPage({
 }) {
   const ResolvedSearchParams = searchParams ? await searchParams : null;
 
-  return <LoginClient InitialRole={GetRoleParam(ResolvedSearchParams)} />;
+  return (
+    <div className={SignInDisplayFont.variable}>
+      <LoginClient InitialRole={GetRoleParam(ResolvedSearchParams)} />
+    </div>
+  );
 }

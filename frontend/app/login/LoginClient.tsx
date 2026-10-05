@@ -6,26 +6,15 @@ import { defaultRouteForRole, setActiveRole, setSession } from "@/lib/auth";
 import { triggerLoginWelcome } from "@/lib/utils/particles";
 import { isTwoFactorChallenge } from "@/types/auth";
 import type { CurrentUser, UserRole } from "@/types/auth";
-import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import {
-  BarChart3,
-  BookOpenCheck,
-  ClipboardPlus,
-  Eye,
-  EyeOff,
-  GraduationCap,
-  Moon,
-  ShieldCheck,
-  Sparkles,
-  Sun,
-  Target,
-  UserRound,
-  UsersRound,
-} from "lucide-react";
+import { ExternalLink, Eye, EyeOff, GraduationCap, Moon, ShieldCheck, Sun, UserRound } from "lucide-react";
+import LoginStage from "./LoginStage";
+import type { LoginStageHandle } from "./LoginStage";
+import type { LoginRole } from "./_stage/shared";
 
 type ThemeMode = "light" | "dark";
 type LoginTab = "ADMIN" | "TEACHER" | "STUDENT";
@@ -34,142 +23,54 @@ const LOGIN_ROLE_STORAGE_KEY = "mathpath_login_role";
 const LOGIN_IDENTIFIER_STORAGE_PREFIX = "mathpath_login_identifier";
 const ValidLoginTabs: LoginTab[] = ["ADMIN", "TEACHER", "STUDENT"];
 
-const PlatformTagline =
-  "Visual Abacus Mastery for Speed, Accuracy, and School-Ready Confidence.";
-
 const MATHPATH_WEBSITE_URL = "https://www.mathpath.in/website/index";
+const ZETTA_METRICS_WEBSITE_URL = "https://www.zetta-metrics.com";
 
 const RoleContent: Record<
   LoginTab,
   {
-    Eyebrow: string;
     Headline: string;
     Description: string;
     IdentifierLabel: string;
     IdentifierPlaceholder: string;
     ButtonText: string;
-    Promise: string;
-    Gradient: string;
-    AccentGlow: string;
     ConfettiColors: string[];
     Icon: ReactNode;
-    Features: Array<{ Icon: ReactNode; Title: string; Desc: string }>;
     AcceptedRoles: UserRole[];
   }
 > = {
   ADMIN: {
-    Eyebrow: "Admin Control Centre",
     Headline: "Lead The MathPath Learning System.",
     Description:
       "Manage curriculum, users, assignments, and performance from one secure control centre.",
     IdentifierLabel: "Admin Email / Phone",
     IdentifierPlaceholder: "Enter admin email or phone",
     ButtonText: "Login as Admin",
-    Promise:
-      "Institution-wide oversight of curriculum, users, assignments, and performance.",
-    Gradient: "from-slate-950 via-indigo-700 to-fuchsia-500",
-    AccentGlow: "bg-fuchsia-300/25",
     ConfettiColors: ["#2563eb", "#c026d3", "#22d3ee", "#f8fafc"],
-    Icon: <ShieldCheck size={18} />,
+    Icon: <ShieldCheck size={17} />,
     AcceptedRoles: ["ADMIN", "SUPER_ADMIN"],
-    Features: [
-      {
-        Icon: <BookOpenCheck size={18} />,
-        Title: "Curriculum Management",
-        Desc: "Manage modules, levels, lessons, and practice structure.",
-      },
-      {
-        Icon: <UsersRound size={18} />,
-        Title: "User Administration",
-        Desc: "Manage students, teachers, access, and onboarding.",
-      },
-      {
-        Icon: <BarChart3 size={18} />,
-        Title: "Readiness & Performance",
-        Desc: "Track readiness, progress, and performance at a glance.",
-      },
-      {
-        Icon: <ClipboardPlus size={18} />,
-        Title: "Assignment Governance",
-        Desc: "Create, review, and manage practice allocation.",
-      },
-    ],
   },
   TEACHER: {
-    Eyebrow: "Teacher Guidance Workspace",
     Headline: "Guide Learners With Refined Focus.",
     Description:
       "Guide every learner through practice, readiness, and assessment with full visibility.",
     IdentifierLabel: "Teacher Email / Phone / Teacher Code",
     IdentifierPlaceholder: "Enter teacher login identifier",
     ButtonText: "Login as Teacher",
-    Promise:
-      "Assigned students, practice allocation, completion tracking, and readiness - all in view.",
-    Gradient: "from-[#2B102D] via-[#6D2E5F] to-[#D89A76]",
-    AccentGlow: "bg-[#E6B8A2]/30",
     ConfettiColors: ["#6D2E5F", "#B76E79", "#E6B8A2", "#fdf2f8"],
-    Icon: <GraduationCap size={18} />,
+    Icon: <GraduationCap size={17} />,
     AcceptedRoles: ["TEACHER"],
-    Features: [
-      {
-        Icon: <UsersRound size={18} />,
-        Title: "Assigned Learners",
-        Desc: "See your students and support each one with clear visibility.",
-      },
-      {
-        Icon: <ClipboardPlus size={18} />,
-        Title: "Assignment Workspace",
-        Desc: "Assign practice sheets and assessments from one workspace.",
-      },
-      {
-        Icon: <ShieldCheck size={18} />,
-        Title: "Readiness Signals",
-        Desc: "Monitor completion, progress, and assessment readiness.",
-      },
-      {
-        Icon: <Target size={18} />,
-        Title: "Practice Tracker",
-        Desc: "Track practice progress, re-attempts, and learning patterns.",
-      },
-    ],
   },
   STUDENT: {
-    Eyebrow: "Student Learning Workspace",
     Headline: "Practice, Shine, And Grow.",
     Description:
       "Practice, track progress, and review results in one confidence-building space.",
     IdentifierLabel: "Student Email / Phone / Student Code",
     IdentifierPlaceholder: "Enter student code, email, or phone",
     ButtonText: "Login as Student",
-    Promise:
-      "Assigned work, assessments, progress, and results - all in one place.",
-    Gradient: "from-rose-950 via-orange-500 to-pink-400",
-    AccentGlow: "bg-amber-200/30",
     ConfettiColors: ["#f97316", "#fb7185", "#facc15", "#fff7ed"],
-    Icon: <UserRound size={18} />,
+    Icon: <UserRound size={17} />,
     AcceptedRoles: ["STUDENT"],
-    Features: [
-      {
-        Icon: <BookOpenCheck size={18} />,
-        Title: "Assigned Learning",
-        Desc: "Everything assigned to you, in one place.",
-      },
-      {
-        Icon: <BarChart3 size={18} />,
-        Title: "Progress Tracking",
-        Desc: "Follow your level progress and growth over time.",
-      },
-      {
-        Icon: <Target size={18} />,
-        Title: "Result Review",
-        Desc: "Review attempts and learn from every result.",
-      },
-      {
-        Icon: <Sparkles size={18} />,
-        Title: "Confidence Growth",
-        Desc: "Build speed, accuracy, and stronger mathematical thinking.",
-      },
-    ],
   },
 };
 
@@ -180,6 +81,32 @@ function ApplyTheme(Mode: ThemeMode, MarkUserChoice = false) {
   if (MarkUserChoice) {
     localStorage.setItem("mathpath_theme_user_set", "true");
   }
+}
+
+// Cross-fades the whole page in one step when the theme changes, where the browser supports it.
+// Apply always runs exactly once: straight away if there is no support, and on a short timer as a
+// backstop so the switch can never be left waiting on a frame.
+function RunThemeTransition(Apply: () => void) {
+  const TransitionDocument = document as Document & { startViewTransition?: (Callback: () => void) => unknown };
+  const ReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let Applied = false;
+  const ApplyOnce = () => {
+    if (Applied) return;
+    Applied = true;
+    Apply();
+  };
+
+  if (typeof TransitionDocument.startViewTransition === "function" && !ReducedMotion && !document.hidden) {
+    try {
+      TransitionDocument.startViewTransition(ApplyOnce);
+      window.setTimeout(ApplyOnce, 450);
+      return;
+    } catch {
+      // Fall through to the plain switch below.
+    }
+  }
+
+  ApplyOnce();
 }
 
 function NormalizeLoginTab(Value?: string | null): LoginTab | null {
@@ -282,7 +209,13 @@ export default function LoginClient({
   const [TwoFactorChallengeToken, SetTwoFactorChallengeToken] = useState<string | null>(null);
   const [TwoFactorCode, SetTwoFactorCode] = useState("");
 
+  const StageRef = useRef<LoginStageHandle>(null);
+  const FormShellRef = useRef<HTMLDivElement>(null);
+
   const Active = RoleContent[ActiveTab];
+  const StageRole = ActiveTab.toLowerCase() as LoginRole;
+  const StudentConfettiColors = RoleContent.STUDENT.ConfettiColors;
+  const CelebrateChallenge = useCallback(() => triggerLoginWelcome(StudentConfettiColors), [StudentConfettiColors]);
   const OrderedTabs = useMemo<LoginTab[]>(() => ["ADMIN", "TEACHER", "STUDENT"], []);
   const ThemeLabel = Theme === "dark" ? "Light" : "Dark";
   const ThemeTooltip =
@@ -344,8 +277,10 @@ export default function LoginClient({
 
   function ToggleTheme() {
     const NextTheme = Theme === "dark" ? "light" : "dark";
-    SetTheme(NextTheme);
-    ApplyTheme(NextTheme, true);
+    RunThemeTransition(() => {
+      flushSync(() => SetTheme(NextTheme));
+      ApplyTheme(NextTheme, true);
+    });
   }
 
   function ChangeTab(Tab: LoginTab) {
@@ -361,6 +296,7 @@ export default function LoginClient({
 
   async function CompleteLogin(Response: { user: CurrentUser }, CleanIdentifier: string) {
     if (!Active.AcceptedRoles.includes(Response.user.role)) {
+      StageRef.current?.Signal("error");
       SetError(RoleMismatchMessage(Response.user));
       return;
     }
@@ -376,16 +312,16 @@ export default function LoginClient({
     const TargetRoute = defaultRouteForRole(Response.user.role);
     Router.prefetch(TargetRoute);
 
-    // Brief welcome moment before navigating away: a quick, role-colored confetti
-    // pop (subdued on purpose — see particles.ts — this happens on every login,
-    // not just an earned reward) with just enough of a pause to actually be seen
-    // before the page unmounts. Fires unconditionally, matching how every other
-    // confetti moment in this codebase already behaves (EpicCelebration.tsx's
-    // loot-drop/badge-unlock bursts never check prefers-reduced-motion either) —
-    // an earlier version of this gated the burst behind a reduced-motion check,
-    // which silently skipped it in several real test environments and made the
-    // feature look broken when it was actually just suppressed.
-    triggerLoginWelcome(Active.ConfettiColors);
+    // Brief welcome moment before navigating away, with just enough of a pause to actually be
+    // seen before the page unmounts. Every role gets its stage's own confirmation (the abacus fills,
+    // a sweep of light crosses the class, the institution lights from the ground up). Students also
+    // get the quick, role-colored confetti pop (subdued on purpose -- see particles.ts -- since this
+    // happens on every login, not just an earned reward); teachers and admins stay calmer by design.
+    // The confetti fires without a prefers-reduced-motion check, matching every other confetti
+    // moment in this codebase: an earlier version gated it and it silently vanished in several real
+    // test environments, which made the feature look broken when it was only suppressed.
+    StageRef.current?.Signal("ok");
+    if (ActiveTab === "STUDENT") triggerLoginWelcome(Active.ConfettiColors);
     await new Promise((Resolve) => setTimeout(Resolve, 550));
 
     Router.replace(TargetRoute);
@@ -413,6 +349,7 @@ export default function LoginClient({
     SetError("");
     SetLoading(true);
     SetConnectionStatus("working");
+    StageRef.current?.Signal("busy");
 
     try {
       const Result = await login(CleanIdentifier, CleanPassword);
@@ -420,12 +357,14 @@ export default function LoginClient({
       if (isTwoFactorChallenge(Result)) {
         SetTwoFactorChallengeToken(Result.challengeToken);
         SetConnectionStatus("ready");
+        StageRef.current?.Signal("idle");
         return;
       }
 
       await CompleteLogin(Result, CleanIdentifier);
     } catch (Err) {
       SetConnectionStatus("working");
+      StageRef.current?.Signal("error");
       SetError(apiErrorMessage(Err));
       void warmupAuthApi();
     } finally {
@@ -445,11 +384,13 @@ export default function LoginClient({
 
     SetError("");
     SetLoading(true);
+    StageRef.current?.Signal("busy");
 
     try {
       const Response = await verifyTwoFactorLogin(TwoFactorChallengeToken, CleanCode);
       await CompleteLogin(Response, Identifier.trim());
     } catch (Err) {
+      StageRef.current?.Signal("error");
       SetError(apiErrorMessage(Err));
     } finally {
       SetLoading(false);
@@ -462,171 +403,67 @@ export default function LoginClient({
     SetError("");
   }
 
+  // A short shake on the form whenever a new error appears, so it is noticed without being read.
+  useEffect(() => {
+    const FormShell = FormShellRef.current;
+    if (!Error || !FormShell) return;
+    FormShell.classList.remove("mp-si-shake");
+    void FormShell.offsetWidth;
+    FormShell.classList.add("mp-si-shake");
+  }, [Error]);
+
+  const ErrorBanner = Error ? (
+    <div role="alert" aria-live="polite" className="mp-si-err">
+      {Error}
+    </div>
+  ) : null;
+
   return (
-    <main
-      className={`math-login-shell math-login-role-${ActiveTab.toLowerCase()} relative flex min-h-[100svh] items-center justify-center px-4 py-4 text-slate-950 sm:px-5 sm:py-5 xl:px-6 xl:py-6`}
-      data-testid="login-shell"
-    >
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        {/* Abacus-rail motif: thin horizontal rods with bead dots, tying the backdrop to the
-            "Visual Abacus Mastery" brand promise instead of a generic decorative pattern. */}
-        <div className="absolute inset-0 math-grid-dots opacity-60 dark:opacity-40" />
-        <div className="math-login-aura math-login-aura-one" />
-        <div className="math-login-aura math-login-aura-two" />
-        <div className="math-login-orbit math-login-orbit-bead left-[6%] top-[14%] hidden lg:block" />
-        <div className="math-login-orbit math-login-orbit-bead bottom-[10%] right-[8%] hidden lg:block" />
-        {/* Living background: slow-floating bead motes, low-opacity ambient motion so the
-            page never feels perfectly static. Purely decorative, respects reduced-motion
-            via the platform-wide CSS rule (see globals.css). */}
-        <div className="math-login-float-bead math-login-float-bead-1" />
-        <div className="math-login-float-bead math-login-float-bead-2" />
-        <div className="math-login-float-bead math-login-float-bead-3" />
-        <div className="math-login-float-bead math-login-float-bead-4" />
-        <div className="math-login-float-bead math-login-float-bead-5" />
-        <div className="math-login-float-bead math-login-float-bead-6" />
-      </div>
+    <main className="mp-si" data-role={StageRole} data-testid="login-shell">
+      <div className="mp-si-frame" data-testid="login-frame">
+        <header className="mp-si-top">
+          <a
+            href={MATHPATH_WEBSITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mp-si-logo"
+            aria-label="Open MathPath website"
+            data-testid="login-mathpath-logo"
+          >
+            <Image src="/mathpath-logo.png" alt="MathPath logo" width={210} height={101} priority />
+          </a>
+          <button
+            className="mp-si-theme"
+            onClick={ToggleTheme}
+            aria-label={ThemeTooltip}
+            title={ThemeTooltip}
+            type="button"
+            data-testid="login-theme-toggle"
+          >
+            {Theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            <span>{ThemeLabel}</span>
+          </button>
+        </header>
 
-      <div
-        className="math-login-frame relative z-10 mx-auto grid w-full max-w-[1820px] lg:h-auto lg:min-h-[720px] lg:grid-cols-[1.04fr_0.96fr] lg:overflow-hidden lg:rounded-[2.5rem] lg:bg-white lg:shadow-2xl lg:dark:bg-slate-950"
-        data-testid="login-frame"
-      >
-        <section
-          className={`math-login-story relative hidden h-full min-h-0 overflow-hidden bg-gradient-to-br ${Active.Gradient} text-white transition-all duration-500 lg:flex`}
-          data-testid="login-story-panel"
-        >
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_10%,rgba(255,255,255,0.24),transparent_25%),radial-gradient(circle_at_88%_82%,rgba(255,255,255,0.16),transparent_28%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.12),transparent_38%),linear-gradient(180deg,rgba(2,6,23,0.10),transparent_42%,rgba(255,255,255,0.08))]" />
-          <div className={`absolute -right-24 top-24 h-72 w-72 rounded-full ${Active.AccentGlow} blur-3xl`} />
-          <div className="absolute -bottom-28 -left-20 h-80 w-80 rounded-full bg-white/14 blur-3xl" />
+        <LoginStage
+          ref={StageRef}
+          Role={StageRole}
+          Dark={Theme === "dark"}
+          Headline={Active.Headline}
+          Description={Active.Description}
+          OnCelebrate={CelebrateChallenge}
+        />
 
-          <div className="math-login-story-content relative z-10 flex h-full w-full min-h-0 flex-col justify-start px-8 py-6 xl:px-11 xl:py-7 2xl:px-14 2xl:py-8">
-            <div className="math-login-brand-zone shrink-0">
-              <a
-                href={MATHPATH_WEBSITE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="math-login-logo-card flex w-fit max-w-2xl items-center gap-5 rounded-[26px] px-4.5 py-3.5 transition duration-200 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
-                aria-label="Open MathPath website"
-              >
-                <div className="math-login-logo-mark rounded-2xl bg-white px-4 py-3 shadow-md">
-                  <Image
-                    src="/mathpath-logo.png"
-                    alt="MathPath logo"
-                    width={210}
-                    height={101}
-                    className="h-[5.6rem] w-auto object-contain"
-                    priority
-                  />
-                </div>
-                <div>
-                  <p className="text-2xl font-black sm:text-[1.7rem]">MathPath</p>
-                  <p className="max-w-md text-sm font-semibold leading-5 text-white/90 sm:text-[0.95rem]">
-                    {PlatformTagline}
-                  </p>
-                </div>
-              </a>
-            </div>
-
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.div
-                key={ActiveTab}
-                className="shrink-0"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18, ease: "easeInOut" }}
-              >
-                <div className="math-login-story-copy">
-                  <div className="flex">
-                    <div className="math-login-eyebrow inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[12px] font-black uppercase tracking-[0.18em] text-white/94">
-                      {Active.Icon}
-                      {Active.Eyebrow}
-                    </div>
-                  </div>
-
-                  <h1
-                    className="math-login-story-headline mt-4 max-w-4xl text-[2.25rem] font-extrabold leading-[1.02] tracking-[-0.035em] xl:text-[2.95rem] 2xl:text-[3.35rem]"
-                    style={{
-                      fontFamily:
-                        '"Inter", "Manrope", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    }}
-                  >
-                    {Active.Headline}
-                  </h1>
-
-                  <p className="math-login-story-description mt-2.5 max-w-3xl text-sm leading-6 text-white/91 xl:text-[0.98rem] xl:leading-7">
-                    {Active.Description}
-                  </p>
-                </div>
-
-                <AbacusFlourish />
-
-                <div className="math-login-feature-grid grid gap-4 sm:grid-cols-2">
-                  {Active.Features.map((FeatureItem) => (
-                    <Feature
-                      key={FeatureItem.Title}
-                      Icon={FeatureItem.Icon}
-                      Title={FeatureItem.Title}
-                      Desc={FeatureItem.Desc}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </section>
-
-        <section
-          className="math-login-form-zone relative flex h-full min-h-0 items-center px-5 py-6 sm:px-8 lg:px-10 xl:px-12 2xl:px-14"
-          data-testid="login-form-zone"
-          aria-labelledby="mathpath-login-heading"
-        >
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.10),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.45),rgba(255,255,255,0.15))] dark:bg-[radial-gradient(circle_at_top_right,rgba(6,182,212,0.12),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(124,58,237,0.10),transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.28),rgba(2,6,23,0.58))]" />
-
-          <div className="relative z-10 mx-auto w-full max-w-[34.5rem]">
-            <div className="math-login-mobile-header mb-3 flex items-center justify-between gap-3">
-              <a
-                href={MATHPATH_WEBSITE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="math-login-mobile-brand flex items-center gap-3 rounded-2xl transition duration-200 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 dark:focus-visible:ring-white/70 lg:hidden"
-                aria-label="Open MathPath website"
-              >
-                <div className="rounded-2xl bg-white px-3 py-2.5 shadow-md">
-                  <Image
-                    src="/mathpath-logo.png"
-                    alt="MathPath logo"
-                    width={140}
-                    height={67}
-                    className="h-11 w-auto object-contain"
-                    priority
-                  />
-                </div>
-                <div>
-                  <p className="text-lg font-black text-slate-950 dark:text-white">MathPath</p>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">Ace With Abacus</p>
-                </div>
-              </a>
-              <button
-                className="math-login-theme-toggle inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.12em]"
-                onClick={ToggleTheme}
-                aria-label={ThemeTooltip}
-                title={ThemeTooltip}
-                type="button"
-              >
-                {Theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-                <span>{ThemeLabel}</span>
-              </button>
-            </div>
-
+        <section className="mp-si-sheet" data-testid="login-form-zone" aria-labelledby="mathpath-login-heading">
+          <div className="mp-si-sheet-in">
             <div
-              className="math-login-tabs relative mb-3 grid grid-cols-3 gap-2 rounded-[24px] p-1.5"
+              className="mp-si-tabs"
               role="tablist"
               aria-label="Choose login role"
               data-testid="login-role-tabs"
               style={{ "--tab-index": OrderedTabs.indexOf(ActiveTab) } as React.CSSProperties}
             >
-              <div className="math-login-tab-indicator" aria-hidden="true" />
+              <div className="mp-si-tab-ind" aria-hidden="true" />
               {OrderedTabs.map((Tab) => {
                 const TabData = RoleContent[Tab];
                 const ActiveState = ActiveTab === Tab;
@@ -639,54 +476,33 @@ export default function LoginClient({
                     id={`mathpath-login-tab-${Tab.toLowerCase()}`}
                     aria-selected={ActiveState}
                     aria-controls="mathpath-login-panel"
-                    className={`math-login-tab math-login-tab-${Tab.toLowerCase()} relative z-[1] flex min-h-11 items-center justify-center gap-2 rounded-[18px] px-3 py-2.5 text-sm font-black transition-colors duration-200 ${
-                      ActiveState
-                        ? "text-white"
-                        : "text-slate-600 dark:text-slate-300"
-                    }`}
+                    className="mp-si-tab"
                   >
-                    <span className="math-login-tab-icon" aria-hidden="true">{TabData.Icon}</span>
-                    <span className="math-login-tab-label">{RoleLabel(Tab)}</span>
+                    <span aria-hidden="true">{TabData.Icon}</span>
+                    <span>{RoleLabel(Tab)}</span>
                   </button>
                 );
               })}
             </div>
 
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.div
-                key={ActiveTab}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18, ease: "easeInOut" }}
-              >
-                <h2
-                  id="mathpath-login-heading"
-                  className="math-login-form-heading mt-1 text-[2.25rem] font-black leading-tight tracking-[-0.055em] text-slate-950 dark:text-white sm:text-[2.75rem] 2xl:text-[3rem]"
+            <h2 id="mathpath-login-heading" className="mp-si-heading mp-si-swap" key={`heading-${ActiveTab}`}>
+              {RoleLabel(ActiveTab)} Login
+            </h2>
+
+            <div ref={FormShellRef}>
+              {TwoFactorChallengeToken ? (
+                <form
+                  id="mathpath-login-2fa-panel"
+                  className="mp-si-form"
+                  onSubmit={HandleTwoFactorSubmit}
+                  data-testid="two-factor-login-form"
                 >
-                  {RoleLabel(ActiveTab)} Login
-                </h2>
-
-                <p className="math-login-form-subtitle mt-1.5 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
-                  {Active.Promise}
-                </p>
-              </motion.div>
-            </AnimatePresence>
-
-            {TwoFactorChallengeToken ? (
-              <form
-                id="mathpath-login-2fa-panel"
-                className="math-login-card mt-3.5 space-y-3"
-                onSubmit={HandleTwoFactorSubmit}
-                data-testid="two-factor-login-form"
-              >
-                <div>
-                  <label className="math-label" htmlFor="mathpath-login-2fa-code">
+                  <label className="mp-si-label" htmlFor="mathpath-login-2fa-code">
                     Authentication Code
                   </label>
                   <input
                     id="mathpath-login-2fa-code"
-                    className="math-input mt-2 min-h-12 text-center tracking-[0.35em]"
+                    className="mp-si-in code"
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
@@ -696,48 +512,41 @@ export default function LoginClient({
                     autoFocus
                     required
                   />
-                  <p className="mt-2 text-[13px] font-semibold text-slate-500 dark:text-slate-400">
+                  <p className="mp-si-note">
                     Enter the 6-digit code from your authenticator app, or one of your backup codes.
                   </p>
-                </div>
 
-                {Error ? (
-                  <div role="alert" aria-live="polite" className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200">
-                    {Error}
-                  </div>
-                ) : null}
+                  {ErrorBanner}
 
-                <button type="submit" className="math-button-primary min-h-12 w-full" disabled={Loading}>
-                  {Loading ? "Verifying..." : "Verify & Continue"}
-                </button>
+                  <button type="submit" className="mp-si-cta" disabled={Loading}>
+                    {Loading ? "Verifying..." : "Verify & Continue"}
+                  </button>
 
-                <div className="pt-2 text-center">
-                  <button
-                    type="button"
-                    onClick={CancelTwoFactorChallenge}
-                    className="text-[13px] font-semibold text-slate-500 underline-offset-2 hover:underline dark:text-slate-400"
-                  >
+                  <button type="button" onClick={CancelTwoFactorChallenge} className="mp-si-back">
                     Back to login
                   </button>
-                </div>
-              </form>
-            ) : (
-              <form
-                id="mathpath-login-panel"
-                role="tabpanel"
-                aria-labelledby={`mathpath-login-tab-${ActiveTab.toLowerCase()}`}
-                className="math-login-card mt-3.5 space-y-3"
-                onSubmit={HandleSubmit}
-                data-testid="student-login-form"
-              >
-                <div>
-                  <label className="math-label" htmlFor="mathpath-login-identifier">{Active.IdentifierLabel}</label>
+                </form>
+              ) : (
+                <form
+                  id="mathpath-login-panel"
+                  role="tabpanel"
+                  aria-labelledby={`mathpath-login-tab-${ActiveTab.toLowerCase()}`}
+                  className="mp-si-form"
+                  onSubmit={HandleSubmit}
+                  data-testid="student-login-form"
+                >
+                  <label className="mp-si-label" htmlFor="mathpath-login-identifier">
+                    {Active.IdentifierLabel}
+                  </label>
                   <input
                     id="mathpath-login-identifier"
-                    className="math-input mt-2 min-h-12"
+                    className="mp-si-in"
                     type="text"
                     value={Identifier}
-                    onChange={(Event) => SetIdentifier(Event.target.value)}
+                    onChange={(Event) => {
+                      SetIdentifier(Event.target.value);
+                      StageRef.current?.HoldForTyping();
+                    }}
                     placeholder={Active.IdentifierPlaceholder}
                     autoComplete={`${AutoCompleteSection(ActiveTab)} username`}
                     name={`mathpath-${ActiveTab.toLowerCase()}-identifier`}
@@ -746,17 +555,20 @@ export default function LoginClient({
                     spellCheck={false}
                     required
                   />
-                </div>
 
-                <div>
-                  <label className="math-label" htmlFor="mathpath-login-password">Password</label>
-                  <div className="relative mt-2">
+                  <label className="mp-si-label" htmlFor="mathpath-login-password">
+                    Password
+                  </label>
+                  <div className="mp-si-pw">
                     <input
                       id="mathpath-login-password"
-                      className="math-input min-h-12 w-full pr-12"
+                      className="mp-si-in"
                       type={ShowPassword ? "text" : "password"}
                       value={Password}
-                      onChange={(Event) => SetPassword(Event.target.value)}
+                      onChange={(Event) => {
+                        SetPassword(Event.target.value);
+                        StageRef.current?.HoldForTyping();
+                      }}
                       placeholder="Enter your password"
                       autoComplete={`${AutoCompleteSection(ActiveTab)} current-password`}
                       name={`mathpath-${ActiveTab.toLowerCase()}-password`}
@@ -765,89 +577,74 @@ export default function LoginClient({
                     <button
                       type="button"
                       onClick={() => SetShowPassword(!ShowPassword)}
-                      className="math-login-password-toggle absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 focus:outline-none"
+                      className="mp-si-eye"
                       aria-label={ShowPassword ? "Hide password" : "Show password"}
                     >
-                      {ShowPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      {ShowPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                     </button>
                   </div>
-                </div>
 
-                {Error ? (
-                  <div role="alert" aria-live="polite" className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200">
-                    {Error}
-                  </div>
-                ) : null}
+                  {ErrorBanner}
 
-                <button type="submit" className="math-button-primary min-h-12 w-full" disabled={Loading || !LoginReady}>
-                  {Loading ? "Logging In..." : Active.ButtonText}
-                </button>
+                  <button type="submit" className="mp-si-cta" disabled={Loading || !LoginReady}>
+                    {Loading ? "Logging In..." : Active.ButtonText}
+                  </button>
 
-                <div className="pt-2 text-center">
-                  <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
+                  <p className="mp-si-forgot">
                     Forgot Password?{" "}
-                    <span className="text-slate-700 dark:text-slate-300">
+                    <b>
                       {ActiveTab === "STUDENT"
                         ? "Contact your teacher to reset it."
                         : "Contact your platform administrator."}
-                    </span>
+                    </b>
                   </p>
-                </div>
-              </form>
-            )}
+                </form>
+              )}
+            </div>
 
-            <div
-              className={`math-login-status math-login-status-${ConnectionStatus} mt-3 flex items-center justify-center gap-2 rounded-full py-2 text-[11px] font-bold uppercase tracking-[0.14em]`}
+            <p
+              className={`mp-si-status${ConnectionStatus === "ready" ? " is-ready" : ""}`}
               role="status"
               aria-live="polite"
+              data-testid="login-connection-status"
             >
-              <span className="math-login-status-dot" aria-hidden="true" />
-              {ConnectionStatus === "ready"
-                ? "Secure Connection Ready"
-                : ConnectionStatus === "working"
-                ? "Connecting To MathPath…"
-                : "Preparing Secure Sign-In…"}
-            </div>
+              <i aria-hidden="true" />
+              <span>
+                {ConnectionStatus === "ready"
+                  ? "Secure connection ready"
+                  : ConnectionStatus === "working"
+                  ? "Connecting to MathPath…"
+                  : "Preparing secure sign-in…"}
+              </span>
+            </p>
           </div>
         </section>
+
+        <footer className="mp-si-foot">
+          <a
+            href={ZETTA_METRICS_WEBSITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mp-si-zetta"
+            aria-label="Built by Zetta Metrics. Opens the Zetta Metrics website in a new tab"
+            data-testid="login-zetta-link"
+          >
+            <span>Built by</span>
+            <Image src="/zetta-metrics-logo.png" alt="Zetta Metrics" width={748} height={256} loading="eager" />
+            <ExternalLink aria-hidden="true" />
+          </a>
+          <a
+            href={ZETTA_METRICS_WEBSITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mp-si-zurl"
+            data-testid="login-zetta-url"
+          >
+            www.zetta-metrics.com
+            <span className="mp-si-sr"> (opens in a new tab)</span>
+          </a>
+        </footer>
       </div>
     </main>
-  );
-}
-
-function Feature({
-  Icon,
-  Title,
-  Desc,
-}: {
-  Icon: ReactNode;
-  Title: string;
-  Desc: string;
-}) {
-  return (
-    <div className="math-login-feature rounded-[24px] p-4 transition duration-200 hover:-translate-y-0.5">
-      <div className="inline-flex rounded-2xl bg-white/13 p-2">{Icon}</div>
-      <p className="mt-2.5 text-base font-black leading-5 xl:text-lg xl:leading-6">{Title}</p>
-      <p className="mt-1.5 text-xs leading-5 text-white/84 xl:text-sm">{Desc}</p>
-    </div>
-  );
-}
-
-// A literal abacus rail with beads, two of which slide back and forth along it — the
-// "abacus-bead visual flourish" from the 2026-07-17 wishlist, distinct from the
-// abstract orbit-ring motif already in the page backdrop. Purely decorative
-// (aria-hidden), sits between the story copy and the feature grid.
-function AbacusFlourish() {
-  return (
-    <div className="my-5 hidden shrink-0 lg:block" aria-hidden="true">
-      <div className="math-login-abacus-rail">
-        <span className="math-abacus-bead math-abacus-bead-static-1" />
-        <span className="math-abacus-bead math-abacus-bead-static-2" />
-        <span className="math-abacus-bead math-abacus-bead-slide-a" />
-        <span className="math-abacus-bead math-abacus-bead-slide-b" />
-        <span className="math-abacus-bead math-abacus-bead-static-3" />
-        <span className="math-abacus-bead math-abacus-bead-static-4" />
-      </div>
-    </div>
   );
 }
