@@ -60,6 +60,8 @@ async function OpenLogin(
     undefined,
     { timeout: 15_000 }
   ).catch(() => undefined);
+  // Measure the settled page: the display font swaps in after first paint.
+  await PageInstance.evaluate(() => document.fonts.ready.then(() => undefined)).catch(() => undefined);
   return { Context, PageInstance };
 }
 

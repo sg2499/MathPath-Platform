@@ -414,6 +414,15 @@ html.dark .mp-si {
   text-align: right;
 }
 
+/* The readout's type size changes with its content (a sum, a time, a greeting). The platform's
+   reduced-motion rule turns every transition into a near-zero one rather than removing it, and
+   Safari then keeps the column at the size it had when that transition started, which pushed the
+   headline onto two lines. Nothing here is meant to transition, so switch it off outright. */
+.mp-si-ro-line,
+.mp-si-ro-big {
+  transition-property: none;
+}
+
 .mp-si-ro-line {
   min-height: 1.5em;
   color: var(--si-ink-soft);
@@ -911,7 +920,7 @@ html.dark .mp-si {
     grid-template-rows: auto auto;
     gap: 8px;
     min-height: auto;
-    padding-block: 12px 10px;
+    padding-block: 12px 4px;
     overflow: visible;
     background:
       radial-gradient(ellipse 80% 50% at 50% 40%, var(--si-spot) 0%, transparent 72%),
@@ -920,9 +929,12 @@ html.dark .mp-si {
 
   .mp-si-slot { height: clamp(104px, 31vw, 180px); }
 
+  /* The bottom space lives inside the title card, not under it: the big figure's glyph box is
+     taller than its line, and Firefox and Safari count that as overflow of a card with no padding. */
   .mp-si-title {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto;
+    padding-bottom: 6px;
   }
 
   .mp-si-headline { font-size: 1.3rem; }
