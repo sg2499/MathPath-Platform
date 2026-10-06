@@ -1229,29 +1229,54 @@ def delete_teacher_route(teacher_id: str, db: Session = Depends(get_db), user: U
 
     return {"deleted": True, "message": "Teacher deleted permanently.", "teacherId": teacher_id}
 
+# Admin Live Radar. 2026-10-06 (Shailesh): "that shows 331 mins ago as last
+# seen instead of the accurate value ... it should only show the live
+# students who are actually active at any point of time not when they were
+# active last, for that we have the last seen variable in place already."
+#  - "331 mins": last_active_at lives in a plain TIMESTAMP column, so it reads
+#    back with no timezone and isoformat() carried no offset; the radar read
+#    that as India time and was always 330 minutes out. It is UTC (the only
+#    writer is dependencies.py's _update_user_activity), so it is now sent
+#    with its offset.
+#  - "actually active": the window was 5 minutes. A signed-in page pings
+#    every 60 seconds while it is on screen and every ping is recorded (see
+#    ACTIVITY_WRITE_DEBOUNCE_SECONDS in dependencies.py), so 150 seconds is
+#    one ping plus room for a single missed one: a student leaves the radar
+#    about two minutes after leaving the site, and one who is really there
+#    never flickers off it.
+LIVE_STUDENT_WINDOW_SECONDS = 150
+
+
+def _AsUtcIso(value):
+    if value is None:
+        return None
+    from datetime import timezone
+    return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).isoformat()
+
+
 @router.get("/live-students")
 def get_live_students(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     from datetime import datetime, timezone, timedelta
-    five_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
-    
+    live_since = datetime.now(timezone.utc) - timedelta(seconds=LIVE_STUDENT_WINDOW_SECONDS)
+
     live_rows = (
         db.query(Student, User)
         .join(User, Student.user_id == User.id)
-        .filter(User.last_active_at >= five_mins_ago)
+        .filter(User.last_active_at >= live_since)
         .order_by(User.last_active_at.desc())
         .all()
     )
-    
+
     students = []
     for student, u in live_rows:
         students.append({
             "id": u.id,
             "full_name": u.full_name,
             "student_code": student.student_code,
-            "last_active_at": u.last_active_at.isoformat() if u.last_active_at else None
+            "last_active_at": _AsUtcIso(u.last_active_at),
         })
-        
-    return {"live_students": students, "count": len(students)}
+
+    return {"live_students": students, "count": len(students), "window_seconds": LIVE_STUDENT_WINDOW_SECONDS}
 
 
 @router.get("/students")

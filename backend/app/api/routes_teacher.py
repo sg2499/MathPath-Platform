@@ -597,7 +597,7 @@ def student_payload(db: Session, student: Student, lesson_progress: dict | None 
         # Last Seen (Shailesh, 2026-09-02): real login/session recency, distinct from
         # "latestActivityAt" above (which only moves on a completed DPS/assessment
         # attempt) -- kept fresh by get_current_user's activity-tracking side effect
-        # in dependencies.py, debounced to ~2 minutes.
+        # in dependencies.py, debounced to about a minute.
         "lastActiveAt": user.last_active_at.isoformat() if user and user.last_active_at else None,
         "attention": attention,
         "currentLessonId": lesson_progress.get("currentLessonId"),

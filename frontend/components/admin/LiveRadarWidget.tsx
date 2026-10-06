@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Activity, Clock, Search, X } from "lucide-react";
+import { Activity, Search, X } from "lucide-react";
 import { api } from "@/lib/api";
 
 interface LiveStudent {
@@ -34,13 +34,26 @@ interface LiveStudent {
 // inline: it's just the header + the "N Active Now" button, and every
 // student (whether there's 1 or 100) is only ever seen by opening the
 // modal below.
-function FormatLastActive(isoTimestamp: string) {
-  const then = new Date(isoTimestamp).getTime();
-  if (Number.isNaN(then)) return "Live";
-  const seconds = Math.max(0, Math.round((Date.now() - then) / 1000));
-  if (seconds < 60) return "Just now";
-  const minutes = Math.round(seconds / 60);
-  return `${minutes} min${minutes === 1 ? "" : "s"} ago`;
+//
+// 2026-10-06 (Shailesh): each row used to end with "N mins ago", worked out
+// from a timestamp the server sent without a timezone -- read here as India
+// time, it was always 330 minutes out ("331 mins ago" for someone active a
+// minute earlier). "It should only show the live students who are actually
+// active ... for that we have the last seen variable in place already": the
+// radar now says only what it knows -- this student is on the site right now
+// -- with a live marker, and how long ago someone was last seen stays on the
+// Students pages (Last Seen). The list itself is everyone active within the
+// server's short live window (about two minutes).
+function ActiveNowMarker() {
+  return (
+    <span className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+      </span>
+      Active Now
+    </span>
+  );
 }
 
 function ViewAllActiveStudentsModal({ liveStudents, onClose }: { liveStudents: LiveStudent[]; onClose: () => void }) {
@@ -100,10 +113,7 @@ function ViewAllActiveStudentsModal({ liveStudents, onClose }: { liveStudents: L
                   <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{student.full_name}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">{student.student_code}</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                  <Clock size={12} />
-                  {FormatLastActive(student.last_active_at)}
-                </div>
+                <ActiveNowMarker />
               </div>
             ))
           )}
@@ -176,7 +186,7 @@ export function LiveRadarWidget() {
 
       {liveStudents.length === 0 ? (
         <div className="text-sm text-slate-500 dark:text-slate-400 py-4 text-center bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
-          No students active in the last 5 minutes. Safe to deploy.
+          No students active right now. Safe to deploy.
         </div>
       ) : (
         <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
