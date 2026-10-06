@@ -52,13 +52,14 @@ from __future__ import annotations
 import json
 import random
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
-from app.models import CompetitionMockExam, CompetitionMockQuestion, Level, Module, User
+from app.models import CompetitionMockExam, CompetitionMockQuestion, CompetitionMockQuestionOption, Level, Module, User
 from app.question_engine.number_format import PlainNumberString
 
 from app.question_engine.ylm import YLMConfig, generate_ylm_question_set
@@ -110,6 +111,161 @@ from app.services.annual_competition_paper_registry import (
 # the rare slots that actually need it.
 ANNUAL_COMPETITION_SLOT_MAX_RETRIES = 50
 DEFAULT_ANNUAL_COMPETITION_DIFFICULTY_BAND = "ANNUAL_COMPETITION"
+
+
+# ---------------------------------------------------------------------------
+# 2026-10-06 (Shailesh): "for the multiplication concepts we need to remove
+# sums like 23 x 1, 2 x 1, 23 x 10, 23 x 100 and so on these make it very easy
+# for the students to just type the answer without even solving it which
+# defeats the purpose of competition completely. same goes for division ...
+# max one or two questions like this is okay", then: "at most 2 is okay but
+# never back to back".
+#
+# An ANNUAL-COMPETITION-ONLY rule (official and practice papers alike, since
+# both come through _CollectAnnualCompetitionQuestions below). It lives here,
+# in this module's own accept/reject step, and not in the shared module
+# generators, because those also feed practice sheets, mocks and term
+# assessments, where a "table of 1" sheet is a deliberate teaching step.
+#
+# Two classes of a plain two-number multiplication or division:
+#   NEVER -- the answer can be typed with no working at all:
+#            a factor of 1 (or 0), a factor that is a power of ten (10, 100,
+#            1000, 0.1 ...), a divisor of 1 or a power of ten, a number
+#            divided by itself, or a quotient that is exactly a power of ten
+#            (540 / 54, 800 / 8, 8100 / 81).
+#   ROUND -- one step of working plus zeros: 300 / 5, 350 / 5, 400 x 3,
+#            23 x 20, 4800 / 20. At most
+#            ANNUAL_COMPETITION_ROUND_SUMS_PER_SECTION_MAX per section, and
+#            never two in consecutive questions.
+# A number that merely ends in zero (930 x 64, 9440 / 8) still needs real
+# working and is not classed at all.
+#
+# Before this rule every PM-L3 paper carried exactly ten "NN x 1" sums (one
+# of that section's ten pool entries is the curriculum's own table-of-1
+# sheet), PM-L4 one to six sums such as 800 / 8 or 300 / 5, and IM-L2/L3/L4
+# one to seven such as 540 / 54 -- measured over 100 generated papers per
+# level and confirmed on real completed practice papers.
+# ---------------------------------------------------------------------------
+ANNUAL_COMPETITION_ROUND_SUMS_PER_SECTION_MAX = 2
+ANNUAL_COMPETITION_MULTIPLY_OPERATOR = "×"
+ANNUAL_COMPETITION_DIVIDE_OPERATOR = "÷"
+
+
+def _AsDecimal(Value: Any) -> Decimal | None:
+    try:
+        Number = Decimal(str(Value).strip())
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    return Number if Number.is_finite() else None
+
+
+def _SignificantDigitCount(Number: Decimal) -> int:
+    """300 -> 1, 170 -> 2, 0.012 -> 2, 23 -> 2."""
+    if Number == 0:
+        return 0
+    return len(abs(Number).normalize().as_tuple().digits)
+
+
+def _IsPowerOfTen(Number: Decimal) -> bool:
+    """10, 100, 1000, 0.1, 0.01 ... -- never 1 itself (handled separately)."""
+    Magnitude = abs(Number)
+    if Magnitude == 0 or Magnitude == 1:
+        return False
+    return Magnitude.normalize().as_tuple().digits == (1,)
+
+
+def _EndsInZero(Number: Decimal) -> bool:
+    return Number == Number.to_integral_value() and Number != 0 and Number % 10 == 0
+
+
+def ClassifyAnnualMultiplyDivideSum(Operands: Any, Operators: Any) -> str | None:
+    """"NEVER", "ROUND" or None for one question's operands/operators.
+
+    Only a plain two-number multiplication or division is ever classed --
+    every other shape (stacked add/less, percentages whose operator is
+    "x%", squares, roots, boxes) returns None and is untouched by the rule.
+    """
+    if not isinstance(Operands, (list, tuple)) or len(Operands) != 2:
+        return None
+    OperatorList = [str(Item) for Item in (Operators or []) if str(Item or "").strip()]
+    if len(OperatorList) != 1:
+        return None
+    Operator = OperatorList[0].strip()
+    if Operator not in (ANNUAL_COMPETITION_MULTIPLY_OPERATOR, ANNUAL_COMPETITION_DIVIDE_OPERATOR):
+        return None
+    First, Second = _AsDecimal(Operands[0]), _AsDecimal(Operands[1])
+    if First is None or Second is None:
+        return None
+
+    if Operator == ANNUAL_COMPETITION_MULTIPLY_OPERATOR:
+        if First in (0, 1) or Second in (0, 1) or _IsPowerOfTen(First) or _IsPowerOfTen(Second):
+            return "NEVER"
+        FirstDigits, SecondDigits = _SignificantDigitCount(First), _SignificantDigitCount(Second)
+        if FirstDigits == 1 and SecondDigits == 1:
+            return "ROUND"  # 30 x 4, 200 x 3
+        if (FirstDigits == 1 and abs(First) >= 10) or (SecondDigits == 1 and abs(Second) >= 10):
+            return "ROUND"  # 23 x 20, 345 x 200
+        return None
+
+    # Division.
+    if Second == 0:
+        return None
+    if First == 0 or Second == 1 or _IsPowerOfTen(Second) or First == Second:
+        return "NEVER"
+    Quotient = First / Second
+    IsExact = Quotient * Second == First
+    if IsExact and (Quotient == 1 or _IsPowerOfTen(Quotient)):
+        return "NEVER"  # 540 / 54, 800 / 8
+    DivisorDigits = _SignificantDigitCount(Second)
+    if _SignificantDigitCount(First) == 1 and DivisorDigits == 1:
+        return "ROUND"  # 300 / 5, 900 / 6, 800 / 2 -- one digit by one digit, plus zeros
+    if IsExact and _SignificantDigitCount(Quotient) == 1 and DivisorDigits == 1 and _EndsInZero(First):
+        return "ROUND"  # 350 / 5, 4200 / 6 -- one table fact plus zeros
+    if DivisorDigits == 1 and abs(Second) >= 10 and _EndsInZero(First):
+        return "ROUND"  # 4800 / 20 -- the zeros cancel
+    return None
+
+
+def AnnualMultiplyDivideRuleFaults(Sums: list[tuple[Any, Any]]) -> dict[str, int]:
+    """How one section's questions, in question order, stand against the rule.
+
+    Sums is [(operands, operators), ...]. Returns never / round / adjacent
+    counts plus "faults": the number of ways the section breaks the rule
+    (0 means it already complies). Used by the backfill to decide whether a
+    stored section needs rebuilding, and by the tests.
+    """
+    Never = Round = Adjacent = 0
+    PreviousWasRound = False
+    for Operands, Operators in Sums:
+        Kind = ClassifyAnnualMultiplyDivideSum(Operands, Operators)
+        if Kind == "NEVER":
+            Never += 1
+        if Kind == "ROUND":
+            Round += 1
+            if PreviousWasRound:
+                Adjacent += 1
+        PreviousWasRound = Kind == "ROUND"
+    Faults = Never + max(0, Round - ANNUAL_COMPETITION_ROUND_SUMS_PER_SECTION_MAX) + Adjacent
+    return {"never": Never, "round": Round, "adjacent": Adjacent, "faults": Faults}
+
+
+_MULTIPLY_DIVIDE_GENERATOR_FAMILIES = {"PM_L3_MULTIPLY", "PM_L4_MULTIPLY", "PM_L4_DIVIDE"}
+_MULTIPLY_DIVIDE_CONCEPT_FAMILIES = {
+    "WHOLE_NUMBER_MULTIPLICATION", "DECIMAL_MULTIPLICATION", "WHOLE_NUMBER_DIVISION", "DECIMAL_DIVISION",
+}
+
+
+def IsAnnualMultiplyDivideSection(ConceptPool: list[dict[str, Any]]) -> bool:
+    """True when every concept in a section's pool is a plain multiplication
+    or division -- decided from the registry's own generator/concept family
+    tags, never from the section's display title."""
+    if not ConceptPool:
+        return False
+    return all(
+        str(Spec.get("generatorFamily") or "") in _MULTIPLY_DIVIDE_GENERATOR_FAMILIES
+        or str(Spec.get("conceptFamily") or "") in _MULTIPLY_DIVIDE_CONCEPT_FAMILIES
+        for Spec in ConceptPool
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -382,10 +538,15 @@ def _CollectAnnualCompetitionQuestions(LevelCode: str, Sections: list[dict[str, 
                 f"No concept pool is configured for section '{SectionKey}' of {LevelCode}. This is a registry bug, not a data issue.",
             )
         Schedule = _OrderedConceptSchedule(ConceptPool, RequiredCount)
+        # Multiplication / division rule (see ClassifyAnnualMultiplyDivideSum):
+        # counted per section, in question order.
+        RoundSumsInSection = 0
+        PreviousAcceptedWasRound = False
 
         for SlotIndex, ScheduledConceptSpec in enumerate(Schedule):
             Accepted: dict[str, Any] | None = None
             AcceptedConceptSpec: dict[str, Any] | None = None
+            AcceptedKind: str | None = None
             # A handful of concept/digit-pattern combinations across the
             # underlying module engines turn out to have a very small (even
             # single-valued, i.e. fully deterministic) achievable output
@@ -414,11 +575,27 @@ def _CollectAnnualCompetitionQuestions(LevelCode: str, Sections: list[dict[str, 
                     Candidate = _GenerateOneAnnualQuestion(ConceptSpec, Seed, LevelCode)
                     if not Candidate:
                         continue
+                    # A sum that needs no working is never accepted, and a
+                    # round-number one only while this section still has
+                    # room for it and the question before it was not one
+                    # too. A rejected draw is simply another retry; a
+                    # concept that can ONLY produce such sums (PM-L3's
+                    # table-of-1 entry) runs out of retries and hands its
+                    # slots to the next concept in the pool, exactly like a
+                    # concept that has run out of fresh questions.
+                    CandidateKind = ClassifyAnnualMultiplyDivideSum(Candidate.get("operands"), Candidate.get("operators"))
+                    if CandidateKind == "NEVER":
+                        continue
+                    if CandidateKind == "ROUND" and (
+                        RoundSumsInSection >= ANNUAL_COMPETITION_ROUND_SUMS_PER_SECTION_MAX or PreviousAcceptedWasRound
+                    ):
+                        continue
                     Signature = _QuestionSignature(Candidate)
                     if Signature in UsedSignatures:
                         continue
                     Accepted = Candidate
                     AcceptedConceptSpec = ConceptSpec
+                    AcceptedKind = CandidateKind
                     UsedSignatures.add(Signature)
                     break
                 if Accepted is not None:
@@ -432,6 +609,10 @@ def _CollectAnnualCompetitionQuestions(LevelCode: str, Sections: list[dict[str, 
                     f"section's pool without repeating a question already used in this paper.",
                     {"sectionKey": SectionKey, "slotIndex": SlotIndex, "required": RequiredCount},
                 )
+
+            PreviousAcceptedWasRound = AcceptedKind == "ROUND"
+            if PreviousAcceptedWasRound:
+                RoundSumsInSection += 1
 
             Metadata = Accepted.get("metadata") if isinstance(Accepted.get("metadata"), dict) else {}
             Metadata = dict(Metadata)
@@ -451,6 +632,43 @@ def _CollectAnnualCompetitionQuestions(LevelCode: str, Sections: list[dict[str, 
             Selected.append(QuestionCopy)
 
     return Selected
+
+
+def _StoreAnnualCompetitionQuestion(
+    db: Session, *, MockExamId: str, QuestionNumber: int, Question: dict[str, Any], SectionTitleOverride: str | None = None
+) -> CompetitionMockQuestion:
+    """The one write path for an Annual Competition question row and its
+    options -- used by paper generation below and by the multiplication /
+    division section rebuild further down, so a rebuilt question is stored
+    exactly the way a freshly generated one is."""
+    Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
+    SectionNumber = int(Question.get("_annual_section_number") or 1)
+    SectionTitle = str(SectionTitleOverride or Question.get("_annual_section_title") or f"Section {SectionNumber}")
+    ConceptTag = str(Metadata.get("annualCompetitionConceptTitle") or Metadata.get("concept_family") or "")[:100]
+    QuestionRecord = CompetitionMockQuestion(
+        mock_exam_id=MockExamId,
+        section_number=SectionNumber,
+        section_title=SectionTitle,
+        question_number=QuestionNumber,
+        display_type=str(Question.get("display_type") or "VERTICAL"),
+        question_text=Question.get("question_text"),
+        operands_json=json.dumps(Question.get("operands") or []),
+        operators_json=json.dumps(Question.get("operators") or []),
+        correct_answer=PlainNumberString(Question.get("correct_answer")),
+        explanation=Question.get("explanation"),
+        difficulty=str(Question.get("difficulty") or DEFAULT_ANNUAL_COMPETITION_DIFFICULTY_BAND),
+        concept_family=str(Metadata.get("annualCompetitionConceptFamily") or Metadata.get("concept_family") or ConceptTag)[:100],
+        concept_tag=ConceptTag,
+        source_type="ANNUAL_COMPETITION_GENERATOR",
+        source_reference_id="",
+        seed=str(Question.get("seed") or ""),
+        marks=ANNUAL_COMPETITION_MARKS_PER_QUESTION,
+        metadata_json=json.dumps(Metadata),
+    )
+    db.add(QuestionRecord)
+    db.flush()
+    _StoreQuestionOptions(db, QuestionRecord, Question.get("options") or [])
+    return QuestionRecord
 
 
 def GenerateAnnualCompetitionLevelPaper(
@@ -551,34 +769,132 @@ def GenerateAnnualCompetitionLevelPaper(
     db.flush()
 
     for Index, Question in enumerate(SelectedQuestions, start=1):
-        Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
-        SectionNumber = int(Question.get("_annual_section_number") or 1)
-        SectionTitle = str(Question.get("_annual_section_title") or f"Section {SectionNumber}")
-        ConceptTag = str(Metadata.get("annualCompetitionConceptTitle") or Metadata.get("concept_family") or "")[:100]
-        QuestionRecord = CompetitionMockQuestion(
-            mock_exam_id=ExamRecord.id,
-            section_number=SectionNumber,
-            section_title=SectionTitle,
-            question_number=Index,
-            display_type=str(Question.get("display_type") or "VERTICAL"),
-            question_text=Question.get("question_text"),
-            operands_json=json.dumps(Question.get("operands") or []),
-            operators_json=json.dumps(Question.get("operators") or []),
-            correct_answer=PlainNumberString(Question.get("correct_answer")),
-            explanation=Question.get("explanation"),
-            difficulty=str(Question.get("difficulty") or DEFAULT_ANNUAL_COMPETITION_DIFFICULTY_BAND),
-            concept_family=str(Metadata.get("annualCompetitionConceptFamily") or Metadata.get("concept_family") or ConceptTag)[:100],
-            concept_tag=ConceptTag,
-            source_type="ANNUAL_COMPETITION_GENERATOR",
-            source_reference_id="",
-            seed=str(Question.get("seed") or ""),
-            marks=ANNUAL_COMPETITION_MARKS_PER_QUESTION,
-            metadata_json=json.dumps(Metadata),
-        )
-        db.add(QuestionRecord)
-        db.flush()
-        _StoreQuestionOptions(db, QuestionRecord, Question.get("options") or [])
+        _StoreAnnualCompetitionQuestion(db, MockExamId=ExamRecord.id, QuestionNumber=Index, Question=Question)
 
     db.commit()
     db.refresh(ExamRecord)
     return CompetitionMockExamPayload(db, ExamRecord, IncludeQuestions=True)
+
+
+
+# ---------------------------------------------------------------------------
+# Backfill support (2026-10-06): bring an ALREADY STORED paper's
+# multiplication / division sections in line with the rule above.
+#
+# A practice paper's content is generated once and frozen as its own
+# CompetitionMockExam the moment it is assigned, so the rule only reaches
+# papers generated after it shipped. Shailesh: "once this is applied we will
+# need to backfill the existing assigned practice papers to the students
+# that are pending and have not been completed yet", and then: "regeneration
+# is only required for division and multiplication rest is fine" -- so this
+# rebuilds ONLY the multiplication / division sections that break the rule
+# and leaves every other question row of the paper exactly as it is (same
+# ids, same order). A section that already complies is left alone too.
+#
+# This function never decides WHICH papers qualify -- the caller does
+# (scripts/backfill_annual_competition_multiply_divide_rule.py: practice
+# papers nobody has opened). It also never commits: with Apply=True it only
+# flushes, so the caller owns the transaction, one paper at a time.
+# ---------------------------------------------------------------------------
+def _StoredSumOf(QuestionRecord: CompetitionMockQuestion) -> tuple[Any, Any]:
+    try:
+        Operands = json.loads(QuestionRecord.operands_json or "[]")
+    except (TypeError, ValueError):
+        Operands = []
+    try:
+        Operators = json.loads(QuestionRecord.operators_json or "[]")
+    except (TypeError, ValueError):
+        Operators = []
+    return Operands, Operators
+
+
+def RebuildAnnualCompetitionMultiplyDivideSections(
+    db: Session, *, MockExamId: str, CompetitionLevelCode: str, Apply: bool
+) -> dict[str, Any]:
+    """Check one stored Annual Competition paper against the multiplication /
+    division rule and, with Apply=True, rebuild the sections that break it.
+
+    Returns {"status": ..., "sections": [...]} where status is one of
+      NOT_APPLICABLE     this level has no multiplication / division section
+      COMPLIANT          nothing to do
+      STRUCTURE_DIFFERS  the stored paper does not match today's section
+                         layout for this level -- reported, never touched
+      WOULD_REBUILD      Apply=False and at least one section breaks the rule
+      REBUILT            Apply=True and those sections were rebuilt (flushed,
+                         not committed)
+    """
+    LevelConfig = GetAnnualCompetitionLevelConfig(CompetitionLevelCode)
+    if not LevelConfig:
+        return {"status": "NOT_APPLICABLE", "sections": []}
+    SectionConceptPools = LevelConfig["sectionConceptPools"]
+    TargetSections = [
+        Section for Section in LevelConfig["sections"] if IsAnnualMultiplyDivideSection(SectionConceptPools.get(Section["key"]) or [])
+    ]
+    if not TargetSections:
+        return {"status": "NOT_APPLICABLE", "sections": []}
+
+    StoredQuestions = (
+        db.query(CompetitionMockQuestion)
+        .filter(CompetitionMockQuestion.mock_exam_id == MockExamId)
+        .order_by(CompetitionMockQuestion.question_number.asc())
+        .all()
+    )
+    StoredBySection: dict[int, list[CompetitionMockQuestion]] = {}
+    for QuestionRecord in StoredQuestions:
+        StoredBySection.setdefault(int(QuestionRecord.section_number or 0), []).append(QuestionRecord)
+
+    Report: list[dict[str, Any]] = []
+    SectionsToRebuild: list[dict[str, Any]] = []
+    for Section in TargetSections:
+        SectionNumber = int(Section["number"])
+        Rows = StoredBySection.get(SectionNumber) or []
+        Sums = [_StoredSumOf(Row) for Row in Rows]
+        IsPlainSumSection = bool(Rows) and all(
+            isinstance(Operands, list) and len(Operands) == 2
+            and any(str(Item).strip() in (ANNUAL_COMPETITION_MULTIPLY_OPERATOR, ANNUAL_COMPETITION_DIVIDE_OPERATOR) for Item in (Operators or []))
+            for Operands, Operators in Sums
+        )
+        if len(Rows) != int(Section["questionCount"]) or not IsPlainSumSection:
+            return {
+                "status": "STRUCTURE_DIFFERS",
+                "sections": [{
+                    "number": SectionNumber, "title": Section["title"],
+                    "storedQuestions": len(Rows), "expectedQuestions": int(Section["questionCount"]),
+                }],
+            }
+        Faults = AnnualMultiplyDivideRuleFaults(Sums)
+        Report.append({"number": SectionNumber, "title": Section["title"], **Faults})
+        if Faults["faults"] > 0:
+            SectionsToRebuild.append(Section)
+
+    if not SectionsToRebuild:
+        return {"status": "COMPLIANT", "sections": Report}
+    if not Apply:
+        return {"status": "WOULD_REBUILD", "sections": Report}
+
+    for Section in SectionsToRebuild:
+        SectionNumber = int(Section["number"])
+        OldRows = StoredBySection[SectionNumber]
+        QuestionNumbers = [int(Row.question_number) for Row in OldRows]
+        # Keep whatever title this paper already shows for the section (an
+        # older paper may predate a section rename); only the sums change.
+        StoredTitle = str(OldRows[0].section_title or Section["title"])
+        NewQuestions = _CollectAnnualCompetitionQuestions(
+            CompetitionLevelCode, [Section], SectionConceptPools, f"MDRULE-{uuid4().hex}"
+        )
+        if len(NewQuestions) != len(OldRows):
+            api_error(
+                500,
+                "ANNUAL_COMPETITION_SECTION_REBUILD_COUNT_MISMATCH",
+                f"Rebuilt {len(NewQuestions)} questions for {Section['title']} ({CompetitionLevelCode}); the paper holds {len(OldRows)}.",
+            )
+        OldIds = [Row.id for Row in OldRows]
+        db.query(CompetitionMockQuestionOption).filter(CompetitionMockQuestionOption.mock_question_id.in_(OldIds)).delete(synchronize_session=False)
+        db.query(CompetitionMockQuestion).filter(CompetitionMockQuestion.id.in_(OldIds)).delete(synchronize_session=False)
+        db.flush()
+        for QuestionNumber, Question in zip(QuestionNumbers, NewQuestions):
+            _StoreAnnualCompetitionQuestion(
+                db, MockExamId=MockExamId, QuestionNumber=QuestionNumber, Question=Question, SectionTitleOverride=StoredTitle
+            )
+    db.flush()
+    return {"status": "REBUILT", "sections": Report, "rebuiltSectionNumbers": [int(Section["number"]) for Section in SectionsToRebuild]}

@@ -14,7 +14,18 @@ from datetime import datetime, timezone
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
-active_users_cache = TTLCache(maxsize=10000, ttl=120)
+# How often one signed-in user's last_active_at is written, at most. 2026-10-06
+# (Shailesh, admin Live Radar: "it should only show the live students who are
+# actually active"): was 120 seconds, with a 5-minute "live" window on the
+# radar, so a student stayed listed for up to 5 minutes after leaving. The
+# page heartbeat (frontend/hooks/useHeartbeat.ts) now pings every 60 seconds;
+# 50 here (just under that) means every heartbeat lands as a write, so a
+# student who is really there is never more than about a minute stale and the
+# radar's window (routes_admin.py: LIVE_STUDENT_WINDOW_SECONDS) can be short.
+# Cost: one single-row UPDATE per signed-in user per minute, in the
+# background.
+ACTIVITY_WRITE_DEBOUNCE_SECONDS = 50
+active_users_cache = TTLCache(maxsize=10000, ttl=ACTIVITY_WRITE_DEBOUNCE_SECONDS)
 
 
 def _as_aware_utc(value: datetime) -> datetime:

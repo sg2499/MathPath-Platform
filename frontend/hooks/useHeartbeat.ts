@@ -2,7 +2,11 @@ import { useEffect } from "react";
 import { getStoredUser } from "@/lib/auth";
 import { api } from "@/lib/api";
 
-export function useHeartbeat(intervalMs: number = 120000) {
+// 60 seconds (was 120): the admin Live Radar lists a student for 150 seconds
+// after their last recorded activity, so one ping a minute keeps a student who
+// is really on the site listed, and lets one who has left drop off in about two
+// minutes instead of five. See LIVE_STUDENT_WINDOW_SECONDS in routes_admin.py.
+export function useHeartbeat(intervalMs: number = 60000) {
   useEffect(() => {
     const pingServer = async () => {
       // Only ping if the tab is visible to avoid spamming from background tabs
