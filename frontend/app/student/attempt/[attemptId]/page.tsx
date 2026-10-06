@@ -378,6 +378,12 @@ export default function AttemptPage() {
             onSave={(answerText) =>
               handleSaveAnswer(currentQuestion.questionId, answerText)
             }
+            phoneNav={{
+              canPrevious: currentIndex > 0,
+              canNext: currentIndex < questions.length - 1,
+              onPrevious: () => setCurrentIndex((v) => Math.max(0, v - 1)),
+              onNext: () => setCurrentIndex((v) => Math.min(questions.length - 1, v + 1)),
+            }}
           />
         </div>
 
@@ -389,29 +395,10 @@ export default function AttemptPage() {
             onSelectQuestion={(number) => setCurrentIndex(number - 1)}
           />
 
-          {/* The floating side arrows above are hidden below md (there's no
-              room for their off-card offset on narrow screens) -- so
-              without this, phone/small-tablet students would have no way
-              to go back except tapping question numbers one at a time.
-              Hidden at md+ where the floating arrows already cover it, so
-              larger screens keep the cleaner look. */}
-          <div className="mt-3 flex gap-3 md:hidden">
-            <button
-              className="math-button-secondary flex-1"
-              disabled={currentIndex === 0}
-              onClick={() => setCurrentIndex((v) => Math.max(0, v - 1))}
-            >
-              Previous
-            </button>
-            <button
-              className="math-button-secondary flex-1"
-              disabled={currentIndex >= questions.length - 1}
-              onClick={() => setCurrentIndex((v) => Math.min(questions.length - 1, v + 1))}
-            >
-              Next
-            </button>
-          </div>
-
+          {/* Below md the side arrows are hidden; Previous / Next are the
+              small round arrows either side of the answer box (phoneNav on
+              the QuestionCard above), which stay on screen with the keyboard
+              open. The old row that sat here was below the number strip. */}
           <button
             className="math-button-primary mt-3 w-full py-2.5"
             onClick={() => setShowConfirm(true)}

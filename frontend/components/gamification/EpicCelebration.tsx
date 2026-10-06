@@ -56,9 +56,12 @@ const Tiers = [
 // --- TEXT RENDERERS ---
 
 // Base text styles for extreme readability
-// Phones: the size follows the screen width so the longest title ("Apex
-// Flawless") fits on one line and never breaks in the middle of a word.
-const TextBaseClass = "text-[clamp(1.75rem,10vw,3.75rem)] md:text-8xl lg:text-9xl font-black italic tracking-tighter uppercase text-white select-none relative z-20";
+// Phones: the size follows the screen width AND the length of the title
+// (se-cel-title in student-elevate.css reads --cel-chars, set on the main
+// container below), so every title fills the width of the phone on one line
+// and never breaks in the middle of a word. The clamp here is only the
+// fallback if that stylesheet is ever absent.
+const TextBaseClass = "se-cel-title text-[clamp(1.75rem,10vw,3.75rem)] md:text-8xl lg:text-9xl font-black italic tracking-tighter uppercase text-white select-none relative z-20";
 const TextStrokeStyle = { WebkitTextStroke: "2px rgba(0,0,0,0.5)" };
 
 // Generates the 3D block extrusion
@@ -292,7 +295,7 @@ export function EpicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebra
       </motion.div>
 
       {/* Main Container */}
-      <div className="relative z-10 flex flex-col items-center">
+      <div className="relative z-10 flex flex-col items-center" style={{ ["--cel-chars" as string]: tier.text.length } as React.CSSProperties}>
         {/* Pulsing Aura Drop Shadow */}
         <motion.div
           animate={{ filter: [`drop-shadow(0px 0px 30px ${tier.shadowColor})`, `drop-shadow(0px 0px 80px ${tier.shadowColor})`, `drop-shadow(0px 0px 30px ${tier.shadowColor})`] }}
@@ -326,9 +329,9 @@ export function EpicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebra
           whileTap={{ scale: 0.95 }}
           transition={{ delay: 1, duration: 0.5 }}
           onClick={handleSkip}
-          className="absolute bottom-12 right-12 z-[10000] text-white font-bold text-lg tracking-widest uppercase pointer-events-auto flex items-center gap-3 px-8 py-4 rounded-xl border-2 border-white/40 bg-white/10 backdrop-blur-md shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:bg-white/20 hover:border-white/60 hover:shadow-[0_0_30px_rgba(255,255,255,0.4)] transition-all"
+          className="absolute bottom-6 right-4 md:bottom-12 md:right-12 z-[10000] text-white font-bold text-sm md:text-lg tracking-widest uppercase pointer-events-auto flex items-center gap-2 md:gap-3 px-4 py-2.5 md:px-8 md:py-4 rounded-xl border-2 border-white/40 bg-white/10 backdrop-blur-md shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:bg-white/20 hover:border-white/60 hover:shadow-[0_0_30px_rgba(255,255,255,0.4)] transition-all"
         >
-          Skip Celebration <span className="text-xl">⏭</span>
+          Skip Celebration <span className="text-base md:text-xl">⏭</span>
         </motion.button>
       )}
     </motion.div>

@@ -8,6 +8,7 @@ import { OptionButton } from "@/components/student/OptionButton";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
 import { TestTimer } from "@/components/student/TestTimer";
 import { PhoneTestBar } from "@/components/student/PhoneTestBar";
+import { PhoneQuestionArrowRow } from "@/components/student/PhoneQuestionArrows";
 import { MathQuestionDisplay, NeedsWideQuestionBoard } from "@/components/common/MathQuestionDisplay";
 import { useAttemptTimer } from "@/hooks/useAttemptTimer";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
@@ -20,9 +21,9 @@ import { useCallback, useMemo, useState } from "react";
 
 // Same one-time sessionStorage handoff pattern used for mock exams and DPS
 // (see stashRewardBreakdownForResult in those attempt pages) -- the reward
-// modal is now wired into assessments too (2026-08-26), just without a
-// cutscene sequence yet: it shows immediately on the result page, no
-// confetti/badge/rank-up ordering in front of it yet.
+// modal is wired into assessments too (2026-08-26). It shows immediately on
+// the result page: an assessment has no confetti and no badge reveal. Since
+// 2026-10-06 a rank-up plays after it (stashRankUpForResult below).
 function stashRewardBreakdownForResult(AttemptId: string, Response: unknown) {
   try {
     const Data = Response as { rewardBreakdown?: unknown } | undefined;
@@ -31,6 +32,22 @@ function stashRewardBreakdownForResult(AttemptId: string, Response: unknown) {
     }
   } catch (Error) {
     console.error("Failed to stash reward breakdown for result reveal", Error);
+  }
+}
+
+// Same handoff for a rank-up: when the XP this assessment awarded moved the
+// student to a new rank tier, the submit reply says so (rankedUp /
+// newRankTier) and the result page plays the rank-up animation after the
+// reward window -- the same finale the practice-sheet and mock result pages
+// have. Mirrors stashRankUpForResult on those attempt pages.
+function stashRankUpForResult(AttemptId: string, Response: unknown) {
+  try {
+    const Data = Response as { rankedUp?: boolean; newRankTier?: string | null } | undefined;
+    if (Data?.rankedUp && Data?.newRankTier) {
+      sessionStorage.setItem(`mp_rank_up_${AttemptId}`, Data.newRankTier);
+    }
+  } catch (Error) {
+    console.error("Failed to stash rank-up for result reveal", Error);
   }
 }
 
@@ -56,6 +73,7 @@ export default function StudentAssessmentAttemptPage() {
     mutationFn: () => autoSubmitAssessmentAttempt(AttemptId),
     onSuccess: (Data) => {
       stashRewardBreakdownForResult(AttemptId, Data);
+      stashRankUpForResult(AttemptId, Data);
       Router.replace(`/student/assessment-result/${AttemptId}`);
     },
   });
@@ -64,6 +82,7 @@ export default function StudentAssessmentAttemptPage() {
     mutationFn: () => submitAssessmentAttempt(AttemptId),
     onSuccess: (Data) => {
       stashRewardBreakdownForResult(AttemptId, Data);
+      stashRankUpForResult(AttemptId, Data);
       Router.replace(`/student/assessment-result/${AttemptId}`);
     },
   });
@@ -106,6 +125,7 @@ export default function StudentAssessmentAttemptPage() {
       const Response = await saveAssessmentAnswer(AttemptId, { questionId: QuestionId, selectedOptionId: SelectedOptionId });
       if (Response?.resultAvailable) {
         stashRewardBreakdownForResult(AttemptId, Response);
+        stashRankUpForResult(AttemptId, Response);
         Router.replace(`/student/assessment-result/${AttemptId}`);
       }
     } finally {
@@ -220,16 +240,21 @@ export default function StudentAssessmentAttemptPage() {
                   />
                 ))}
               </div>
+              <PhoneQuestionArrowRow
+                nav={{
+                  canPrevious: CurrentIndex > 0,
+                  canNext: CurrentIndex < Questions.length - 1,
+                  onPrevious: () => SetCurrentIndex((Value) => Math.max(0, Value - 1)),
+                  onNext: () => SetCurrentIndex((Value) => Math.min(Questions.length - 1, Value + 1)),
+                }}
+              />
             </div>
           </div>
 
           <div className="se-test-nav p-3">
             <QuestionNavigator totalQuestions={Questions.length} currentQuestionNumber={CurrentQuestion.questionNumber} answeredQuestionNumbers={AnsweredNumbers} onSelectQuestion={(Number) => SetCurrentIndex(Number - 1)} />
-            {/* Below md the side arrows are hidden, so Previous / Next live here. */}
-            <div className="mt-3 flex gap-3 md:hidden">
-              <button className="math-button-secondary flex-1" disabled={CurrentIndex === 0} onClick={() => SetCurrentIndex((Value) => Math.max(0, Value - 1))}>Previous</button>
-              <button className="math-button-secondary flex-1" disabled={CurrentIndex >= Questions.length - 1} onClick={() => SetCurrentIndex((Value) => Math.min(Questions.length - 1, Value + 1))}>Next</button>
-            </div>
+            {/* Below md the side arrows are hidden; Previous / Next are the small
+                round arrows under the options (PhoneQuestionArrowRow above). */}
             <div className="mt-3 flex justify-center">
               <button className="math-button-primary w-full max-w-md py-2.5" onClick={() => SetShowConfirm(true)} disabled={Busy}>Submit Assessment</button>
             </div>

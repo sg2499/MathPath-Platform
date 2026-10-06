@@ -643,6 +643,12 @@ function AnnualCompetitionAttemptContent() {
               compact
               wide={NeedsWideQuestionBoard(questions)}
               onSave={(answerText) => handleSaveAnswer(currentQuestion.questionId, answerText)}
+              phoneNav={{
+                canPrevious: currentIndex > 0,
+                canNext: currentIndex < questions.length - 1,
+                onPrevious: () => setCurrentIndex((v) => Math.max(0, v - 1)),
+                onNext: () => setCurrentIndex((v) => Math.min(questions.length - 1, v + 1)),
+              }}
             />
             {/* 2026-09-10 (Shailesh): "we can add a tooltip somewhere where
                 the students know that enter key helps them do this" -- Enter
@@ -668,27 +674,10 @@ function AnnualCompetitionAttemptContent() {
               onSelectQuestion={(number) => setCurrentIndex(number - 1)}
             />
 
-            {/* The floating side arrows above are hidden below md -- same
-                mobile fallback the DPS attempt page uses for the identical
-                reason (no room for their off-card offset on narrow
-                screens). */}
-            <div className="mt-3 flex gap-3 md:hidden">
-              <button
-                className="math-button-secondary flex-1"
-                disabled={currentIndex === 0}
-                onClick={() => setCurrentIndex((v) => Math.max(0, v - 1))}
-              >
-                Previous
-              </button>
-              <button
-                className="math-button-secondary flex-1"
-                disabled={currentIndex >= questions.length - 1}
-                onClick={() => setCurrentIndex((v) => Math.min(questions.length - 1, v + 1))}
-              >
-                Next
-              </button>
-            </div>
-
+            {/* Below md the side arrows are hidden; Previous / Next are the
+                small round arrows either side of the answer box (phoneNav on
+                the QuestionCard above). The old row here sat below the whole
+                number strip -- 17 rows down on a 100-question paper. */}
             <button
               className="math-button-primary mt-3 w-full py-2.5 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => setShowSubmitConfirm(true)}

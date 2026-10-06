@@ -3781,3 +3781,136 @@ html.dark .math-role-student .math-mobile-drawer .math-mobile-group > button:not
     gap: 0.4rem;
   }
 }
+
+/* ==========================================================================
+   2026-10-06 (evening) -- second phone review
+   ========================================================================== */
+
+/* ---------- 1. Phones: Previous / Next arrows on the question card ----------
+   Below 768px the round arrows beside the test card are hidden. These are the
+   same arrows, sized for a phone: either side of the answer box on typed
+   answer screens, at the two ends of a row under the options on option
+   screens. They stay on screen with the keyboard open. */
+.se-phone-arrow {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--se-line-strong, rgba(249, 115, 22, 0.42));
+  border-radius: 999px;
+  background: #fff;
+  color: #9a3412;
+  box-shadow: 0 10px 18px -14px rgba(249, 115, 22, 0.6);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+
+.se-phone-arrow:active:not(:disabled) {
+  transform: scale(0.94);
+  background: var(--se-action);
+  color: #fff;
+}
+
+.se-phone-arrow:disabled {
+  opacity: 0.32;
+  box-shadow: none;
+}
+
+html.dark .se-phone-arrow {
+  background: rgba(15, 23, 42, 0.9);
+  color: #fdba74;
+}
+
+.se-phone-arrow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.6rem;
+}
+
+html .math-role-student .se-answer-slot {
+  gap: 0.5rem;
+}
+
+/* The narrowest phones: with an arrow on each side there is no room for the
+   words "Your Answer" beside the field, and the field itself says "Type
+   here". The field keeps its accessible name (aria-label). */
+@media (max-width: 379px) {
+  html .math-role-student .se-test .se-answer-slot:has(.se-phone-arrow) label {
+    display: none;
+  }
+
+  html .math-role-student .se-test .se-answer-slot:has(.se-phone-arrow) > div:not(#se) {
+    padding: 0.45rem 0.55rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .se-phone-arrow,
+  .se-phone-arrow-row {
+    display: none !important;
+  }
+}
+
+/* ---------- 2. Celebration and rank-up titles on phones ---------------------
+   One scene for every device; on a phone the title takes the width of the
+   screen. --cel-chars / --rank-chars carry the length of the title (or of its
+   longest word) so each one fits on its line whatever it says. */
+@media (max-width: 767px) {
+  .se-cel-title {
+    font-size: clamp(1.75rem, calc(82vw / (var(--cel-chars, 13) * 0.58)), 5rem) !important;
+  }
+
+  .se-rank-title {
+    font-size: clamp(2rem, calc(84vw / (var(--rank-chars, 8) * 0.82)), 4.25rem) !important;
+    line-height: 1.05 !important;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+}
+
+/* ---------- 3. Small fixes from the second phone review --------------------- */
+/* the pinned test bar is solid: text behind it never shows through */
+.se-phone-bar {
+  background: #fffaf5;
+}
+
+html.dark .se-phone-bar {
+  background: #0f172a;
+}
+
+/* reward window: it scrolls, but without a thick bar down its right edge */
+.se-reward-panel {
+  scrollbar-width: none;
+}
+
+.se-reward-panel::-webkit-scrollbar {
+  display: none;
+}
+
+/* result tiles: an odd last tile takes the full row instead of sitting alone */
+@media (max-width: 639px) {
+  html .math-role-student .se-result-tiles > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- 4. Phone-only pieces stay on phones ------------------------------
+   Both carried a Tailwind "hidden from this width up" class, but their own
+   display rule earlier in this file out-ranked it, so the phone timer bar was
+   also showing on tablets and laptops (a second question counter and timer
+   above the test title) and the phone Back button on the module page was also
+   showing on laptops beside the header arrow. */
+@media (min-width: 640px) {
+  .se-phone-bar {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .se-back-row.lg\:hidden {
+    display: none !important;
+  }
+}

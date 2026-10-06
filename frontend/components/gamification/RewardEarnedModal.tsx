@@ -161,7 +161,7 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
         // to be centred with no way to scroll, so the heading and the Continue
         // button were both cut off. It now scrolls inside the screen and the
         // Continue button stays pinned to its bottom edge.
-        className="relative w-full max-w-[640px] max-h-[calc(100vh-2rem)] overflow-y-auto overscroll-contain rounded-[2rem] border border-indigo-500/20 p-5 pb-0 sm:p-11 sm:pb-0"
+        className="se-reward-panel relative w-full max-w-[640px] max-h-[calc(100vh-2rem)] overflow-y-auto overscroll-contain rounded-[2rem] border border-indigo-500/20 p-5 pb-0 sm:p-11 sm:pb-0"
         style={{
           maxHeight: 'calc(100dvh - 2rem)',
           background: 'linear-gradient(180deg, rgba(17,24,45,0.98) 0%, rgba(9,14,28,0.99) 100%)',

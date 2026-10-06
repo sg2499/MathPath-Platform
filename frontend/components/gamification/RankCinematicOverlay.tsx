@@ -187,7 +187,20 @@ const Scene = ({ tier }: { tier: string }) => {
 // ============================================================================
 // TYPOGRAPHY / UI OVERLAY (DOM)
 // ============================================================================
-const TypographyOverlay = ({ tier }: { tier: string }) => {
+// The server names a rank with its division ("BRONZE_III"); the artwork,
+// colours and title exist once per rank family ("BRONZE"). Callers may pass
+// either form. Before this split the result pages handed the full name
+// straight through, the picture /assets/ranks/BRONZE_III.png did not exist,
+// and a real rank-up crashed the result page instead of playing.
+const RANK_FAMILIES = ["COPPER", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "CHAMPION"];
+
+function SplitRankTier(tier: string): { family: string; division: string } {
+  const Parts = String(tier || "").trim().toUpperCase().split("_");
+  const Family = RANK_FAMILIES.includes(Parts[0]) ? Parts[0] : "COPPER";
+  return { family: Family, division: Parts.slice(1).join(" ") };
+}
+
+const TypographyOverlay = ({ tier, division }: { tier: string; division: string }) => {
   const [showText, setShowText] = useState(false);
   const { active } = useProgress(); // Waits for suspense to finish!
 
@@ -214,9 +227,15 @@ const TypographyOverlay = ({ tier }: { tier: string }) => {
   };
 
   const typo = getTypography();
+  // Longest word of the title: on phones the size follows it (se-rank-title in
+  // student-elevate.css), so a word such as "Platinum" never runs off the side.
+  const LongestWord = Math.max(...typo.title.split(" ").map((Word) => Word.length));
+  // "Bronze III" -- the exact rank reached, under the family title. Absent
+  // when the caller passed a family only (the rank roadmap replay).
+  const RankLine = division ? `${tier.charAt(0)}${tier.slice(1).toLowerCase()} ${division}` : "";
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-50">
       <AnimatePresence>
         {showText && (
           <motion.h1
@@ -224,11 +243,25 @@ const TypographyOverlay = ({ tier }: { tier: string }) => {
             animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
             exit={{ opacity: 0 }}
             transition={{ type: "spring", bounce: 0.5, duration: 1.5 }}
-            className={`text-6xl md:text-8xl lg:text-[10rem] font-black uppercase text-center w-full px-4 ${typo.className}`}
-            style={{ textShadow: typo.shadow, WebkitTextStroke: typo.stroke }}
+            className={`se-rank-title text-6xl md:text-8xl lg:text-[10rem] font-black uppercase text-center w-full px-4 ${typo.className}`}
+            style={{ textShadow: typo.shadow, WebkitTextStroke: typo.stroke, ["--rank-chars" as string]: LongestWord } as React.CSSProperties}
           >
             {typo.title}
           </motion.h1>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showText && RankLine && (
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ delay: 0.9, duration: 0.6 }}
+            className="se-rank-line mt-4 md:mt-6 px-4 text-center text-xl md:text-3xl font-black tracking-[0.3em] text-white"
+            style={{ textShadow: "0 2px 12px rgba(0,0,0,0.85)" }}
+          >
+            {RankLine}
+          </motion.p>
         )}
       </AnimatePresence>
     </div>
@@ -238,7 +271,8 @@ const TypographyOverlay = ({ tier }: { tier: string }) => {
 // ============================================================================
 // MAIN WRAPPER
 // ============================================================================
-export function RankCinematicOverlay({ tier, onComplete }: RankCinematicOverlayProps) {
+export function RankCinematicOverlay({ tier: RawTier, onComplete }: RankCinematicOverlayProps) {
+  const { family: tier, division } = SplitRankTier(RawTier);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -264,7 +298,7 @@ export function RankCinematicOverlay({ tier, onComplete }: RankCinematicOverlayP
             <Scene tier={tier} />
           </Canvas>
         </div>
-        <TypographyOverlay tier={tier} />
+        <TypographyOverlay tier={tier} division={division} />
 
         <motion.div
           initial={{ opacity: 0 }}
