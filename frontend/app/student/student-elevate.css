@@ -3230,14 +3230,27 @@ html .math-role-student div.math-table {
    Names, codes, dates, times and numbers: one size, one medium weight, one
    colour. The small second line under a name: one lighter style. Headings:
    one style. Chips and buttons keep their own (already uniform) look. */
-html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .se-board-table tbody td, .mp-record-row > div, .math-student-assessments-table-header + div > div > div, .se-ready-row > .se-ready-cell, .se-ready-row p.truncate):not(#se),
-html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .se-board-table tbody td, .mp-record-row > div, .math-student-assessments-table-header + div > div > div, .se-ready-row > .se-ready-cell):not(#se) :is(p, span, div, h4, strong):not([class*="rounded-full"]):not([class*="rounded-full"] *):not(:is(button, a) *) {
+html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .mp-record-row > div, .math-student-assessments-table-header + div > div > div, .se-ready-row > .se-ready-cell, .se-ready-row p.truncate):not(#se),
+html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .mp-record-row > div, .math-student-assessments-table-header + div > div > div, .se-ready-row > .se-ready-cell):not(#se) :is(p, span, div, h4, strong):not([class*="rounded-full"]):not([class*="rounded-full"] *):not(:is(button, a) *) {
   font-family: var(--se-display) !important;
   font-size: 0.9rem !important;
   font-weight: 600 !important;
   line-height: 1.35 !important;
   letter-spacing: 0 !important;
   text-transform: none;
+}
+
+/* leaderboards take the same cell style from 640px up; on phones they keep
+   their own smaller size so six columns and their headings fit a 360px screen */
+@media (min-width: 640px) {
+  html .math-role-student .se-board-table tbody td:not(#se),
+  html .math-role-student .se-board-table tbody td:not(#se) :is(p, span, div, h4, strong):not([class*="rounded-full"]):not([class*="rounded-full"] *):not(:is(button, a) *) {
+    font-family: var(--se-display) !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    line-height: 1.35 !important;
+    letter-spacing: 0 !important;
+  }
 }
 
 html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .mp-record-row > div, .math-student-assessments-table-header + div > div > div, .se-ready-row > .se-ready-cell, .se-ready-row p.truncate):not(#se),
@@ -3759,7 +3772,12 @@ html.dark .math-role-student .math-mobile-drawer .math-mobile-group > button:not
   }
 }
 
-/* a section label chip never breaks onto two lines */
-html .math-role-student .math-block-header {
-  white-space: nowrap;
+/* small phones: a section label chip is a little tighter, so a two-word label
+   such as "Student Achievements" keeps to one line beside the Back button.
+   A chip that is really too long still wraps inside its card (see above). */
+@media (max-width: 400px) {
+  html .math-role-student .math-block-header:not(#se) {
+    padding-inline: 0.7rem;
+    gap: 0.4rem;
+  }
 }
