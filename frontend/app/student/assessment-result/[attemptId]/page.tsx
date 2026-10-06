@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { BackButton } from "@/components/student/BackButton";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
@@ -9,7 +10,7 @@ import { apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
 import { getAssessmentAttemptResult } from "@/lib/api/student";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Award, CheckCircle2, Clock3, Rocket, ShieldAlert, Sparkles, Target, ClipboardCheck } from "lucide-react";
+import { Award, CheckCircle2, Clock3, Rocket, ShieldAlert, Sparkles, Target, ClipboardCheck } from "lucide-react";
 import { PremiumResultFeedbackCard } from "@/components/common/PerformanceFeedback";
 import { RewardEarnedModal, type RewardBreakdown } from "@/components/gamification/RewardEarnedModal";
 import { useParams, useRouter } from "next/navigation";
@@ -193,6 +194,7 @@ export default function StudentAssessmentResultPage() {
 
       {Query.data ? (
         <div className="space-y-6">
+          <BackButton href="/student/assessments" label="Back To Assessments" className="!mb-0" />
           <section className="relative overflow-hidden rounded-[34px] border border-white/70 bg-gradient-to-br from-white via-sky-50 to-cyan-100 p-5 shadow-xl dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:p-6">
             <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-cyan-300/25 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -219,10 +221,6 @@ export default function StudentAssessmentResultPage() {
           <AssessmentFeedbackCard Result={Query.data} />
 
           <div className="flex flex-wrap items-center gap-3">
-            <button className="math-role-action-button px-4 py-3" onClick={() => Router.push("/student/assessments")}>
-              <ArrowLeft size={16} />
-              Back To Assessments
-            </button>
             <div className={`math-badge ${Query.data.status === "CLEARED" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
               {Query.data.performanceBand}
             </div>

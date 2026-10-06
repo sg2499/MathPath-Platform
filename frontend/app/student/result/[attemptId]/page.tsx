@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { BackButton } from "@/components/student/BackButton";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { ResultSummary } from "@/components/student/ResultSummary";
@@ -16,7 +17,7 @@ import { getAttemptResult } from "@/lib/api/student";
 import { formatAnswerValue } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence } from "framer-motion";
-import { ArrowLeft, CheckCircle2, BookOpenCheck } from "lucide-react";
+import { CheckCircle2, BookOpenCheck } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -207,13 +208,10 @@ export default function ResultPage() {
 
       {query.data ? (
         <div className="space-y-6">
+          <BackButton href="/student/dashboard" label="Back To Dashboard" className="!mb-0" />
           <ResultSummary result={query.data} />
 
           <div className="flex flex-wrap items-center gap-3">
-            <button className="math-role-action-button px-4 py-3" onClick={() => router.push("/student/dashboard")}>
-              <ArrowLeft size={16} />
-              Back To Dashboard
-            </button>
             <div className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700">
               <CheckCircle2 size={14} />
               Review Ready

@@ -10,6 +10,8 @@ import { QuestionCard } from "@/components/student/QuestionCard";
 import type { AnswerInputBoxHandle } from "@/components/student/AnswerInputBox";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
 import { TestTimer } from "@/components/student/TestTimer";
+import { PhoneTestBar } from "@/components/student/PhoneTestBar";
+import { BackButton } from "@/components/student/BackButton";
 import { useAnnualCompetitionHeartbeat } from "@/hooks/useAnnualCompetitionHeartbeat";
 import { useAttemptTimer } from "@/hooks/useAttemptTimer";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
@@ -410,6 +412,7 @@ function AnnualCompetitionAttemptContent() {
     const isPractice = liveAttempt.attemptType === "PRACTICE";
     return (
       <AppShell title="Annual Competition">
+        <BackButton href="/student/competition/annual" label="Back To Annual Competition" />
         <div className="math-card p-6">
           <div className="math-block-header mb-2">
             {isPractice ? <><Trophy size={14} /> Annual Competition Practice</> : <><Trophy size={14} /> Annual Competition</>}
@@ -448,9 +451,6 @@ function AnnualCompetitionAttemptContent() {
             </p>
           )}
           <div className="mt-5 flex flex-wrap gap-3">
-            <button className="math-role-action-button px-4 py-2.5 text-sm" onClick={() => router.push("/student/competition/annual")}>
-              Back To Annual Competition
-            </button>
             {result && !isPractice ? (
               <button
                 className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2.5 text-sm font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-950/60"
@@ -591,6 +591,7 @@ function AnnualCompetitionAttemptContent() {
         </button>
 
         <section className="se-test-card math-slide-up math-card flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
+          <PhoneTestBar questionNumber={currentQuestion.questionNumber} totalQuestions={questions.length} remainingSeconds={remainingSeconds} />
           <div className="se-test-top relative overflow-hidden px-5 py-4 sm:px-6">
             <div className="relative z-10">
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -844,7 +845,7 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[620px] border-collapse text-sm">
+          <table className="se-tbl se-cards se-tbl-figures w-full min-w-[620px] border-collapse text-sm">
             <thead>
               <tr className="border-b-2 border-slate-200 dark:border-slate-700">
                 <th className="px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Section</th>
@@ -857,23 +858,23 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
             <tbody>
               {rows.map((row) => (
                 <tr key={row.sectionNumber} className="border-b border-slate-100 dark:border-slate-800">
-                  <td className="px-3 py-3 font-bold text-slate-900 dark:text-slate-100">
+                  <td data-label="Section" className="se-card-title px-3 py-3 font-bold text-slate-900 dark:text-slate-100">
                     Section {row.sectionNumber}: {row.sectionTitle}
                   </td>
-                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.totalQuestions}</td>
-                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.attemptedCount}</td>
-                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.correctCount}</td>
-                  <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{row.correctCount}</td>
+                  <td data-label="Total Questions" className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.totalQuestions}</td>
+                  <td data-label="Questions Attempted" className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.attemptedCount}</td>
+                  <td data-label="Correct Answers" className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.correctCount}</td>
+                  <td data-label="Marks Obtained" className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{row.correctCount}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-[#2563eb]/30 dark:border-cyan-300/30">
-                <td className="px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">Total</td>
-                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalQuestions}</td>
-                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalAttempted}</td>
-                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalMarksObtained}</td>
-                <td className="px-3 py-3 text-right text-lg font-black text-[#2563eb] dark:text-cyan-100">{totalMarksObtained}</td>
+                <td data-label="Section" className="se-card-title px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">Total</td>
+                <td data-label="Total Questions" className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalQuestions}</td>
+                <td data-label="Questions Attempted" className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalAttempted}</td>
+                <td data-label="Correct Answers" className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalMarksObtained}</td>
+                <td data-label="Marks Obtained" className="px-3 py-3 text-right text-lg font-black text-[#2563eb] dark:text-cyan-100">{totalMarksObtained}</td>
               </tr>
             </tfoot>
           </table>

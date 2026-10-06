@@ -7,6 +7,7 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { OptionButton } from "@/components/student/OptionButton";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
 import { TestTimer } from "@/components/student/TestTimer";
+import { PhoneTestBar } from "@/components/student/PhoneTestBar";
 import { MathQuestionDisplay, NeedsWideQuestionBoard } from "@/components/common/MathQuestionDisplay";
 import { useAttemptTimer } from "@/hooks/useAttemptTimer";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
@@ -169,6 +170,7 @@ export default function StudentAssessmentAttemptPage() {
         </button>
 
         <section className="se-test-card math-slide-up math-card flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
+          <PhoneTestBar questionNumber={CurrentQuestion.questionNumber} totalQuestions={Questions.length} remainingSeconds={RemainingSeconds} />
           <div className="se-test-top relative overflow-hidden px-5 py-4 sm:px-6">
             <div className="relative z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <h1 className="se-test-title se-test-title-lg">{Attempt.title}</h1>

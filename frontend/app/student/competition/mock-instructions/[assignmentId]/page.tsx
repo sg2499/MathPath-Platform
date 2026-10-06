@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { BackButton } from "@/components/student/BackButton";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { getStudentCompetitionMockInstructions, startCompetitionMockAttempt } from "@/lib/api/student";
@@ -70,6 +71,7 @@ function MockInstructionPageContent() {
 
   return (
     <AppShell title="Mock Details">
+      <BackButton href="/student/competition/mock-exams" />
       {Query.isLoading ? <LoadingState label="Loading exam instructions..." /> : null}
       {Query.error ? <ErrorState message={apiErrorMessage(Query.error)} /> : null}
 

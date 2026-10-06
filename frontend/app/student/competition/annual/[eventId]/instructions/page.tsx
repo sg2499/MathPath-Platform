@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { BackButton } from "@/components/student/BackButton";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { getAnnualCompetitionInstructions, startAnnualCompetitionAttempt } from "@/lib/api/student";
@@ -85,6 +86,7 @@ function AnnualCompetitionInstructionsContent() {
 
   return (
     <AppShell title="Annual Competition">
+      <BackButton href="/student/competition/annual" />
       {Query.isLoading ? <LoadingState label="Loading competition instructions..." /> : null}
       {Query.error ? <ErrorState message={apiErrorMessage(Query.error)} /> : null}
 

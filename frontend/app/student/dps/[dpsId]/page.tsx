@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { BackButton } from "@/components/student/BackButton";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { getDpsInstructions, startAttempt } from "@/lib/api/student";
@@ -58,6 +59,7 @@ function DpsInstructionPageContent() {
 
   return (
     <AppShell title="Practice Brief">
+      <BackButton href="/student/practice" />
       {Query.isLoading ? <LoadingState label="Loading DPS instructions..." /> : null}
       {Query.error ? <ErrorState message={apiErrorMessage(Query.error)} /> : null}
 

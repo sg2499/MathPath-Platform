@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { BackButton } from "@/components/student/BackButton";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -94,6 +95,7 @@ function StudentModuleProgressWorkspacePageContent() {
 
   return (
     <AppShell title="Progress Detail">
+      <BackButton href="/student/results" className="lg:hidden" />
       {VisibleRows.length ? (
         <RecordWorkspace
           title={SelectedLevel ? `${Title} · ${SelectedLevel}` : Title}

@@ -56,7 +56,9 @@ const Tiers = [
 // --- TEXT RENDERERS ---
 
 // Base text styles for extreme readability
-const TextBaseClass = "text-6xl md:text-8xl lg:text-9xl font-black italic tracking-tighter uppercase text-white select-none relative z-20";
+// Phones: the size follows the screen width so the longest title ("Apex
+// Flawless") fits on one line and never breaks in the middle of a word.
+const TextBaseClass = "text-[clamp(1.75rem,10vw,3.75rem)] md:text-8xl lg:text-9xl font-black italic tracking-tighter uppercase text-white select-none relative z-20";
 const TextStrokeStyle = { WebkitTextStroke: "2px rgba(0,0,0,0.5)" };
 
 // Generates the 3D block extrusion
@@ -79,7 +81,7 @@ function ConvergeText({ text, extrusionColor }: { text: string; extrusionColor: 
       // -> 1), which made the animation library raise an error the moment a
       // 96-100% celebration started. A short eased tween plays all three.
       transition={{ delay: 1.8, duration: 0.4, ease: "easeOut", times: [0, 0.6, 1] }}
-      className="flex flex-row flex-wrap justify-center p-8"
+      className="flex flex-row flex-nowrap justify-center whitespace-nowrap p-4 sm:p-8"
       style={{ textShadow: generate3DShadow(extrusionColor) }}
     >
       {letters.map((char, i) => {
@@ -113,7 +115,7 @@ function RiseText({ text, extrusionColor }: { text: string; extrusionColor: stri
   const letters = text.split("");
 
   return (
-    <div className="flex flex-row p-8" style={{ textShadow: generate3DShadow(extrusionColor) }}>
+    <div className="flex flex-row flex-nowrap whitespace-nowrap p-4 sm:p-8" style={{ textShadow: generate3DShadow(extrusionColor) }}>
       {letters.map((char, i) => (
         <motion.span
           key={i}
@@ -195,7 +197,7 @@ function MeteorText({ text, extrusionColor }: { text: string; extrusionColor: st
   const letters = text.split("");
 
   return (
-    <div className="flex flex-row p-8" style={{ textShadow: generate3DShadow(extrusionColor) }}>
+    <div className="flex flex-row flex-nowrap whitespace-nowrap p-4 sm:p-8" style={{ textShadow: generate3DShadow(extrusionColor) }}>
       {letters.map((char, i) => (
         <motion.span
           key={i}
