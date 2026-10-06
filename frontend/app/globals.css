@@ -13178,3 +13178,42 @@ html.dark .math-role-student .math-student-metric-card:hover {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3) !important;
   transform: translateY(-4px);
 }
+
+/* ---------------------------------------------------------------------------
+   One number size for every question (2026-10).
+   Every digit a question shows -- vertical sums, decimal stacks, expressions,
+   and the table-style questions -- uses .mp-q-num, on every screen that renders
+   a question (student test screens and result pages, and the teacher and admin
+   result and preview pages). The size is this one value: it does not depend on
+   the concept, the display type, the number of rows or the length of the
+   numbers. A screen that needs a different size for its whole question area can
+   set --mp-question-size on a wrapper; nothing should set font-size on an
+   individual question again.
+   --------------------------------------------------------------------------- */
+:root {
+  --mp-question-size: 24px;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --mp-question-size: 28px;
+  }
+}
+
+.mp-q-num {
+  font-size: var(--mp-question-size);
+}
+
+/* Columns of the table-style questions: equal on ordinary screens; on a very
+   narrow phone they share the row in proportion to their contents so a long
+   value never runs out of its cell. Set by QuestionColumnVars() in
+   MathQuestionDisplay.tsx. */
+.mp-q-cols {
+  grid-template-columns: var(--mp-q-cols-even);
+}
+
+@media (max-width: 479px) {
+  .mp-q-cols {
+    grid-template-columns: var(--mp-q-cols-fit);
+  }
+}

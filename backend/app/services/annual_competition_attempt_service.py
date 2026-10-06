@@ -938,7 +938,7 @@ def StartAnnualCompetitionPracticeAttempt(
         api_error(
             404,
             "COMPETITION_PRACTICE_BANK_EMPTY",
-            "You have no unused practice papers for this level yet -- ask your admin/teacher to assign more.",
+            "You have no unused practice papers for this level yet — ask your admin/teacher to assign more.",
         )
 
     AttemptRecord = _BuildFreshPracticeAttempt(db, LevelPaperRecord, StudentRecord, NowUtc)
@@ -1298,7 +1298,7 @@ def GetCompetitionEventInstructions(db: Session, StudentRecord: Student, EventId
     # do.
     IsRetry = _ActiveRetryGrant(db, AssignmentRecord.id) is not None
     AttemptCountLine = (
-        "You have been granted a retry for this competition -- this attempt replaces your previous one."
+        "You have been granted a retry for this competition — this attempt replaces your previous one."
         if IsRetry
         else "You get one attempt at this competition."
     )
@@ -1314,8 +1314,8 @@ def GetCompetitionEventInstructions(db: Session, StudentRecord: Student, EventId
         "isRetry": IsRetry,
         "instructions": [
             "This competition is split into timed sections, shown one at a time.",
-            "Each section has its own time limit -- once it ends (or you submit it), you move to the next section and cannot go back.",
-            "Stay connected while a section is active -- your timer only pauses briefly on a genuine disconnect, it does not stop just because you look away.",
+            "Each section has its own time limit — once it ends (or you submit it), you move to the next section and cannot go back.",
+            "Stay connected while a section is active — your timer only pauses briefly on a genuine disconnect, it does not stop just because you look away.",
             AttemptCountLine,
             "Click Start below when you are ready to begin.",
         ],
@@ -1379,7 +1379,7 @@ def GetAnnualCompetitionPracticeInstructions(db: Session, StudentRecord: Student
         api_error(
             404,
             "COMPETITION_PRACTICE_BANK_EMPTY",
-            "You have no unused practice papers for this level yet -- ask your admin/teacher to assign more.",
+            "You have no unused practice papers for this level yet — ask your admin/teacher to assign more.",
         )
 
     SectionTimers = (
@@ -1420,10 +1420,10 @@ def GetAnnualCompetitionPracticeInstructions(db: Session, StudentRecord: Student
         "sections": SectionsPayload,
         "isResume": ExistingAttempt is not None,
         "instructions": [
-            "This is a PRACTICE paper -- not the Annual Competition itself, and not tied to any specific event.",
+            "This is a PRACTICE paper — not the Annual Competition itself, and not tied to any specific event.",
             "It's split into timed sections, shown one at a time, exactly like the real competition day.",
-            "Each section has its own time limit -- once it ends (or you submit it), you move to the next section and cannot go back.",
-            "Stay connected while a section is active -- your timer only pauses briefly on a genuine disconnect, it does not stop just because you look away.",
+            "Each section has its own time limit — once it ends (or you submit it), you move to the next section and cannot go back.",
+            "Stay connected while a section is active — your timer only pauses briefly on a genuine disconnect, it does not stop just because you look away.",
             "Results are visible to you immediately after you submit, and this paper cannot be retaken once submitted.",
             "Click Start below when you are ready to begin.",
         ],
@@ -1549,7 +1549,7 @@ def GrantAnnualCompetitionAttemptRetry(db: Session, *, AttemptId: str, GrantedBy
         api_error(
             409,
             "COMPETITION_RETRY_NOT_APPLICABLE_TO_PRACTICE",
-            "Practice attempts don't use retry grants -- the student can just start a new practice paper from their bank.",
+            "Practice attempts don't use retry grants — the student can just start a new practice paper from their bank.",
         )
 
     if AttemptRecord.status not in TERMINAL_ATTEMPT_STATUSES:

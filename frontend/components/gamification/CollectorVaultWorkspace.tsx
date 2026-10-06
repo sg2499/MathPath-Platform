@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PackageOpen, Sparkles, Lock, Trophy } from 'lucide-react';
 import { AlphaPackUnboxCinematic } from './AlphaPackUnboxCinematic';
 import { cn } from '@/lib/utils';
+import { InitCaps } from "@/lib/initCaps";
 
 interface VaultItem {
   id: string;
@@ -55,7 +56,7 @@ export function CollectorVaultWorkspace() {
               <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[2.35rem]">
                 Unlock <span className="text-orange-500 dark:text-orange-400">Mythic</span> Rewards
               </h1>
-              <p className="math-subtitle max-w-4xl lg:whitespace-nowrap">
+              <p className="math-subtitle max-w-none">
                 Redeem caches earned from dedicated practice and exceptional Mock Exam performance. Unlock premium avatars, prestigious mastery titles, and exclusive 3D companions.
               </p>
             </div>
@@ -105,7 +106,7 @@ export function CollectorVaultWorkspace() {
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setUnboxingPack(pack)}
                     className={cn(
-                      "relative group flex flex-col items-center justify-center p-8 rounded-[2rem] cursor-pointer transition-all overflow-hidden h-72",
+                      "se-vault-pack relative group flex flex-col items-center justify-center p-8 rounded-[2rem] cursor-pointer transition-all overflow-hidden h-72",
                       pack.rarity === 'LEGENDARY'
                         ? "bg-gradient-to-b from-yellow-500/20 to-black/50 border border-yellow-500/30 hover:shadow-[0_0_40px_rgba(234,179,8,0.3)] hover:border-yellow-400"
                         : pack.rarity === 'EPIC'
@@ -118,7 +119,7 @@ export function CollectorVaultWorkspace() {
                     <span className="font-black uppercase tracking-widest text-center z-10 text-white drop-shadow-md">
                       {pack.name}
                     </span>
-                    <span className="text-xs text-white/50 mt-2 font-bold uppercase z-10 tracking-[0.2em]">Hold to Decrypt</span>
+                    <span className="text-xs text-white/50 mt-2 font-bold uppercase z-10 tracking-[0.2em]">Hold To Decrypt</span>
                   </motion.div>
                 ))}
 
@@ -137,7 +138,7 @@ export function CollectorVaultWorkspace() {
                 {collection.map((item) => (
                   <div
                     key={item.id}
-                    className="relative flex flex-col items-center justify-center p-6 rounded-[2rem] border border-white/10 bg-black/40 backdrop-blur-md h-64 overflow-hidden group hover:border-white/30 transition-all duration-500"
+                    className="se-vault-pack relative flex flex-col items-center justify-center p-6 rounded-[2rem] border border-white/10 bg-black/40 backdrop-blur-md h-64 overflow-hidden group hover:border-white/30 transition-all duration-500"
                   >
                     <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                     <div className="w-24 h-4 bg-white/5 rounded-[100%] absolute bottom-8 blur-md" />
@@ -152,7 +153,7 @@ export function CollectorVaultWorkspace() {
                       item.rarity === 'EPIC' ? 'text-purple-400' :
                       item.rarity === 'RARE' ? 'text-cyan-400' : 'text-slate-400'
                     )}>
-                      {item.rarity}
+                      {InitCaps(item.rarity)}
                     </span>
                   </div>
                 ))}

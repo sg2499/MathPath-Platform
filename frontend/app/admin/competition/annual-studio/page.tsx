@@ -1096,18 +1096,18 @@ function AdminAnnualCompetitionStudioPageContent() {
               TotalPapersAssigned += FromThisFailedCall;
               FailedRows.push({
                 studentIdentifier: StudentId,
-                reason: `The request failed (${apiErrorMessage(ChunkCallError)}), but ${ActualTotalThisRun} of ${PracticeAssignQuantity} papers were confirmed already assigned for this level -- re-run this action to top up the rest.`,
+                reason: `The request failed (${apiErrorMessage(ChunkCallError)}), but ${ActualTotalThisRun} of ${PracticeAssignQuantity} papers were confirmed already assigned for this level — re-run this action to top up the rest.`,
               });
             } else {
               FailedRows.push({
                 studentIdentifier: StudentId,
-                reason: `This batch call did not complete (${apiErrorMessage(ChunkCallError)}) -- confirmed 0 papers were generated for this student from this call.`,
+                reason: `This batch call did not complete (${apiErrorMessage(ChunkCallError)}) — confirmed 0 papers were generated for this student from this call.`,
               });
             }
           } else {
             FailedRows.push({
               studentIdentifier: StudentId,
-              reason: "This batch call did not complete, and the follow-up check to confirm how many papers actually landed also failed -- check this student's practice bank before reassigning.",
+              reason: "This batch call did not complete, and the follow-up check to confirm how many papers actually landed also failed — check this student's practice bank before reassigning.",
             });
           }
         });
@@ -1119,7 +1119,7 @@ function AdminAnnualCompetitionStudioPageContent() {
           Plan[LaterIndex].studentIds.forEach((StudentId) => {
             FailedRows.push({
               studentIdentifier: StudentId,
-              reason: "This batch stopped before reaching this student -- no papers were requested for them in this run.",
+              reason: "This batch stopped before reaching this student — no papers were requested for them in this run.",
             });
           });
         }
@@ -1148,7 +1148,7 @@ function AdminAnnualCompetitionStudioPageContent() {
         ReportActionError(
           "Assign Practice Papers",
           new Error(
-            `${BaseMessage} The batch stopped early after a request failed (${apiErrorMessage(Result.ChunkCallError)}) -- ` +
+            `${BaseMessage} The batch stopped early after a request failed (${apiErrorMessage(Result.ChunkCallError)}) — ` +
               "see the details below for exactly how many papers were confirmed for each affected student."
           )
         );
@@ -1578,8 +1578,8 @@ function AdminAnnualCompetitionStudioPageContent() {
           <p className="math-block-header"><Trophy size={14} />Annual Competition</p>
           <h1 className="math-title">Annual Competition Studio</h1>
           <p className="mt-3 max-w-none text-sm font-semibold leading-relaxed text-slate-600 dark:text-slate-300">
-            Official runs the real, scheduled Annual Competition event end to end -- slots, each level&apos;s official
-            paper, and student assignments. Practice is fully separate and never tied to any event -- assign practice
+            Official runs the real, scheduled Annual Competition event end to end — slots, each level&apos;s official
+            paper, and student assignments. Practice is fully separate and never tied to any event — assign practice
             papers to any number of students at once so they can prepare for the mega event, independent of any
             official assignment.
           </p>
@@ -1604,7 +1604,7 @@ function AdminAnnualCompetitionStudioPageContent() {
           <p className="math-block-header"><RefreshCcw size={14} />Accuracy Backfill</p>
           <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
             Recomputes score/accuracy/correct/wrong/unanswered for every already-finalized result under the current
-            formula. Never touches release status, rank, or certificates -- safe to run again anytime.
+            formula. Never touches release status, rank, or certificates — safe to run again anytime.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <button
@@ -1651,7 +1651,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                 icon={<PlusCircle size={14} />}
                 kicker="New Event"
                 title="Create Annual Competition Event"
-                description="One event per real competition date. Results Release Date can be left blank until MathPath confirms it -- setting it later locks every linked level paper."
+                description="One event per real competition date. Results Release Date can be left blank until MathPath confirms it — setting it later locks every linked level paper."
               />
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200 sm:col-span-2">
@@ -1793,7 +1793,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                               ClickEvent.preventDefault();
                               if (
                                 window.confirm(
-                                  `Delete "${EventItem.name}"? This removes the event and everything under it -- slots, papers, assignments, and ALL student attempts, answers, and results, even if results have already been released and certificates issued. This can't be undone.`
+                                  `Delete "${EventItem.name}"? This removes the event and everything under it — slots, papers, assignments, and ALL student attempts, answers, and results, even if results have already been released and certificates issued. This can't be undone.`
                                 )
                               ) {
                                 DeleteEventMutation.mutate(EventItem.eventId);
@@ -1843,7 +1843,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                   icon={<Sparkles size={14} />}
                   kicker="Practice Bank"
                   title="Assign Practice Papers"
-                  description="Generates fresh, always-different practice papers and adds them to every selected student's bank for a level -- safe to call repeatedly, it never touches or consumes a paper already there. Select all, many, or a filtered subset of students below. Quantity must be a multiple of 5, up to 25 per batch."
+                  description="Generates fresh, always-different practice papers and adds them to every selected student's bank for a level — safe to call repeatedly, it never touches or consumes a paper already there. Select all, many, or a filtered subset of students below. Quantity must be a multiple of 5, up to 25 per batch."
                 />
 
                 <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -2090,7 +2090,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                   icon={<Medal size={14} />}
                   kicker="Practice Results"
                   title="Recent Practice Activity"
-                  description="Never ranked, and always released to the student the instant it's computed -- a separate surface from any OFFICIAL event's own Rank &amp; Release list, and never scoped to any one event."
+                  description="Never ranked, and always released to the student the instant it's computed — a separate surface from any OFFICIAL event's own Rank &amp; Release list, and never scoped to any one event."
                 />
                 <div className="mt-4 flex flex-wrap items-end gap-3">
                   {/* 2026-09-23 (Shailesh): "the search bar and level filters
@@ -2338,7 +2338,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                       icon={<Sparkles size={14} />}
                       kicker="Practice Reports"
                       title="Individual Student Analytics"
-                      description="Every student who has any practice activity, shown below as a list -- narrow who's shown by level and (teacher-wise) by teacher, search by name or code, then click a student to open their full analytics."
+                      description="Every student who has any practice activity, shown below as a list — narrow who's shown by level and (teacher-wise) by teacher, search by name or code, then click a student to open their full analytics."
                     />
 
                     <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -2440,7 +2440,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                       icon={<Medal size={14} />}
                       kicker="Practice Reports"
                       title="Individual Level Analytics"
-                      description="Cohort-wide performance across every student who has practiced this level -- averages, the section the cohort finds hardest, and a per-student leaderboard sorted by accuracy, for a rough forecast of what to expect (and from whom) on the day of the official event."
+                      description="Cohort-wide performance across every student who has practiced this level — averages, the section the cohort finds hardest, and a per-student leaderboard sorted by accuracy, for a rough forecast of what to expect (and from whom) on the day of the official event."
                     />
 
                     {/* 2026-09-17 (Shailesh): level filter stays OUTSIDE/above
@@ -2736,7 +2736,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                   icon={<Trophy size={14} />}
                   kicker="Leaderboard"
                   title="Practice Leaderboard"
-                  description="Level-wise rankings across every student's Annual Competition practice papers at this level -- highest average score first, average time taken as tiebreak. Practice only, never mixed with the official event's own ranked results."
+                  description="Level-wise rankings across every student's Annual Competition practice papers at this level — highest average score first, average time taken as tiebreak. Practice only, never mixed with the official event's own ranked results."
                 />
 
                 {/* 2026-09-22 (Shailesh, round 2 -- widening min-w alone
@@ -2852,7 +2852,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                     <PracticeLeaderboardPodium
                       Summary={PracticeLeaderboardQuery.data.summary}
                       Rows={RankedPracticeLeaderboardRows}
-                      EmptyDescription="No student has completed a practice paper at this level yet -- the leaderboard fills in as soon as the first paper is submitted."
+                      EmptyDescription="No student has completed a practice paper at this level yet — the leaderboard fills in as soon as the first paper is submitted."
                     />
                   ) : null}
                 </div>

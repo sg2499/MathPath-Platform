@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { InitCaps } from "@/lib/initCaps";
 
 function getAssignmentAction(assignment: Assignment) {
   const status = assignment.status;
@@ -79,10 +80,10 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-blue-700">
               <Sparkles size={12} />
-              {assignment.mode === "ASSESSMENT" ? "ASSESSMENT" : assignment.mode}
+              {InitCaps(assignment.mode === "ASSESSMENT" ? "ASSESSMENT" : assignment.mode)}
             </div>
 
-            <h3 className="mt-4 text-xl font-black text-slate-950 dark:text-white sm:text-2xl">
+            <h3 className="se-card-title mt-4 text-xl font-black text-slate-950 dark:text-white sm:text-2xl">
               {assignment.title}
             </h3>
 
@@ -96,7 +97,7 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
           </div>
 
           <span className={`math-badge w-fit ${getStatusStyle(assignment.status)}`}>
-            {assignment.status.replace("_", " ")}
+            {InitCaps(assignment.status)}
           </span>
         </div>
 

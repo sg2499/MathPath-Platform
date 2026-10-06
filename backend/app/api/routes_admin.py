@@ -6693,7 +6693,7 @@ def _validate_select_only(raw_query: str) -> str:
     if stripped.endswith(";"):
         stripped = stripped[:-1].rstrip()
     if ";" in stripped:
-        api_error(400, "VALIDATION_ERROR", "Only a single statement is allowed -- remove the semicolon(s).")
+        api_error(400, "VALIDATION_ERROR", "Only a single statement is allowed — remove the semicolon(s).")
     if not _DB_SEARCH_LEADING_RE.match(stripped):
         api_error(400, "VALIDATION_ERROR", "Only SELECT (or WITH ... SELECT) queries are allowed.")
     if _DB_SEARCH_BLOCKED_RE.search(stripped):

@@ -53,8 +53,8 @@ const TIER_BAR_CLASSES: Record<string, string> = {
 const REST_BAR_CLASSES = "bg-slate-500 shadow-[0_0_4px_rgba(100,116,139,0.35)]";
 
 const MONTH_NAMES = [
-  "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
-  "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
 // Full three-letter weekday labels for the month-browse calendar header.
@@ -63,7 +63,7 @@ const MONTH_NAMES = [
 // close to the bold date-number cells below them, making the header row and
 // the date grid hard to tell apart at a glance. These are unambiguous and
 // are styled distinctly from the date cells in the calendar JSX below.
-const WEEKDAY_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 // Local-timezone YYYY-MM-DD key. Using toISOString() here would convert to
 // UTC first, which silently shifts late-night activity into the wrong day
@@ -183,6 +183,16 @@ function computeDayStats(dayResults: Array<{ timeTakenSeconds?: number; expected
   return { count, timeSpent, accuracy: avgAccuracy, speed, flowState, tier, insight };
 }
 
+// Display-only label for a tier key ("S-TIER" -> "S-Tier", "REST" -> "Rest").
+// The keys themselves are never changed: they drive the bar colours and scoring.
+function tierLabel(tier: string): string {
+  return tier
+    .toLowerCase()
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("-");
+}
+
 function useDarkMode() {
   const [isDark, setIsDark] = useState(false);
   useEffect(() => {
@@ -203,8 +213,8 @@ function generateGodTierStyle(index: number, isDark: boolean) {
   const hue1 = Math.floor((index * 137.5) % 360);
   const hue2 = Math.floor((hue1 + 45 + (index * 15) % 90) % 360);
   
-  const fonts = ["font-serif", "font-sans", "font-mono"];
-  const fontFamily = fonts[index % 3];
+  // One display typeface for every quote; the colour pairing still changes per quote.
+  const fontFamily = "se-display";
 
   return {
     bg: isDark ? `linear-gradient(135deg, hsla(${hue1}, 40%, 20%, 0.85), hsla(${hue2}, 40%, 14%, 0.9))`
@@ -670,22 +680,68 @@ export default function StudentDashboardPage() {
     return () => clearInterval(conquestTimer);
   }, [quoteIsFlipped, conquests.length]);
 
+  // The four Live Intel Feed slides, same content and destinations as before,
+  // described as data so every slide shares one layout.
+  const recentBadgeName = recentBadge ? String(recentBadge.name || "").replace(/^the\s+/i, "") : "";
+  const intelSlides: Array<{ tone: string; icon: any; title: string; text: ReactNode; cta: string; route: string }> = [
+    {
+      tone: "indigo",
+      icon: RecentBadgeIcon,
+      title: recentBadge ? "Latest Unlock" : "No Recent Unlocks",
+      text: recentBadge
+        ? `You acquired the ${recentBadgeName} badge. View Trophy Room.`
+        : "Keep grinding practice sheets to unlock your first achievement.",
+      cta: "View Achievements",
+      route: "/student/achievements",
+    },
+    {
+      tone: "amber",
+      icon: Crosshair,
+      title: "Daily Objective",
+      text: (
+        <>
+          Complete your assigned <strong>DPS Sheets</strong> to build speed, accuracy, and earn MathCoins.
+        </>
+      ),
+      cta: "Go To Practice",
+      route: "/student/practice",
+    },
+    {
+      tone: "emerald",
+      icon: Swords,
+      title: "Mock Readiness",
+      text: "Challenge yourself with the next Mock Exam to test your readiness and secure your rank.",
+      cta: "View Mock Exams",
+      route: "/student/competition/mock-exams",
+    },
+    {
+      tone: "rose",
+      icon: Medal,
+      title: "Leaderboard Ranking",
+      text: "Check the live competitive standings and see how you match up against the top scholars.",
+      cta: "View Leaderboard",
+      route: "/student/competition/leaderboard",
+    },
+  ];
+  const activeIntel = intelSlides[intelIndex] || intelSlides[0];
+  const ActiveIntelIcon = activeIntel.icon;
+
   if (!Ready) return null;
 
   return (
     <AppShell>
-      <main className="math-dashboard-page math-dashboard-student w-full flex flex-col gap-4 lg:h-[calc(100vh-90px)] 2xl:h-[calc(100vh-110px)] relative z-10">
+      <main className="math-dashboard-page math-dashboard-student se-dash w-full flex flex-col gap-4 relative z-10">
         
         {/* ROW 1: HERO & HUD - Premium Glassmorphism */}
-        <section className="math-dashboard-hero math-dashboard-hero-student shrink-0 relative overflow-hidden rounded-[2rem] border border-white/40 dark:border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] p-3 sm:p-4 bg-white/30 dark:bg-slate-900/30 backdrop-blur-2xl">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between w-full">
+        <section className="math-dashboard-hero math-dashboard-hero-student se-hero shrink-0 relative overflow-hidden">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between w-full">
             
-            <div className="flex flex-col gap-2 pt-1 lg:pt-2">
+            <div className="se-hero-copy flex flex-col gap-2.5">
               <div className="math-block-header">
                 <Laptop size={14} />
-                MATHPATH LOBBY
+                MathPath Lobby
               </div>
-              <h1 className="text-2xl sm:text-3xl lg:text-[2.25rem] 2xl:text-[2.5rem] font-black tracking-[-0.03em] text-slate-950 dark:text-white drop-shadow-md leading-tight">
+              <h1 className="se-hero-title">
                 My Learning Workspace
               </h1>
             </div>
@@ -703,141 +759,63 @@ export default function StudentDashboardPage() {
 
         {!AssignmentQuery.isLoading && !AssessmentQuery.isLoading && !AssignmentQuery.error && !AssessmentQuery.error ? (
           
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 items-stretch">
+          <div className="se-dash-grid grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 items-stretch">
             
             {/* LEFT COLUMN: Intel Slider & Transmission Block */}
             <div className="lg:col-span-8 flex flex-col gap-4 h-full min-h-0">
                
                {/* 1. The Intel Carousel */}
-               <TiltCard className="group w-full h-[150px] 2xl:h-[180px] shrink-0">
-                 <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-3xl text-slate-900 dark:text-white transition-all duration-500">
-                   <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.02] dark:opacity-[0.05] mix-blend-overlay pointer-events-none" />
-                   
+               <TiltCard className="group w-full se-intel shrink-0">
+                 <div className="se-card se-intel-card relative overflow-hidden h-full flex flex-col">
                    {/* Holographic Grid */}
-                   <div className="absolute inset-0 bg-[linear-gradient(rgba(37,99,235,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(37,99,235,0.05)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(129,140,248,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(129,140,248,0.05)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
-                   
+                   <div className="se-intel-grid absolute inset-0 pointer-events-none" />
+
                    {/* Sweeping HUD Scanline */}
                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden">
-                     <motion.div 
-                       animate={{ y: [-100, 300] }} 
+                     <motion.div
+                       animate={{ y: [-100, 300] }}
                        transition={{ repeat: Number.POSITIVE_INFINITY, duration: 3, ease: "linear" }}
-                       className="w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent shadow-[0_0_10px_rgba(34,211,238,0.5)]" 
+                       className="w-full h-[2px] bg-gradient-to-r from-transparent via-orange-400/50 to-transparent shadow-[0_0_10px_rgba(251,146,60,0.5)]"
                      />
                    </div>
-                   
-                   <div className="px-6 sm:px-8 pt-4 flex items-center gap-2 z-20 shrink-0">
-                     <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-[mathBlobPulse_2s_infinite] shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
-                     <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400 drop-shadow-sm">Live Intel Feed</span>
+
+                   <div className="se-intel-head z-20 shrink-0">
+                     <span className="se-live-dot" />
+                     <span className="se-eyebrow">Live Intel Feed</span>
                    </div>
 
                    <AnimatePresence mode="wait">
-                      {intelIndex === 0 && (
-                         <motion.button 
-                           key="slide-0"
-                           onClick={() => Router.push("/student/achievements")}
-                           initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
-                           className="relative z-10 w-full h-full px-6 sm:px-8 pb-4 pt-1 flex items-center justify-start gap-5 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
-                         >
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-700 p-[3px] shadow-[0_0_30px_rgba(99,102,241,0.3)]">
-                               <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center">
-                                  <RecentBadgeIcon size={28} className="text-indigo-500 dark:text-indigo-400" />
-                               </div>
-                            </div>
-                            <div>
-                               <h2 className="text-lg sm:text-2xl font-black italic tracking-tight mb-1 text-indigo-600 dark:text-indigo-400">
-                                  {recentBadge ? "LATEST UNLOCK" : "NO RECENT UNLOCKS"}
-                               </h2>
-                               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium">
-                                  {recentBadge ? `You acquired the ${recentBadge.name} badge. View Trophy Room.` : "Keep grinding practice sheets to unlock your first achievement."}
-                               </p>
-                               <span className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
-                                  View Achievements <ChevronRight size={14} />
-                               </span>
-                            </div>
-                         </motion.button>
-                      )}
-                      
-                      {intelIndex === 1 && (
-                         <motion.button 
-                           key="slide-1" 
-                           onClick={() => Router.push("/student/practice")}
-                           initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
-                           className="relative z-10 w-full h-full px-6 sm:px-10 pb-5 pt-2 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
-                         >
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl border-2 border-dashed border-amber-500 bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-                               <Crosshair size={36} className="text-amber-500" />
-                            </div>
-                            <div>
-                               <h2 className="text-xl sm:text-3xl font-black italic tracking-tight text-amber-600 dark:text-amber-500 mb-2">
-                                  DAILY OBJECTIVE
-                               </h2>
-                               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium">
-                                  Complete your assigned <span className="font-bold text-amber-600 dark:text-amber-400">DPS Sheets</span> to build speed, accuracy, and earn MathCoins.
-                               </p>
-                               <span className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-500">
-                                  Go to Practice <ChevronRight size={14} />
-                               </span>
-                            </div>
-                         </motion.button>
-                      )}
-
-                      {intelIndex === 2 && (
-                         <motion.button 
-                           key="slide-2" 
-                           onClick={() => Router.push("/student/competition/mock-exams")}
-                           initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
-                           className="relative z-10 w-full h-full px-6 sm:px-10 pb-5 pt-2 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
-                         >
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-[0_0_30px_rgba(52,211,153,0.3)]">
-                               <Swords size={36} className="text-white" />
-                            </div>
-                            <div>
-                               <h2 className="text-xl sm:text-3xl font-black tracking-tight mb-2 text-emerald-600 dark:text-emerald-400">
-                                  MOCK READINESS
-                               </h2>
-                               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium">
-                                  Challenge yourself with the next Mock Exam to test your readiness and secure your rank.
-                               </p>
-                               <span className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-                                  View Mock Exams <ChevronRight size={14} />
-                               </span>
-                            </div>
-                         </motion.button>
-                      )}
-
-                      {intelIndex === 3 && (
-                         <motion.button 
-                           key="slide-3" 
-                           onClick={() => Router.push("/student/competition/leaderboard")}
-                           initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
-                           className="relative z-10 w-full h-full px-6 sm:px-10 pb-5 pt-2 flex items-center justify-start gap-6 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus:outline-none"
-                         >
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-gradient-to-br from-rose-400 to-red-600 flex items-center justify-center shadow-[0_0_30px_rgba(244,63,94,0.3)]">
-                               <Medal size={36} className="text-white" />
-                            </div>
-                            <div>
-                               <h2 className="text-xl sm:text-3xl font-black tracking-tight mb-2 text-rose-600 dark:text-rose-400">
-                                  LEADERBOARD RANKING
-                               </h2>
-                               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 font-medium">
-                                  Check the live competitive standings and see how you match up against the top scholars.
-                               </p>
-                               <span className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-rose-600 dark:text-rose-500">
-                                  View Leaderboard <ChevronRight size={14} />
-                               </span>
-                            </div>
-                         </motion.button>
-                      )}
+                     <motion.button
+                       key={`slide-${intelIndex}`}
+                       type="button"
+                       onClick={() => Router.push(activeIntel.route)}
+                       initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.5 }}
+                       className="se-intel-slide relative z-10"
+                       data-tone={activeIntel.tone}
+                     >
+                       <span className="se-intel-icon">
+                         <ActiveIntelIcon size={28} />
+                       </span>
+                       <span className="se-intel-copy">
+                         <span className="se-intel-title">{activeIntel.title}</span>
+                         <span className="se-intel-text">{activeIntel.text}</span>
+                       </span>
+                       <span className="se-btn se-btn-sm se-intel-cta">
+                         {activeIntel.cta} <ChevronRight size={15} />
+                       </span>
+                     </motion.button>
                    </AnimatePresence>
 
                    {/* Carousel Indicators (Clickable) */}
-                   <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 z-20">
-                      {[0, 1, 2, 3].map(i => (
-                         <button 
-                           key={i} 
+                   <div className="se-intel-dots z-20">
+                      {intelSlides.map((slide, i) => (
+                         <button
+                           key={slide.title}
+                           type="button"
                            onClick={(e) => { e.stopPropagation(); setIntelIndex(i); }}
-                           className={`h-2 rounded-full transition-all duration-300 focus:outline-none ${i === intelIndex ? 'w-8 bg-slate-800 dark:bg-white' : 'w-2 bg-slate-400 dark:bg-white/30 hover:bg-slate-600 dark:hover:bg-white/50'}`} 
+                           className={`se-dot ${i === intelIndex ? "se-dot-active" : ""}`}
                            aria-label={`Go to slide ${i+1}`}
+                           aria-current={i === intelIndex ? "true" : undefined}
                          />
                       ))}
                    </div>
@@ -845,9 +823,8 @@ export default function StudentDashboardPage() {
                </TiltCard>
 
                {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
-               {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
                <TiltCard className="group w-full flex-1 min-h-0 perspective-1000" isFlipped={quoteIsFlipped}>
-                 <motion.div 
+                 <motion.div
                    className="grid w-full h-full"
                    style={{ transformStyle: "preserve-3d" }}
                    animate={{ rotateY: quoteIsFlipped ? 180 : 0 }}
@@ -855,24 +832,17 @@ export default function StudentDashboardPage() {
                    onClick={() => setQuoteIsFlipped(!quoteIsFlipped)}
                  >
                    {/* FRONT FACE (Inspiration) */}
-                   <div 
-                     className="col-start-1 row-start-1 w-full h-full" 
+                   <div
+                     className="col-start-1 row-start-1 w-full h-full min-h-0"
                      style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
                    >
-                     <div className="relative overflow-hidden h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-white/10 shadow-2xl transition-all duration-700 backdrop-blur-3xl bg-white/10 dark:bg-black/10 cursor-pointer">
-                       <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay pointer-events-none z-10" />
-                       
-                       <div className="absolute bottom-4 right-6 z-30 flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
-                         <span className="text-[11px] sm:text-xs uppercase tracking-widest font-black text-slate-900 dark:text-slate-200">Reveal Conquest</span>
-                         <Sparkles size={14} className="text-slate-900 dark:text-slate-200 animate-pulse" />
-                       </div>
-
+                     <div className="se-quote relative overflow-hidden h-full flex flex-col justify-center cursor-pointer">
                        <AnimatePresence mode="wait">
-                          <motion.div 
+                          <motion.div
                             key={quoteIndex}
-                            initial={{ opacity: 0, filter: 'blur(12px)', scale: 0.97 }} 
-                            animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }} 
-                            exit={{ opacity: 0, filter: 'blur(12px)', scale: 1.03 }} 
+                            initial={{ opacity: 0, filter: 'blur(12px)', scale: 0.97 }}
+                            animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }}
+                            exit={{ opacity: 0, filter: 'blur(12px)', scale: 1.03 }}
                             transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
                             className="absolute inset-0 flex items-stretch justify-stretch"
                           >
@@ -880,29 +850,29 @@ export default function StudentDashboardPage() {
                                const activeQuote = GAMER_MOTIVATIONS[quoteIndex];
                                const style = generateGodTierStyle(quoteIndex, isDark);
                                return (
-                                 <div className="w-full h-full flex flex-col justify-center items-center relative p-8 sm:p-12 transition-all duration-700" style={{ background: style.bg }}>
+                                 <div className="w-full h-full flex flex-col justify-center items-center relative px-8 sm:px-12 pt-8 pb-16 transition-all duration-700" style={{ background: style.bg }}>
                                     {/* Ambient Glow Orbs */}
                                     <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-[80px] pointer-events-none transition-colors duration-1000" style={{ background: style.orb1 }} />
                                     <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full blur-[80px] pointer-events-none transition-colors duration-1000" style={{ background: style.orb2 }} />
 
-                                    <div className="z-20 text-center w-full max-w-4xl flex flex-col items-center">
-                                      <h3 
-                                        className={`text-slate-900 dark:text-white drop-shadow-sm text-balance break-words tracking-tight ${style.fontFamily}
-                                          ${activeQuote.text.length < 60 ? "text-3xl md:text-5xl lg:text-[3.25rem] leading-[1.15]" : 
-                                            activeQuote.text.length < 120 ? "text-2xl md:text-4xl lg:text-[2.5rem] leading-[1.25]" : 
-                                            "text-xl md:text-2xl lg:text-3xl leading-[1.4]"}
+                                    <div className="z-20 text-center w-full max-w-5xl flex flex-col items-center">
+                                      <h3
+                                        className={`se-quote-text ${style.fontFamily}
+                                          ${activeQuote.text.length < 60 ? "se-quote-lg" :
+                                            activeQuote.text.length < 120 ? "se-quote-md" :
+                                            "se-quote-sm"}
                                         `}
                                       >
                                          "{activeQuote.text}"
                                       </h3>
                                       {activeQuote.author && (
-                                         <motion.div 
+                                         <motion.div
                                           initial={{ opacity: 0, y: 15 }}
                                           animate={{ opacity: 1, y: 0 }}
                                           transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
-                                          className="mt-8 shrink-0"
+                                          className="mt-5 shrink-0"
                                          >
-                                           <span className="text-slate-600 dark:text-slate-300 font-bold uppercase tracking-[0.25em] text-xs md:text-sm">
+                                           <span className="se-quote-author">
                                               — {activeQuote.author}
                                            </span>
                                          </motion.div>
@@ -913,60 +883,60 @@ export default function StudentDashboardPage() {
                              })()}
                           </motion.div>
                        </AnimatePresence>
+
+                       <span className="se-btn se-btn-sm se-btn-glass se-flip-cta absolute bottom-4 right-4 z-30">
+                         Reveal Conquest <Sparkles size={15} />
+                       </span>
+                       <div className="se-quote-edge" />
                      </div>
                    </div>
 
                    {/* BACK FACE (Conquest Matrix) */}
-                   <div 
-                     className="col-start-1 row-start-1 w-full h-full" 
+                   <div
+                     className="col-start-1 row-start-1 w-full h-full min-h-0"
                      style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
                    >
-                     <div className="relative overflow-visible h-full flex flex-col justify-center !rounded-[24px] border border-white/50 dark:border-[var(--mp-role-primary)]/20 shadow-2xl transition-all duration-700 bg-white/95 dark:bg-black/85 backdrop-blur-3xl p-6 sm:p-8 cursor-pointer">
-                       <div className="absolute inset-0 overflow-hidden !rounded-[24px] pointer-events-none z-10">
-                         <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 dark:opacity-20 mix-blend-overlay" />
-                       </div>
-                       
-                       <div className="absolute top-4 right-6 z-30 flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
-                         <span className="text-[11px] sm:text-xs uppercase tracking-widest font-black text-slate-900 dark:text-slate-200">Back to Inspiration</span>
-                       </div>
-
-                       <div className="z-20 h-full flex flex-col sm:flex-row gap-6 relative items-center">
+                     <div className="se-card se-matrix relative overflow-visible h-full cursor-pointer">
+                       <div className="se-matrix-grid z-20 h-full relative">
                           {/* LEFT: Grind Heatmap */}
-                          <div className="flex-1 flex flex-col justify-between w-full h-full py-1">
-                             <div>
-                               <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-2 block leading-none">
-                                 {heatmapMonthYearLabel}
-                               </span>
-                               <h4 className="relative text-sm font-black uppercase tracking-widest text-[var(--mp-role-primary)] mb-5 flex items-center gap-2.5 drop-shadow-sm">
+                          <div className="se-heat flex flex-col min-w-0 min-h-0">
+                             <div className="se-heat-head">
+                               <h4 className="se-matrix-title">
                                   <Activity size={18} /> Grind Heatmap (This Week)
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); setHeatmapInfoOpen((prev) => !prev); }}
-                                    className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/10 dark:bg-white/15 text-slate-700 dark:text-slate-200 hover:bg-[var(--mp-role-primary)]/20 hover:text-[var(--mp-role-primary)] transition-colors normal-case tracking-normal font-normal"
-                                    aria-label="What does the Grind Heatmap show?"
-                                  >
-                                    <Info size={14} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); openMonthView(); }}
-                                    className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900/10 dark:bg-white/15 text-slate-700 dark:text-slate-200 hover:bg-[var(--mp-role-primary)]/20 hover:text-[var(--mp-role-primary)] transition-colors normal-case tracking-normal font-normal"
-                                    aria-label="Browse past months of activity"
-                                  >
-                                    <Calendar size={14} />
-                                  </button>
                                </h4>
+                               <div className="flex items-center gap-2 shrink-0">
+                                 <button
+                                   type="button"
+                                   onClick={(e) => { e.stopPropagation(); setHeatmapInfoOpen((prev) => !prev); }}
+                                   className="se-icon-btn"
+                                   aria-label="What does the Grind Heatmap show?"
+                                   title="What Is The Grind Heatmap?"
+                                 >
+                                   <Info size={16} />
+                                 </button>
+                                 <button
+                                   type="button"
+                                   onClick={(e) => { e.stopPropagation(); openMonthView(); }}
+                                   className="se-icon-btn"
+                                   aria-label="Browse past months of activity"
+                                   title="Browse Past Months"
+                                 >
+                                   <Calendar size={16} />
+                                 </button>
+                               </div>
                              </div>
-                             <div className="flex items-end justify-between gap-3 h-28 w-full max-w-sm px-2">
+                             <span className="se-matrix-sub">{heatmapMonthYearLabel}</span>
+
+                             <div className="se-heat-bars">
                                 {grindData.map((d, i) => {
                                   const pct = d.count > 0 ? (d.flowState / 100) * 80 + 20 : 10;
                                   return (
-                                    <div key={i} className="flex-1 flex flex-col items-center gap-2 group/bar relative">
+                                    <div key={i} className="se-heat-col group/bar relative">
                                       {/* Tooltip on hover */}
-                                      <div className="absolute -top-[100px] left-1/2 -translate-x-1/2 bg-slate-950 text-white dark:bg-white dark:text-slate-950 text-[12px] p-3.5 rounded-2xl font-bold opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-2xl border border-white/10 dark:border-slate-200 w-56 flex flex-col gap-1.5">
-                                        <div className="flex justify-between items-center border-b border-white/10 dark:border-slate-200 pb-1.5 font-black text-[13px] uppercase">
-                                          <span className="text-rose-500 dark:text-rose-600 drop-shadow-sm">{d.count > 0 ? `${d.flowState}% ${d.tier}` : 'REST DAY'}</span>
-                                          <span className="text-[10px] text-slate-300 dark:text-slate-500 opacity-90 font-black tracking-wider">{d.day}</span>
+                                      <div className={`se-heat-tip ${i > 3 ? "se-heat-tip-left" : ""} ${i < 2 ? "se-heat-tip-start" : i > 4 ? "se-heat-tip-end" : ""}`}>
+                                        <div className="flex justify-between items-center border-b border-white/10 dark:border-slate-200 pb-1.5 font-black text-[13px]">
+                                          <span className="text-rose-400 dark:text-rose-600">{d.count > 0 ? `${d.flowState}% ${tierLabel(d.tier)}` : 'Rest Day'}</span>
+                                          <span className="text-[11px] text-slate-300 dark:text-slate-500 font-black">{d.day}</span>
                                         </div>
                                         {d.count > 0 ? (
                                           <>
@@ -985,71 +955,81 @@ export default function StudentDashboardPage() {
                                       {/* Fixed-height bar track: the bar's height:X% below needs an
                                           explicit-height ancestor to resolve against, otherwise it
                                           collapses to zero (a "ghost" bar that only shows via tooltip). */}
-                                      <div className="h-20 w-full flex items-end">
+                                      <div className="se-heat-track">
                                         <div
                                           style={{ height: `${pct}%` }}
-                                          className={`w-full rounded-t-[4px] transition-all duration-300 hover:scale-y-105 ${TIER_BAR_CLASSES[d.tier] || REST_BAR_CLASSES}`}
+                                          className={`w-full rounded-t-[6px] transition-all duration-300 hover:scale-y-105 origin-bottom ${TIER_BAR_CLASSES[d.tier] || REST_BAR_CLASSES}`}
                                         />
                                       </div>
                                       <div className="flex flex-col items-center gap-1 mt-2">
-                                        <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-none">{d.day}</span>
-                                        <span className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-200 leading-none">{parseInt(d.date.split("-")[2], 10)}</span>
+                                        <span className="se-heat-day">{d.day}</span>
+                                        <span className="se-heat-date">{parseInt(d.date.split("-")[2], 10)}</span>
                                       </div>
                                     </div>
                                   );
                                 })}
                              </div>
-                             <p className="text-[11px] sm:text-xs font-black text-slate-500 dark:text-slate-400 mt-6 uppercase tracking-[0.25em] leading-none">
+                             <p className="se-matrix-note">
                                 {weeklyConsistencyLabel}
                              </p>
                           </div>
 
                           {/* RIGHT: Next Conquest */}
-                          <div className="flex-1 flex flex-col justify-between border-t sm:border-t-0 sm:border-l border-slate-300 dark:border-white/10 pt-6 sm:pt-0 sm:pl-8 w-full h-full py-1">
-                             <div className="flex items-center justify-between w-full mb-4">
-                               <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white flex items-center gap-2.5">
+                          <div className="se-next flex flex-col min-w-0 min-h-0">
+                             <div className="se-heat-head">
+                               <h4 className="se-matrix-title se-matrix-title-ink">
                                   <Target size={18} className="text-red-500" /> Next Conquest {conquests.length > 1 && `(${conquestIndex + 1}/${conquests.length})`}
                                </h4>
                                {conquests.length > 1 && (
-                                 <div className="flex items-center gap-1 relative z-40">
-                                   <button 
+                                 <div className="flex items-center gap-2 relative z-40 shrink-0">
+                                   <button
+                                     type="button"
                                      onClick={(e) => {
                                        e.stopPropagation();
                                        setConquestIndex((prev) => (prev - 1 + conquests.length) % conquests.length);
                                      }}
-                                     className="p-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 transition-colors"
+                                     className="se-icon-btn"
+                                     aria-label="Previous conquest"
                                    >
-                                     <ChevronLeft size={14} />
+                                     <ChevronLeft size={16} />
                                    </button>
-                                   <button 
+                                   <button
+                                     type="button"
                                      onClick={(e) => {
                                        e.stopPropagation();
                                        setConquestIndex((prev) => (prev + 1) % conquests.length);
                                      }}
-                                     className="p-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 transition-colors"
+                                     className="se-icon-btn"
+                                     aria-label="Next conquest"
                                    >
-                                     <ChevronRight size={14} />
+                                     <ChevronRight size={16} />
                                    </button>
                                  </div>
                                )}
                              </div>
-                             <div className="mb-6 min-h-[50px] h-auto flex flex-col justify-center gap-1.5">
-                               <h5 className="text-slate-900 dark:text-white text-sm font-black tracking-wide leading-tight">
+                             <div className="se-next-body">
+                               <h5 className="se-next-title">
                                  {activeConquest.title}
                                </h5>
-                               <p className="text-slate-600 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider leading-relaxed">
+                               <p className="se-next-detail">
                                  {activeConquest.detail}
                                </p>
                              </div>
-                             <button 
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  Router.push(activeConquest.route); 
-                                }}
-                                className="bg-slate-950 dark:bg-white/10 text-white dark:text-white font-bold uppercase tracking-widest text-[10px] sm:text-xs px-6 py-3.5 rounded-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 w-fit shadow-xl group/btn border border-transparent dark:border-white/20 dark:hover:bg-white/20"
-                             >
-                                {activeConquest.buttonText} <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-                             </button>
+                             <div className="se-next-actions">
+                               <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    Router.push(activeConquest.route);
+                                  }}
+                                  className="se-btn group/btn"
+                               >
+                                  {activeConquest.buttonText} <ArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
+                               </button>
+                               <span className="se-btn se-btn-quiet se-flip-cta">
+                                 Back To Inspiration
+                               </span>
+                             </div>
                           </div>
 
                           {/* Grind Heatmap explainer -- portal-mounted straight to
@@ -1060,19 +1040,19 @@ export default function StudentDashboardPage() {
                               reaching the backdrop's close handler. */}
                           {modalPortalReady && heatmapInfoOpen && createPortal(
                             <div
-                              className="fixed inset-0 z-[9999] flex items-center justify-center p-6 sm:p-10 bg-black/60 backdrop-blur-sm"
+                              className="se-portal fixed inset-0 z-[9999] flex items-center justify-center p-6 sm:p-10 bg-black/60 backdrop-blur-sm"
                               onClick={() => setHeatmapInfoOpen(false)}
                             >
                               <div
-                                className="max-w-sm w-full bg-white text-slate-900 dark:bg-slate-900 dark:text-white text-[12px] leading-relaxed p-5 rounded-2xl font-semibold shadow-2xl border border-slate-200 dark:border-white/10"
+                                className="se-sheet max-w-md w-full text-[13px] leading-relaxed p-6 font-medium"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <div className="flex items-center justify-between mb-3">
-                                  <p className="font-black uppercase text-[11px] tracking-wider text-[var(--mp-role-primary)]">What is the Grind Heatmap?</p>
+                                  <p className="se-sheet-title">What Is The Grind Heatmap?</p>
                                   <button
                                     type="button"
                                     onClick={() => setHeatmapInfoOpen(false)}
-                                    className="text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-white transition-colors"
+                                    className="se-icon-btn"
                                     aria-label="Close"
                                   >
                                     <X size={16} />
@@ -1096,11 +1076,11 @@ export default function StudentDashboardPage() {
                               small card and force scrolling. */}
                           {modalPortalReady && monthViewOpen && createPortal(
                             <div
-                              className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8 bg-black/70 backdrop-blur-sm"
+                              className="se-portal fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8 bg-black/70 backdrop-blur-sm"
                               onClick={closeMonthView}
                             >
                               <div
-                                className="w-full max-w-md bg-white text-slate-900 dark:bg-slate-900 dark:text-white rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-5 max-h-[85vh] overflow-y-auto"
+                                className="se-sheet w-full max-w-md p-5 max-h-[85vh] overflow-y-auto"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <div className="flex items-center justify-between mb-4">
@@ -1108,19 +1088,19 @@ export default function StudentDashboardPage() {
                                     <button
                                       type="button"
                                       onClick={goToPreviousMonth}
-                                      className="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                                      className="se-icon-btn"
                                       aria-label="Previous month"
                                     >
                                       <ChevronLeft size={16} />
                                     </button>
-                                    <p className="font-black uppercase text-[12px] tracking-wider text-[var(--mp-role-primary)] w-36 text-center">
+                                    <p className="se-sheet-title w-40 text-center">
                                       {monthCursor ? `${MONTH_NAMES[monthCursor.getMonth()]} ${monthCursor.getFullYear()}` : ""}
                                     </p>
                                     <button
                                       type="button"
                                       onClick={goToNextMonth}
                                       disabled={isCurrentBrowsedMonth}
-                                      className="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                                      className="se-icon-btn"
                                       aria-label="Next month"
                                     >
                                       <ChevronRight size={16} />
@@ -1129,7 +1109,7 @@ export default function StudentDashboardPage() {
                                   <button
                                     type="button"
                                     onClick={closeMonthView}
-                                    className="text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-white transition-colors"
+                                    className="se-icon-btn"
                                     aria-label="Back to this week"
                                   >
                                     <X size={16} />
@@ -1137,18 +1117,18 @@ export default function StudentDashboardPage() {
                                 </div>
 
                                 {monthRangeQuery.isLoading ? (
-                                  <div className="flex items-center justify-center gap-2 py-10 opacity-70 text-[12px] font-bold uppercase tracking-wider">
-                                    <Loader2 size={16} className="animate-spin" /> Loading month...
+                                  <div className="flex items-center justify-center gap-2 py-10 opacity-70 text-[13px] font-bold">
+                                    <Loader2 size={16} className="animate-spin" /> Loading Month...
                                   </div>
                                 ) : monthRangeQuery.isError ? (
-                                  <p className="text-center py-10 text-[12px] font-bold text-rose-600 dark:text-rose-400">
+                                  <p className="text-center py-10 text-[13px] font-bold text-rose-600 dark:text-rose-400">
                                     Couldn't load this month. Try again in a moment.
                                   </p>
                                 ) : (
                                   <>
                                     <div className="grid grid-cols-7 gap-1.5 mb-2 pb-2 border-b border-slate-200 dark:border-white/10">
                                       {WEEKDAY_LABELS.map((label, i) => (
-                                        <div key={i} className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                        <div key={i} className="text-center text-[11px] font-bold text-slate-500 dark:text-slate-400">
                                           {label}
                                         </div>
                                       ))}
@@ -1171,9 +1151,9 @@ export default function StudentDashboardPage() {
                                                 ? `${formatCalendarDetailDate(d.date)}: ${d.flowState}% ${d.tier}, ${d.accuracy}% accuracy, ${d.timeSpent} minutes spent`
                                                 : `${formatCalendarDetailDate(d.date)}: Rest day, no activity`
                                             }
-                                            className={`aspect-square rounded-md flex items-center justify-center text-[11px] font-black transition-all ${
+                                            className={`se-cal-day aspect-square rounded-lg flex items-center justify-center text-[12px] font-black transition-all ${
                                               d.count > 0 ? TIER_BAR_CLASSES[d.tier] || REST_BAR_CLASSES : "bg-slate-100 dark:bg-white/5"
-                                            } ${d.count > 0 ? "text-white" : "text-slate-400 dark:text-slate-500"} ${
+                                            } ${d.count > 0 ? "text-white" : "text-slate-500 dark:text-slate-400"} ${
                                               isActive
                                                 ? "ring-2 ring-[var(--mp-role-primary)] ring-offset-1 ring-offset-white dark:ring-offset-slate-900 scale-105"
                                                 : "hover:scale-105"
@@ -1195,12 +1175,12 @@ export default function StudentDashboardPage() {
                                         activeMonthDay.count > 0 ? (
                                           <>
                                             <div className="flex items-center justify-between mb-1.5">
-                                              <span className="font-black text-[12px]">{formatCalendarDetailDate(activeMonthDay.date)}</span>
-                                              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full text-white ${TIER_BAR_CLASSES[activeMonthDay.tier] || REST_BAR_CLASSES}`}>
-                                                {activeMonthDay.flowState}% {activeMonthDay.tier}
+                                              <span className="font-black text-[13px]">{formatCalendarDetailDate(activeMonthDay.date)}</span>
+                                              <span className={`text-[11px] font-black px-2 py-0.5 rounded-full text-white ${TIER_BAR_CLASSES[activeMonthDay.tier] || REST_BAR_CLASSES}`}>
+                                                {activeMonthDay.flowState}% {tierLabel(activeMonthDay.tier)}
                                               </span>
                                             </div>
-                                            <div className="flex items-center gap-4 text-[11px] font-bold opacity-80">
+                                            <div className="flex items-center gap-4 text-[12px] font-bold opacity-80">
                                               <span className="flex items-center gap-1">
                                                 <CheckCircle size={12} className="text-emerald-600 dark:text-emerald-400" /> {activeMonthDay.accuracy}% accuracy
                                               </span>
@@ -1209,23 +1189,23 @@ export default function StudentDashboardPage() {
                                               </span>
                                             </div>
                                             {activeMonthDay.insight && (
-                                              <p className="text-[11px] opacity-70 italic mt-1.5 leading-snug">"{activeMonthDay.insight}"</p>
+                                              <p className="text-[12px] opacity-70 italic mt-1.5 leading-snug">"{activeMonthDay.insight}"</p>
                                             )}
                                           </>
                                         ) : (
                                           <div className="flex items-center justify-between">
-                                            <span className="font-black text-[12px]">{formatCalendarDetailDate(activeMonthDay.date)}</span>
-                                            <span className="text-[10px] font-bold uppercase tracking-wider opacity-50">Rest day</span>
+                                            <span className="font-black text-[13px]">{formatCalendarDetailDate(activeMonthDay.date)}</span>
+                                            <span className="text-[11px] font-bold opacity-60">Rest Day</span>
                                           </div>
                                         )
                                       ) : (
-                                        <p className="text-[11px] font-bold uppercase tracking-wider opacity-40 text-center">
+                                        <p className="text-[12px] font-semibold opacity-60 text-center">
                                           Hover or tap a day to see details
                                         </p>
                                       )}
                                     </div>
 
-                                    <p className="text-[11px] font-black uppercase tracking-[0.2em] opacity-60 mt-4 text-center">
+                                    <p className="text-[12px] font-bold opacity-70 mt-4 text-center">
                                       {monthConsistencyLabel}
                                     </p>
                                   </>
@@ -1243,7 +1223,7 @@ export default function StudentDashboardPage() {
             </div>
 
             {/* RIGHT COLUMN: Quick Links Bento Grid */}
-            <div className="lg:col-span-4 grid grid-cols-2 grid-rows-3 gap-3 sm:gap-4 h-full min-h-0">
+            <div className="se-quick-grid lg:col-span-4 grid grid-cols-2 grid-rows-3 gap-3 sm:gap-4 h-full min-h-0">
               {QuickLinks.map((LinkItem) => {
                 const renderIcon = () => {
                   const props = { size: 28, strokeWidth: 2 };
@@ -1260,17 +1240,14 @@ export default function StudentDashboardPage() {
                 
                 return (
                   <TiltCard key={LinkItem.Route} onClick={() => Router.push(LinkItem.Route)} className="group h-full">
-                    <div className="math-dashboard-quick-card flex flex-col items-center justify-center text-center h-full w-full !rounded-[24px] border border-white/50 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl shadow-md hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent dark:from-white/5 dark:to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                      
-                      <span className="math-dashboard-quick-icon mb-3 !flex items-center justify-center !w-[56px] !h-[56px] rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-[0_0_20px_var(--mp-role-shadow)] z-10">
+                    <button type="button" className="se-quick" aria-label={`Open ${LinkItem.Label}`}>
+                      <span className="se-quick-icon">
                         {renderIcon()}
                       </span>
-                      
-                      <span className="block w-full px-2 text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white drop-shadow-sm group-hover:text-[var(--mp-role-primary)] transition-colors z-10">
+                      <span className="se-quick-label">
                         {LinkItem.Label}
                       </span>
-                    </div>
+                    </button>
                   </TiltCard>
                 );
               })}

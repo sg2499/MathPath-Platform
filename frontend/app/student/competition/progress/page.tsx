@@ -54,7 +54,7 @@ function CompactProgressMetric({ label, value, icon }: { label: string; value: s
       <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
         {label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className={`relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white ${String(value ?? "").length > 12 ? "se-metric-long" : ""}`}>
         {value}
       </p>
     </div>
@@ -70,8 +70,8 @@ function ConceptRow({ concept, accuracy, isStrong }: { concept: string; accuracy
   }, [accuracy]);
 
   return (
-    <div className="group relative flex items-center justify-between rounded-2xl p-3 transition-all duration-300 hover:bg-white/80 dark:hover:bg-slate-800/60">
-      <span className="relative z-10 truncate pr-4 text-sm font-bold text-slate-700 transition-all duration-300 group-hover:translate-x-1 group-hover:text-slate-950 dark:text-slate-300 dark:group-hover:text-white">
+    <div className="se-insight-row group relative flex items-center justify-between gap-2 rounded-2xl p-3 transition-all duration-300 hover:bg-white/80 dark:hover:bg-slate-800/60">
+      <span className="relative z-10 min-w-0 flex-1 pr-4 text-sm font-bold leading-snug text-slate-700 transition-all duration-300 group-hover:translate-x-1 group-hover:text-slate-950 dark:text-slate-300 dark:group-hover:text-white">
         {concept}
       </span>
       <div className="relative z-10 flex shrink-0 items-center gap-4">
@@ -251,7 +251,7 @@ export default function StudentCompetitionProgressPage() {
                               {levelOpen && (
                                 <div className="mt-6 grid gap-6 lg:grid-cols-2 animate-in fade-in slide-in-from-top-4 duration-500 ease-out">
                                   {/* Strengths Card */}
-                                  <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-emerald-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-emerald-500/10 dark:border-emerald-500/10 dark:bg-slate-950/60 sm:p-8">
+                                  <div className="se-insight-card group relative flex flex-col overflow-hidden rounded-[32px] border border-emerald-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-emerald-500/10 dark:border-emerald-500/10 dark:bg-slate-950/60 sm:p-8">
                                     <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-400/10 blur-[60px] transition-all duration-500 group-hover:bg-emerald-400/20" />
                                     
                                     <div className="relative z-10 mb-8 flex items-center gap-4 border-b border-emerald-100 pb-5 dark:border-emerald-900/30">
@@ -281,7 +281,7 @@ export default function StudentCompetitionProgressPage() {
                                   </div>
 
                                   {/* Weaknesses Card */}
-                                  <div className="group relative flex flex-col overflow-hidden rounded-[32px] border border-rose-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-rose-500/10 dark:border-rose-500/10 dark:bg-slate-950/60 sm:p-8">
+                                  <div className="se-insight-card group relative flex flex-col overflow-hidden rounded-[32px] border border-rose-500/20 bg-white/60 p-6 shadow-xl backdrop-blur-2xl transition-all duration-300 hover:shadow-rose-500/10 dark:border-rose-500/10 dark:bg-slate-950/60 sm:p-8">
                                     <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-rose-400/10 blur-[60px] transition-all duration-500 group-hover:bg-rose-400/20" />
                                     
                                     <div className="relative z-10 mb-8 flex items-center gap-4 border-b border-rose-100 pb-5 dark:border-rose-900/30">
@@ -289,7 +289,7 @@ export default function StudentCompetitionProgressPage() {
                                         <AlertTriangle size={24} strokeWidth={2.5} />
                                       </div>
                                       <div>
-                                        <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Areas to Improve</h3>
+                                        <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Areas To Improve</h3>
                                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600/70 dark:text-rose-400/70">&lt; 70% Accuracy</p>
                                       </div>
                                     </div>

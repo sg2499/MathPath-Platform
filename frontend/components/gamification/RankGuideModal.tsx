@@ -57,7 +57,7 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
                 <div className="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
                   <Compass className="w-5 h-5 text-indigo-400" />
                 </div>
-                <span className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] shadow-indigo-500/50">SYSTEM DIRECTIVE</span>
+                <span className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] shadow-indigo-500/50">System Directive</span>
               </div>
               <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter drop-shadow-md">
                 The Ecosystem Guide

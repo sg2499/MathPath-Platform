@@ -8,6 +8,7 @@ import { X, Award, Zap, Lock, CheckCircle2, ChevronRight, ChevronLeft, Info } fr
 import { RankBadge } from './RankBadge';
 import { RankCinematicOverlay } from './RankCinematicOverlay';
 import { RankGuideModal } from './RankGuideModal';
+import { InitCaps } from "@/lib/initCaps";
 
 export interface RankInspectionModalProps {
   isOpen: boolean;
@@ -82,7 +83,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
 
               <div className="flex items-center gap-3 mb-3">
                 <Award className="w-6 h-6 text-indigo-400" />
-                <span className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] shadow-indigo-500/50">RANK CONQUEST ROADMAP</span>
+                <span className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] shadow-indigo-500/50">Rank Conquest Roadmap</span>
               </div>
               <h2 className="text-5xl font-black text-white uppercase tracking-tighter drop-shadow-md">
                 Division Pathway
@@ -92,7 +93,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
               </p>
 
               <div className="absolute right-10 bottom-8 hidden md:flex flex-col items-end gap-1.5">
-                <span className="text-[10px] font-black text-indigo-400/80 uppercase tracking-[0.2em] shadow-indigo-500/50 drop-shadow-sm">TOTAL ACQUIRED XP</span>
+                <span className="text-[10px] font-black text-indigo-400/80 uppercase tracking-[0.2em] shadow-indigo-500/50 drop-shadow-sm">Total Acquired XP</span>
                 <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl px-5 py-2 flex items-center gap-2 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-md">
                   <span className="text-3xl font-black text-white tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
                     {currentXp.toLocaleString()}
@@ -205,7 +206,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
                             "text-[10px] md:text-sm font-black uppercase tracking-widest whitespace-nowrap",
                             isActive ? "text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.8)]" : isCompleted ? "text-slate-400" : "text-slate-600"
                           )}>
-                            {rankName}
+                            {InitCaps(rankName)}
                           </span>
                         </div>
                       </div>
@@ -228,7 +229,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
                 </div>
                 <div className="shrink-0 md:ml-auto">
                   <button onClick={onClose} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black uppercase tracking-widest rounded-xl transition-colors shadow-[0_0_20px_rgba(79,70,229,0.4)] flex items-center gap-2">
-                    Back to Dashboard <ChevronRight className="w-4 h-4" />
+                    Back To Dashboard <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
               </div>

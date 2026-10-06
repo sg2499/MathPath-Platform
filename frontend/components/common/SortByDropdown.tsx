@@ -141,7 +141,7 @@ export function SortByDropdown<Key extends string>({
         type="button"
         disabled={isNatural}
         onClick={() => onChange(sortKey, direction === "asc" ? "desc" : "asc")}
-        title={direction === "asc" ? "Ascending -- click for descending" : "Descending -- click for ascending"}
+        title={direction === "asc" ? "Ascending — click for descending" : "Descending — click for ascending"}
         aria-label={direction === "asc" ? "Sort ascending" : "Sort descending"}
         className="math-select inline-flex w-11 shrink-0 items-center justify-center px-0 disabled:cursor-not-allowed disabled:opacity-40"
       >

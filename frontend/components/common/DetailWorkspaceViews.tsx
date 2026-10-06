@@ -906,7 +906,7 @@ export function Metric({
         <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
           {label}
         </p>
-        <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+        <p className={`relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white ${String(value ?? "").length > 12 ? "se-metric-long" : ""}`}>
           {value}
         </p>
       </div>
@@ -3221,9 +3221,15 @@ export function CompactRecordTable({
   );
 
   return (
-    <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <div
+      // mp-record-* are plain hooks (no styles of their own) so a role's own
+      // stylesheet can size this table's columns; the student look uses them
+      // to stop the last column being cut off (see student-elevate.css).
+      className="mp-record-table overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
+      data-columns={(hideLessonColumn ? 0 : 1) + (showAttemptColumn ? 1 : 0) + 8}
+    >
       <div
-        className={`math-admin-light-compact-record-header grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 font-black uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
+        className={`mp-record-head math-admin-light-compact-record-header grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 font-black uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
       >
         {hideLessonColumn ? null : <SortHeader label="Lesson" sortKey="lesson" />}
         <SortHeader label="DPS" sortKey="dps" />
@@ -3244,7 +3250,7 @@ export function CompactRecordTable({
           return (
             <div
               key={[row.assignmentId || "assignment", row.attemptId || "attempt", row.id || "row", row.attemptLabel || row.attempt || "entry", index].join("-")}
-              className={`grid ${GridColumns} items-center gap-3 px-4 ${dense ? "py-3" : "py-4"}`}
+              className={`mp-record-row grid ${GridColumns} items-center gap-3 px-4 ${dense ? "py-3" : "py-4"}`}
             >
               {hideLessonColumn ? null : (
                 <div className="min-w-0">

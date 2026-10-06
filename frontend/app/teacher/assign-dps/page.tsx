@@ -420,7 +420,7 @@ export default function TeacherAssignDpsPage() {
         ) : null}
 
         {!loading && dpsForLevel.length > 0 && !selectedLesson && !isAllLessonsView ? (
-          <EmptyState message="Select a lesson to see eligible students -- then either assign one sheet or all sheets in that lesson at once. Or choose &ldquo;All Lessons (Overview)&rdquo; to see where every student currently stands." />
+          <EmptyState message="Select a lesson to see eligible students — then either assign one sheet or all sheets in that lesson at once. Or choose &ldquo;All Lessons (Overview)&rdquo; to see where every student currently stands." />
         ) : null}
 
         {isAllLessonsView ? (
@@ -477,7 +477,7 @@ export default function TeacherAssignDpsPage() {
                 <p className="mt-1 text-sm text-slate-600">
                   {selectedDps
                     ? `Only students in ${selectedDps.levelCode} can be selected.`
-                    : `All ${dpsForLesson.length} sheet(s) in this lesson -- only students in ${selectedLesson.levelCode} can be selected.`}
+                    : `All ${dpsForLesson.length} sheet(s) in this lesson — only students in ${selectedLesson.levelCode} can be selected.`}
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 w-auto">
@@ -563,7 +563,7 @@ export default function TeacherAssignDpsPage() {
                       />
                       {student.isNewToLevel && (!selectedLesson || selectedLesson.lessonNumber !== student.currentLessonNumber) ? (
                         <span className="math-badge border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-                          New to this level -- starting on Lesson {selectedLesson?.lessonNumber ?? "?"}
+                          New to this level — starting on Lesson {selectedLesson?.lessonNumber ?? "?"}
                         </span>
                       ) : null}
                     </div>
@@ -796,7 +796,7 @@ export default function TeacherAssignDpsPage() {
               <div className="flex gap-3 rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-amber-900">
                 <AlertTriangle size={18} className="mt-0.5 shrink-0" />
                 <p className="text-sm font-bold leading-6">
-                  Each sheet unlocks for the selected student(s) at the start of its date (IST) and stays visible after that -- earlier sheets remain available once later ones unlock too. Dates default to 5 consecutive days starting today, weekends included, and every date can be edited above.
+                  Each sheet unlocks for the selected student(s) at the start of its date (IST) and stays visible after that — earlier sheets remain available once later ones unlock too. Dates default to 5 consecutive days starting today, weekends included, and every date can be edited above.
                 </p>
               </div>
 

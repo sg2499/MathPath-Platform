@@ -4,15 +4,25 @@ import { Award, BookOpenCheck, CheckCircle2, Clock3, Target, XCircle, AlertTrian
 import { StudentPerformanceFeedback } from "@/components/common/PerformanceFeedback";
 import type { ReactNode } from "react";
 
+// One decision for the whole result page: has this sheet's own benchmark been
+// met? The status card and the feedback card under it both use this, so they
+// can never disagree (the feedback card used to apply a fixed 75%, which
+// contradicted "Benchmark Achieved" on a sheet whose benchmark is 70%).
+function IsBenchmarkCleared(result: AttemptResult): boolean {
+  const Summary = (result.summary || {}) as any;
+  const Workflow = result.retryWorkflow as any;
+  const BenchmarkPercentage = Number(Summary.benchmarkPercentage || 75);
+  const AccuracyPercentage = Number(Summary.accuracyPercentage || 0);
+  const BenchmarkStatus = String(Summary.benchmarkStatus || (result as any).benchmarkState || "").toUpperCase();
+  const ExplicitCleared = BenchmarkStatus.includes("MET") || BenchmarkStatus.includes("CLEAR") || Summary.requiresAttention === false;
+  const FallbackCleared = AccuracyPercentage >= BenchmarkPercentage;
+  return ExplicitCleared || FallbackCleared || Workflow?.state === "CLEARED";
+}
+
 function RetryWorkflowCard({ result }: { result: AttemptResult }) {
   const Workflow = result.retryWorkflow;
   const Summary = result.summary;
-  const BenchmarkPercentage = Number(Summary.benchmarkPercentage || 75);
-  const AccuracyPercentage = Number(Summary.accuracyPercentage || 0);
-  const BenchmarkStatus = String(Summary.benchmarkStatus || result.benchmarkState || "").toUpperCase();
-  const ExplicitCleared = BenchmarkStatus.includes("MET") || BenchmarkStatus.includes("CLEAR") || Summary.requiresAttention === false;
-  const FallbackCleared = AccuracyPercentage >= BenchmarkPercentage;
-  const IsCleared = ExplicitCleared || FallbackCleared || Workflow?.state === "CLEARED";
+  const IsCleared = IsBenchmarkCleared(result);
 
   const State = IsCleared ? "CLEARED" : Workflow?.state || "RETRY_REQUIRED";
   const IsManualReview = !IsCleared && (State === "MANUAL_REVIEW_REQUIRED" || Boolean(Workflow?.requiresManualIntervention || result.requiresManualIntervention));
@@ -106,6 +116,7 @@ export function ResultSummary({ result }: { result: AttemptResult }) {
     <div className="mt-5">
       <StudentPerformanceFeedback
         accuracy={s.accuracyPercentage}
+        benchmarkCleared={IsBenchmarkCleared(result)}
         seed={`${(result as any).attemptId || ""}-${s.score}-${s.accuracyPercentage}`}
         previousAccuracy={result.retryWorkflow?.previousAccuracyPercentage}
         attemptNumber={result.retryWorkflow?.attemptNumber ?? result.attemptNumber ?? 0}
@@ -128,7 +139,7 @@ function Metric({ icon, label, value }: { icon: ReactNode; label: string; value:
       <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
         {label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className={`relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white ${String(value ?? "").length > 12 ? "se-metric-long" : ""}`}>
         {value}
       </p>
     </div>

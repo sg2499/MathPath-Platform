@@ -6,6 +6,7 @@ import { EffectComposer, Bloom, ChromaticAberration, Noise, Vignette } from '@re
 import { Icosahedron, Sphere, Sparkles, Float, MeshDistortMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
+import { InitCaps } from "@/lib/initCaps";
 
 interface PackItem {
   id: string;
@@ -253,7 +254,7 @@ export function AlphaPackUnboxCinematic({ pack, onComplete }: Props) {
             className="absolute inset-0 z-30 flex flex-col items-center justify-end pb-32 pointer-events-none"
           >
             <h3 className="text-xl font-bold uppercase tracking-[0.4em] text-white/50 mb-2">
-              {pack.rarity}
+              {InitCaps(pack.rarity)}
             </h3>
             <h1 className="text-6xl font-black uppercase tracking-tighter text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.5)] mb-12 text-center max-w-3xl">
               {pack.name}

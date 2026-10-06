@@ -674,7 +674,7 @@ def CollectPmL3CompetitionSectionLockedQuestions(
             api_error(
                 400,
                 "PM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
-                f"Could not generate the required {RequiredCount} questions for {SectionTitle} -- "
+                f"Could not generate the required {RequiredCount} questions for {SectionTitle} — "
                 f"only {len(SectionQuestions)} unique questions are available across every concept "
                 f"in this section at this mock size. Try a smaller question count for this section.",
                 {"sectionKey": SectionKey, "required": RequiredCount, "generated": len(SectionQuestions)},
@@ -1101,7 +1101,7 @@ def CollectPmL4CompetitionSectionLockedQuestions(
             api_error(
                 400,
                 "PM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
-                f"Could not generate the required {RequiredCount} questions for {SectionTitle} -- "
+                f"Could not generate the required {RequiredCount} questions for {SectionTitle} — "
                 f"only {len(SectionQuestions)} unique questions are available across every concept "
                 f"in this section at this mock size. Try a smaller question count for this section.",
                 {"sectionKey": SectionKey, "required": RequiredCount, "generated": len(SectionQuestions)},
@@ -1366,7 +1366,7 @@ def CollectPmL2CompetitionSectionLockedQuestions(
             api_error(
                 400,
                 "PM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
-                f"Could not generate the required {RequiredCount} questions for {SectionTitle} -- "
+                f"Could not generate the required {RequiredCount} questions for {SectionTitle} — "
                 f"only {len(SectionQuestions)} unique questions are available across every concept "
                 f"in this section (and any cross-section overlap) at this mock size. Try a smaller "
                 f"question count for this section.",
@@ -1409,7 +1409,7 @@ def PmCompetitionLevelConfig(LevelRecord: Level) -> dict[str, Any]:
             400,
             "PM_COMPETITION_LEVEL_NOT_CONFIGURED",
             f"No competition mock section structure has been defined yet for PM level '{LevelCode}'. "
-            "PM competition mocks are designed level by level -- add this level's own sections and "
+            "PM competition mocks are designed level by level — add this level's own sections and "
             "concept pools to PM_COMPETITION_LEVEL_REGISTRY before generating mocks for it.",
             {"levelCode": LevelCode, "configuredLevels": sorted(PM_COMPETITION_LEVEL_REGISTRY.keys())},
         )
@@ -1600,7 +1600,7 @@ def CollectPmCompetitionSectionLockedQuestions(
             api_error(
                 400,
                 "PM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
-                f"Could not generate the required {RequiredCount} questions for {SectionTitle} -- "
+                f"Could not generate the required {RequiredCount} questions for {SectionTitle} — "
                 f"only {len(SectionQuestions)} unique questions are available across every concept "
                 f"in this section at this mock size. Try a smaller question count for this section.",
                 {"sectionKey": SectionKey, "required": RequiredCount, "generated": len(SectionQuestions)},

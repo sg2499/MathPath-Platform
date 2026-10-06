@@ -247,7 +247,7 @@ function CompactProgressMetric({ label, value, icon }: { label: string; value: s
       <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
         {label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className={`relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white ${String(value ?? "").length > 12 ? "se-metric-long" : ""}`}>
         {value}
       </p>
     </div>

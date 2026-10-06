@@ -187,7 +187,7 @@ export default function AdminAnnualCompetitionAttemptReviewPage() {
           </div>
         ) : (
           <div className="math-card p-5 text-sm font-bold text-slate-700 dark:text-slate-300">
-            This attempt has not been scored yet -- results appear automatically once the student's last section closes.
+            This attempt has not been scored yet — results appear automatically once the student's last section closes.
           </div>
         )}
 
@@ -298,7 +298,7 @@ function ScorecardTab({ Review }: { Review: AnnualCompetitionAttemptReview }) {
               {Rows.map((Row) => (
                 <tr key={Row.sectionNumber} className="border-b border-slate-100 dark:border-slate-800">
                   <td className="px-3 py-3 font-bold text-slate-900 dark:text-slate-100">
-                    Section {Row.sectionNumber} -- {Row.sectionTitle}
+                    Section {Row.sectionNumber} — {Row.sectionTitle}
                   </td>
                   <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{Row.totalQuestions}</td>
                   <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{Row.attemptedCount}</td>

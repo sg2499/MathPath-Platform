@@ -50,7 +50,12 @@ def _level_mastery_pascal(level_code: str) -> str:
     return "".join(part.capitalize() for part in level_code.strip().replace(" ", "-").split("-") if part)
 
 def _level_mastery_display(level_code: str) -> str:
-    return level_code.strip().replace("-", " ")
+    # The level code exactly as it is written everywhere else on the platform
+    # ("YLM-L1"). 2026-10 (Shailesh): badge names must be clean. This used to
+    # drop the hyphen and the name then joined it to the tier with a double
+    # hyphen ("YLM L1 -- Cleared"). Names are re-synced on every boot (see the
+    # upsert below), so existing rows pick the clean name up automatically.
+    return level_code.strip()
 
 def _level_mastery_description(tier: str, display: str) -> str:
     if tier == "BASE":
@@ -931,7 +936,7 @@ class AchievementEngine:
             display = _level_mastery_display(level.level_code)
             code = f"level_mastery_{key}"
             for tier, tier_label in _LEVEL_MASTERY_TIER_LABELS.items():
-                name = f"{display} -- {tier_label}"
+                name = f"{display} {tier_label}"
                 desc = _level_mastery_description(tier, display)
                 icon = f"LevelMastery{pascal}{tier_label}"
                 req = _LEVEL_MASTERY_REQUIRED_COUNT[tier]

@@ -46,7 +46,7 @@ def _ensure_module(db: Session) -> Module:
         module = Module(
             module_code=MODULE_CODE,
             module_name="Bridge Module",
-            description="Bridge Module -- links Preparatory to Intermediate for MathPath Abacus learning.",
+            description="Bridge Module — links Preparatory to Intermediate for MathPath Abacus learning.",
             display_order=MODULE_DISPLAY_ORDER,
             is_active=True,
         )
@@ -54,7 +54,7 @@ def _ensure_module(db: Session) -> Module:
         db.flush()
     else:
         module.module_name = module.module_name or "Bridge Module"
-        module.description = module.description or "Bridge Module -- links Preparatory to Intermediate for MathPath Abacus learning."
+        module.description = module.description or "Bridge Module — links Preparatory to Intermediate for MathPath Abacus learning."
         module.display_order = module.display_order or MODULE_DISPLAY_ORDER
         module.is_active = True
     return module
@@ -92,7 +92,7 @@ def _ensure_lesson(db: Session, level: Level, lesson_number: int, lesson_title: 
             level_id=level.id,
             lesson_number=lesson_number,
             lesson_title=lesson_title,
-            description="BM-L1 lesson reproduced from Bridge Level.xlsx (40 authoritative lesson sheets) -- concept, technique, digit width, and row count match the workbook; question values are generated fresh per publish/attempt via question_engine/bm, BM's own dedicated engine.",
+            description="BM-L1 lesson reproduced from Bridge Level.xlsx (40 authoritative lesson sheets) — concept, technique, digit width, and row count match the workbook; question values are generated fresh per publish/attempt via question_engine/bm, BM's own dedicated engine.",
             display_order=lesson_number,
             is_active=True,
         )
@@ -100,7 +100,7 @@ def _ensure_lesson(db: Session, level: Level, lesson_number: int, lesson_title: 
         db.flush()
     else:
         lesson.lesson_title = lesson_title
-        lesson.description = lesson.description or "BM-L1 lesson reproduced from Bridge Level.xlsx (40 authoritative lesson sheets) -- concept, technique, digit width, and row count match the workbook; question values are generated fresh per publish/attempt via question_engine/bm, BM's own dedicated engine."
+        lesson.description = lesson.description or "BM-L1 lesson reproduced from Bridge Level.xlsx (40 authoritative lesson sheets) — concept, technique, digit width, and row count match the workbook; question values are generated fresh per publish/attempt via question_engine/bm, BM's own dedicated engine."
         lesson.display_order = lesson_number
         lesson.is_active = True
     return lesson

@@ -1,3 +1,4 @@
+import type React from "react";
 import { VerticalQuestion } from "@/components/student/VerticalQuestion";
 
 type DisplayMode =
@@ -65,6 +66,50 @@ function BuildExpression(Operands: Array<number | string>, Operators: string[]):
   }).join(" ");
 }
 
+// One number size for every question (2026-10, Shailesh: "the font size of the
+// numbers displayed in the question no matter the concept should be same ...
+// across all the modules and the levels"). Every digit a question shows, in
+// every display type below and in VerticalQuestion, uses the mp-q-num class,
+// whose size is the single --mp-question-size value set in globals.css. No
+// display type picks its own size and nothing shrinks with length any more:
+// a long expression breaks onto the next line instead (see BindOperators).
+const QUESTION_NUMBER_CLASS = "mp-q-num";
+
+// Display only: keeps each operator attached to the number that follows it, so
+// when a long expression has to break it breaks BEFORE an operator
+// ("... + 6260 ÷ 626" / "+ ∛185193 − 129²"), never between an operator and
+// its number and never inside a number. The expression text itself is unchanged.
+function BindOperators(Expression: string): string {
+  return Expression.replace(/\s+([+\-−×÷=\/])\s+/g, " $1\u00a0");
+}
+
+// Display only: Init Caps for the captions and column labels of the table-style
+// questions. They arrive from the engines in mixed forms ("ADD", "TIMES",
+// "Rate of Interest", "Write the Number from the Given Position"). An
+// all-capitals label is lower-cased first; then the first letter of every word
+// is capitalised and nothing else is touched ("Term (Years)", "Profit %" and
+// abbreviations inside mixed-case text stay as they are). Never used on an
+// expression or on any number.
+function DisplayLabel(Label: string): string {
+  const Text = String(Label ?? "");
+  if (!Text) return Text;
+  const Base = Text === Text.toUpperCase() && Text !== Text.toLowerCase() ? Text.toLowerCase() : Text;
+  return Base.replace(/(^|[\s(\/-])([a-z])/g, (_, Lead: string, Letter: string) => `${Lead}${Letter.toUpperCase()}`);
+}
+
+// Column widths for the table-style questions. On ordinary screens the columns
+// are equal. On a very narrow phone equal columns can be too tight for a long
+// value next to a short one (e.g. "26881.25" beside "25"), so there the columns
+// share the row in proportion to what they hold (see .mp-q-cols in globals.css).
+// Both the label row and the value row use the same template, so they stay aligned.
+function QuestionColumnVars(Values: string[]): React.CSSProperties {
+  const Fit = Values.map((Value) => `minmax(0, ${Math.max(Value.length, 3)}fr)`).join(" ");
+  return {
+    ["--mp-q-cols-even" as string]: `repeat(${Values.length}, minmax(0, 1fr))`,
+    ["--mp-q-cols-fit" as string]: Fit,
+  } as React.CSSProperties;
+}
+
 function RenderExpressionWithBlueQuestion(Expression: string) {
   const Parts = Expression.split(/([?？])/g);
 
@@ -81,17 +126,15 @@ function ExpressionQuestion({
   operands,
   operators,
   questionText,
-  mode,
 }: {
   operands: Array<number | string>;
   operators: string[];
   questionText?: string | null;
+  // Kept so callers stay unchanged; both modes now render identically.
   mode: "EXPRESSION_WORKSHEET" | "ANSWER_POSITION";
 }) {
   const Expression = questionText?.trim() || BuildExpression(operands, operators);
   const ExpressionAlreadyContainsPrompt = /[?？]/.test(Expression);
-  const IsAnswerPosition = mode === "ANSWER_POSITION";
-  const CharacterCount = Expression.replace(/\s+/g, "").length;
   // 2026-07-24 fix: this used to force whiteSpace:nowrap below a 26-character
   // threshold, on the assumption a "short" expression always fits one line.
   // That assumption broke as soon as this component was reused inside a
@@ -103,23 +146,22 @@ function ExpressionQuestion({
   // the browser decide whether a line actually needs to break, based on its
   // real rendered width) fixes this everywhere this component is used,
   // without needing to guess a container width from a character count.
-  const WrapThreshold = 26;
-  const FontSizePx = IsAnswerPosition
-    ? Math.max(15, 28 - Math.max(0, CharacterCount - 20) * 0.32)
-    : Math.max(15, 26 - Math.max(0, CharacterCount - WrapThreshold) * 0.15);
-
+  // 2026-10: the size no longer depends on the expression's length (it used to
+  // shrink from 26-28px down to 15px for long expressions) -- see
+  // QUESTION_NUMBER_CLASS above. Wrapping stays allowed for the same reason as
+  // the 2026-07-24 fix: a long expression in a narrow container breaks onto the
+  // next line rather than overflowing.
   return (
     <div className="mx-auto flex w-full max-w-full justify-center rounded-[20px] bg-white px-4 py-4 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
       <div
-        className="w-full text-center font-mono font-black leading-[1.35] py-1 tracking-tight"
+        className={`w-full text-center font-mono font-black leading-[1.35] py-1 tracking-tight ${QUESTION_NUMBER_CLASS}`}
         style={{
-          fontSize: `${FontSizePx}px`,
           whiteSpace: "normal",
           overflowWrap: "break-word",
         }}
       >
-        {RenderExpressionWithBlueQuestion(Expression)}
-        {!ExpressionAlreadyContainsPrompt ? <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span> : null}
+        {RenderExpressionWithBlueQuestion(BindOperators(Expression))}
+        {!ExpressionAlreadyContainsPrompt ? <>{" "}<span className="whitespace-nowrap text-blue-700 dark:text-cyan-300">= ?</span></> : null}
       </div>
     </div>
   );
@@ -138,33 +180,39 @@ function CompactExpressionQuestion({
 
   return (
     <div className="mx-auto flex w-full max-w-full justify-center overflow-visible rounded-[18px] bg-white px-4 py-3.5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5">
-      <div className="max-w-full whitespace-normal break-words text-center font-mono text-[18px] font-black leading-[1.4] tracking-tight sm:text-[22px] lg:text-[26px] xl:text-[28px]">
-        {RenderExpressionWithBlueQuestion(Expression)}
-        <span className="ml-2 text-blue-700 dark:text-cyan-300">= ?</span>
+      <div className={`max-w-full whitespace-normal break-words text-center font-mono font-black leading-[1.4] tracking-tight ${QUESTION_NUMBER_CLASS}`}>
+        {RenderExpressionWithBlueQuestion(BindOperators(Expression))}
+        {" "}<span className="whitespace-nowrap text-blue-700 dark:text-cyan-300">= ?</span>
       </div>
     </div>
   );
 }
 
+// The instruction above the box ("Find Profit %", "Find Simple Interest",
+// "Odd Numbers" ...) is the question's own stored text. Every flow now sends it
+// (practice sheets did not until 2026-10), so it must always be rendered when
+// present: [data-q-caption] is what the checks look for.
 function FinancialTableQuestion({ operands, operators, questionText }: { operands: Array<number | string>; operators: string[]; questionText?: string | null }) {
   const Labels = operators.length ? operators : operands.map((_, Index) => `Value ${Index + 1}`);
   const ColumnCount = Math.max(1, Math.min(Math.max(Labels.length, operands.length), 4));
-  const GridTemplateColumns = { gridTemplateColumns: `repeat(${ColumnCount}, minmax(0, 1fr))` };
+  const GridTemplateColumns = QuestionColumnVars(
+    Array.from({ length: ColumnCount }).map((_, Index) => FormatValue(operands[Index] ?? "?")),
+  );
 
   return (
-    <div className="mx-auto w-full max-w-2xl rounded-[24px] bg-white px-5 py-6 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-7">
-      {questionText ? <p className="mb-4 text-center text-base font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200">{questionText}</p> : null}
+    <div className="mx-auto w-full max-w-2xl rounded-[24px] bg-white px-2 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-7 sm:py-6">
+      {questionText ? <p data-q-caption className="mb-4 text-center text-base font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200">{DisplayLabel(questionText)}</p> : null}
       <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-        <div className="grid bg-slate-100 text-center text-xs font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs" style={GridTemplateColumns}>
+        <div className="mp-q-cols grid bg-slate-100 text-center text-xs font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs" style={GridTemplateColumns}>
           {Array.from({ length: ColumnCount }).map((_, Index) => (
-            <div key={`financial-label-${Index}`} className="border-r border-slate-200 px-3 py-3 last:border-r-0 dark:border-slate-700">
-              {Labels[Index] || `Value ${Index + 1}`}
+            <div key={`financial-label-${Index}`} className="flex items-center justify-center border-r border-slate-200 px-1 py-3 last:border-r-0 dark:border-slate-700 sm:px-2">
+              {DisplayLabel(Labels[Index] || `Value ${Index + 1}`)}
             </div>
           ))}
         </div>
-        <div className="grid text-center font-mono text-2xl font-black sm:text-3xl" style={GridTemplateColumns}>
+        <div className={`mp-q-cols grid text-center font-mono font-black ${QUESTION_NUMBER_CLASS}`} style={GridTemplateColumns}>
           {Array.from({ length: ColumnCount }).map((_, Index) => (
-            <div key={`financial-value-${Index}`} className="border-r border-slate-200 px-3 py-5 last:border-r-0 dark:border-slate-700">
+            <div key={`financial-value-${Index}`} className="whitespace-nowrap border-r border-slate-200 px-1 py-5 last:border-r-0 dark:border-slate-700 sm:px-3">
               {FormatValue(operands[Index] ?? "?")}
             </div>
           ))}
@@ -187,18 +235,19 @@ function CompactTwoColumnQuestion({
   questionText?: string | null;
 }) {
   const Labels = operators.length ? operators : ["Value 1", "Value 2"];
+  const ColumnVars = QuestionColumnVars([FormatValue(operands[0] ?? "?"), FormatValue(operands[1] ?? "?")]);
 
   return (
-    <div className="mx-auto w-full max-w-md rounded-[22px] bg-white px-5 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
-      {questionText ? <p className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">{questionText}</p> : null}
+    <div className="mx-auto w-full max-w-md rounded-[22px] bg-white px-2 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
+      {questionText ? <p data-q-caption className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">{DisplayLabel(questionText)}</p> : null}
       <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-        <div className="grid grid-cols-2 bg-slate-100 text-center text-xs font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
-          <div className="border-r border-slate-200 px-4 py-3 dark:border-slate-700">{Labels[0] || "Value 1"}</div>
-          <div className="px-4 py-3">{Labels[1] || "Value 2"}</div>
+        <div className="mp-q-cols grid bg-slate-100 text-center text-xs font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs" style={ColumnVars}>
+          <div className="border-r border-slate-200 px-2 py-3 dark:border-slate-700 sm:px-4">{DisplayLabel(Labels[0] || "Value 1")}</div>
+          <div className="px-2 py-3 sm:px-4">{DisplayLabel(Labels[1] || "Value 2")}</div>
         </div>
-        <div className="grid grid-cols-2 text-center font-mono text-2xl font-black sm:text-3xl">
-          <div className="border-r border-slate-200 px-4 py-5 dark:border-slate-700">{FormatValue(operands[0] ?? "?")}</div>
-          <div className="px-4 py-5">{FormatValue(operands[1] ?? "?")}</div>
+        <div className={`mp-q-cols grid text-center font-mono font-black ${QUESTION_NUMBER_CLASS}`} style={ColumnVars}>
+          <div className="whitespace-nowrap border-r border-slate-200 px-1 py-5 dark:border-slate-700 sm:px-4">{FormatValue(operands[0] ?? "?")}</div>
+          <div className="whitespace-nowrap px-1 py-5 sm:px-4">{FormatValue(operands[1] ?? "?")}</div>
         </div>
       </div>
     </div>
@@ -239,22 +288,26 @@ function DecimalAlignedVerticalQuestion({ operands, operators }: { operands: Arr
 
   return (
     <div className="mx-auto w-fit rounded-[20px] bg-white px-4 py-4 text-slate-900 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-5 sm:py-4">
-      <div className="font-mono text-[26px] font-black leading-[1.18] sm:text-[32px]">
+      <div className={`font-mono font-black leading-[1.18] ${QUESTION_NUMBER_CLASS}`}>
         {Rows.map((Row, Index) => (
           <div key={`${Row.operator}-${Row.integerPart}-${Row.decimalPart}-${Index}`} className="grid items-baseline gap-0.5" style={{ gridTemplateColumns: `1.35rem ${IntegerWidth} ${DecimalPointWidth} ${DecimalWidth}` }}>
             <span className="text-center">{Row.operator}</span>
             <span className="pr-1 text-right tabular-nums">{Row.integerPart}</span>
             <span className="flex h-[1.05em] items-end justify-center pb-[0.18em]" aria-hidden="true">
-              <span className="block h-[0.24em] w-[0.24em] rounded-full bg-slate-950 dark:bg-white" />
+              {/* 2026-10 (Shailesh): the point takes the digits' own colour (bg-current).
+                  It used to be bg-slate-950 / dark:bg-white, but the platform's dark theme
+                  repaints every .bg-white surface dark, which made the decimal point vanish
+                  in dark mode on every screen that shows a decimal sum. */}
+              <span data-q-mark="point" className="block h-[0.24em] w-[0.24em] rounded-full bg-current" />
             </span>
             <span className="pl-1 text-left tabular-nums">{Row.decimalPart.padEnd(MaxDecimalLength, "0")}</span>
           </div>
         ))}
       </div>
 
-      <div className="my-2.5 border-t-[3px] border-slate-800 dark:border-slate-200" />
+      <div data-q-mark="rule" className="my-2.5 border-t-[3px] border-current" />
 
-      <div className="grid items-baseline gap-0.5 text-right font-mono text-[26px] font-black text-blue-700 dark:text-cyan-300 sm:text-[32px]" style={{ gridTemplateColumns: `1.35rem ${IntegerWidth} ${DecimalPointWidth} ${DecimalWidth}` }}>
+      <div className={`grid items-baseline gap-0.5 text-right font-mono font-black text-blue-700 dark:text-cyan-300 ${QUESTION_NUMBER_CLASS}`} style={{ gridTemplateColumns: `1.35rem ${IntegerWidth} ${DecimalPointWidth} ${DecimalWidth}` }}>
         <span />
         <span />
         <span />
@@ -276,32 +329,30 @@ function PositionNumberTableQuestion({
   const Labels = operators.length ? operators : ["Position", "Number"];
   const PositionText = FormatValue(operands[0] ?? "?");
   const NumberText = FormatValue(operands[1] ?? "?");
-  // 2026-07-24 fix: both cells used a fixed text-2xl/3xl regardless of
-  // content length. _GenerateFindPositionNumber/_GenerateWriteFromPosition
-  // Number (operands.py) can produce numbers up to ~10 characters
-  // ("0.00009999") -- at a fixed large size those wrapped onto a second
-  // line inside their cell instead of staying in one clean box. Shrinking
-  // the font to the longer of the two values (same technique as
-  // ExpressionQuestion's FontSizePx above) keeps it on one line always.
-  const LongestLength = Math.max(PositionText.length, NumberText.length, 1);
-  const ValueFontSizePx = Math.max(17, 32 - Math.max(0, LongestLength - 4) * 1.8);
+  // History: these cells first used a fixed text-2xl/3xl, which wrapped long
+  // generated numbers (up to ~10 characters, e.g. "0.00009999") onto a second
+  // line; the 2026-07-24 fix shrank the font by length to keep one line.
+  // 2026-10: no longer shrinks with length -- see QUESTION_NUMBER_CLASS above.
+  // On a narrow phone the two columns share the row in proportion to what they
+  // hold (see QuestionColumnVars), so a long number still stays on one line.
+  const ColumnVars = QuestionColumnVars([PositionText, NumberText]);
 
   return (
-    <div className="mx-auto w-full max-w-md rounded-[22px] bg-white px-5 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
-      <p className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">
-        {questionText?.trim() || "Write the Number from the Given Position"}
+    <div className="mx-auto w-full max-w-md rounded-[22px] bg-white px-2 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
+      <p data-q-caption className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">
+        {DisplayLabel(questionText?.trim() || "Write the Number from the Given Position")}
       </p>
       <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-        <div className="grid grid-cols-2 bg-slate-100 text-center text-xs font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
-          <div className="border-r border-slate-200 px-4 py-3 dark:border-slate-700">{Labels[0] || "Position"}</div>
-          <div className="px-4 py-3">{Labels[1] || "Number"}</div>
+        <div className="mp-q-cols grid bg-slate-100 text-center text-xs font-black uppercase tracking-[0.14em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs" style={ColumnVars}>
+          <div className="border-r border-slate-200 px-2 py-3 dark:border-slate-700 sm:px-4">{DisplayLabel(Labels[0] || "Position")}</div>
+          <div className="px-2 py-3 sm:px-4">{DisplayLabel(Labels[1] || "Number")}</div>
         </div>
-        <div className="grid grid-cols-2 text-center font-mono font-black" style={{ fontSize: `${ValueFontSizePx}px` }}>
-          <div className="whitespace-nowrap border-r border-slate-200 px-4 py-5 dark:border-slate-700">{PositionText}</div>
-          <div className="whitespace-nowrap px-4 py-5">{NumberText}</div>
+        <div className={`mp-q-cols grid text-center font-mono font-black ${QUESTION_NUMBER_CLASS}`} style={ColumnVars}>
+          <div className="whitespace-nowrap border-r border-slate-200 px-1 py-5 dark:border-slate-700 sm:px-4">{PositionText}</div>
+          <div className="whitespace-nowrap px-1 py-5 sm:px-4">{NumberText}</div>
         </div>
       </div>
-      <div className="mt-4 text-center text-2xl font-black text-blue-700 dark:text-cyan-300">?</div>
+      <div className={`mt-4 text-center font-mono font-black text-blue-700 dark:text-cyan-300 ${QUESTION_NUMBER_CLASS}`}>?</div>
     </div>
   );
 }
@@ -321,24 +372,64 @@ function FirstNaturalNumberCardQuestion({ operands, questionText }: { operands: 
   const NumberText = FormatValue(operands[0] ?? "?");
   // 2026-07-24 fix: same wrap-onto-next-line issue as PositionNumberTableQuestion
   // above -- a fixed text-3xl/4xl doesn't shrink for longer generated numbers.
-  const NumberFontSizePx = Math.max(20, 40 - Math.max(0, NumberText.length - 4) * 2.2);
 
   return (
-    <div className="mx-auto w-full max-w-sm rounded-[22px] bg-white px-5 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
-      <p className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">
-        {PromptText}
+    <div className="mx-auto w-full max-w-sm rounded-[22px] bg-white px-2 py-5 text-slate-950 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/70 dark:text-white dark:ring-slate-700 sm:px-6">
+      <p data-q-caption className="mb-3 text-center text-sm font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">
+        {DisplayLabel(PromptText)}
       </p>
       <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
         <div className="bg-slate-100 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-900 dark:text-slate-300 sm:text-xs">
           Number
         </div>
-        <div className="whitespace-nowrap px-5 py-6 text-center font-mono font-black leading-none" style={{ fontSize: `${NumberFontSizePx}px` }}>
+        <div className={`whitespace-nowrap px-1 py-6 text-center font-mono font-black leading-none sm:px-5 ${QUESTION_NUMBER_CLASS}`}>
           {NumberText}
         </div>
       </div>
-      <div className="mt-4 text-center text-2xl font-black text-blue-700 dark:text-cyan-300">?</div>
+      <div className={`mt-4 text-center font-mono font-black text-blue-700 dark:text-cyan-300 ${QUESTION_NUMBER_CLASS}`}>?</div>
     </div>
   );
+}
+
+// 2026-10 (Shailesh): "we always need to display the questions ... in a single
+// line and we can adjust the answer box or the options accordingly". A sum that
+// is written across one line (BODMAS and the other expression types) needs more
+// width than the half of the card it gets when the answer box or the options
+// sit beside it. The test screens ask this once per test (per section on an
+// annual paper): if any question is a one-line sum too long for the side-by-side
+// board, the whole test uses the full-width board with the answer area under it,
+// so the layout never changes from one question to the next. Display only: it
+// reads the same fields the question is drawn from and changes none of them.
+type OneLineSumSource = {
+  operands?: Array<number | string> | null;
+  operators?: string[] | null;
+  displayType?: string | null;
+  display_type?: string | null;
+  questionText?: string | null;
+  question_text?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+// The longest one-line sum that still fits the side-by-side board on a 1024px
+// screen at the single question size, counting the trailing "= ?".
+const SIDE_BY_SIDE_SUM_LIMIT = 18;
+
+function OneLineSumLength(Question: OneLineSumSource): number {
+  const Mode = NormaliseDisplayType((Question.displayType ?? Question.display_type ?? "") as DisplayMode);
+  const Operators = Question.operators ?? [];
+  const IsExpression =
+    Mode === "EXPRESSION" ||
+    Mode === "EXPRESSION_WORKSHEET" ||
+    (Mode === "ANSWER_POSITION" && !IsPositionNumberTable(Operators) && !IsFirstNaturalNumberCard(Operators));
+  if (!IsExpression) return 0;
+  const Metadata = (Question.metadata || {}) as Record<string, unknown>;
+  const Stored = (Question.questionText ?? Question.question_text ?? Metadata.question_text ?? Metadata.questionText ?? "") as string;
+  const Expression = String(Stored || "").trim() || BuildExpression(Question.operands ?? [], Operators);
+  return Expression.length + (/[?？]/.test(Expression) ? 0 : 4);
+}
+
+export function NeedsWideQuestionBoard(Questions: ReadonlyArray<unknown> | null | undefined): boolean {
+  return (Questions ?? []).some((Question) => OneLineSumLength((Question ?? {}) as OneLineSumSource) > SIDE_BY_SIDE_SUM_LIMIT);
 }
 
 export function MathQuestionDisplay({ operands, operators, displayType, questionText }: MathQuestionDisplayProps) {

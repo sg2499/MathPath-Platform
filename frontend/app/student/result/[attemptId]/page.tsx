@@ -212,11 +212,11 @@ export default function ResultPage() {
           <div className="flex flex-wrap items-center gap-3">
             <button className="math-role-action-button px-4 py-3" onClick={() => router.push("/student/dashboard")}>
               <ArrowLeft size={16} />
-              Back to Dashboard
+              Back To Dashboard
             </button>
             <div className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700">
               <CheckCircle2 size={14} />
-              Review ready
+              Review Ready
             </div>
           </div>
 
@@ -247,13 +247,13 @@ export default function ResultPage() {
 
                   <div className="mt-5 grid gap-3 xl:grid-cols-2">
                     <div className={`rounded-[22px] p-4 ${q.isCorrect ? "bg-emerald-50 text-emerald-900" : q.studentAnswer ? "bg-rose-50 text-rose-900" : "bg-amber-50 text-amber-900"}`}>
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em]">Your answer</p>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.14em]">Your Answer</p>
                       <p className="mt-2 text-lg font-black">
                         {q.studentAnswer ? formatAnswerValue(q.studentAnswer) : "Not Answered"}
                       </p>
                     </div>
                     <div className="rounded-[22px] bg-emerald-50 p-4 text-emerald-900">
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700">Correct answer</p>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700">Correct Answer</p>
                       <p className="mt-2 text-lg font-black">
                         {q.correctAnswer !== undefined && q.correctAnswer !== null ? formatAnswerValue(q.correctAnswer) : "Hidden"}
                       </p>

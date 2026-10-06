@@ -641,7 +641,7 @@ function StudentAssessmentsPageContent() {
             const isModuleOpen = openModules[moduleGroup.key] ?? false;
             const ModuleRows = moduleGroup.levels.flatMap((levelGroup) => levelGroup.rows);
             return (
-              <section key={moduleGroup.key} className="math-card p-5 sm:p-6">
+              <section key={moduleGroup.key} className="math-card min-w-0 p-5 sm:p-6">
                 <button type="button" className="mb-4 flex w-full flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between" onClick={() => setOpenModules((Current) => ({ ...Current, [moduleGroup.key]: !(Current[moduleGroup.key] ?? false) }))} aria-expanded={isModuleOpen} title={isModuleOpen ? "Collapse assessment module" : "Expand assessment module"}>
                   <div>
                     <div className="math-block-header mb-2"><Radio size={14} /> Assessment Module</div>
@@ -659,7 +659,7 @@ function StudentAssessmentsPageContent() {
                       const LevelKey = `${moduleGroup.key}|${levelGroup.key}`;
                       const isLevelOpen = openLevels[LevelKey] ?? false;
                       return (
-                        <div key={levelGroup.key} className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                        <div key={levelGroup.key} className="min-w-0 rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                           <button type="button" className="mb-4 flex w-full flex-col gap-2 text-left sm:flex-row sm:items-center sm:justify-between" onClick={() => setOpenLevels((Current) => ({ ...Current, [LevelKey]: !(Current[LevelKey] ?? false) }))} aria-expanded={isLevelOpen} title={isLevelOpen ? "Collapse level assessment" : "Expand level assessment"}>
                             <div>
                               <div className="math-block-header mb-2"><Radio size={14} /> Level Assessment</div>
@@ -781,7 +781,7 @@ function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; 
       
       <div className="inline-flex relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md rounded-2xl bg-blue-50 p-2 text-blue-700 dark:bg-cyan-400/10 dark:text-cyan-300">{icon}</div>
       <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.14em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">{label}</p>
-      <p className="relative z-10 mt-2 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">{value}</p>
+      <p className={`relative z-10 mt-2 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white ${String(value ?? "").length > 12 ? "se-metric-long" : ""}`}>{value}</p>
     </div>
   );
 }

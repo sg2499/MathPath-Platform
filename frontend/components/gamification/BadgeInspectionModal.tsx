@@ -57,6 +57,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Float, Sparkles, Stars, Torus, Octahedron, Icosahedron, Sphere, Grid, Box, Cone, Cylinder, TorusKnot, Tetrahedron } from "@react-three/drei";
 import { EffectComposer, Bloom, Noise, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
+import { InitCaps } from "@/lib/initCaps";
 
 // --- Icon Mapping ---
 //
@@ -10028,10 +10029,10 @@ export function BadgeInspectionModal({ badge, config, onClose, enableSound = tru
                    to the opal spectrum (2026-07-27 craft pass) -- it used to
                    be amber/fuchsia/violet, which was the SUPER palette. */}
                <span className={`px-5 py-2 rounded-full text-sm md:text-base font-black uppercase tracking-[0.2em] backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] border ${tier === 'MYTHIC' ? 'text-cyan-50 border-white/70 bg-gradient-to-r from-cyan-300/30 via-amber-200/30 to-pink-300/30 shadow-[0_0_30px_rgba(120,220,255,0.5),inset_0_1px_1px_rgba(255,255,255,0.4)] animate-pulse' : tier === 'LEGENDARY' ? 'bg-slate-900/80 text-yellow-400 border-yellow-400/50 shadow-[0_0_15px_rgba(250,204,21,0.2)]' : tier === 'SUPER' ? 'bg-slate-900/80 text-indigo-400 border-indigo-400/50 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'bg-slate-900/80 text-slate-300 border-slate-500/50'}`}>
-                 {tier} TIER
+                 {InitCaps(tier)} Tier
                </span>
                <span className="px-5 py-2 rounded-full text-sm md:text-base font-black text-emerald-400 uppercase tracking-[0.2em] bg-emerald-950/80 backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),0_0_15px_rgba(16,185,129,0.2)] border border-emerald-500/50">
-                 UNLOCKED
+                 Unlocked
                </span>
             </motion.div>
         </motion.div>

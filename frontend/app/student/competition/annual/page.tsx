@@ -22,6 +22,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { CalendarClock, ChevronDown, ChevronRight, Eye, History, Hourglass, MapPin, PlayCircle, Repeat, Trophy } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { InitCaps } from "@/lib/initCaps";
 
 function FormatDateTime(value?: string | null) {
   if (!value) return "-";
@@ -159,21 +160,21 @@ function AssignmentCard({
           <div className="math-block-header mb-2"><Trophy size={14} /> Annual Competition</div>
           <h2 className="text-xl font-black text-slate-950 dark:text-white">{assignment.eventName}</h2>
           <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
-            <div className="flex flex-wrap items-center gap-2">
-              <CalendarClock size={16} className="shrink-0 text-orange-600 dark:text-orange-300" />
-              <span className="whitespace-nowrap">Competition Date: {FormatDateTime(assignment.competitionDate)}</span>
+            <div className="flex items-start gap-2">
+              <CalendarClock size={16} className="mt-0.5 shrink-0 text-orange-600 dark:text-orange-300" />
+              <span className="min-w-0 sm:whitespace-nowrap">Competition Date: {FormatDateTime(assignment.competitionDate)}</span>
             </div>
             {assignment.slot ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <MapPin size={16} className="shrink-0 text-orange-600 dark:text-orange-300" />
-                <span className="whitespace-nowrap">
-                  Your Slot: {assignment.slot.slotLabel || assignment.slot.mode} · {FormatDateTime(assignment.slot.scheduledStartAt)}
+              <div className="flex items-start gap-2">
+                <MapPin size={16} className="mt-0.5 shrink-0 text-orange-600 dark:text-orange-300" />
+                <span className="min-w-0 sm:whitespace-nowrap">
+                  Your Slot: {assignment.slot.slotLabel || InitCaps(assignment.slot.mode)} · {FormatDateTime(assignment.slot.scheduledStartAt)}
                 </span>
               </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2 text-slate-500 dark:text-slate-400">
                 <Hourglass size={16} className="shrink-0" />
-                <span>No specific slot assigned yet -- you can start once the paper is ready.</span>
+                <span>No specific slot assigned yet — you can start once the paper is ready.</span>
               </div>
             )}
           </div>
@@ -235,7 +236,7 @@ function AssignmentCard({
             // the data-oddity case where it somehow doesn't, rather than
             // rendering a dead button.
             <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/70 px-4 py-2.5 text-xs font-black text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/20 dark:text-emerald-200">
-              Submitted -- results are released separately.
+              Submitted — results are released separately.
             </div>
           ) : null}
         </div>
@@ -405,7 +406,7 @@ function PracticeLevelPanel({
           </div>
           {!remainingCount && !inProgressAttempt ? (
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400 sm:text-right">
-              No practice papers left -- ask your teacher/admin to assign more.
+              No practice papers left — ask your teacher/admin to assign more.
             </p>
           ) : null}
         </button>
@@ -418,7 +419,7 @@ function PracticeLevelPanel({
           {!remainingCount && !inProgressAttempt ? (
             <div className="flex shrink-0 flex-col items-start gap-2 lg:items-end">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                No practice papers left -- ask your teacher/admin to assign more.
+                No practice papers left — ask your teacher/admin to assign more.
               </p>
             </div>
           ) : null}
@@ -435,7 +436,7 @@ function PracticeLevelPanel({
           reason, so this paragraph now matches that convention instead
           of wrapping early. */}
       <p className="mt-3 max-w-none text-sm font-bold text-slate-600 dark:text-slate-300">
-        Practice papers to help you prepare for the Annual Competition -- not the Annual Competition itself, and not
+        Practice papers to help you prepare for the Annual Competition — not the Annual Competition itself, and not
         tied to any specific event. Always freshly generated, no retakes once submitted, and results are visible to
         you immediately.
       </p>
@@ -641,7 +642,7 @@ function AnnualCompetitionContent() {
           <div className="math-block-header mb-2"><Trophy size={14} /> MathPath Annual Competition</div>
           <h1 className="math-title">Annual Competition</h1>
           <p className="math-subtitle max-w-none">
-            MathPath's official, once-a-year competition -- a single scored attempt at your assigned level, held at a
+            MathPath's official, once-a-year competition — a single scored attempt at your assigned level, held at a
             fixed date and time. It is scored and ranked independently of your regular Competition Mock practice.
           </p>
         </div>
@@ -687,7 +688,7 @@ function AnnualCompetitionContent() {
           // all (see getMyAnnualCompetitionPracticeScopes's own comment).
           <EmptyState
             title="No Practice Papers Yet"
-            message="Practice papers appear here as soon as your teacher/admin assigns you some -- no official competition assignment required."
+            message="Practice papers appear here as soon as your teacher/admin assigns you some — no official competition assignment required."
           />
         ) : (
           <div className="space-y-4">

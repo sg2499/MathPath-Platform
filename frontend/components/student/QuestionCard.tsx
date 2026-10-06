@@ -12,6 +12,7 @@ export function QuestionCard({
   disabled,
   saving,
   compact = false,
+  wide = false,
   onSave,
   answerInputRef,
 }: {
@@ -20,6 +21,10 @@ export function QuestionCard({
   disabled: boolean;
   saving: boolean;
   compact?: boolean;
+  // The test contains one-line sums too long for half the card (see
+  // NeedsWideQuestionBoard): the question takes the full width and the answer
+  // box sits under it on every screen size, so the sum stays on one line.
+  wide?: boolean;
   onSave: (answerText: string) => void;
   // Lets the attempt page force-flush whatever's currently sitting in this
   // question's debounce window right before Submit/auto-submit fires --
@@ -31,6 +36,19 @@ export function QuestionCard({
   // (see app/student/attempt/[attemptId]/page.tsx) -- repeating it here
   // would just be the same text twice on one screen, so this card only
   // carries the question number and the save-status chip.
+  // The question's own stored text: the instruction above a box question
+  // ("Find Profit %", "Find Simple Interest") and, for mixed-operation sums,
+  // the exact expression with its real signs. The server sends it as
+  // questionText; metadata.question_text is the same value and is read as a
+  // fallback so the instruction can never silently go missing.
+  const QuestionMetadata = ((question as any).metadata || {}) as Record<string, unknown>;
+  const QuestionText =
+    ((question as any).questionText ??
+      (question as any).question_text ??
+      QuestionMetadata.question_text ??
+      QuestionMetadata.questionText ??
+      null) as string | null;
+
   return (
     <div className={`math-card flex flex-col overflow-hidden ${compact ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
       <div className="flex shrink-0 items-center justify-between gap-2">
@@ -41,8 +59,8 @@ export function QuestionCard({
         <div
           className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black ${
             saving
-              ? "bg-amber-50 text-amber-700"
-              : "bg-emerald-50 text-emerald-700"
+              ? "bg-amber-50 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300"
+              : "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300"
           }`}
         >
           {saving ? <Save size={14} /> : <CheckCircle2 size={14} />}
@@ -61,12 +79,12 @@ export function QuestionCard({
         cramped) with no overflow/clipping on either panel -- both panels,
         and the card around them, simply grow as tall as the content needs.
       */}
-      <div className={`${compact ? "mt-2 gap-3" : "mt-3 gap-5"} flex flex-col lg:min-h-[clamp(320px,36vh,380px)] lg:flex-row`}>
-        <div className={`flex min-h-[300px] flex-1 items-center justify-center rounded-[22px] bg-slate-50/90 dark:bg-slate-900/70 ${compact ? "p-2.5 sm:p-3" : "p-3 sm:p-4"}`}>
-          <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={(question as any).questionText ?? (question as any).question_text} />
+      <div className={`${wide ? "mt-2 gap-3" : compact ? "mt-2 gap-3 lg:min-h-[clamp(260px,31vh,340px)] lg:flex-row" : "mt-3 gap-5 lg:min-h-[clamp(320px,36vh,380px)] lg:flex-row"} flex flex-col`}>
+        <div className={`mp-qboard ${wide ? "se-qboard-wide " : ""}flex flex-1 items-center justify-center rounded-[22px] bg-slate-50/90 dark:bg-slate-900/70 ${wide ? "min-h-[150px] p-2.5 sm:p-3" : compact ? "min-h-[240px] p-2.5 sm:p-3" : "min-h-[300px] p-3 sm:p-4"}`}>
+          <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={QuestionText} />
         </div>
 
-        <div className="flex min-h-[220px] flex-1 items-center justify-center">
+        <div className={`flex flex-1 items-center justify-center ${wide ? "min-h-[140px]" : compact ? "min-h-[150px] lg:min-h-0" : "min-h-[220px]"}`}>
           <AnswerInputBox
             key={question.questionId}
             ref={answerInputRef}

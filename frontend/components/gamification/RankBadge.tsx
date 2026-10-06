@@ -490,6 +490,7 @@ export function RankBadge({ tier, globalRank, className, size = 'md' }: RankBadg
       {numeral && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <motion.span
+            data-rank-numeral
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", bounce: 0.6 }}

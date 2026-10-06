@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Brain, ClipboardList, Clock3, Layers3, PlayCircle, Repeat, ShieldCheck, Trophy } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
+import { InitCaps } from "@/lib/initCaps";
 
 // 2026-09-14 (Shailesh): "the student must see the instructions page for the
 // practice papers as well ... this will enable them and make them used to
@@ -93,7 +94,7 @@ function AnnualCompetitionPracticeInstructionsContent() {
                 Practice Round
               </h1>
               <p className="math-subtitle !mt-2 w-full">
-                A focused rehearsal for {FormatCompetitionLevelLabel(Query.data.competitionLevelCode)} -- same section format, same pacing, zero
+                A focused rehearsal for {FormatCompetitionLevelLabel(Query.data.competitionLevelCode)} — same section format, same pacing, zero
                 pressure. Work through it exactly like the real thing, so the real thing feels familiar.
               </p>
             </div>
@@ -132,16 +133,16 @@ function AnnualCompetitionPracticeInstructionsContent() {
                 ))}
               </div>
 
-              <div className="mt-4 rounded-[24px] border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/30">
+              <div className="se-brief mt-4 rounded-[24px] border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/30">
                 <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
                   <ShieldCheck size={17} />
                   <p className="font-black">Before You Begin</p>
                 </div>
-                <ul className="mt-3 grid gap-2.5 text-sm font-semibold leading-6 text-blue-900/90 dark:text-blue-100">
+                <ul className="se-brief-list mt-3 grid gap-2 text-sm font-semibold leading-6 text-blue-900/90 dark:text-blue-100">
                   {Query.data.instructions.map((Item) => (
                     <li key={Item} className="flex min-w-0 items-start gap-2">
                       <span className="shrink-0">•</span>
-                      <span className="min-w-0 flex-1 break-words">{Item}</span>
+                      <span className="min-w-0 flex-1 break-words">{InitCaps(Item)}</span>
                     </li>
                   ))}
                 </ul>
@@ -187,8 +188,8 @@ function AnnualCompetitionPracticeInstructionsContent() {
                 <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
                   <p className="text-xs font-semibold leading-relaxed text-slate-500 dark:text-slate-400 mb-4">
                     {Query.data.isResume
-                      ? "You already have this practice paper in progress -- continuing will pick up exactly where you left off."
-                      : "Ready to begin? Each section is timed separately and locks once you move on -- your answers save automatically."}
+                      ? "You already have this practice paper in progress — continuing will pick up exactly where you left off."
+                      : "Ready to begin? Each section is timed separately and locks once you move on — your answers save automatically."}
                   </p>
                   <button
                     className="math-button-primary w-full shadow-lg shadow-orange-500/20 disabled:cursor-not-allowed disabled:opacity-60"

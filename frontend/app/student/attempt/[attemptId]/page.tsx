@@ -5,6 +5,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { QuestionCard } from "@/components/student/QuestionCard";
+import { NeedsWideQuestionBoard } from "@/components/common/MathQuestionDisplay";
 import type { AnswerInputBoxHandle } from "@/components/student/AnswerInputBox";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
 import { TestTimer } from "@/components/student/TestTimer";
@@ -307,37 +308,37 @@ export default function AttemptPage() {
           positioned escapees, so they can never be pushed outside the page's
           visible bounds on any screen width -- the card (flex-1, min-w-0)
           simply narrows to make room for them instead. */}
-      <div className="flex items-stretch gap-2 sm:gap-3">
+      <div className="se-test flex items-stretch gap-2 sm:gap-3">
         <button
+          type="button"
           onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
           disabled={currentIndex === 0}
           aria-label="Previous question"
-          className="hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          className="se-arrow hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </button>
 
-        <section className="math-slide-up math-card flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
-        <div className="relative flex shrink-0 flex-col gap-3 overflow-hidden rounded-[24px] border border-white/70 bg-gradient-to-br from-white via-sky-50 to-cyan-100 px-5 py-4 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:px-6">
-          <div className="pointer-events-none absolute -right-16 -top-20 h-32 w-32 rounded-full bg-cyan-300/20 blur-3xl" />
+        <section className="se-test-card math-slide-up math-card flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
+        <div className="se-test-top relative flex shrink-0 flex-col gap-3 overflow-hidden px-5 py-4 sm:px-6">
 
           <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               {contextLine ? (
-                <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50/90 px-3.5 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
+                <span className="se-chip se-chip-accent">
                   <BookOpenCheck size={14} /> {contextLine}
                 </span>
               ) : null}
-              <h1 className="mt-1.5 truncate text-base font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-lg" title={sectionLabel}>
+              <h1 className="se-test-title mt-1.5 truncate" title={sectionLabel}>
                 {sectionLabel}
               </h1>
             </div>
-            <p className="shrink-0 rounded-full bg-white/80 px-3.5 py-1.5 text-sm font-black text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
-              Question {currentQuestion.questionNumber} of {questions.length}
+            <p className="se-chip shrink-0">
+              Question {currentQuestion.questionNumber} Of {questions.length}
             </p>
           </div>
 
-          <div className="relative z-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="se-stat-grid relative z-10 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             <CompactStat
               icon={<ClipboardCheck size={18} />}
               label="Answered"
@@ -371,13 +372,14 @@ export default function AttemptPage() {
             }
             saving={savingQuestionId === currentQuestion.questionId}
             compact
+            wide={NeedsWideQuestionBoard(questions)}
             onSave={(answerText) =>
               handleSaveAnswer(currentQuestion.questionId, answerText)
             }
           />
         </div>
 
-        <div className="shrink-0 rounded-[18px] border border-slate-200 bg-white/92 p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950/85">
+        <div className="se-test-nav shrink-0 p-3">
           <QuestionNavigator
             totalQuestions={questions.length}
             currentQuestionNumber={currentQuestion.questionNumber}
@@ -419,10 +421,11 @@ export default function AttemptPage() {
         </section>
 
         <button
+          type="button"
           onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
           disabled={currentIndex >= questions.length - 1}
           aria-label="Next question"
-          className="hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          className="se-arrow hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </button>
@@ -450,15 +453,15 @@ export default function AttemptPage() {
 
 function CompactStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-white px-3.5 py-3 dark:bg-slate-950/60">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300">
+    <div className="se-stat">
+      <div className="se-stat-icon">
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-[10px] font-black uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+        <p className="se-stat-label">
           {label}
         </p>
-        <p className="truncate text-lg font-black leading-tight text-slate-950 dark:text-white">
+        <p className="se-stat-value">
           {value}
         </p>
       </div>
@@ -468,7 +471,7 @@ function CompactStat({ icon, label, value }: { icon: React.ReactNode; label: str
 
 function CompactTimerStat({ remainingSeconds }: { remainingSeconds: number }) {
   return (
-    <div className="flex min-w-0 items-center justify-center rounded-2xl bg-white px-3 py-3 dark:bg-slate-950/60">
+    <div className="se-stat se-stat-timer">
       <TestTimer remainingSeconds={remainingSeconds} className="!px-3.5 !py-2 !text-sm" />
     </div>
   );

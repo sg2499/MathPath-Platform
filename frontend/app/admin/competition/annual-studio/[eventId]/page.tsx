@@ -351,7 +351,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const ReleaseResultsMutation = useMutation({
     mutationFn: () => updateAnnualCompetitionEvent(EventId, { resultsReleaseAt: new Date().toISOString() }),
     onSuccess: () => {
-      SetLastMessage("Results release date set to now -- every linked level paper is now locked.");
+      SetLastMessage("Results release date set to now — every linked level paper is now locked.");
       InvalidateOverview();
     },
   });
@@ -455,7 +455,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     onSuccess: (Result) => {
       SetLastMessage(
         Result.Failed.length > 0
-          ? `Generated ${Result.Succeeded.length} of ${Result.TotalConsidered} papers -- ${Result.Failed.length} failed (${Result.Failed.map((F) => `${F.levelCode}: ${F.reason}`).join("; ")}).`
+          ? `Generated ${Result.Succeeded.length} of ${Result.TotalConsidered} papers — ${Result.Failed.length} failed (${Result.Failed.map((F) => `${F.levelCode}: ${F.reason}`).join("; ")}).`
           : `Generated all ${Result.Succeeded.length} official papers.`
       );
       InvalidateOverview();
@@ -552,7 +552,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     onSuccess: (Result) => {
       SetLastMessage(
         Result.studentsFailed > 0
-          ? `Set ${FormatCompetitionLevelLabel(Result.assignedLevelCode)} for ${Result.studentsSucceeded} of ${Result.studentsRequested} selected students -- ${Result.studentsFailed} failed (${Result.failed.map((F) => F.studentIdentifier).join(", ")}).`
+          ? `Set ${FormatCompetitionLevelLabel(Result.assignedLevelCode)} for ${Result.studentsSucceeded} of ${Result.studentsRequested} selected students — ${Result.studentsFailed} failed (${Result.failed.map((F) => F.studentIdentifier).join(", ")}).`
           : `Set ${FormatCompetitionLevelLabel(Result.assignedLevelCode)} for all ${Result.studentsSucceeded} selected students.`
       );
       SetSelectedStudentIdsForRun(new Set());
@@ -627,7 +627,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const RetryMutation = useMutation({
     mutationFn: ({ Row, Reason }: { Row: AnnualCompetitionResultRow; Reason: string }) => grantAnnualCompetitionAttemptRetry(Row.attemptId, Reason),
     onSuccess: (_Result, { Row }) => {
-      SetLastMessage(`Retry granted for ${Row.studentName || Row.studentCode || Row.studentId} -- they can start a fresh attempt on the same paper next time they log in.`);
+      SetLastMessage(`Retry granted for ${Row.studentName || Row.studentCode || Row.studentId} — they can start a fresh attempt on the same paper next time they log in.`);
       QueryClient.invalidateQueries({ queryKey: ["admin", "annual-competition", "retry-grants", EventId] });
     },
   });
@@ -891,7 +891,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
         {ActiveTab === "SLOTS" && (
           <div className="space-y-6">
             <div className="math-card p-5">
-              <SectionTitle icon={<PlusCircle size={14} />} kicker="New Slot" title="Create Time Slot" description="Fully data-driven -- fix the known IM-4/MM-2 duration conflict here by widening a slot or moving a level to its own slot, no deploy required." />
+              <SectionTitle icon={<PlusCircle size={14} />} kicker="New Slot" title="Create Time Slot" description="Fully data-driven — fix the known IM-4/MM-2 duration conflict here by widening a slot or moving a level to its own slot, no deploy required." />
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                   Mode
@@ -1090,7 +1090,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 icon={<Sparkles size={14} />}
                 kicker="Bulk Action"
                 title="Generate All Official Papers"
-                description="Generates the official paper for every level that isn't locked yet, one at a time -- a level that already has a locked paper is skipped. The individual Generate/Link buttons on each level below are unaffected."
+                description="Generates the official paper for every level that isn't locked yet, one at a time — a level that already has a locked paper is skipped. The individual Generate/Link buttons on each level below are unaffected."
               />
               <div className="mt-4">
                 <button
@@ -1204,7 +1204,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 icon={<UserPlus size={14} />}
                 kicker="Add To Roster"
                 title="Add Students"
-                description="Platform-wide search -- find and select the students who have registered for this event, then add them all at once. Students already on the roster are left out of this list."
+                description="Platform-wide search — find and select the students who have registered for this event, then add them all at once. Students already on the roster are left out of this list."
               />
 
               {AllStudentsQuery.isLoading ? (
@@ -1358,7 +1358,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 icon={<Users size={14} />}
                 kicker="Current Roster"
                 title="Students On This Event"
-                description="Only students on this roster can be assigned into this event -- by the assignment engine or by manual/bulk override. Removing a student only stops future runs; it never touches a result they've already earned."
+                description="Only students on this roster can be assigned into this event — by the assignment engine or by manual/bulk override. Removing a student only stops future runs; it never touches a result they've already earned."
               />
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -1381,7 +1381,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   type="button"
                   disabled={SelectedStudentIdsForRosterRemove.size === 0 || RemoveFromRosterMutation.isPending}
                   onClick={() => {
-                    if (window.confirm(`Remove ${SelectedStudentIdsForRosterRemove.size} student(s) from this event's roster? This never touches an assignment/attempt/result they already have -- it only stops future assignment runs.`)) {
+                    if (window.confirm(`Remove ${SelectedStudentIdsForRosterRemove.size} student(s) from this event's roster? This never touches an assignment/attempt/result they already have — it only stops future assignment runs.`)) {
                       RemoveFromRosterMutation.mutate(Array.from(SelectedStudentIdsForRosterRemove));
                     }
                   }}
@@ -1482,7 +1482,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
         {ActiveTab === "ASSIGNMENTS" && (
           <div className="space-y-6">
             <div className="math-card p-5">
-              <SectionTitle icon={<ClipboardList size={14} />} kicker="Assignment Engine" title="Preview &amp; Run" description="Preview never writes anything -- review the computed mapping before committing. Re-running never overwrites a row already marked ADMIN_OVERRIDE." />
+              <SectionTitle icon={<ClipboardList size={14} />} kicker="Assignment Engine" title="Preview &amp; Run" description="Preview never writes anything — review the computed mapping before committing. Re-running never overwrites a row already marked ADMIN_OVERRIDE." />
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
@@ -1771,7 +1771,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   icon={<Activity size={14} />}
                   kicker="Live View"
                   title="Started / In Progress / Stuck / Submitted"
-                  description="Recomputed on every load (auto-refreshes every 15s while this tab is open) -- nothing here is a stored flag. STUCK uses the exact same no-heartbeat-within-the-grace-window threshold the reconciliation sweep below acts on."
+                  description="Recomputed on every load (auto-refreshes every 15s while this tab is open) — nothing here is a stored flag. STUCK uses the exact same no-heartbeat-within-the-grace-window threshold the reconciliation sweep below acts on."
                 />
                 <div className="flex flex-wrap items-center gap-2">
                   <button
@@ -1842,7 +1842,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 </div>
               ) : (
                 <div className="mt-4">
-                  <EmptyState title="No assignments yet" description="Run the assignment engine first -- nothing to monitor until students are assigned to this event." />
+                  <EmptyState title="No assignments yet" description="Run the assignment engine first — nothing to monitor until students are assigned to this event." />
                 </div>
               )}
             </div>
@@ -1856,7 +1856,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 icon={<Medal size={14} />}
                 kicker="Post-Event Review"
                 title="Rank &amp; Release"
-                description="Admin always sees every computed result here regardless of release -- the release gate only applies to the student/parent-facing endpoint. Releasing always re-ranks first, in the same step."
+                description="Admin always sees every computed result here regardless of release — the release gate only applies to the student/parent-facing endpoint. Releasing always re-ranks first, in the same step."
               />
               <div className="mt-4 flex flex-wrap items-end gap-3">
                 <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
@@ -1932,10 +1932,10 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 <button
                   type="button"
                   disabled={RecomputeResultsMutation.isPending}
-                  title="Refreshes already-computed scores under the current scoring rules -- never touches release status or rank."
+                  title="Refreshes already-computed scores under the current scoring rules — never touches release status or rank."
                   onClick={() => {
                     const Scope = ResultsLevelFilter === "ALL" ? "every level of this event" : ShortCompetitionLevelLabel(ResultsLevelFilter);
-                    if (window.confirm(`Recompute results for ${Scope}? This refreshes scores/marks under the current scoring rules -- release status and rank are never touched.`)) {
+                    if (window.confirm(`Recompute results for ${Scope}? This refreshes scores/marks under the current scoring rules — release status and rank are never touched.`)) {
                       RecomputeResultsMutation.mutate();
                     }
                   }}
@@ -2031,8 +2031,8 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                 type="button"
                                 title={
                                   HasPendingRetryGrant
-                                    ? "An unused retry grant already exists for this student -- they'll get a fresh attempt on the same paper next time they log in."
-                                    : "Grant this student one fresh attempt on the same paper (REQUIREMENTS.md item 6 -- genuine technical-issue retakes, also usable for re-testing)."
+                                    ? "An unused retry grant already exists for this student — they'll get a fresh attempt on the same paper next time they log in."
+                                    : "Grant this student one fresh attempt on the same paper (REQUIREMENTS.md item 6 — genuine technical-issue retakes, also usable for re-testing)."
                                 }
                                 className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950/60"
                                 onClick={() => {
@@ -2057,7 +2057,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 </div>
               ) : (
                 <div className="mt-5">
-                  <EmptyState title="No results computed yet" description="Results appear automatically once a student's last section closes -- nothing to review until then." />
+                  <EmptyState title="No results computed yet" description="Results appear automatically once a student's last section closes — nothing to review until then." />
                 </div>
               )}
             </div>

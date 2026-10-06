@@ -1,0 +1,3208 @@
+/* ==========================================================================
+   Student login: look-and-feel layer.
+
+   Loaded only for /student routes (see ./layout.tsx). Every rule is scoped to
+   the student shell (.math-role-student), to overlays opened from student
+   pages (.se-portal), or to se-* classes that only student pages use, so the
+   admin and teacher logins are untouched. Nothing here changes behaviour.
+
+   House rules this file enforces for the student login:
+     - Init Caps: no forced upper-casing anywhere.
+     - One display typeface (the sign-in page's) for headings, labels, numbers
+       and controls.
+     - Buttons look like buttons, tabs like tabs, each with distinct rest,
+       hover, pressed, selected, disabled and keyboard-focus states.
+     - Text stays on one line while there is room for it.
+   ========================================================================== */
+
+@font-face {
+  font-family: "MathPath Display";
+  src: url("../login/fonts/Gabarito-Variable.woff2") format("woff2");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- tokens -------------------------------------------------------- */
+html .math-role-student,
+html.mp-student,
+.se-portal {
+  --se-display: "MathPath Display", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --se-dark: #4c0519;
+  --se-primary: #f97316;
+  --se-secondary: #fb7185;
+  --se-accent: #facc15;
+  --se-action: linear-gradient(135deg, #4c0519 0%, #f97316 54%, #facc15 100%);
+  --se-action-hover: linear-gradient(135deg, #5f0a22 0%, #fb8530 54%, #fde047 100%);
+  --se-ink: #3a0a17;
+  --se-ink-soft: #6b5560;
+  --se-readable: #c2410c;
+  --se-surface: #ffffff;
+  --se-surface-2: #fff8f3;
+  --se-tint: #fff1e6;
+  --se-line: rgba(76, 5, 25, 0.11);
+  --se-line-strong: rgba(249, 115, 22, 0.42);
+  --se-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 18px 40px -24px rgba(76, 5, 25, 0.32);
+  --se-shadow-lift: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 26px 50px -22px rgba(249, 115, 22, 0.45);
+  --se-glow: 0 14px 30px -12px rgba(249, 115, 22, 0.55);
+  --se-ring: 0 0 0 3px rgba(249, 115, 22, 0.32);
+  --se-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html.dark .math-role-student,
+html.dark.mp-student,
+html.dark .se-portal {
+  --se-ink: #fff7f0;
+  --se-ink-soft: #b9c2d3;
+  --se-readable: #fdba74;
+  --se-surface: #0f172a;
+  --se-surface-2: #131d33;
+  --se-tint: rgba(249, 115, 22, 0.13);
+  --se-line: rgba(255, 255, 255, 0.1);
+  --se-line-strong: rgba(251, 146, 60, 0.5);
+  --se-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 22px 46px -24px rgba(0, 0, 0, 0.75);
+  --se-shadow-lift: 0 1px 0 rgba(255, 255, 255, 0.07) inset, 0 28px 54px -22px rgba(249, 115, 22, 0.4);
+  --se-glow: 0 14px 30px -12px rgba(249, 115, 22, 0.5);
+  --se-ring: 0 0 0 3px rgba(251, 146, 60, 0.4);
+}
+
+/* ---------- Init Caps and type ------------------------------------------- */
+html .math-role-student *,
+html.mp-student body *,
+.se-portal * {
+  text-transform: none !important;
+}
+
+html .math-role-student :is(.tracking-wide, .tracking-wider, .tracking-widest, [class*="tracking-[0."]),
+html.mp-student body :is(.tracking-wide, .tracking-wider, .tracking-widest, [class*="tracking-[0."]),
+.se-portal :is(.tracking-wide, .tracking-wider, .tracking-widest, [class*="tracking-[0."]) {
+  letter-spacing: 0.005em !important;
+}
+
+html .math-role-student :is(h1, h2, h3, h4, h5, h6, button, [role="tab"], .font-black, .font-extrabold, .se-display):not(.font-mono):not(.font-mono *),
+html.mp-student body :is(h1, h2, h3, h4, h5, h6, button, [role="tab"], .font-black, .font-extrabold, .se-display):not(.font-mono):not(.font-mono *),
+.se-portal :is(h1, h2, h3, h4, h5, h6, button, .font-black, .font-extrabold, .se-display):not(.font-mono):not(.font-mono *),
+html .math-role-student :is(.premium-nav-item, .math-block-header, .math-role-action-button, .math-role-tab, .math-button-primary, .math-button-secondary, .math-theme-toggle, .math-context-pill) {
+  font-family: var(--se-display);
+}
+
+.se-display {
+  font-family: var(--se-display);
+}
+
+/* ---------- shell: slimmer header, navigation that never cuts a label ----- */
+html .math-role-student .math-shell-header .math-shell-inner {
+  padding-block: 0.5rem;
+}
+
+html .math-role-student .math-shell-header a[aria-label="Open MathPath Website"] > div:first-child {
+  height: 76px;
+}
+
+html .math-role-student .math-shell-header a[aria-label="Open MathPath Website"] img {
+  height: 68px;
+}
+
+html .math-role-student .premium-nav-item {
+  flex-shrink: 0;
+  font-weight: 800;
+  letter-spacing: 0;
+  transition: transform 200ms var(--se-ease), background 200ms ease, color 200ms ease, box-shadow 200ms ease;
+}
+
+html .math-role-student .premium-nav-item > span {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+html .math-role-student .math-theme-toggle {
+  min-width: 3rem;
+}
+
+html .math-role-student .math-theme-toggle > svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+html .math-role-student .premium-nav-item:active {
+  transform: translateY(0) scale(0.98);
+}
+
+html .math-role-student :is(.premium-nav-item, .math-theme-toggle, .math-role-icon-button, .math-button-secondary):focus-visible {
+  outline: none;
+  box-shadow: var(--se-ring) !important;
+}
+
+@media (min-width: 1024px) and (max-width: 1599px) {
+  html .math-role-student .premium-nav {
+    gap: 2px;
+    padding: 5px;
+  }
+
+  html .math-role-student .premium-nav-item {
+    padding-inline: 0.7rem;
+    gap: 0.4rem;
+    font-size: 0.86rem;
+  }
+}
+
+/* Between 1024 and 1439px there is no room for icon and label together:
+   keep the whole label and drop the decorative icon. */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  html .math-role-student .premium-nav-item > svg:first-child {
+    display: none;
+  }
+
+  html .math-role-student .premium-nav-item {
+    padding-inline: 0.62rem;
+    font-size: 0.84rem;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1199px) {
+  html .math-role-student .premium-nav-item {
+    padding-inline: 0.42rem;
+    font-size: 0.78rem;
+  }
+}
+
+/* The narrowest desktop menu (a 1024px tablet on its side): the seven labels
+   were 36px wider than the bar and Achievements ran under the next button. */
+@media (min-width: 1024px) and (max-width: 1099px) {
+  html .math-role-student .premium-nav {
+    gap: 0;
+    padding: 4px;
+  }
+
+  html .math-role-student .premium-nav-item {
+    padding-inline: 0.3rem;
+    gap: 0.25rem;
+    font-size: 0.74rem;
+  }
+
+  html .math-role-student .math-shell-header a[aria-label="Open MathPath Website"] img {
+    height: 54px;
+  }
+}
+
+/* 1536 to 1699px (a 1920 laptop at 125%, and 1600 x 900): the header's right
+   side grows at 1536px and the full-size menu no longer fits until 1700px, so
+   this range keeps icons and labels at a slightly closer size. */
+@media (min-width: 1536px) and (max-width: 1699px) {
+  html .math-role-student .premium-nav {
+    gap: 2px;
+    padding: 5px;
+  }
+
+  html .math-role-student .premium-nav-item {
+    padding-inline: 0.5rem;
+    gap: 0.3rem;
+    font-size: 0.82rem;
+  }
+}
+
+/* A page hero with a Back button (Trophy Room): the sentence was forced onto
+   one line from 1024px up, which pushed Back off the edge on a narrow window.
+   The sentence still takes one line whenever there is room; Back never moves. */
+html .math-role-student .math-dashboard-hero-clean > .relative > div:first-child {
+  min-width: 0;
+}
+
+html .math-role-student .math-dashboard-hero-clean > .relative > div:first-child .math-subtitle {
+  white-space: normal;
+}
+
+html .math-role-student .math-dashboard-hero-clean > .relative > button {
+  flex-shrink: 0;
+}
+
+/* ---------- shared pieces ------------------------------------------------- */
+.se-card {
+  border: 1px solid var(--se-line);
+  border-radius: 24px;
+  background: var(--se-surface);
+  box-shadow: var(--se-shadow);
+  color: var(--se-ink);
+}
+
+.se-eyebrow {
+  font-family: var(--se-display);
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--se-ink-soft);
+  white-space: nowrap;
+}
+
+/* The one button. Gradient fill at rest; brighter, lifted and glowing on hover;
+   pressed sinks; focus shows a ring; disabled is flat and muted. */
+.se-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 2.9rem;
+  padding: 0 1.4rem;
+  border: 1px solid rgba(76, 5, 25, 0.28);
+  border-radius: 999px;
+  background: var(--se-action);
+  color: #ffffff;
+  font-family: var(--se-display);
+  font-size: 0.98rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.28) inset, 0 12px 24px -14px rgba(76, 5, 25, 0.7);
+  transition: transform 200ms var(--se-ease), box-shadow 200ms ease, background 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+.se-btn svg {
+  flex-shrink: 0;
+  transition: transform 200ms var(--se-ease);
+}
+
+.se-btn:hover,
+:is(button, [role="button"]):hover > .se-btn:not(.se-flip-cta),
+.se-quote:hover .se-flip-cta,
+.se-matrix:hover .se-flip-cta:hover {
+  transform: translateY(-2px);
+  background: var(--se-action-hover);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.34) inset, var(--se-glow);
+}
+
+.se-btn:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset, 0 6px 14px -10px rgba(76, 5, 25, 0.7);
+}
+
+.se-btn:focus-visible,
+button:focus-visible > .se-btn {
+  outline: none;
+  box-shadow: var(--se-ring), var(--se-glow);
+}
+
+.se-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+}
+
+.se-btn-sm {
+  min-height: 2.4rem;
+  padding: 0 1.05rem;
+  font-size: 0.9rem;
+}
+
+/* Secondary: white with an orange edge at rest; fills on hover. */
+.se-btn-quiet {
+  border-color: var(--se-line-strong);
+  background: var(--se-surface);
+  color: var(--se-readable);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 8px 18px -14px rgba(76, 5, 25, 0.45);
+}
+
+html.dark .se-btn-quiet {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+
+.se-btn-quiet:hover,
+.se-matrix:hover .se-btn-quiet.se-flip-cta:hover {
+  border-color: transparent;
+  background: var(--se-action);
+  color: #ffffff;
+}
+
+/* On top of the coloured quote card. */
+.se-btn-glass {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--se-dark);
+  box-shadow: 0 10px 22px -14px rgba(76, 5, 25, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+html.dark .se-btn-glass {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(15, 23, 42, 0.62);
+  color: #fff7f0;
+}
+
+.se-quote:hover .se-btn-glass.se-flip-cta {
+  border-color: transparent;
+  background: var(--se-action);
+  color: #ffffff;
+}
+
+/* Small round icon button. */
+.se-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  flex-shrink: 0;
+  border: 1px solid var(--se-line);
+  border-radius: 999px;
+  background: var(--se-surface-2);
+  color: var(--se-ink-soft);
+  cursor: pointer;
+  transition: transform 180ms var(--se-ease), background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.se-icon-btn:hover {
+  transform: translateY(-1px);
+  border-color: transparent;
+  background: var(--se-action);
+  color: #ffffff;
+  box-shadow: var(--se-glow);
+}
+
+.se-icon-btn:active {
+  transform: scale(0.94);
+}
+
+.se-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--se-ring);
+}
+
+.se-icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+  transform: none;
+  background: var(--se-surface-2);
+  color: var(--se-ink-soft);
+  box-shadow: none;
+}
+
+/* Overlay sheets opened from student pages (they are mounted on <body>). */
+.se-sheet {
+  border: 1px solid var(--se-line);
+  border-radius: 22px;
+  background: var(--se-surface);
+  color: var(--se-ink);
+  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.6);
+}
+
+.se-sheet-title {
+  font-family: var(--se-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--se-readable);
+  white-space: nowrap;
+}
+
+/* ---------- role buttons and tabs used across student pages --------------- */
+html .math-role-student :is(.math-role-action-button, .math-role-icon-button, .math-button-secondary) {
+  font-weight: 800;
+  letter-spacing: 0;
+  border-radius: 999px;
+  transition: transform 200ms var(--se-ease), color 200ms ease, background 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+
+html .math-role-student :is(.math-role-action-button, .math-role-icon-button, .math-button-secondary):is(:hover, :focus-visible):not(:disabled) {
+  transform: translateY(-2px);
+}
+
+html .math-role-student :is(.math-role-action-button, .math-role-icon-button, .math-button-primary, .math-button-secondary):active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+html .math-role-student .math-button-primary {
+  font-weight: 800;
+  letter-spacing: 0;
+  border-radius: 999px;
+  transition: transform 200ms var(--se-ease), box-shadow 200ms ease, filter 200ms ease;
+}
+
+/* The main action is the gradient button in both modes. */
+html .math-role-student .math-button-primary:not(:disabled) {
+  border-color: rgba(76, 5, 25, 0.28) !important;
+  background: var(--se-action) !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.28) inset, 0 12px 24px -14px rgba(76, 5, 25, 0.7);
+}
+
+html .math-role-student .math-button-primary:not(:disabled) :is(svg, span) {
+  color: #ffffff !important;
+}
+
+html .math-role-student .math-button-primary:is(:hover, :focus-visible):not(:disabled) {
+  transform: translateY(-2px);
+  filter: saturate(1.08) brightness(1.05);
+  box-shadow: var(--se-glow) !important;
+}
+
+/* Tabs: three clearly different looks.
+   Not selected: plain surface.  Hover: warm tint and orange edge.  Selected: gradient fill. */
+html .math-role-student :is(.math-role-tab, .math-role-tab-button) {
+  font-weight: 800;
+  letter-spacing: 0;
+  border-radius: 999px;
+  transition: transform 200ms var(--se-ease), color 200ms ease, background 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+
+html .math-role-student :is(.math-role-tab, .math-role-tab-button):is(:hover, :focus-visible):not(.math-role-tab-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]):not(:disabled) {
+  transform: translateY(-1px);
+  color: var(--se-readable) !important;
+  background: var(--se-tint) !important;
+  border-color: var(--se-line-strong) !important;
+  box-shadow: 0 10px 20px -14px rgba(249, 115, 22, 0.6) !important;
+}
+
+html .math-role-student :is(.math-role-tab, .math-role-tab-button):is(:hover, :focus-visible):not(.math-role-tab-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]):not(:disabled) :is(svg, .lucide, span) {
+  color: var(--se-readable) !important;
+  stroke: currentColor;
+}
+
+html .math-role-student :is(.math-role-tab-active, .math-role-tab-button.is-active, .math-role-tab-button[aria-selected="true"], .math-role-tab-button[data-active="true"]) {
+  color: #ffffff !important;
+  background: var(--se-action) !important;
+  border-color: rgba(76, 5, 25, 0.3) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.28) inset, 0 12px 24px -14px rgba(76, 5, 25, 0.7) !important;
+}
+
+html .math-role-student :is(.math-role-tab, .math-role-tab-button):active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+html .math-role-student :is(.math-role-tab, .math-role-tab-button, .math-role-action-button, .math-button-primary):focus-visible {
+  outline: none;
+  box-shadow: var(--se-ring) !important;
+}
+
+html .math-role-student .math-block-header {
+  gap: 0.45rem;
+  padding: 0.38rem 0.95rem;
+  border-color: var(--se-line);
+  background: var(--se-surface);
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: var(--se-readable);
+  box-shadow: 0 6px 16px -12px rgba(76, 5, 25, 0.5);
+  backdrop-filter: none;
+  white-space: nowrap;
+}
+
+html.dark .math-role-student .math-block-header {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ---------- dashboard ------------------------------------------------------ */
+/* The lobby fits one screen on laptops and desktops: header + page padding are
+   measured, not guessed, so nothing is cut off and the page does not scroll. */
+@media (min-width: 1024px) {
+  html .math-role-student .math-page:has(> .se-dash) {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  html .math-role-student .se-dash {
+    height: calc(100dvh - var(--se-header-h, 93px) - 2rem);
+    min-height: 540px;
+  }
+}
+
+html .math-role-student .se-hero {
+  padding: 1rem 1.15rem 1rem 1.5rem;
+  border: 1px solid var(--se-line);
+  border-radius: 26px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(249, 115, 22, 0.1), transparent 46%),
+    radial-gradient(90% 120% at 100% 100%, rgba(251, 113, 133, 0.1), transparent 52%),
+    var(--se-surface);
+  box-shadow: var(--se-shadow);
+  backdrop-filter: none;
+}
+
+html.dark .math-role-student .se-hero {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(249, 115, 22, 0.16), transparent 46%),
+    radial-gradient(90% 120% at 100% 100%, rgba(251, 113, 133, 0.1), transparent 52%),
+    var(--se-surface);
+}
+
+.se-hero-title {
+  font-family: var(--se-display);
+  font-size: clamp(1.7rem, 1.1rem + 1.5vw, 2.7rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--se-ink);
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .se-hero-title {
+    white-space: normal;
+  }
+}
+
+/* wallet */
+.se-wallet {
+  border: 1px solid var(--se-line);
+  background: var(--se-surface-2);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 16px 34px -24px rgba(76, 5, 25, 0.4);
+}
+
+html.dark .se-wallet {
+  background: rgba(2, 6, 23, 0.55);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+.se-wallet:hover {
+  border-color: var(--se-line-strong);
+}
+
+.se-wallet-label {
+  font-family: var(--se-display);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--se-ink-soft);
+  white-space: nowrap;
+}
+
+.se-wallet-accent {
+  color: var(--se-readable);
+}
+
+.se-wallet-rank {
+  margin-top: 0.3rem;
+  font-family: var(--se-display);
+  font-size: clamp(1.5rem, 1.1rem + 0.9vw, 2rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--se-ink);
+  white-space: nowrap;
+}
+
+.se-wallet-xp {
+  font-family: var(--se-display);
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--se-ink);
+  white-space: nowrap;
+}
+
+.se-xp-track {
+  border: 1px solid var(--se-line);
+  background: color-mix(in srgb, var(--se-ink) 9%, transparent);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.se-xp-track:hover {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), var(--se-ring);
+}
+
+.se-xp-fill {
+  background: var(--se-action);
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.55);
+}
+
+.se-coins {
+  border: 1px solid var(--se-line);
+  background: var(--se-surface);
+  box-shadow: 0 10px 22px -16px rgba(76, 5, 25, 0.45);
+}
+
+html.dark .se-coins {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.se-coins:hover {
+  border-color: var(--se-line-strong);
+  box-shadow: var(--se-glow);
+}
+
+.se-wallet-coins {
+  margin-top: 0.25rem;
+  font-family: var(--se-display);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--se-ink);
+}
+
+/* intel feed */
+.se-intel {
+  height: 150px;
+}
+
+@media (min-width: 1536px) {
+  .se-intel {
+    height: 168px;
+  }
+}
+
+.se-intel-card {
+  border-radius: 24px;
+}
+
+.se-intel-grid {
+  background-image:
+    linear-gradient(rgba(249, 115, 22, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(249, 115, 22, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent);
+}
+
+.se-intel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.95rem 1.5rem 0;
+}
+
+.se-live-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #f43f5e;
+  box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.5);
+  animation: seLivePulse 2s ease-out infinite;
+}
+
+@keyframes seLivePulse {
+  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(244, 63, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+}
+
+.se-intel-slide {
+  --se-tone: #4f46e5;
+  --se-tone-2: #7c3aed;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 0 1.5rem 1.35rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.se-intel-slide:focus-visible {
+  outline: none;
+}
+
+.se-intel-slide[data-tone="amber"] { --se-tone: #d97706; --se-tone-2: #f59e0b; }
+.se-intel-slide[data-tone="emerald"] { --se-tone: #059669; --se-tone-2: #0d9488; }
+.se-intel-slide[data-tone="rose"] { --se-tone: #e11d48; --se-tone-2: #f43f5e; }
+html.dark .se-intel-slide { --se-tone: #818cf8; --se-tone-2: #a78bfa; }
+html.dark .se-intel-slide[data-tone="amber"] { --se-tone: #fbbf24; --se-tone-2: #f59e0b; }
+html.dark .se-intel-slide[data-tone="emerald"] { --se-tone: #34d399; --se-tone-2: #2dd4bf; }
+html.dark .se-intel-slide[data-tone="rose"] { --se-tone: #fb7185; --se-tone-2: #f43f5e; }
+
+.se-intel-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--se-tone), var(--se-tone-2));
+  color: #ffffff;
+  box-shadow: 0 14px 26px -14px var(--se-tone);
+  transition: transform 260ms var(--se-ease);
+}
+
+html.dark .se-intel-icon {
+  color: #0b1020;
+}
+
+.se-intel-slide:hover .se-intel-icon {
+  transform: scale(1.06) rotate(-3deg);
+}
+
+.se-intel-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.se-intel-title {
+  font-family: var(--se-display);
+  font-size: clamp(1.25rem, 1rem + 0.7vw, 1.7rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--se-tone);
+  white-space: nowrap;
+}
+
+.se-intel-text {
+  font-size: 0.96rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--se-ink-soft);
+}
+
+.se-intel-text strong {
+  font-weight: 700;
+  color: var(--se-ink);
+}
+
+.se-intel-cta {
+  flex-shrink: 0;
+}
+
+.se-intel-dots {
+  position: absolute;
+  right: 0;
+  bottom: 0.7rem;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.se-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--se-ink) 26%, transparent);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: width 260ms var(--se-ease), background 200ms ease, transform 200ms ease;
+}
+
+.se-dot:hover {
+  background: var(--se-primary);
+  transform: scale(1.25);
+}
+
+.se-dot:focus-visible {
+  outline: none;
+  box-shadow: var(--se-ring);
+}
+
+.se-dot-active,
+.se-dot-active:hover {
+  width: 1.9rem;
+  background: var(--se-action);
+  transform: none;
+}
+
+@media (max-width: 767px) {
+  .se-intel {
+    height: auto;
+    min-height: 176px;
+  }
+
+  .se-intel-slide {
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    padding: 0.7rem 1.1rem 1.9rem;
+  }
+
+  .se-intel-head {
+    padding: 0.9rem 1.1rem 0;
+  }
+
+  .se-intel-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+  }
+
+  .se-intel-title {
+    white-space: normal;
+  }
+
+  .se-intel-cta {
+    width: 100%;
+  }
+}
+
+/* quote card (front of the flip card) */
+.se-quote {
+  border-radius: 24px;
+  box-shadow: var(--se-shadow);
+  min-height: 240px;
+}
+
+.se-quote-edge {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  border: 1px solid var(--se-line);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.se-quote-text {
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--se-ink);
+  overflow-wrap: break-word;
+}
+
+html.dark .se-quote-text {
+  color: #ffffff;
+}
+
+.se-quote-lg { font-size: clamp(1.7rem, 1rem + 2.1vw, 3.1rem); line-height: 1.14; }
+.se-quote-md { font-size: clamp(1.4rem, 0.9rem + 1.5vw, 2.35rem); line-height: 1.2; }
+.se-quote-sm { font-size: clamp(1.15rem, 0.9rem + 0.9vw, 1.75rem); line-height: 1.32; }
+
+.se-quote-author {
+  font-family: var(--se-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--se-ink-soft);
+}
+
+html.dark .se-quote-author {
+  color: #d5dbe7;
+}
+
+/* conquest matrix (back of the flip card) */
+.se-matrix {
+  padding: 1.25rem 1.4rem 1.2rem;
+  min-height: 240px;
+}
+
+.se-matrix-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+  gap: 1.4rem;
+}
+
+.se-next {
+  padding-left: 1.4rem;
+  border-left: 1px solid var(--se-line);
+}
+
+.se-heat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.15rem;
+}
+
+.se-matrix-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  font-family: var(--se-display);
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--se-readable);
+  white-space: nowrap;
+}
+
+.se-matrix-title-ink {
+  color: var(--se-ink);
+}
+
+.se-matrix-sub {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: var(--se-display);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--se-ink-soft);
+}
+
+.se-heat-bars {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  max-height: 210px;
+  align-items: stretch;
+  gap: clamp(0.4rem, 1.1vw, 0.9rem);
+  margin-top: auto;
+  padding-top: 0.75rem;
+}
+
+.se-heat-col {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+}
+
+.se-heat-track {
+  display: flex;
+  width: 100%;
+  flex: 1;
+  min-height: 44px;
+  align-items: flex-end;
+  justify-content: center;
+  border-bottom: 2px solid var(--se-line);
+}
+
+.se-heat-track > div {
+  max-width: 40px;
+  border-radius: 9px 9px 0 0;
+}
+
+.se-heat-day {
+  font-family: var(--se-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--se-ink-soft);
+}
+
+.se-heat-date {
+  font-family: var(--se-display);
+  font-size: 0.98rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--se-ink);
+}
+
+.se-heat-tip {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 10px);
+  z-index: 50;
+  display: flex;
+  width: 14rem;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: #0b1020;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-6px, -50%);
+  box-shadow: 0 24px 48px -18px rgba(0, 0, 0, 0.6);
+  transition: opacity 180ms ease, transform 180ms var(--se-ease);
+}
+
+html.dark .se-heat-tip {
+  border-color: #e2e8f0;
+  background: #ffffff;
+  color: #0b1020;
+}
+
+/* The details open beside the bar (to its right for the first days of the week,
+   to its left for the last), so they never cover the heading above the chart. */
+.se-heat-tip-left {
+  right: calc(100% + 10px);
+  left: auto;
+  transform: translate(6px, -50%);
+}
+
+.se-heat-col:hover .se-heat-tip {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+@media (max-width: 767px) {
+  .se-heat-tip,
+  .se-heat-tip-left {
+    top: auto;
+    right: auto;
+    bottom: calc(100% - 4px);
+    left: 50%;
+    transform: translate(-50%, 6px);
+  }
+
+  .se-heat-tip-start { left: 0; transform: translate(0, 6px); }
+  .se-heat-tip-end { right: 0; left: auto; transform: translate(0, 6px); }
+
+  .se-heat-col:hover .se-heat-tip { transform: translate(-50%, 0); }
+  .se-heat-col:hover .se-heat-tip-start,
+  .se-heat-col:hover .se-heat-tip-end { transform: translate(0, 0); }
+}
+
+.se-matrix-note {
+  margin-top: 0.8rem;
+  font-family: var(--se-display);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--se-ink-soft);
+  white-space: nowrap;
+}
+
+.se-next-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.45rem;
+  padding-block: 0.6rem;
+}
+
+.se-next-title {
+  font-family: var(--se-display);
+  font-size: clamp(1.05rem, 0.9rem + 0.45vw, 1.35rem);
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--se-ink);
+}
+
+.se-next-detail {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--se-ink-soft);
+}
+
+.se-next-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+/* Smaller laptops: keep both buttons on one row and the copy clear of them. */
+@media (max-width: 1439px), (max-height: 820px) {
+  .se-next-actions .se-btn {
+    min-height: 2.4rem;
+    padding: 0 1rem;
+    font-size: 0.9rem;
+  }
+
+  .se-next-actions {
+    flex-wrap: nowrap;
+  }
+
+  .se-next-title {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .se-matrix {
+    padding: 1rem 1.2rem;
+  }
+
+  .se-next-body {
+    padding-block: 0.4rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .se-next-actions {
+    flex-wrap: wrap;
+  }
+
+  .se-matrix-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .se-next {
+    padding-top: 1.1rem;
+    padding-left: 0;
+    border-top: 1px solid var(--se-line);
+    border-left: 0;
+  }
+
+  .se-heat-track {
+    min-height: 84px;
+  }
+
+  .se-matrix-title,
+  .se-matrix-note {
+    white-space: normal;
+  }
+}
+
+/* quick links: the whole tile is the button */
+.se-quick {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 108px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  overflow: hidden;
+  border: 1px solid var(--se-line);
+  border-radius: 24px;
+  background: var(--se-surface);
+  color: var(--se-ink);
+  text-align: center;
+  cursor: pointer;
+  box-shadow: var(--se-shadow);
+  transition: transform 240ms var(--se-ease), box-shadow 240ms ease, border-color 240ms ease, background 240ms ease;
+}
+
+.se-quick::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(249, 115, 22, 0.14), transparent 60%);
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+
+.se-quick-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border: 1px solid var(--se-line);
+  border-radius: 18px;
+  background: var(--se-tint);
+  color: var(--se-readable);
+  transition: transform 260ms var(--se-ease), background 240ms ease, color 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+}
+
+.se-quick-label {
+  position: relative;
+  font-family: var(--se-display);
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+  transition: color 240ms ease;
+}
+
+.se-quick:hover,
+.se-quick:focus-visible {
+  transform: translateY(-3px);
+  border-color: var(--se-line-strong);
+  box-shadow: var(--se-shadow-lift);
+}
+
+.se-quick:hover::before,
+.se-quick:focus-visible::before {
+  opacity: 1;
+}
+
+.se-quick:hover .se-quick-icon,
+.se-quick:focus-visible .se-quick-icon {
+  transform: scale(1.08) rotate(-4deg);
+  border-color: transparent;
+  background: var(--se-action);
+  color: #ffffff;
+  box-shadow: var(--se-glow);
+}
+
+.se-quick:hover .se-quick-label,
+.se-quick:focus-visible .se-quick-label {
+  color: var(--se-readable);
+}
+
+.se-quick:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.se-quick:focus-visible {
+  outline: none;
+  box-shadow: var(--se-ring), var(--se-shadow-lift);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .se-btn,
+  .se-icon-btn,
+  .se-quick,
+  .se-quick-icon,
+  .se-intel-icon,
+  .se-dot,
+  .se-live-dot {
+    animation: none;
+    transition-duration: 1ms;
+  }
+}
+
+/* ==========================================================================
+   Test-taking screens (practice sheets, assessments, mock exams, annual
+   practice and the official annual paper).
+   Calm and plain: nothing decorative, nothing moving, one clear hierarchy.
+   ========================================================================== */
+.se-test-backdrop {
+  background: #f7f4f2;
+}
+
+html.dark .se-test-backdrop {
+  background: #0a0f1c;
+}
+
+html .math-role-student:has(.se-test) .premium-backdrop {
+  display: none;
+}
+
+html:has(.se-test-backdrop) body {
+  background: #f7f4f2;
+}
+
+html.dark:has(.se-test-backdrop) body {
+  background: #0a0f1c;
+}
+
+@media (min-width: 1024px) {
+  html .math-role-student .math-page:has(> .se-test) {
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+  }
+}
+
+html .math-role-student .se-test .mp-qboard {
+  background: var(--se-surface-2);
+}
+
+html.dark .math-role-student .se-test .mp-qboard {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+html .math-role-student .se-test-card.math-card {
+  border: 1px solid var(--se-line);
+  border-radius: 28px;
+  background: var(--se-surface);
+  box-shadow: var(--se-shadow);
+  backdrop-filter: none;
+}
+
+html .math-role-student .se-test-card.math-card:hover {
+  transform: none;
+  box-shadow: var(--se-shadow) !important;
+}
+
+html .math-role-student .se-test .math-card::before,
+html .math-role-student .se-test .math-card::after {
+  display: none !important;
+}
+
+/* top bar */
+.se-test-top {
+  border: 1px solid var(--se-line);
+  border-radius: 22px;
+  background:
+    radial-gradient(90% 160% at 100% 0%, rgba(250, 204, 21, 0.14), transparent 55%),
+    radial-gradient(70% 140% at 0% 0%, rgba(249, 115, 22, 0.1), transparent 50%),
+    var(--se-surface-2);
+}
+
+html.dark .se-test-top {
+  background:
+    radial-gradient(90% 160% at 100% 0%, rgba(250, 204, 21, 0.07), transparent 55%),
+    radial-gradient(70% 140% at 0% 0%, rgba(249, 115, 22, 0.14), transparent 50%),
+    var(--se-surface-2);
+}
+
+.se-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.9rem;
+  border: 1px solid var(--se-line);
+  border-radius: 999px;
+  background: var(--se-surface);
+  font-family: var(--se-display);
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--se-ink);
+  white-space: nowrap;
+}
+
+html.dark .se-chip {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.se-chip-accent {
+  border-color: var(--se-line-strong);
+  background: var(--se-tint);
+  color: var(--se-readable);
+}
+
+html.dark .se-chip-accent {
+  background: var(--se-tint);
+}
+
+.se-test-title {
+  font-family: var(--se-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--se-ink);
+}
+
+.se-test-title-lg {
+  font-size: clamp(1.3rem, 1.05rem + 0.8vw, 1.75rem);
+  white-space: nowrap;
+}
+
+.se-test-note {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--se-ink-soft);
+}
+
+.se-test-hint {
+  font-size: 0.8rem;
+}
+
+.se-test-hint kbd {
+  font-size: 0.74rem;
+}
+
+/* stat tiles */
+.se-stat {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--se-line);
+  border-radius: 16px;
+  background: var(--se-surface);
+}
+
+html.dark .se-stat {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.se-stat-icon {
+  display: inline-flex;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--se-tint);
+  color: var(--se-readable);
+}
+
+.se-stat-label {
+  font-family: var(--se-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--se-ink-soft);
+  white-space: nowrap;
+}
+
+.se-stat-sub {
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--se-ink-soft);
+  white-space: nowrap;
+}
+
+.se-stat-value {
+  font-family: var(--se-display);
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--se-ink);
+  white-space: nowrap;
+}
+
+.se-stat-timer {
+  justify-content: center;
+  gap: 1rem;
+}
+
+.se-stat-timer:has(.se-stat-label) {
+  justify-content: space-between;
+}
+
+/* The timer tile takes the width its label and clock need, so the two can
+   never run into each other; the other three tiles share the rest. */
+@media (min-width: 1280px) {
+  .se-stat-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(max-content, 1.25fr);
+  }
+}
+
+/* Tablets and small laptops: still one row. The timer tile is just the clock
+   and the counters drop their icons, so the question starts higher up. */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .se-stat-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) max-content;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .se-stat-row .se-stat-icon,
+  .se-stat-row .se-stat-timer > div:first-child:not(:only-child) {
+    display: none;
+  }
+}
+
+/* Phones: the three counters share one row, the timer gets its own. */
+@media (max-width: 767px) {
+  .se-stat-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .se-stat-row > .se-stat-timer {
+    grid-column: 1 / -1;
+  }
+
+  .se-stat-row .se-stat-icon {
+    display: none;
+  }
+
+  .se-stat-row .se-stat {
+    padding: 0.55rem 0.7rem;
+  }
+}
+
+.se-stat-row {
+  top: var(--se-header-h, 93px);
+  padding: 0.5rem;
+  border: 1px solid var(--se-line);
+  border-radius: 20px;
+  background: var(--se-surface-2);
+}
+
+/* question card inside a test: flat, no hover lift */
+html .math-role-student .se-test .se-test-card .math-card {
+  border: 1px solid var(--se-line);
+  border-radius: 22px;
+  background: var(--se-surface);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+html .math-role-student .se-test .se-test-card .math-card:hover {
+  transform: none;
+  box-shadow: none !important;
+}
+
+/* navigator panel and its three button states:
+   not answered (plain), answered (green), current (gradient). Hover lifts and warms. */
+.se-test-nav {
+  border: 1px solid var(--se-line);
+  border-radius: 20px;
+  background: var(--se-surface-2);
+}
+
+html .math-role-student .mp-qnav {
+  font-family: var(--se-display);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  transition: transform 160ms var(--se-ease), background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+html .math-role-student .mp-qnav-open {
+  background: var(--se-surface);
+  color: var(--se-ink-soft);
+  box-shadow: inset 0 0 0 1px var(--se-line);
+}
+
+html .math-role-student .mp-qnav-open:hover {
+  transform: translateY(-2px);
+  background: var(--se-tint);
+  color: var(--se-readable);
+  box-shadow: inset 0 0 0 1px var(--se-line-strong), 0 8px 16px -10px rgba(249, 115, 22, 0.7);
+}
+
+html .math-role-student .mp-qnav-answered {
+  background: #d1fae5;
+  color: #065f46;
+  box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.35);
+}
+
+html.dark .math-role-student .mp-qnav-answered {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+}
+
+html .math-role-student .mp-qnav-answered:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.6), 0 8px 16px -10px rgba(5, 150, 105, 0.7);
+}
+
+html .math-role-student .mp-qnav-current {
+  background: var(--se-action);
+  color: #ffffff;
+  box-shadow: 0 10px 18px -10px rgba(76, 5, 25, 0.8);
+}
+
+html .math-role-student .mp-qnav:active {
+  transform: scale(0.94);
+}
+
+html .math-role-student .mp-qnav:focus-visible {
+  outline: none;
+  box-shadow: var(--se-ring);
+}
+
+/* previous / next arrows */
+.se-arrow {
+  border: 1px solid var(--se-line);
+  background: var(--se-surface);
+  color: var(--se-ink);
+  box-shadow: 0 14px 28px -16px rgba(76, 5, 25, 0.55);
+  cursor: pointer;
+  transition: transform 200ms var(--se-ease), background 200ms ease, color 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.se-arrow:hover {
+  transform: scale(1.08);
+  border-color: transparent;
+  background: var(--se-action);
+  color: #ffffff;
+  box-shadow: var(--se-glow);
+}
+
+.se-arrow:active {
+  transform: scale(0.96);
+}
+
+.se-arrow:focus-visible {
+  outline: none;
+  box-shadow: var(--se-ring);
+}
+
+.se-arrow:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* small labels: Init Caps needs a little more size than capitals did */
+html .math-role-student :is([class*="text-[8px]"], [class*="text-[9px]"], [class*="text-[10px]"], [class*="text-[11px]"]) {
+  font-size: 0.8rem;
+}
+
+/* ---------- 3D rank medallion (dashboard wallet) --------------------------- */
+.se-emblem {
+  display: inline-flex;
+}
+
+.se-emblem-flat {
+  transition: opacity 400ms ease;
+}
+
+.se-emblem-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 14px 16px rgba(76, 5, 25, 0.38));
+  transition: opacity 400ms ease;
+}
+
+html.dark .se-emblem-canvas {
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 18px rgba(249, 115, 22, 0.28));
+}
+
+.se-emblem[data-live="true"] .se-emblem-canvas {
+  opacity: 1;
+}
+
+.se-emblem[data-live="true"] .se-emblem-flat {
+  opacity: 0;
+}
+
+/* Headings: the display face reads best a step below its heaviest weight. */
+html .math-role-student :is(h1, h2, h3):is(.font-black, .font-extrabold) {
+  font-weight: 800;
+  letter-spacing: -0.012em;
+}
+
+/* The role tag beside the student's name arrives in capitals ("STUDENT"); show it in Init Caps. */
+html .math-role-student .math-role-badge-student,
+html.mp-student body .math-role-badge-student {
+  display: inline-block;
+  text-transform: lowercase !important;
+  letter-spacing: 0 !important;
+}
+
+html .math-role-student .math-role-badge-student::first-letter,
+html.mp-student body .math-role-badge-student::first-letter {
+  text-transform: uppercase !important;
+}
+
+/* The counters and the section timer stay pinned under the header while a test
+   scrolls. They could not before: their card clipped its contents, which
+   switches "sticky" off, so the timer scrolled away with the page. */
+html .math-role-student .se-test-card.math-card {
+  overflow: visible;
+}
+
+.se-stat-row {
+  box-shadow: 0 14px 24px -18px rgba(76, 5, 25, 0.45);
+}
+
+/* Pinned flush under the header, so nothing can show between the two. */
+
+/* The clock never breaks in the middle of its text. */
+html .math-role-student .se-test [aria-live] {
+  white-space: nowrap;
+}
+
+/* Phones, practice test: three counters in one row, the clock on its own row,
+   and a long section name wraps instead of being cut short. */
+@media (max-width: 639px) {
+  .se-stat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .se-stat-grid > .se-stat-timer {
+    grid-column: 1 / -1;
+  }
+
+  .se-stat-grid .se-stat-icon {
+    display: none;
+  }
+
+  .se-stat-grid .se-stat {
+    padding: 0.55rem 0.7rem;
+  }
+
+  html .math-role-student .se-test-title.truncate {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .se-test-title-lg {
+    white-space: normal;
+  }
+}
+
+/* Dark mode: a tab that is not selected sits on the dark surface instead of a white pill. */
+html.dark .math-role-student :is(.math-role-tab, .math-role-tab-button):not(.math-role-tab-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]):not(:hover):not(:focus-visible) {
+  color: var(--se-readable) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: var(--se-line) !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   Multiple-choice test body (assessments and mock exams): the question board
+   beside the four options. Same flat panels as the other test screens.
+   ========================================================================== */
+.se-mcq-panel {
+  border: 1px solid var(--se-line);
+  border-radius: 22px;
+  background: var(--se-surface);
+}
+
+html.dark .se-mcq-panel {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Question beside the options from tablet width up, so the options are never
+   below the fold; stacked on phones. */
+@media (min-width: 880px) {
+  .se-mcq {
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+    align-items: stretch;
+  }
+
+}
+
+/* A test that contains one-line sums too long for half the card: the question
+   takes the full width and the four options sit in one row under it, so the
+   sum stays on one line. Chosen once per test (NeedsWideQuestionBoard). */
+@media (min-width: 880px) {
+  .se-mcq.se-mcq-wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .se-mcq.se-mcq-wide .se-mcq-options {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.se-mcq.se-mcq-wide .mp-qboard {
+  min-height: 10rem;
+}
+
+/* Landscape tablets and small laptops (880 to 1179 px): the full-width board
+   hands its own side padding to the sum, so a long BODMAS line (up to about
+   45 characters at 1024 px) still sits on one line. */
+@media (min-width: 880px) and (max-width: 1179px) {
+  .se-mcq.se-mcq-wide .mp-qboard,
+  .mp-qboard.se-qboard-wide {
+    padding-inline: 6px;
+  }
+
+  .se-mcq.se-mcq-wide .mp-qboard > div,
+  .mp-qboard.se-qboard-wide > div {
+    padding-inline: 8px;
+  }
+}
+
+/* The board is tall enough for the tallest stacked sum, so the panel never
+   jumps in height from one question to the next. */
+.se-mcq .mp-qboard {
+  min-height: 14.5rem;
+}
+
+@media (min-width: 1280px) and (min-height: 1000px) {
+  .se-mcq .mp-qboard {
+    min-height: 18rem;
+  }
+}
+
+.se-mcq-heading {
+  font-family: var(--se-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--se-ink);
+  white-space: nowrap;
+}
+
+.se-test-code {
+  font-family: var(--se-display);
+  font-weight: 800;
+  color: var(--se-ink);
+}
+
+/* Saved / saving chip beside the question number. */
+.se-save {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.38rem 0.8rem;
+  border-radius: 999px;
+  font-family: var(--se-display);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.se-save-done {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.se-save-busy {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+html.dark .se-save-done {
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+}
+
+html.dark .se-save-busy {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+}
+
+/* Answer options. Five clear looks:
+   rest (plain), hover (warm tint, lifted), pressed (sinks), selected (orange
+   edge, tinted, letter tile filled), disabled (muted, no lift). Focus adds a ring. */
+html .math-role-student .mp-option {
+  min-height: 4.4rem;
+  border: 1.5px solid var(--se-line);
+  border-radius: 18px;
+  background: var(--se-surface);
+  color: var(--se-ink);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+  cursor: pointer;
+  transition: transform 160ms var(--se-ease), background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+html.dark .math-role-student .mp-option {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
+}
+
+html .math-role-student .mp-option-letter {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 12px;
+  background: var(--se-tint);
+  color: var(--se-readable);
+  font-family: var(--se-display);
+  font-size: 1rem;
+  box-shadow: none;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+html .math-role-student .mp-option-value {
+  font-family: var(--se-display);
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+html .math-role-student .mp-option:not(.mp-option-selected):not(:disabled):hover {
+  transform: translateY(-2px);
+  border-color: var(--se-line-strong);
+  background: var(--se-tint);
+  box-shadow: 0 12px 22px -16px rgba(249, 115, 22, 0.75);
+}
+
+html .math-role-student .mp-option:not(:disabled):active {
+  transform: translateY(0) scale(0.985);
+  box-shadow: none;
+}
+
+html .math-role-student .mp-option-selected {
+  border-color: var(--se-primary);
+  background: var(--se-tint);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2), 0 14px 26px -18px rgba(249, 115, 22, 0.85);
+}
+
+html .math-role-student .mp-option-selected .mp-option-letter {
+  background: var(--se-action);
+  color: #ffffff;
+}
+
+html .math-role-student .mp-option:focus-visible {
+  outline: none;
+  box-shadow: var(--se-ring);
+}
+
+html .math-role-student .mp-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+/* Phones: the two panels stack; options stay two to a row while they fit. */
+@media (max-width: 479px) {
+  .se-mcq-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  html .math-role-student .mp-option {
+    min-height: 3.6rem;
+    gap: 0.55rem;
+    padding: 0.6rem 0.65rem;
+  }
+
+  html .math-role-student .mp-option-letter {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  html .math-role-student .mp-option-value {
+    font-size: 1.1rem;
+  }
+}
+
+/* Long papers: slightly smaller navigator buttons. */
+html .math-role-student .mp-qnav-dense {
+  gap: 0.375rem;
+}
+
+html .math-role-student .mp-qnav-dense .mp-qnav {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 479px) {
+  html .math-role-student .mp-qnav-dense .mp-qnav {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+}
+
+/* ==========================================================================
+   The rest of the student pages (practice, progress, assessments, readiness,
+   mock exams, leaderboards, annual competition, achievements, results).
+   Same layouts and features as before; the shared pieces are tightened so the
+   pages read as one family with the dashboard and the test screens.
+   ========================================================================== */
+
+/* ---------- number tiles ---------------------------------------------------
+   Icon on the left, label over value on the right (the same tile as the test
+   counters). They used to stack icon / label / value, which left the tile
+   half empty and let two-word labels break onto a second line. */
+html .math-role-student .math-student-metric-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.8rem;
+  row-gap: 0.1rem;
+  min-height: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--se-line) !important;
+  border-radius: 20px !important;
+  background: var(--se-surface) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 12px 26px -22px rgba(76, 5, 25, 0.45) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: transform 200ms var(--se-ease), box-shadow 200ms ease, border-color 200ms ease;
+}
+
+html.dark .math-role-student .math-student-metric-card {
+  background: rgba(255, 255, 255, 0.04) !important;
+  box-shadow: none !important;
+}
+
+html .math-role-student .math-student-metric-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--se-line-strong) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 18px 30px -22px rgba(249, 115, 22, 0.65) !important;
+}
+
+/* the sweep-of-light layer inside each tile is not needed any more */
+html .math-role-student .math-student-metric-card > .absolute {
+  display: none;
+}
+
+html .math-role-student .math-student-metric-card > div:not(.absolute):not([class*="h-2"]) {
+  display: inline-flex;
+  grid-row: 1 / span 2;
+  grid-column: 1;
+  width: 2.6rem;
+  height: 2.6rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 14px;
+  background: var(--se-tint);
+  color: var(--se-readable);
+  box-shadow: none;
+  transform: none !important;
+}
+
+html .math-role-student .math-student-metric-card > p {
+  grid-column: 2;
+  min-width: 0;
+  margin-top: 0 !important;
+  transform: none !important;
+}
+
+/* The label stays on one line whenever the tile has the width for it. When six
+   tiles share a narrow row it takes two lines instead of being cut off by the
+   tile's edge (it breaks between words only). */
+html .math-role-student .math-student-metric-card > p:nth-of-type(1) {
+  font-family: var(--se-display);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--se-ink-soft) !important;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+html .math-role-student .math-student-metric-card > p:nth-of-type(2) {
+  font-family: var(--se-display);
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.12;
+  font-variant-numeric: tabular-nums;
+  color: var(--se-ink) !important;
+  white-space: nowrap;
+}
+
+/* a long value (a date and time, a status) is set smaller so it stays on one
+   line where the tile is wide enough, and takes two lines where it is not */
+html .math-role-student .math-student-metric-card > p.se-metric-long {
+  font-size: 1.02rem;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+/* Laptops and tablets: five or six tiles share a row, so each tile is a little
+   tighter and its text a little smaller, which keeps "Needs Re-Attempt" and a
+   date-and-time on one line down to 1280px. Under 1024px the tiles are too
+   narrow for an icon at all, as on a phone. */
+@media (max-width: 1599px) {
+  html .math-role-student .math-student-metric-card > p.se-metric-long {
+    font-size: 0.95rem;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1439px) {
+  html .math-role-student .math-student-metric-card {
+    column-gap: 0.55rem;
+    padding: 0.75rem 0.8rem;
+  }
+
+  html .math-role-student .math-student-metric-card > div:not(.absolute):not([class*="h-2"]) {
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: 12px;
+  }
+
+  html .math-role-student .math-student-metric-card > p:nth-of-type(1) {
+    font-size: 0.8rem;
+  }
+
+  html .math-role-student .math-student-metric-card > p.se-metric-long {
+    font-size: 0.88rem;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  html .math-role-student .math-student-metric-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html .math-role-student .math-student-metric-card > div:not(.absolute):not([class*="h-2"]) {
+    display: none;
+  }
+
+  html .math-role-student .math-student-metric-card > p {
+    grid-column: 1;
+  }
+}
+
+html .math-role-student .math-student-metric-card > p:nth-of-type(n + 3) {
+  grid-column: 1 / -1;
+  margin-top: 0.4rem !important;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--se-ink-soft) !important;
+}
+
+html .math-role-student .math-student-metric-card > div[class*="h-2"] {
+  grid-column: 1 / -1;
+  margin-top: 0.55rem;
+}
+
+/* ---------- tables ----------------------------------------------------------
+   The lesson record table is a grid whose columns asked for more room than a
+   1440px screen has, and its box clips, so the last column ("Review") was cut
+   off. The student page has nine columns; these widths fit a 1366px laptop,
+   and below that the table scrolls sideways inside its own box instead of
+   being cut. */
+html .math-role-student .mp-record-table {
+  overflow-x: auto;
+  border-color: var(--se-line);
+  border-radius: 20px;
+  background: var(--se-surface);
+  box-shadow: none;
+}
+
+html.dark .math-role-student .mp-record-table {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+html .math-role-student .mp-record-table :is(.mp-record-head, .mp-record-row) {
+  column-gap: 0.5rem;
+}
+
+html .math-role-student .mp-record-table[data-columns="9"] :is(.mp-record-head, .mp-record-row) {
+  grid-template-columns:
+    minmax(130px, 1.5fr) minmax(112px, 0.6fr) minmax(156px, 0.7fr) minmax(80px, 0.42fr) minmax(76px, 0.42fr)
+    minmax(156px, 0.7fr) minmax(110px, 0.55fr) minmax(176px, 0.8fr) minmax(150px, 0.6fr);
+  min-width: 1242px;
+}
+
+html .math-role-student .mp-record-table[data-columns="8"] :is(.mp-record-head, .mp-record-row) {
+  grid-template-columns:
+    minmax(130px, 1.5fr) minmax(156px, 0.7fr) minmax(80px, 0.42fr) minmax(76px, 0.42fr)
+    minmax(156px, 0.7fr) minmax(110px, 0.55fr) minmax(176px, 0.8fr) minmax(150px, 0.6fr);
+  min-width: 1122px;
+}
+
+html .math-role-student .mp-record-table[data-columns="10"] :is(.mp-record-head, .mp-record-row) {
+  grid-template-columns:
+    minmax(120px, 0.9fr) minmax(120px, 1.2fr) minmax(112px, 0.6fr) minmax(156px, 0.7fr) minmax(80px, 0.42fr)
+    minmax(76px, 0.42fr) minmax(156px, 0.7fr) minmax(110px, 0.55fr) minmax(176px, 0.8fr) minmax(150px, 0.6fr);
+  min-width: 1370px;
+}
+
+/* Laptops. On a 1366px screen the columns close up a little; on a 1280px
+   screen the completion date and its heading also take two lines, so the
+   Review button is on screen without scrolling sideways. */
+@media (max-width: 1379px) {
+  html .math-role-student .mp-record-table[data-columns="9"] :is(.mp-record-head, .mp-record-row) {
+    grid-template-columns:
+      minmax(130px, 1.5fr) minmax(112px, 0.6fr) minmax(156px, 0.7fr) minmax(70px, 0.42fr) minmax(76px, 0.42fr)
+      minmax(154px, 0.7fr) minmax(112px, 0.55fr) minmax(168px, 0.8fr) minmax(138px, 0.6fr);
+    min-width: 1212px;
+  }
+
+  html .math-role-student .mp-record-table[data-columns="8"] :is(.mp-record-head, .mp-record-row) {
+    grid-template-columns:
+      minmax(130px, 1.5fr) minmax(156px, 0.7fr) minmax(70px, 0.42fr) minmax(76px, 0.42fr)
+      minmax(154px, 0.7fr) minmax(112px, 0.55fr) minmax(168px, 0.8fr) minmax(138px, 0.6fr);
+    min-width: 1092px;
+  }
+}
+
+@media (max-width: 1339px) {
+  html .math-role-student .mp-record-table[data-columns="9"] :is(.mp-record-head, .mp-record-row) {
+    grid-template-columns:
+      minmax(130px, 1.5fr) minmax(112px, 0.6fr) minmax(156px, 0.7fr) minmax(70px, 0.42fr) minmax(76px, 0.42fr)
+      minmax(154px, 0.7fr) minmax(112px, 0.55fr) minmax(92px, 0.5fr) minmax(138px, 0.6fr);
+    min-width: 1136px;
+  }
+
+  html .math-role-student .mp-record-table[data-columns="8"] :is(.mp-record-head, .mp-record-row) {
+    grid-template-columns:
+      minmax(130px, 1.5fr) minmax(156px, 0.7fr) minmax(70px, 0.42fr) minmax(76px, 0.42fr)
+      minmax(154px, 0.7fr) minmax(112px, 0.55fr) minmax(92px, 0.5fr) minmax(138px, 0.6fr);
+    min-width: 1016px;
+  }
+
+  html .math-role-student .mp-record-table:is([data-columns="8"], [data-columns="9"]) :is(.mp-record-head, .mp-record-row) > :nth-last-child(2),
+  html .math-role-student .mp-record-table:is([data-columns="8"], [data-columns="9"]) .mp-record-head > :nth-last-child(2) * {
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+}
+
+html .math-role-student .mp-record-head {
+  border-color: var(--se-line);
+  background: var(--se-surface-2);
+}
+
+html.dark .math-role-student .mp-record-head {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+html .math-role-student .mp-record-table .mp-record-head,
+html .math-role-student .mp-record-table .mp-record-head * {
+  font-family: var(--se-display) !important;
+  font-size: 0.84rem !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0 !important;
+  color: var(--se-ink-soft);
+  white-space: nowrap;
+}
+
+html .math-role-student .mp-record-head button:hover,
+html .math-role-student .mp-record-head button:focus-visible {
+  color: var(--se-readable);
+}
+
+html .math-role-student .mp-record-row {
+  transition: background 160ms ease;
+}
+
+html .math-role-student .mp-record-row:hover {
+  background: var(--se-tint);
+}
+
+html .math-role-student .mp-record-row > div:nth-last-child(-n + 3) {
+  white-space: nowrap;
+}
+
+/* Real <table>s (mock library, leaderboards, annual competition): one header
+   style, readable rows, nothing in capitals, and a row lights up on hover. */
+html .math-role-student table th {
+  font-family: var(--se-display);
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0 !important;
+  color: var(--se-ink-soft);
+  white-space: nowrap;
+}
+
+html .math-role-student table th :is(button, span) {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: 0 !important;
+}
+
+html .math-role-student table tbody tr {
+  transition: background 160ms ease;
+}
+
+html .math-role-student table tbody tr:hover {
+  background: var(--se-tint);
+}
+
+/* Mock library table. Nine columns have to fit without sideways scrolling on a
+   1280px laptop, so the cells sit closer together, the name and the long code
+   may each take two lines when the row is short of room, and under 1300px the
+   three longest headings take two lines as well. Wider screens keep the code
+   on one line. */
+html .math-role-student .se-mock-table :is(th, td) {
+  padding-inline: 0.45rem;
+}
+
+html .math-role-student .se-mock-table :is(th, td):first-child {
+  padding-left: 1rem;
+}
+
+html .math-role-student .se-mock-table :is(th, td):last-child {
+  padding-right: 0.9rem;
+}
+
+html .math-role-student .se-mock-table td:nth-child(1) {
+  min-width: 11rem;
+  font-family: var(--se-display);
+  font-size: 0.98rem;
+}
+
+html .math-role-student .se-mock-table td:nth-child(2) {
+  font-family: var(--se-display);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--se-ink-soft);
+  white-space: nowrap;
+}
+
+html .math-role-student .se-mock-table td:nth-child(n + 3) {
+  white-space: nowrap;
+}
+
+@media (max-width: 1499px) {
+  html .math-role-student .se-mock-table td:nth-child(2) {
+    min-width: 10.25rem;
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+}
+
+@media (max-width: 1300px) {
+  html .math-role-student .se-mock-table th:nth-child(n + 6):nth-child(-n + 8),
+  html .math-role-student .se-mock-table th:nth-child(n + 6):nth-child(-n + 8) .math-sortable-header-label {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+  }
+
+  html .math-role-student .se-mock-table th:nth-child(n + 6):nth-child(-n + 8) .math-sortable-header-label {
+    min-width: min-content;
+  }
+}
+
+/* ---------- assessments list table -------------------------------------------
+   Eight columns that were sized only by share, so on a tablet "Original" broke
+   into "Ori / gin / al", dates split inside the year, and the heading row
+   drifted out of line with the rows under it. Each column now has a minimum
+   that fits its longest word, shared by the heading row and every row, so the
+   two always line up. All eight columns fit from 1024px; narrower screens
+   scroll the table sideways inside its own box. From 1100px every chip is on
+   one line; below that "Needs Re-Attempt" may take two. */
+html .math-role-student :is(.math-student-assessments-table-header, .math-student-assessments-table-header + div > div) {
+  grid-template-columns:
+    minmax(118px, 1.4fr) minmax(104px, 0.54fr) minmax(110px, 0.76fr) minmax(74px, 0.5fr)
+    minmax(78px, 0.5fr) minmax(80px, 0.74fr) minmax(88px, 0.74fr) 160px;
+  column-gap: 6px;
+  padding-inline: 12px;
+}
+@media (min-width: 1100px) {
+  html .math-role-student :is(.math-student-assessments-table-header, .math-student-assessments-table-header + div > div) {
+    grid-template-columns:
+      minmax(118px, 1.4fr) minmax(104px, 0.54fr) minmax(146px, 0.76fr) minmax(74px, 0.5fr)
+      minmax(78px, 0.5fr) minmax(80px, 0.74fr) minmax(88px, 0.74fr) 160px;
+  }
+}
+html .math-role-student :is(.math-student-assessments-table-header, .math-student-assessments-table-header + div > div) :is(div, p, span, a) {
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+html .math-role-student .math-student-assessments-table-header:not(#se),
+html .math-role-student .math-student-assessments-table-header:not(#se) > div {
+  font-family: var(--se-display);
+  font-size: 0.84rem !important;
+  font-weight: 800 !important;
+  line-height: 1.2;
+  letter-spacing: 0 !important;
+}
+html .math-role-student .math-student-assessments-table-header + div > div > div:last-child {
+  min-width: 0;
+}
+html .math-role-student .math-student-assessments-table-header + div > div > div:nth-child(n + 6):nth-child(-n + 7) {
+  font-family: var(--se-display);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--se-ink-soft);
+}
+@media (max-width: 1099px) {
+  html .math-role-student .math-student-assessments-table-header + div > div > div:nth-child(3) > span:not(#se) {
+    white-space: normal;
+    text-align: center;
+    border-radius: 14px;
+  }
+}
+
+/* Readiness sheet table: its small "Lesson 1" label kept the wide letter
+   spacing of the old ALL CAPS style. */
+html .math-role-student .math-student-readiness-sheet-table-header:not(#se) :is(p, div, span) {
+  letter-spacing: 0 !important;
+}
+
+/* ---------- leaderboards ---------------------------------------------------- */
+/* The two view buttons: quiet at rest, warm on hover, gradient when chosen. */
+html .math-role-student .se-seg {
+  border: 1px solid var(--se-line) !important;
+  border-radius: 999px !important;
+  background: var(--se-surface) !important;
+  color: var(--se-ink-soft) !important;
+  font-family: var(--se-display);
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: none !important;
+  cursor: pointer;
+  transition: transform 180ms var(--se-ease), background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+}
+
+html.dark .math-role-student .se-seg {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+html .math-role-student .se-seg:not(.se-seg-on):hover {
+  transform: translateY(-1px);
+  border-color: var(--se-line-strong) !important;
+  background: var(--se-tint) !important;
+  color: var(--se-readable) !important;
+}
+
+html .math-role-student .se-seg:active {
+  transform: scale(0.97);
+}
+
+html .math-role-student .se-seg.se-seg-on {
+  border-color: transparent !important;
+  background: var(--se-action) !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 22px -14px rgba(76, 5, 25, 0.8) !important;
+}
+
+html .math-role-student .se-seg.se-seg-green.se-seg-on {
+  background: linear-gradient(135deg, #064e3b 0%, #059669 55%, #34d399 100%) !important;
+  box-shadow: 0 12px 22px -14px rgba(6, 78, 59, 0.8) !important;
+}
+
+html .math-role-student .se-seg.se-seg-green:not(.se-seg-on):hover {
+  border-color: rgba(5, 150, 105, 0.45) !important;
+  background: rgba(16, 185, 129, 0.1) !important;
+  color: #047857 !important;
+}
+
+html.dark .math-role-student .se-seg.se-seg-green:not(.se-seg-on):hover {
+  color: #6ee7b7 !important;
+}
+
+html .math-role-student .se-seg:focus-visible {
+  outline: none;
+  box-shadow: var(--se-ring) !important;
+}
+
+/* On the narrowest phones (360px) the second button was 4px wider than its
+   card, so the pair sits a little closer. */
+@media (max-width: 400px) {
+  html .math-role-student .se-seg {
+    padding-inline: 0.85rem !important;
+    font-size: 0.86rem;
+  }
+
+  html .math-role-student :is(div):has(> .se-seg) {
+    gap: 0.5rem;
+  }
+}
+
+/* Name plate under each podium place: a clean dark plate in both modes (it was
+   a see-through grey box), and the name is never cut short. */
+html .math-role-student .se-podium-plate {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(36, 12, 22, 0.86);
+  box-shadow: 0 18px 30px -18px rgba(0, 0, 0, 0.6);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  filter: none;
+}
+
+html .math-role-student .se-podium-name {
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+/* ---------- "Before You Begin" on the five instruction pages ----------------
+   One sentence per line (two columns made short sentences wrap while half the
+   box was empty), and the sentences are in ink so they are easy to read; the
+   heading and the bullets keep the accent colour. */
+html .math-role-student .se-brief {
+  border-color: var(--se-line-strong);
+  border-radius: 20px;
+  background: var(--se-tint);
+}
+
+html .math-role-student .se-brief > div:first-child {
+  color: var(--se-readable);
+  font-family: var(--se-display);
+  font-size: 1.02rem;
+}
+
+html .math-role-student .se-brief .se-brief-list,
+html .math-role-student .se-brief .se-brief-list > li > span:last-child {
+  color: var(--se-ink) !important;
+  -webkit-text-fill-color: var(--se-ink) !important;
+}
+
+html .math-role-student .se-brief-list {
+  font-size: 0.96rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+html .math-role-student .se-brief .se-brief-list > li > span:first-child {
+  flex-shrink: 0;
+  color: var(--se-primary) !important;
+  -webkit-text-fill-color: var(--se-primary) !important;
+  font-weight: 900;
+}
+
+html .math-role-student .se-brief > div:first-child,
+html .math-role-student .se-brief > div:first-child * {
+  color: var(--se-readable) !important;
+  -webkit-text-fill-color: var(--se-readable) !important;
+}
+
+/* ---------- readable accent text --------------------------------------------
+   Small orange text (chips, table links, tab labels) was the bright brand
+   orange, which is hard to read at 14px on a light tint. Light mode uses the
+   deeper orange for text; fills and gradients keep the brand colour. */
+html:not(.dark) .math-role-student,
+html:not(.dark).mp-student body {
+  --mp-role-readable: #c2410c;
+}
+
+/* Neutral chips ("—", "— / 10", "-") are quiet ink, not bright orange. */
+html:not(.dark) .math-role-student :is(span, div)[class*="rounded-full"][class*="border-slate-200"][class*="text-slate-700"],
+html:not(.dark) .math-role-student .math-badge[class*="border-slate-200"][class*="text-slate-700"] {
+  color: var(--se-ink-soft) !important;
+  -webkit-text-fill-color: var(--se-ink-soft) !important;
+}
+
+html:not(.dark) .math-role-student .math-role-badge-student,
+html:not(.dark).mp-student body .math-role-badge-student {
+  color: #c2410c;
+}
+
+/* "Focused view" beside the logo on detail pages. */
+html .math-role-student .math-shell-header a[aria-label="Open MathPath Website"] > div + div p {
+  text-transform: capitalize !important; /* "Focused view" is typed in the shared shell */
+  font-family: var(--se-display);
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--se-ink-soft);
+  overflow: visible;
+  white-space: nowrap;
+}
+
+/* Result page accuracy pill: its label was letter-spaced capitals. */
+html .math-role-student .math-result-accuracy-label {
+  font-family: var(--se-display);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0 !important;
+}
+
+/* ---------- notifications panel ---------------------------------------------
+   The icon tile in each update stretched to the full height of the card (a
+   tall white strip). It is a small square tile at the top again. */
+html .math-role-student [aria-label="Notifications"] ~ div button > .flex > div:first-child {
+  display: inline-flex;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex-shrink: 0;
+  align-items: center;
+  align-self: flex-start;
+  justify-content: center;
+  padding: 0;
+  border-radius: 12px;
+}
+
+html .math-role-student [aria-label="Notifications"] ~ div button:hover {
+  transform: translateY(-2px);
+}
+
+/* ---------- trophy room ------------------------------------------------------ */
+html .math-role-student .se-badge-name {
+  font-family: var(--se-display);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+html .math-role-student .se-badge-desc {
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+/* Phones show two badges to a row. With the full side padding a name such as
+   Speed Demon had 94px and broke onto two lines; less padding keeps most names
+   on one line. */
+@media (max-width: 639px) {
+  html .math-role-student :is(div):has(> .se-badge-name) {
+    padding-inline: 0.5rem;
+  }
+}
+
+/* A locked badge is quiet, but its name and description can still be read. */
+html .math-role-student .se-locked-text {
+  color: #64748b;
+}
+
+html.dark .math-role-student .se-locked-text {
+  color: #94a3b8;
+}
+
+/* Dark mode: a quiet button sits on the dark surface instead of being a white pill. */
+html.dark .math-role-student :is(.math-role-action-button, .math-button-secondary):not(#se):not(:hover):not(:focus-visible):not(:disabled) {
+  border-color: var(--se-line-strong) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--se-readable) !important;
+  box-shadow: none !important;
+}
+
+html.dark .math-role-student :is(.math-role-action-button, .math-button-secondary):not(#se):not(:hover):not(:focus-visible):not(:disabled) :is(svg, span:not([class*="bg-"])) {
+  color: var(--se-readable) !important;
+}
+
+/* Dark mode: the main action is the gradient button too. (An older dark rule
+   painted it as a flat dark control with a very heavy selector; ":not(#se)"
+   matches everything and only adds the weight needed to win.) */
+html.dark .math-role-student .math-button-primary:not(#se):not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background: var(--se-action) !important;
+  background-image: var(--se-action) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset, 0 14px 26px -16px rgba(249, 115, 22, 0.75) !important;
+}
+
+html.dark .math-role-student .math-button-primary:not(#se):not(:disabled) :is(svg, span) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html.dark .math-role-student .math-button-primary:not(#se):is(:hover, :focus-visible):not(:disabled) {
+  background: var(--se-action-hover) !important;
+  background-image: var(--se-action-hover) !important;
+  box-shadow: var(--se-glow) !important;
+}
+
+/* ---------- dark mode: light tints without a dark version --------------------
+   Many chips and answer boxes are written with a pale tint (for example
+   bg-emerald-50 with dark green text) and no dark-mode colours, so in dark mode
+   they showed as bright slabs. Here each pale tint becomes a soft see-through
+   tint of the same colour with light text. Elements that already declare their
+   own dark colours (dark:bg-... / dark:text-...) are left alone. In the student
+   theme blue, sky and cyan are the accent, so they follow the orange accent. */
+html.dark .math-role-student :is([class~="bg-emerald-50"], [class*="bg-emerald-50/"], [class~="bg-emerald-100"], [class*="bg-emerald-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(16, 185, 129, 0.38) !important;
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-emerald-50"], [class*="bg-emerald-50/"], [class~="bg-emerald-100"], [class*="bg-emerald-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-emerald-600"], [class~="text-emerald-700"], [class~="text-emerald-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #6ee7b7 !important;
+  -webkit-text-fill-color: #6ee7b7 !important;
+}
+
+html.dark .math-role-student [class~="text-emerald-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #a7f3d0 !important;
+  -webkit-text-fill-color: #a7f3d0 !important;
+}
+
+html.dark .math-role-student :is([class~="bg-green-50"], [class*="bg-green-50/"], [class~="bg-green-100"], [class*="bg-green-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(34, 197, 94, 0.38) !important;
+  background-color: rgba(34, 197, 94, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-green-50"], [class*="bg-green-50/"], [class~="bg-green-100"], [class*="bg-green-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-green-600"], [class~="text-green-700"], [class~="text-green-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #86efac !important;
+  -webkit-text-fill-color: #86efac !important;
+}
+
+html.dark .math-role-student [class~="text-green-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #bbf7d0 !important;
+  -webkit-text-fill-color: #bbf7d0 !important;
+}
+
+html.dark .math-role-student :is([class~="bg-teal-50"], [class*="bg-teal-50/"], [class~="bg-teal-100"], [class*="bg-teal-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(20, 184, 166, 0.38) !important;
+  background-color: rgba(20, 184, 166, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-teal-50"], [class*="bg-teal-50/"], [class~="bg-teal-100"], [class*="bg-teal-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-teal-600"], [class~="text-teal-700"], [class~="text-teal-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #5eead4 !important;
+  -webkit-text-fill-color: #5eead4 !important;
+}
+
+html.dark .math-role-student [class~="text-teal-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #99f6e4 !important;
+  -webkit-text-fill-color: #99f6e4 !important;
+}
+
+html.dark .math-role-student :is([class~="bg-rose-50"], [class*="bg-rose-50/"], [class~="bg-rose-100"], [class*="bg-rose-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(244, 63, 94, 0.38) !important;
+  background-color: rgba(244, 63, 94, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-rose-50"], [class*="bg-rose-50/"], [class~="bg-rose-100"], [class*="bg-rose-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-rose-600"], [class~="text-rose-700"], [class~="text-rose-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #fda4af !important;
+  -webkit-text-fill-color: #fda4af !important;
+}
+
+html.dark .math-role-student [class~="text-rose-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #fecdd3 !important;
+  -webkit-text-fill-color: #fecdd3 !important;
+}
+
+html.dark .math-role-student :is([class~="bg-red-50"], [class*="bg-red-50/"], [class~="bg-red-100"], [class*="bg-red-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(239, 68, 68, 0.38) !important;
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-red-50"], [class*="bg-red-50/"], [class~="bg-red-100"], [class*="bg-red-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-red-600"], [class~="text-red-700"], [class~="text-red-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #fca5a5 !important;
+  -webkit-text-fill-color: #fca5a5 !important;
+}
+
+html.dark .math-role-student [class~="text-red-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #fecaca !important;
+  -webkit-text-fill-color: #fecaca !important;
+}
+
+html.dark .math-role-student :is([class~="bg-amber-50"], [class*="bg-amber-50/"], [class~="bg-amber-100"], [class*="bg-amber-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(245, 158, 11, 0.38) !important;
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-amber-50"], [class*="bg-amber-50/"], [class~="bg-amber-100"], [class*="bg-amber-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-amber-600"], [class~="text-amber-700"], [class~="text-amber-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #fcd34d !important;
+  -webkit-text-fill-color: #fcd34d !important;
+}
+
+html.dark .math-role-student [class~="text-amber-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #fde68a !important;
+  -webkit-text-fill-color: #fde68a !important;
+}
+
+html.dark .math-role-student :is([class~="bg-yellow-50"], [class*="bg-yellow-50/"], [class~="bg-yellow-100"], [class*="bg-yellow-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(234, 179, 8, 0.38) !important;
+  background-color: rgba(234, 179, 8, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-yellow-50"], [class*="bg-yellow-50/"], [class~="bg-yellow-100"], [class*="bg-yellow-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-yellow-600"], [class~="text-yellow-700"], [class~="text-yellow-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #fde047 !important;
+  -webkit-text-fill-color: #fde047 !important;
+}
+
+html.dark .math-role-student [class~="text-yellow-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #fef08a !important;
+  -webkit-text-fill-color: #fef08a !important;
+}
+
+html.dark .math-role-student :is([class~="bg-orange-50"], [class*="bg-orange-50/"], [class~="bg-orange-100"], [class*="bg-orange-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(249, 115, 22, 0.38) !important;
+  background-color: rgba(249, 115, 22, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-orange-50"], [class*="bg-orange-50/"], [class~="bg-orange-100"], [class*="bg-orange-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-orange-600"], [class~="text-orange-700"], [class~="text-orange-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #fdba74 !important;
+  -webkit-text-fill-color: #fdba74 !important;
+}
+
+html.dark .math-role-student [class~="text-orange-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #fed7aa !important;
+  -webkit-text-fill-color: #fed7aa !important;
+}
+
+html.dark .math-role-student :is([class~="bg-violet-50"], [class*="bg-violet-50/"], [class~="bg-violet-100"], [class*="bg-violet-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(139, 92, 246, 0.38) !important;
+  background-color: rgba(139, 92, 246, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-violet-50"], [class*="bg-violet-50/"], [class~="bg-violet-100"], [class*="bg-violet-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-violet-600"], [class~="text-violet-700"], [class~="text-violet-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #c4b5fd !important;
+  -webkit-text-fill-color: #c4b5fd !important;
+}
+
+html.dark .math-role-student [class~="text-violet-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #ddd6fe !important;
+  -webkit-text-fill-color: #ddd6fe !important;
+}
+
+html.dark .math-role-student :is([class~="bg-purple-50"], [class*="bg-purple-50/"], [class~="bg-purple-100"], [class*="bg-purple-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(168, 85, 247, 0.38) !important;
+  background-color: rgba(168, 85, 247, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-purple-50"], [class*="bg-purple-50/"], [class~="bg-purple-100"], [class*="bg-purple-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-purple-600"], [class~="text-purple-700"], [class~="text-purple-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #d8b4fe !important;
+  -webkit-text-fill-color: #d8b4fe !important;
+}
+
+html.dark .math-role-student [class~="text-purple-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #e9d5ff !important;
+  -webkit-text-fill-color: #e9d5ff !important;
+}
+
+html.dark .math-role-student :is([class~="bg-indigo-50"], [class*="bg-indigo-50/"], [class~="bg-indigo-100"], [class*="bg-indigo-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(99, 102, 241, 0.38) !important;
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-indigo-50"], [class*="bg-indigo-50/"], [class~="bg-indigo-100"], [class*="bg-indigo-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-indigo-600"], [class~="text-indigo-700"], [class~="text-indigo-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #a5b4fc !important;
+  -webkit-text-fill-color: #a5b4fc !important;
+}
+
+html.dark .math-role-student [class~="text-indigo-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #c7d2fe !important;
+  -webkit-text-fill-color: #c7d2fe !important;
+}
+
+html.dark .math-role-student :is([class~="bg-blue-50"], [class*="bg-blue-50/"], [class~="bg-blue-100"], [class*="bg-blue-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(249, 115, 22, 0.38) !important;
+  background-color: rgba(249, 115, 22, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-blue-50"], [class*="bg-blue-50/"], [class~="bg-blue-100"], [class*="bg-blue-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-blue-600"], [class~="text-blue-700"], [class~="text-blue-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #fdba74 !important;
+  -webkit-text-fill-color: #fdba74 !important;
+}
+
+html.dark .math-role-student [class~="text-blue-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #fed7aa !important;
+  -webkit-text-fill-color: #fed7aa !important;
+}
+
+html.dark .math-role-student :is([class~="bg-sky-50"], [class*="bg-sky-50/"], [class~="bg-sky-100"], [class*="bg-sky-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(249, 115, 22, 0.38) !important;
+  background-color: rgba(249, 115, 22, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-sky-50"], [class*="bg-sky-50/"], [class~="bg-sky-100"], [class*="bg-sky-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-sky-600"], [class~="text-sky-700"], [class~="text-sky-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #fdba74 !important;
+  -webkit-text-fill-color: #fdba74 !important;
+}
+
+html.dark .math-role-student [class~="text-sky-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #fed7aa !important;
+  -webkit-text-fill-color: #fed7aa !important;
+}
+
+html.dark .math-role-student :is([class~="bg-cyan-50"], [class*="bg-cyan-50/"], [class~="bg-cyan-100"], [class*="bg-cyan-100/"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(249, 115, 22, 0.38) !important;
+  background-color: rgba(249, 115, 22, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-cyan-50"], [class*="bg-cyan-50/"], [class~="bg-cyan-100"], [class*="bg-cyan-100/"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se),
+html.dark .math-role-student :is([class~="text-cyan-600"], [class~="text-cyan-700"], [class~="text-cyan-800"]):not([class*="dark:text-"]):not(#se) {
+  color: #fdba74 !important;
+  -webkit-text-fill-color: #fdba74 !important;
+}
+
+html.dark .math-role-student [class~="text-cyan-900"]:not([class*="dark:text-"]):not(#se) {
+  color: #fed7aa !important;
+  -webkit-text-fill-color: #fed7aa !important;
+}
+
+/* Headings: the display face does not need the extra-tight spacing the old
+   heading styles used; at that spacing the letters ran into each other. */
+html .math-role-student :is(h1, h2, h3, h4)[class*="tracking-tight"],
+html.mp-student body :is(h1, h2, h3, h4)[class*="tracking-tight"] {
+  letter-spacing: -0.005em !important;
+}
+
+/* Phones: number tiles sit two to a row (they were one per row, a very long
+   scroll), without the icon, and a long label may take two lines instead of
+   being cut. Written with :has() on its own so a browser without it simply
+   keeps one tile per row. */
+@media (max-width: 639px) {
+  html .math-role-student .math-student-metric-card {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.7rem 0.8rem;
+  }
+
+  html .math-role-student .math-student-metric-card > div:not(.absolute):not([class*="h-2"]) {
+    display: none;
+  }
+
+  html .math-role-student .math-student-metric-card > p {
+    grid-column: 1;
+  }
+
+  html .math-role-student .math-student-metric-card > p:nth-of-type(1) {
+    white-space: normal;
+  }
+
+  html .math-role-student .math-student-metric-card > p:nth-of-type(2) {
+    font-size: 1.35rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* a date-and-time or a status is set smaller and only breaks between words
+     (on a 360px phone the year was splitting as "20" over "26,") */
+  html .math-role-student .math-student-metric-card > p.se-metric-long {
+    font-size: 1.05rem;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+}
+
+@media (max-width: 639px) {
+  html .math-role-student :is(div, section):has(> .math-student-metric-card) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+}
+
+/* ---------- phones: things that ran off the screen --------------------------- */
+/* Leaderboard podium: three places are wider than a phone, so places 2 and 3
+   were cut off at the edges. The whole podium is scaled to fit. */
+@media (max-width: 767px) {
+  html .math-role-student .se-podium {
+    zoom: 0.78;
+  }
+}
+
+@media (max-width: 559px) {
+  html .math-role-student .se-podium {
+    zoom: 0.5;
+  }
+}
+
+/* Leaderboard table: the name stays in one piece (it was breaking one letter
+   per line on a phone). */
+html .math-role-student .se-board-table td:nth-child(2) > span {
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}
+
+/* The initials in a practice-board row were mid green on pale green, a little
+   too faint to read; light mode uses the deeper green. */
+html:not(.dark) .math-role-student .se-board-table [class~="text-emerald-600"] {
+  color: #047857 !important;
+  -webkit-text-fill-color: #047857 !important;
+}
+
+/* On a phone the table was wider than its card and the card cut it off, so the
+   accuracy column (and on the practice board two more) could not be seen. The
+   cells sit closer, a name or a two-word heading may take two lines (never
+   breaking inside a word), and if a very narrow phone still cannot fit it the
+   card scrolls sideways instead of cutting the numbers off. */
+@media (max-width: 639px) {
+  html .math-role-student .math-card:has(> .se-board-table) {
+    overflow-x: auto;
+  }
+
+  html .math-role-student .se-board-table :is(th, td) {
+    padding-inline: 0.35rem;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+  }
+
+  html .math-role-student .se-board-table :is(th, td):first-child {
+    padding-left: 0.7rem;
+    white-space: nowrap;
+  }
+
+  html .math-role-student .se-board-table :is(th, td):last-child,
+  html .math-role-student .se-board-table :is(th, td):nth-last-child(2) {
+    padding-right: 0.7rem;
+  }
+
+  html .math-role-student .se-board-table th {
+    font-size: 0.72rem;
+    line-height: 1.15;
+    white-space: normal;
+    vertical-align: middle;
+  }
+
+  html .math-role-student .se-board-table td {
+    font-size: 0.92rem;
+  }
+
+  html .math-role-student .se-board-table td:nth-child(2) {
+    gap: 0.45rem;
+  }
+
+  html .math-role-student .se-board-table td:nth-child(2) > div:first-child {
+    width: 1.85rem;
+    height: 1.85rem;
+  }
+
+  html .math-role-student .se-board-table td:nth-child(2) > span {
+    font-size: 0.95rem;
+    line-height: 1.2;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 380px) {
+  html .math-role-student .se-board-table :is(th, td) {
+    padding-inline: 0.22rem;
+  }
+
+  html .math-role-student .se-board-table :is(th, td):first-child {
+    padding-left: 0.5rem;
+  }
+
+  html .math-role-student .se-board-table :is(th, td):last-child,
+  html .math-role-student .se-board-table :is(th, td):nth-last-child(2) {
+    padding-right: 0.5rem;
+  }
+
+  html .math-role-student .se-board-table th {
+    font-size: 0.68rem;
+  }
+}
+
+/* A long chip (a mock code, a level name) wraps inside its card on a phone
+   instead of running past the edge. */
+@media (max-width: 639px) {
+  html .math-role-student :is(.math-block-header, .math-badge) {
+    max-width: 100%;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  html .math-role-student input::placeholder {
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+}
+
+/* Mock insights lists on a phone: less padding around the two lists so a
+   lesson name has room and breaks between words, not inside them. */
+html .math-role-student .se-insight-row > span:first-child {
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+
+@media (max-width: 639px) {
+  html .math-role-student .se-insight-card {
+    padding: 0.9rem;
+    border-radius: 22px;
+  }
+
+  html .math-role-student .se-insight-card > div:nth-child(2) {
+    margin-bottom: 0.9rem;
+    padding-bottom: 0.8rem;
+    gap: 0.7rem;
+  }
+
+  html .math-role-student .se-insight-card h3 {
+    white-space: nowrap;
+  }
+
+  html .math-role-student .se-insight-row {
+    padding: 0.5rem 0.25rem;
+  }
+
+  html .math-role-student .math-hierarchy-panel,
+  html .math-role-student .math-hierarchy-panel-soft {
+    padding: 0.8rem;
+  }
+}
+
+/* ---------- collector's vault -------------------------------------------------
+   The cache and codex tiles are written with white text for a dark tile, but in
+   light mode one of them had a pale tile, so its name could not be read. Every
+   tile gets the dark base its text was written for; its rarity colour stays as
+   the glow on top. */
+html .math-role-student .se-vault-pack:not(#se) {
+  --se-vault-glow: 249, 115, 22;
+  background-color: #1b1220 !important;
+  background-image:
+    linear-gradient(180deg, rgba(var(--se-vault-glow), 0.34) 0%, rgba(var(--se-vault-glow), 0.08) 55%, rgba(0, 0, 0, 0.35) 100%) !important;
+  border-color: rgba(var(--se-vault-glow), 0.45) !important;
+  backdrop-filter: none;
+}
+
+html .math-role-student .se-vault-pack[class*="yellow-500"]:not(#se) {
+  --se-vault-glow: 234, 179, 8;
+}
+
+html .math-role-student .se-vault-pack[class*="purple-500"]:not(#se) {
+  --se-vault-glow: 168, 85, 247;
+}
+
+html .math-role-student .se-vault-pack[class*="border-white/10"]:not(#se) {
+  --se-vault-glow: 148, 163, 184;
+}
+
+html .math-role-student .se-vault-pack > span {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html .math-role-student .se-vault-pack > span + span {
+  color: rgba(255, 255, 255, 0.72) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.72) !important;
+}
+
+/* Practice card title: a touch smaller so "… - Re-Attempt 2" stays on the
+   line. */
+html .math-role-student .se-card-title {
+  font-size: clamp(1.15rem, 0.95rem + 0.55vw, 1.35rem);
+  line-height: 1.25;
+}
+
+/* Small status chips never break in the middle of a label on tablets and up. */
+@media (min-width: 640px) {
+  html .math-role-student span[class*="rounded-full"][class*="border"][class*="text-xs"] {
+    white-space: nowrap;
+  }
+}
+
+/* A neutral chip that is the label of a button ("Show Levels") reads as a link. */
+html:not(.dark) .math-role-student button span[class*="rounded-full"][class*="border-slate-200"]:is([class*="text-slate-600"], [class*="text-slate-700"]) {
+  color: var(--se-readable) !important;
+  -webkit-text-fill-color: var(--se-readable) !important;
+  border-color: var(--se-line-strong) !important;
+}
+
+html:not(.dark) .math-role-student :is(span, div)[class*="rounded-full"][class*="border-slate-200"][class*="text-slate-600"]:not(button span) {
+  color: var(--se-ink-soft) !important;
+  -webkit-text-fill-color: var(--se-ink-soft) !important;
+}
+
+/* Phones: page and card headings are a little smaller, so short titles
+   ("Current DPS Assignments", "MM · Master Module") stay on one line. */
+@media (max-width: 479px) {
+  html .math-role-student .math-page h1:not([class*="se-"]) {
+    font-size: clamp(1.45rem, 6.6vw, 1.85rem);
+    line-height: 1.15;
+  }
+
+  html .math-role-student .math-page h2:not([class*="se-"]) {
+    font-size: clamp(1.15rem, 5.2vw, 1.4rem);
+    line-height: 1.2;
+  }
+}
+
+/* Small amber, sky and yellow text on a pale tint was too faint to read. */
+html:not(.dark) .math-role-student [class~="text-amber-600"]:not(#se) {
+  color: #b45309 !important;
+  -webkit-text-fill-color: #b45309 !important;
+}
+
+html:not(.dark) .math-role-student [class~="text-yellow-600"]:not(#se) {
+  color: #a16207 !important;
+  -webkit-text-fill-color: #a16207 !important;
+}
+
+/* Trophy room: the small "Progress 0 / 5" and "Unlocked" lines were too faint. */
+html .math-role-student .se-badge-meta {
+  color: #64748b;
+}
+
+html.dark .math-role-student .se-badge-meta {
+  color: #94a3b8;
+}
+
+/* "Progress   0 / 10800": the count stays in one piece. In a narrow badge card
+   it used to split as "0 /" over "10800"; now it drops under the word whole. */
+html .math-role-student .se-badge-meta {
+  flex-wrap: wrap;
+  column-gap: 0.4rem;
+}
+
+html .math-role-student .se-badge-meta > span {
+  white-space: nowrap;
+}
+
+/* Leaderboard heading on a phone: the space kept clear for the Back button is
+   only needed beside the first line, not all the way down the heading. */
+@media (max-width: 639px) {
+  html .math-role-student .se-board-head {
+    padding-right: 0;
+  }
+
+  html .math-role-student .se-board-head > .math-block-header {
+    margin-right: 5.5rem;
+  }
+}
+
+/* Dark mode: neutral (grey) chips and the white "Show Levels" pill had no dark
+   version either, so they stayed bright. */
+html.dark .math-role-student :is([class~="bg-slate-50"], [class~="bg-slate-100"], [class~="bg-gray-50"], [class~="bg-gray-100"]):not([class*="dark:bg-"]):not(#se) {
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  background-color: rgba(148, 163, 184, 0.14) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-student :is([class~="bg-slate-50"], [class~="bg-slate-100"], [class~="bg-gray-50"], [class~="bg-gray-100"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#se) {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+
+html.dark .math-role-student button span[class*="rounded-full"][class~="bg-white"]:not(#se) {
+  border-color: var(--se-line-strong) !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: var(--se-readable) !important;
+  -webkit-text-fill-color: var(--se-readable) !important;
+  box-shadow: none !important;
+}

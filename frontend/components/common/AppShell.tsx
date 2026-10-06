@@ -126,7 +126,10 @@ function loginRouteForRole(role: "ADMIN" | "TEACHER" | "STUDENT") {
 function displayUserRole(role?: UserRole) {
   if (role === "SUPER_ADMIN" || role === "ADMIN") return "ADMIN";
   if (role === "TEACHER") return "TEACHER";
-  if (role === "STUDENT") return "STUDENT";
+  // 2026-10 (student revamp, "Init Caps everywhere" in the student login):
+  // display text only -- the account menu, the profile window and the "Role"
+  // row. The admin and teacher labels are unchanged.
+  if (role === "STUDENT") return "Student";
   return role || "";
 }
 
@@ -2044,7 +2047,7 @@ function SettingsModal({
               </p>
               <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {user.twoFactorEnabled
-                  ? "Enabled -- an authenticator app code is required at login."
+                  ? "Enabled — an authenticator app code is required at login."
                   : "Add an authenticator app code as a second login step."}
               </p>
             </div>
@@ -2317,7 +2320,7 @@ function TwoFactorModal({
         <div className="grid gap-4">
           <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
             Two-factor authentication is now enabled. Save these one-time backup codes somewhere
-            safe -- each one can be used to log in if you ever lose access to your authenticator
+            safe — each one can be used to log in if you ever lose access to your authenticator
             app. They will not be shown again.
           </p>
           <div

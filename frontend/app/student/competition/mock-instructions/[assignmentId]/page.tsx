@@ -10,6 +10,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Brain, ClipboardList, Clock3, PlayCircle, ShieldCheck, Trophy } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
+import { InitCaps } from "@/lib/initCaps";
 
 type ConceptSection = {
   sectionNumber?: number | null;
@@ -21,7 +22,7 @@ type ConceptSection = {
 function getFocusText(sectionTitle: string, rawFamily: string, mockCode: string) {
   if (!mockCode.startsWith("MM")) {
     if (!rawFamily) return null;
-    return rawFamily.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    return InitCaps(rawFamily);
   }
   
   const title = sectionTitle.toLowerCase();
@@ -36,7 +37,7 @@ function getFocusText(sectionTitle: string, rawFamily: string, mockCode: string)
   if (title.includes("positional") || title.includes("placement")) return "All Positional Pattern Sums.";
   
   if (!rawFamily) return null;
-  return rawFamily.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  return InitCaps(rawFamily);
 }
 
 export default function MockInstructionPage() {
@@ -127,12 +128,12 @@ function MockInstructionPageContent() {
                 )}
               </div>
 
-              <div className="mt-4 rounded-[24px] border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/30">
+              <div className="se-brief mt-4 rounded-[24px] border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/30">
                 <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
                   <ShieldCheck size={17} />
                   <p className="font-black">Before You Begin</p>
                 </div>
-                <ul className="mt-3 grid gap-2 text-sm font-semibold leading-6 text-blue-900/90 dark:text-blue-100 sm:grid-cols-2">
+                <ul className="se-brief-list mt-3 grid gap-2 text-sm font-semibold leading-6 text-blue-900/90 dark:text-blue-100">
                   {(Query.data.instructions || []).map((Item: string) => <li key={Item} className="flex gap-2"><span>•</span><span>{Item}</span></li>)}
                 </ul>
               </div>
