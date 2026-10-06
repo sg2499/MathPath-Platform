@@ -9,7 +9,21 @@ export interface RankBadgeProps {
   globalRank?: number;
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  /**
+   * A CSS length (for example "var(--rm-size)"). When given, the medallion is
+   * drawn at exactly that width and height and the numeral follows it, so a
+   * bigger medallion is a bigger drawing, never a stretched one.
+   */
+  fluid?: string;
+  /** Draw the medallion with nothing moving on it (orbit and pulse rings off). */
+  still?: boolean;
 }
+
+// "#b45309" -> "180 83 9", for the rank-tinted shadow in student-elevate.css.
+const HexToRgbTriplet = (Hex: string) => {
+  const Value = Hex.replace('#', '');
+  return [0, 2, 4].map((Start) => parseInt(Value.slice(Start, Start + 2), 16)).join(' ');
+};
 
 const getRankBadgeDesign = (rank: string) => {
   switch (rank) {
@@ -37,8 +51,6 @@ const getRankBadgeDesign = (rank: string) => {
               <stop offset="100%" stopColor="#78350f" stopOpacity="0.9"/>
             </radialGradient>
 
-            {/* L1: Deep Drop Shadow */}
-            <path d="M 50 2 L 85 15 L 98 50 L 85 85 L 50 98 L 15 85 L 2 50 L 15 15 Z" fill="#2d1300" filter="url(#intense-blur)" transform="translate(0, 4)"/>
             {/* L2: Outer Heavy Gear Frame */}
             <path d="M 50 2 L 85 15 L 98 50 L 85 85 L 50 98 L 15 85 L 2 50 L 15 15 Z" fill="url(#grad-copper)" stroke="#78350f" strokeWidth="2" filter="url(#drop-shadow)"/>
             {/* L3: Extruded Inner Bevel */}
@@ -65,12 +77,12 @@ const getRankBadgeDesign = (rank: string) => {
             {/* L10: Volumetric Lighting Highlight */}
             <path d="M 50 2 L 85 15 L 98 50" fill="none" stroke="#fff" strokeWidth="1.5" opacity="0.6" style={{ filter: 'drop-shadow(0 0 4px #fff)' }}/>
             {/* L11: Animated Gear Ring (Outer) */}
-            <motion.circle cx="50" cy="50" r="36" fill="none" stroke="#f59e0b" strokeWidth="1" strokeDasharray="4 8" opacity="0.7"
-              animate={{ rotate: 360 }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} style={{ originX: '50px', originY: '50px' }}
+            <motion.circle data-fx cx="50" cy="50" r="36" fill="none" stroke="#f59e0b" strokeWidth="1" strokeDasharray="4 8" opacity="0.7"
+              animate={{ rotate: 360 }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} style={{ originX: '50%', originY: '50%' }}
             />
             {/* L12: Animated Gear Ring (Inner) */}
-            <motion.circle cx="50" cy="50" r="22" fill="none" stroke="#fef3c7" strokeWidth="0.5" strokeDasharray="2 4" opacity="0.5"
-              animate={{ rotate: -360 }} transition={{ duration: 15, repeat: Infinity, ease: "linear" }} style={{ originX: '50px', originY: '50px' }}
+            <motion.circle data-fx cx="50" cy="50" r="22" fill="none" stroke="#fef3c7" strokeWidth="0.5" strokeDasharray="2 4" opacity="0.5"
+              animate={{ rotate: -360 }} transition={{ duration: 15, repeat: Infinity, ease: "linear" }} style={{ originX: '50%', originY: '50%' }}
             />
           </>
         )
@@ -100,7 +112,6 @@ const getRankBadgeDesign = (rank: string) => {
             </radialGradient>
 
             {/* L1: Deep Blur Shadow */}
-            <path d="M 50 0 L 95 20 L 95 60 L 50 100 L 5 60 L 5 20 Z" fill="#290c04" filter="url(#intense-blur)" transform="translate(0, 5)"/>
             {/* L2: Shield Base */}
             <path d="M 50 0 L 95 20 L 95 60 L 50 100 L 5 60 L 5 20 Z" fill="url(#grad-bronze)" stroke="#431407" strokeWidth="2" filter="url(#drop-shadow)"/>
             {/* L3: Beveled Edge */}
@@ -121,9 +132,9 @@ const getRankBadgeDesign = (rank: string) => {
             {/* L9: Spectacular Highlight */}
             <path d="M 50 0 L 95 20 L 95 40" fill="none" stroke="#fff" strokeWidth="2" opacity="0.7" style={{ filter: 'drop-shadow(0 0 5px #fff)' }}/>
             {/* L10: Pulsing Aura */}
-            <motion.path d="M 50 18 L 74 31 L 74 51 L 50 72 L 26 51 L 26 31 Z" fill="none" stroke="#fdba74" strokeWidth="1"
+            <motion.path data-fx d="M 50 18 L 74 31 L 74 51 L 50 72 L 26 51 L 26 31 Z" fill="none" stroke="#fdba74" strokeWidth="1"
               initial={{ scale: 1, opacity: 0.8 }} animate={{ scale: 1.1, opacity: 0 }} transition={{ duration: 2, repeat: Infinity }}
-              style={{ originX: '50px', originY: '45px' }}
+              style={{ originX: '50%', originY: '50%' }}
             />
           </>
         )
@@ -150,7 +161,6 @@ const getRankBadgeDesign = (rank: string) => {
             </linearGradient>
 
             {/* L1: Deep Shadow */}
-            <path d="M 50 0 L 95 30 L 70 100 L 30 100 L 5 30 Z" fill="#020617" filter="url(#intense-blur)" transform="translate(0, 5)"/>
             {/* L2: Cybernetic Chevron Base */}
             <path d="M 50 0 L 100 35 L 75 100 L 25 100 L 0 35 Z" fill="url(#grad-silver)" stroke="#475569" strokeWidth="2" filter="url(#drop-shadow)"/>
             {/* L3: Extruded Inner Layer */}
@@ -170,8 +180,8 @@ const getRankBadgeDesign = (rank: string) => {
             {/* L8: Laser Highlight Edge */}
             <path d="M 0 35 L 50 0 L 100 35" fill="none" stroke="#fff" strokeWidth="2" opacity="0.8" style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
             {/* L9: Cybernetic Pulse Rings */}
-            <motion.circle cx="50" cy="50" r="20" fill="none" stroke="#0ea5e9" strokeWidth="1.5" strokeDasharray="10 10"
-              animate={{ rotate: 360, scale: [1, 1.1, 1] }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} style={{ originX: '50px', originY: '50px' }}
+            <motion.circle data-fx cx="50" cy="50" r="20" fill="none" stroke="#0ea5e9" strokeWidth="1.5" strokeDasharray="10 10"
+              animate={{ rotate: 360, scale: [1, 1.1, 1] }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} style={{ originX: '50%', originY: '50%' }}
             />
           </>
         )
@@ -205,7 +215,6 @@ const getRankBadgeDesign = (rank: string) => {
             </linearGradient>
 
             {/* L1: Outer Blur Shadow */}
-            <path d="M 50 0 L 98 38 L 78 98 L 22 98 L 2 38 Z" fill="#422006" filter="url(#intense-blur)" transform="translate(0, 5)"/>
             {/* L2: Spiked Crown Base */}
             <path d="M 50 0 L 65 25 L 98 38 L 75 60 L 78 98 L 50 80 L 22 98 L 25 60 L 2 38 L 35 25 Z" fill="url(#grad-gold-metal)" stroke="#854d0e" strokeWidth="2" filter="url(#drop-shadow)"/>
             {/* L3: Inner Extrusion */}
@@ -227,8 +236,8 @@ const getRankBadgeDesign = (rank: string) => {
             <circle cx="75" cy="95" r="3" fill="#fff" style={{ filter: 'drop-shadow(0 0 4px #fff)' }}/>
             <circle cx="25" cy="95" r="3" fill="#fff" style={{ filter: 'drop-shadow(0 0 4px #fff)' }}/>
             {/* L10: Animated Radiant Rays */}
-            <motion.path d="M 50 20 L 75 45 L 65 80 L 35 80 L 25 45 Z" fill="none" stroke="#fff" strokeWidth="2"
-              initial={{ scale: 1, opacity: 0.8 }} animate={{ scale: 1.2, opacity: 0 }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }} style={{ originX: '50px', originY: '52px' }}
+            <motion.path data-fx d="M 50 20 L 75 45 L 65 80 L 35 80 L 25 45 Z" fill="none" stroke="#fff" strokeWidth="2"
+              initial={{ scale: 1, opacity: 0.8 }} animate={{ scale: 1.2, opacity: 0 }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }} style={{ originX: '50%', originY: '50%' }}
             />
           </>
         )
@@ -255,7 +264,6 @@ const getRankBadgeDesign = (rank: string) => {
             </radialGradient>
 
             {/* L1: Deep Shadow */}
-            <path d="M 50 0 L 100 25 L 100 75 L 50 100 L 0 75 L 0 25 Z" fill="#1e013a" filter="url(#intense-blur)" transform="translate(0, 6)"/>
             {/* L2: Hexagonal Matrix Base */}
             <path d="M 50 0 L 100 25 L 100 75 L 50 100 L 0 75 L 0 25 Z" fill="url(#grad-plat)" stroke="#581c87" strokeWidth="2" filter="url(#drop-shadow)"/>
             {/* L3: Extruded Inner Hex */}
@@ -280,8 +288,8 @@ const getRankBadgeDesign = (rank: string) => {
             {/* L10: Highlighting Specular Curve */}
             <path d="M 0 25 L 50 0 L 100 25" fill="none" stroke="#fff" strokeWidth="3" opacity="0.9" style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
             {/* L11: Animated Matrix Surge */}
-            <motion.path d="M 50 20 L 80 35 L 80 65 L 50 80 L 20 65 L 20 35 Z" fill="none" stroke="#e9d5ff" strokeWidth="2"
-              initial={{ scale: 1, opacity: 1 }} animate={{ scale: 1.5, opacity: 0 }} transition={{ duration: 1.5, repeat: Infinity, ease: "circOut" }} style={{ originX: '50px', originY: '50px' }}
+            <motion.path data-fx d="M 50 20 L 80 35 L 80 65 L 50 80 L 20 65 L 20 35 Z" fill="none" stroke="#e9d5ff" strokeWidth="2"
+              initial={{ scale: 1, opacity: 1 }} animate={{ scale: 1.5, opacity: 0 }} transition={{ duration: 1.5, repeat: Infinity, ease: "circOut" }} style={{ originX: '50%', originY: '50%' }}
             />
           </>
         )
@@ -307,7 +315,6 @@ const getRankBadgeDesign = (rank: string) => {
             </radialGradient>
 
             {/* L1: Toxic Blur Shadow */}
-            <polygon points="50,0 100,50 50,100 0,50" fill="#011812" filter="url(#intense-blur)" transform="translate(0, 6)"/>
             {/* L2: Mystic Diamond Base */}
             <polygon points="50,0 100,50 50,100 0,50" fill="url(#grad-emerald)" stroke="#064e3b" strokeWidth="2" filter="url(#drop-shadow)"/>
             {/* L3: Layered Inner Fractal */}
@@ -325,11 +332,11 @@ const getRankBadgeDesign = (rank: string) => {
             {/* L8: Specular Glint */}
             <polygon points="50,0 100,50 90,50 50,10" fill="#fff" opacity="0.6" style={{ filter: 'drop-shadow(0 0 5px #fff)' }}/>
             {/* L9: Animated Toxic Particles */}
-            <motion.circle cx="50" cy="50" r="28" fill="none" stroke="#6ee7b7" strokeWidth="2" strokeDasharray="5 15"
-              animate={{ rotate: 360, scale: [1, 1.2, 1] }} transition={{ duration: 5, repeat: Infinity, ease: "linear" }} style={{ originX: '50px', originY: '50px' }}
+            <motion.circle data-fx cx="50" cy="50" r="28" fill="none" stroke="#6ee7b7" strokeWidth="2" strokeDasharray="5 15"
+              animate={{ rotate: 360, scale: [1, 1.2, 1] }} transition={{ duration: 5, repeat: Infinity, ease: "linear" }} style={{ originX: '50%', originY: '50%' }}
             />
-            <motion.circle cx="50" cy="50" r="38" fill="none" stroke="#a7f3d0" strokeWidth="1" strokeDasharray="2 20"
-              animate={{ rotate: -360 }} transition={{ duration: 8, repeat: Infinity, ease: "linear" }} style={{ originX: '50px', originY: '50px' }}
+            <motion.circle data-fx cx="50" cy="50" r="38" fill="none" stroke="#a7f3d0" strokeWidth="1" strokeDasharray="2 20"
+              animate={{ rotate: -360 }} transition={{ duration: 8, repeat: Infinity, ease: "linear" }} style={{ originX: '50%', originY: '50%' }}
             />
           </>
         )
@@ -357,7 +364,6 @@ const getRankBadgeDesign = (rank: string) => {
             </radialGradient>
 
             {/* L1: Refractive Blur Shadow */}
-            <polygon points="50,0 90,30 50,100 10,30" fill="#041b2e" filter="url(#intense-blur)" transform="translate(0, 8)"/>
             {/* L2: Prism Base */}
             <polygon points="50,0 90,30 50,100 10,30" fill="url(#grad-diamond)" stroke="#0c4a6e" strokeWidth="2" filter="url(#drop-shadow)"/>
             {/* L3: Prism Facets (Top Left) */}
@@ -377,8 +383,8 @@ const getRankBadgeDesign = (rank: string) => {
             <path d="M 85 25 L 86 32 L 93 33 L 86 34 L 85 41 L 84 34 L 77 33 L 84 32 Z" fill="#fff" style={{ filter: 'drop-shadow(0 0 5px #fff)' }}/>
             <path d="M 15 25 L 16 32 L 23 33 L 16 34 L 15 41 L 14 34 L 7 33 L 14 32 Z" fill="#fff" style={{ filter: 'drop-shadow(0 0 5px #fff)' }}/>
             {/* L10: Animated Prism Reflection */}
-            <motion.polygon points="50,15 75,35 50,85 25,35" fill="none" stroke="#fff" strokeWidth="2"
-              initial={{ opacity: 1, scale: 1 }} animate={{ opacity: 0, scale: 1.4 }} transition={{ duration: 1.2, repeat: Infinity, ease: "easeOut" }} style={{ originX: '50px', originY: '45px' }}
+            <motion.polygon data-fx points="50,15 75,35 50,85 25,35" fill="none" stroke="#fff" strokeWidth="2"
+              initial={{ opacity: 1, scale: 1 }} animate={{ opacity: 0, scale: 1.4 }} transition={{ duration: 1.2, repeat: Infinity, ease: "easeOut" }} style={{ originX: '50%', originY: '50%' }}
             />
           </>
         )
@@ -407,7 +413,6 @@ const getRankBadgeDesign = (rank: string) => {
             </radialGradient>
 
             {/* L1: Supernova Shadow */}
-            <path d="M 50 0 L 85 15 L 100 50 L 85 85 L 50 100 L 15 85 L 0 50 L 15 15 Z" fill="#2a030d" filter="url(#intense-blur)" transform="translate(0, 10) scale(1.1)"/>
             {/* L2: Winged Base Left */}
             <path d="M 50 50 L 0 20 L 10 70 Z" fill="#881337" opacity="0.8"/>
             {/* L3: Winged Base Right */}
@@ -427,14 +432,14 @@ const getRankBadgeDesign = (rank: string) => {
             <path d="M 35 50 Q 20 20 0 0 Q 10 40 0 60 Q 25 60 35 50" fill="#fda4af" opacity="0.6" style={{ filter: 'drop-shadow(0 0 10px #f43f5e)' }}/>
             <path d="M 35 50 Q 10 30 -10 20 Q 5 50 -5 70 Q 25 65 35 50" fill="#fff" opacity="0.8" style={{ filter: 'drop-shadow(0 0 15px #fff)' }}/>
             {/* L10: Animated God Rays */}
-            <motion.path d="M 50 0 L 65 35 L 100 50 L 65 65 L 50 100 L 35 65 L 0 50 L 35 35 Z" fill="none" stroke="#fff" strokeWidth="3"
-              initial={{ scale: 1, opacity: 1, rotate: 0 }} animate={{ scale: 1.6, opacity: 0, rotate: 45 }} transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }} style={{ originX: '50px', originY: '50px' }}
+            <motion.path data-fx d="M 50 0 L 65 35 L 100 50 L 65 65 L 50 100 L 35 65 L 0 50 L 35 35 Z" fill="none" stroke="#fff" strokeWidth="3"
+              initial={{ scale: 1, opacity: 1, rotate: 0 }} animate={{ scale: 1.6, opacity: 0, rotate: 45 }} transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }} style={{ originX: '50%', originY: '50%' }}
             />
             {/* L11: Floating Orbs */}
-            <motion.circle cx="20" cy="20" r="4" fill="#fff" animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
-            <motion.circle cx="80" cy="20" r="4" fill="#fff" animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.5 }} style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
-            <motion.circle cx="20" cy="80" r="4" fill="#fff" animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1 }} style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
-            <motion.circle cx="80" cy="80" r="4" fill="#fff" animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1.5 }} style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
+            <motion.circle data-fx cx="20" cy="20" r="4" fill="#fff" animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
+            <motion.circle data-fx cx="80" cy="20" r="4" fill="#fff" animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.5 }} style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
+            <motion.circle data-fx cx="20" cy="80" r="4" fill="#fff" animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1 }} style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
+            <motion.circle data-fx cx="80" cy="80" r="4" fill="#fff" animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1.5 }} style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
           </>
         )
       };
@@ -443,7 +448,7 @@ const getRankBadgeDesign = (rank: string) => {
   }
 };
 
-export function RankBadge({ tier, globalRank, className, size = 'md' }: RankBadgeProps) {
+export function RankBadge({ tier, globalRank, className, size = 'md', fluid, still }: RankBadgeProps) {
   const parts = tier.split('_');
   const baseRank = parts[0] || 'COPPER';
   const numeral = parts[1] || '';
@@ -466,19 +471,32 @@ export function RankBadge({ tier, globalRank, className, size = 'md' }: RankBadg
     xl: 'text-7xl md:text-8xl'
   };
 
+  // The numeral gets a crisp edge in the rank's own deep colour (the first
+  // colour of its design shadow) instead of a wide glow that washed it out on
+  // the lighter ranks. Sized in em so it follows the numeral.
+  const numeralDeep = design.textShadow.match(/#[0-9a-fA-F]{6}/)?.[0] ?? '#000000';
+  const numeralEdge = `0 0.045em 0 ${numeralDeep}, 0 0 0.07em ${numeralDeep}, 0 0.1em 0.16em rgba(0, 0, 0, 0.5)`;
+
+  // The medallion is a vector drawing and must stay one: no GPU layer, no
+  // scale transform (both turn it into a stretched bitmap), and one clean
+  // rank-tinted shadow (.se-rank-svg) instead of stacked blurs.
   return (
-    <div className={cn('relative group flex items-center justify-center transform-gpu will-change-transform', sizeClasses[size], className)}>
+    <div
+      className={cn('se-rank relative group flex items-center justify-center shrink-0', still && 'se-rank-still', !fluid && sizeClasses[size], className)}
+      style={{
+        ['--rank-rgb' as string]: HexToRgbTriplet(design.coreColor),
+        ...(fluid ? { width: fluid, height: fluid } : {}),
+      }}
+    >
       <svg
         viewBox="-10 -10 120 120"
-        className="w-full h-full drop-shadow-2xl overflow-visible"
-        style={{ filter: `drop-shadow(0 0 30px ${design.glowColor})` }}
+        className="se-rank-svg w-full h-full overflow-visible"
+        shapeRendering="geometricPrecision"
       >
         <defs>
+          {/* Tight contact shadow under the raised frame: depth without haze. */}
           <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="8" stdDeviation="6" floodColor="#000" floodOpacity="0.8"/>
-          </filter>
-          <filter id="intense-blur" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feDropShadow dx="0" dy="1.6" stdDeviation="1.1" floodColor="#000" floodOpacity="0.5"/>
           </filter>
         </defs>
 
@@ -486,26 +504,24 @@ export function RankBadge({ tier, globalRank, className, size = 'md' }: RankBadg
         {design.shape}
       </svg>
 
-      {/* 3D Roman Numeral Rendering with deep text-shadow */}
+      {/* Roman numeral */}
       {numeral && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-          <motion.span
+          <span
             data-rank-numeral
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", bounce: 0.6 }}
             className={cn(
-              "font-black uppercase tracking-tighter mix-blend-plus-lighter",
-              numeralSizeClasses[size]
+              "font-black uppercase tracking-tighter leading-none",
+              !fluid && numeralSizeClasses[size]
             )}
             style={{
               color: design.textColor,
-              textShadow: design.textShadow,
-              fontFamily: 'serif'
+              textShadow: numeralEdge,
+              fontFamily: 'serif',
+              ...(fluid ? { fontSize: `calc(${fluid} * 0.3)` } : {}),
             }}
           >
             {numeral}
-          </motion.span>
+          </span>
         </div>
       )}
 

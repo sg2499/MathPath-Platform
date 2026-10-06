@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { RankEmblem3D } from './RankEmblem3D';
+import { RankBadge } from './RankBadge';
 import { RankInspectionModal } from './RankInspectionModal';
 import { Coins, Sparkles } from 'lucide-react';
 
@@ -165,10 +165,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           <div className="absolute w-28 h-28 md:w-36 md:h-36 border-2 border-orange-500/40 dark:border-orange-400/60 rounded-full animate-ping pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="absolute w-24 h-24 md:w-32 md:h-32 border border-amber-500/50 dark:border-amber-400/70 rounded-full animate-spin pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
 
-          <RankEmblem3D
-            tier={resolvedRankTier}
-            className="transition-transform duration-500 group-hover:scale-110"
-          />
+          <RankBadge tier={resolvedRankTier} size="md" still />
         </div>
 
         {/* Center: HUD XP Bar info */}
