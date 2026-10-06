@@ -20,6 +20,13 @@ NOTIFICATION_COLOR_BY_CATEGORY = {
 }
 
 
+def _tidy_dashes(text: str | None) -> str | None:
+    """Display only: a double hyphen used as a dash becomes a real dash."""
+    if not text or " -- " not in text:
+        return text
+    return text.replace(" -- ", " \u2014 ")
+
+
 def _json_dumps(value: dict[str, Any] | None) -> str | None:
     if value is None:
         return None
@@ -101,8 +108,11 @@ def NotificationPayload(notification: Notification) -> dict[str, Any]:
         "reportDeliveryId": notification.report_delivery_id,
         "type": notification.type,
         "category": notification.category,
-        "title": notification.title,
-        "message": notification.message,
+        # Notifications written before 2026-10 used a double hyphen as a dash.
+        # New ones use a real dash; rows already stored are tidied here, at the
+        # point they are sent to the screen, so old and new read the same.
+        "title": _tidy_dashes(notification.title),
+        "message": _tidy_dashes(notification.message),
         "targetRoute": notification.target_route,
         "targetTab": notification.target_tab,
         "targetSubTab": notification.target_sub_tab,

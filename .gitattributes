@@ -7,6 +7,13 @@
 docs/project-memory/COWORK_HANDOFF.md whitespace=cr-at-eol
 docs/project-memory/OPEN_ISSUES.md whitespace=cr-at-eol
 
+# CRLF-native source: the two student leaderboard pages have been committed
+# with CRLF line endings since they were written. Editing them in place
+# (keeping CRLF, so the diff stays a few lines instead of the whole file)
+# trips the same `git diff --check` rule as the docs above.
+frontend/app/student/competition/leaderboard/page.tsx whitespace=cr-at-eol
+frontend/app/student/competition/dps-leaderboard/page.tsx whitespace=cr-at-eol
+
 # PDFs are binary; without this, git diff --check misreads xref-table
 # byte sequences inside them as text whitespace violations (found via
 # PR #518's repository-safety CI failure, 2026-09-07).

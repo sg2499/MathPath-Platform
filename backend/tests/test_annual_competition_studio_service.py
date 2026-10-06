@@ -750,8 +750,8 @@ def test_generate_for_mm_l2_official_paper_has_its_own_distinct_sections_from_mm
         db, EventId="event-1", CompetitionLevelCode="MM-L2", CreatedBy=admin
     )
 
-    assert Mm1Result["mockExamTitle"] == "Annual Competition -- MM-L1 Official Paper"
-    assert Mm2Result["mockExamTitle"] == "Annual Competition -- MM-L2 Official Paper"
+    assert Mm1Result["mockExamTitle"] == "Annual Competition — MM-L1 Official Paper"
+    assert Mm2Result["mockExamTitle"] == "Annual Competition — MM-L2 Official Paper"
     # Two genuinely separate CompetitionMockExam rows -- MM-L2 must never be
     # a re-link/alias pointing at MM-L1's own exam.
     assert Mm1Result["mockExamId"] != Mm2Result["mockExamId"]

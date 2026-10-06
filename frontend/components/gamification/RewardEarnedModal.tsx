@@ -55,7 +55,7 @@ const ACCURACY_TIER_LABEL: Record<string, string> = {
   EXCELLENT: 'Excellent',
   GREAT: 'Great',
   FAIR: 'Fair',
-  NEEDS_PRACTICE: 'Needs practice',
+  NEEDS_PRACTICE: 'Needs Practice',
 };
 
 const SPEED_TIER_LABEL: Record<string, string> = {
@@ -74,9 +74,9 @@ const ACTIVITY_EYEBROW: Record<RewardActivityType, string> = {
 };
 
 const ACTIVITY_BASE_LABEL: Record<RewardActivityType, string> = {
-  DPS: 'Base for this sheet',
-  ASSESSMENT: 'Base for this assessment',
-  MOCK: 'Base for this mock exam',
+  DPS: 'Base For This Sheet',
+  ASSESSMENT: 'Base For This Assessment',
+  MOCK: 'Base For This Mock Exam',
 };
 
 const ACTIVITY_FOOTNOTE_NOUN: Record<RewardActivityType, string> = {
@@ -112,7 +112,7 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
   const showPunctualityRow = activityType === 'DPS' && punctualityStatus !== 'NOT_SCHEDULED';
   const isPunctualityHit = punctualityStatus === 'ON_TIME';
   const eyebrow = ACTIVITY_EYEBROW[activityType] ?? 'Activity';
-  const baseLabel = ACTIVITY_BASE_LABEL[activityType] ?? 'Base for this activity';
+  const baseLabel = ACTIVITY_BASE_LABEL[activityType] ?? 'Base For This Activity';
   const footnoteNoun = ACTIVITY_FOOTNOTE_NOUN[activityType] ?? 'activity';
 
   // STEADY never gets a "X of Y min" qualifier -- it's the "no bonus, no
@@ -215,46 +215,46 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
             by economy_service.py's remainder-based rounding, so there's
             never an off-by-one here */}
         <div className="mb-1.5 text-[10.5px] font-black uppercase tracking-[0.14em] text-slate-500">
-          How this was calculated
+          How This Was Calculated
         </div>
 
         <div className="flex flex-col">
           <div className="flex items-center justify-between py-3.5">
             <span className="text-[14.5px] font-semibold text-slate-300">{baseLabel}</span>
             <span className="text-[14.5px] font-extrabold tabular-nums text-slate-200">
-              {xp.base} XP &middot; {coins.base} coins
+              {xp.base} XP &middot; {coins.base} Coins
             </span>
           </div>
 
           <div className="flex items-center justify-between border-t border-dashed border-slate-700/70 py-3.5">
             <span className="flex items-center gap-2.5">
-              <span className="text-[14.5px] font-semibold text-slate-300">Accuracy bonus</span>
+              <span className="text-[14.5px] font-semibold text-slate-300">Accuracy Bonus</span>
               <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-[3px] text-[10.5px] font-extrabold uppercase tracking-[0.04em] text-amber-300">
                 {accuracyLabel} &middot; {Math.round(accuracyPercent)}%
               </span>
             </span>
             <span className="text-[14.5px] font-extrabold tabular-nums text-slate-200">
-              + {xp.accuracyBonus} XP &middot; + {coins.accuracyBonus} coins
+              + {xp.accuracyBonus} XP &middot; + {coins.accuracyBonus} Coins
             </span>
           </div>
 
           <div className="flex items-center justify-between border-t border-dashed border-slate-700/70 py-3.5">
             <span className="flex items-center gap-2.5">
-              <span className="text-[14.5px] font-semibold text-slate-300">Speed bonus</span>
+              <span className="text-[14.5px] font-semibold text-slate-300">Speed Bonus</span>
               <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-[3px] text-[10.5px] font-extrabold uppercase tracking-[0.04em] text-cyan-300">
                 {speedLabel}
-                {showSpeedTime ? ` · ${takenMin} of ${allottedMin} min` : ''}
+                {showSpeedTime ? ` · ${takenMin} Of ${allottedMin} Min` : ''}
               </span>
             </span>
             <span className="text-[14.5px] font-extrabold tabular-nums text-slate-200">
-              + {xp.speedBonus} XP &middot; + {coins.speedBonus} coins
+              + {xp.speedBonus} XP &middot; + {coins.speedBonus} Coins
             </span>
           </div>
 
           {showPunctualityRow ? (
             <div className="flex items-center justify-between border-t border-dashed border-slate-700/70 py-3.5">
               <span className="flex items-center gap-2.5">
-                <span className="text-[14.5px] font-semibold text-slate-300">Punctuality bonus</span>
+                <span className="text-[14.5px] font-semibold text-slate-300">Punctuality Bonus</span>
                 <span
                   className={`rounded-full border px-2.5 py-[3px] text-[10.5px] font-extrabold uppercase tracking-[0.04em] ${
                     isPunctualityHit
@@ -266,7 +266,7 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
                 </span>
               </span>
               <span className="text-[14.5px] font-extrabold tabular-nums text-slate-200">
-                + {xp.punctualityBonus} XP &middot; + {coins.punctualityBonus} coins
+                + {xp.punctualityBonus} XP &middot; + {coins.punctualityBonus} Coins
               </span>
             </div>
           ) : null}
@@ -276,7 +276,7 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
             <span className="text-[19px] font-black tabular-nums">
               <span className="text-indigo-300">{xp.total} XP</span>
               <span className="mx-1 font-bold text-slate-600">&middot;</span>
-              <span className="text-orange-300">{coins.total} coins</span>
+              <span className="text-orange-300">{coins.total} Coins</span>
             </span>
           </div>
         </div>
@@ -287,7 +287,7 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
           {showPunctualityRow
             ? isPunctualityHit
               ? ' Finishing this sheet the same day it unlocked also earned you the punctuality bonus.'
-              : ' This sheet unlocked on an earlier day -- finish next week\'s sheets the day they unlock to earn the punctuality bonus.'
+              : ' This sheet unlocked on an earlier day — finish next week\'s sheets the day they unlock to earn the punctuality bonus.'
             : ''}
         </p>
 

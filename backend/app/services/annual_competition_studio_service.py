@@ -157,7 +157,7 @@ def _ValidateCompetitionLevelCode(CompetitionLevelCode: str) -> None:
             400,
             "INVALID_COMPETITION_LEVEL_CODE",
             f"'{CompetitionLevelCode}' is not a valid Annual Competition target level. "
-            "BM-L1 is never a target -- Bridge students are always re-mapped to a PM-tier "
+            "BM-L1 is never a target — Bridge students are always re-mapped to a PM-tier "
             "level by the assignment engine.",
             {"validCodes": sorted(VALID_COMPETITION_LEVEL_CODES)},
         )
@@ -708,7 +708,7 @@ def GenerateAndLinkCompetitionEventLevelPaper(
             409,
             "NO_CURRICULUM_LEVEL_FOR_CODE",
             f"'{CompetitionLevelCode}' has no matching curriculum Level yet, so no paper can be generated for it. "
-            "This is a known, tracked gap (see pkg-02-assignment-engine.md finding #4 for MM-L2) -- link an "
+            "This is a known, tracked gap (see pkg-02-assignment-engine.md finding #4 for MM-L2) — link an "
             "existing mock exam instead, or add the curriculum/registry content first.",
         )
 
@@ -733,7 +733,7 @@ def GenerateAndLinkCompetitionEventLevelPaper(
         db,
         LevelId=LevelRecord.id,
         CreatedBy=CreatedBy,
-        Title=f"Annual Competition -- {CompetitionLevelCode} Official Paper",
+        Title=f"Annual Competition — {CompetitionLevelCode} Official Paper",
         MockCode=f"ANNUAL-{EventId[:8]}-{CompetitionLevelCode}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:6].upper()}",
         CompetitionScope="ANNUAL_COMPETITION",
         CompetitionLevelCode=CompetitionLevelCode,
@@ -907,7 +907,7 @@ def _ApplyCompetitionEventAssignmentOverride(
         api_error(
             422,
             "STUDENT_NOT_ON_EVENT_ROSTER",
-            f"{StudentRecord.student_code or StudentRecord.id} is not on this event's roster -- add them to the roster before assigning a level.",
+            f"{StudentRecord.student_code or StudentRecord.id} is not on this event's roster — add them to the roster before assigning a level.",
         )
 
     if SlotId is not None:
@@ -1021,7 +1021,7 @@ def BulkOverrideCompetitionEventAssignments(
             400,
             "ANNUAL_COMPETITION_BULK_OVERRIDE_TOO_MANY_STUDENTS",
             f"This action sets the level for at most {ANNUAL_COMPETITION_BULK_OVERRIDE_MAX_STUDENTS_PER_CALL} "
-            "students per call -- call it again for the remaining students.",
+            "students per call — call it again for the remaining students.",
             {"maxStudentsPerCall": ANNUAL_COMPETITION_BULK_OVERRIDE_MAX_STUDENTS_PER_CALL},
         )
 
@@ -1262,7 +1262,7 @@ def _ValidatePracticeBatchQuantity(Quantity: int) -> None:
         api_error(
             400,
             "INVALID_PRACTICE_BATCH_QUANTITY",
-            f"Quantity cannot exceed {PRACTICE_BATCH_MAX_QUANTITY} papers in one batch -- call this action again to "
+            f"Quantity cannot exceed {PRACTICE_BATCH_MAX_QUANTITY} papers in one batch — call this action again to "
             "top up the bank further.",
         )
 
@@ -1286,7 +1286,7 @@ def _ValidatePracticeBulkWorkload(StudentCount: int, Quantity: int, CompetitionL
             "PRACTICE_BULK_TOO_MUCH_WORK",
             f"This action would generate {TotalPapers:,} papers of {CompetitionLevelCode} in one call "
             f"({StudentCount} student{'s' if StudentCount != 1 else ''} x {Quantity} paper{'s' if Quantity != 1 else ''} each), "
-            f"over the {EffectiveLimit:,}-paper safe limit for this level in one call -- select fewer "
+            f"over the {EffectiveLimit:,}-paper safe limit for this level in one call — select fewer "
             "students, a smaller quantity, or call this action again for the rest.",
             {
                 "maxPapersPerCall": EffectiveLimit,
@@ -1338,7 +1338,7 @@ def _GeneratePracticePapersForOneStudent(
                 db,
                 LevelId=LevelRecord.id,
                 CreatedBy=AssignedBy,
-                Title=f"Annual Competition Practice -- {CompetitionLevelCode} for {StudentRecord.student_code}",
+                Title=f"Annual Competition Practice — {CompetitionLevelCode} for {StudentRecord.student_code}",
                 MockCode=f"ANNUAL-PRACTICE-{CompetitionLevelCode}-{uuid4().hex[:10].upper()}",
                 CompetitionScope="ANNUAL_COMPETITION_PRACTICE",
                 CompetitionLevelCode=CompetitionLevelCode,
@@ -1470,7 +1470,7 @@ def BatchAssignAnnualCompetitionPracticePapers(
         api_error(
             400,
             "PRACTICE_BULK_TOO_MANY_STUDENTS",
-            f"This action assigns to at most {PRACTICE_BULK_MAX_STUDENTS_PER_CALL} students per call -- "
+            f"This action assigns to at most {PRACTICE_BULK_MAX_STUDENTS_PER_CALL} students per call — "
             "call it again for the remaining students.",
             {"maxStudentsPerCall": PRACTICE_BULK_MAX_STUDENTS_PER_CALL},
         )

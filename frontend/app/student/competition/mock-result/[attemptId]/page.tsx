@@ -447,11 +447,13 @@ export default function StudentCompetitionMockResultPage() {
                 performance below.
               </p>
             </div>
-            <div className="rounded-[24px] border border-orange-200 bg-orange-50/70 px-6 py-4 text-center dark:border-orange-800 dark:bg-orange-950/30">
+            {/* shrink-0 + whitespace-nowrap: beside a long title this box used to be
+                squeezed until the score broke inside the number ("73/10" over "0"). */}
+            <div className="shrink-0 rounded-[24px] border border-orange-200 bg-orange-50/70 px-6 py-4 text-center dark:border-orange-800 dark:bg-orange-950/30">
               <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">
                 Score
               </p>
-              <p className="mt-1 text-4xl font-black text-slate-950 dark:text-white">
+              <p className="mt-1 whitespace-nowrap text-4xl font-black text-slate-950 dark:text-white">
                 {formatNumber(result.score)}/{formatNumber(result.maxScore)}
               </p>
               <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">
@@ -464,25 +466,25 @@ export default function StudentCompetitionMockResultPage() {
         <div className="grid gap-4 lg:grid-cols-4">
           <MetricCard
             icon={<Target size={18} />}
-            label="ACCURACY"
+            label="Accuracy"
             value={`${formatNumber(result.accuracyPercentage)}%`}
             helper="Attempted answers"
           />
           <MetricCard
             icon={<CheckCircle2 size={18} />}
-            label="CORRECT"
+            label="Correct"
             value={result.correct}
             helper={`${result.totalQuestions} total questions`}
           />
           <MetricCard
             icon={<XCircle size={18} />}
-            label="UNANSWERED"
+            label="Unanswered"
             value={result.unanswered}
             helper="Scored as zero"
           />
           <MetricCard
             icon={<Clock3 size={18} />}
-            label="TIME TAKEN"
+            label="Time Taken"
             value={formatDuration(result.timeTakenSeconds)}
             helper={`${formatNumber(result.timeUtilizationPercentage)}% time used`}
           />
@@ -896,7 +898,7 @@ function MetricCard({
       <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
         {label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className={`relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white ${String(value ?? "").length > 12 ? "se-metric-long" : ""}`}>
         {value}
       </p>
       <p className="relative z-10 mt-1 text-sm font-bold text-slate-700 transition-colors duration-300 group-hover:text-slate-900 dark:text-slate-300 dark:group-hover:text-slate-100">

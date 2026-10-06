@@ -17,6 +17,7 @@ import type {
 import { z } from "zod";
 import { PodiumHeroAnimation } from "./PodiumHeroAnimation";
 import { BadgeIconMap, getBadgeVisualConfig } from "@/lib/gamification/badgeVisuals";
+import { InitCaps } from "@/lib/initCaps";
 
 // Small badge-chip cluster shared by the podium cards and the ranks 4-10
 // table -- the backend has computed each shown student's top 3 badges
@@ -36,7 +37,7 @@ function TopBadgeChips({ badges, size = "sm" }: { badges?: any[]; size?: "sm" | 
         return (
           <div
             key={b.id}
-            title={`${b.name} (${b.tier})`}
+            title={`${b.name} (${InitCaps(b.tier)})`}
             className={`relative ${dim} rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-md shrink-0`}
             style={{
               background: config.customBg || config.unlockedBg,
@@ -278,7 +279,7 @@ const searchParams = useSearchParams();
             Back
           </button>
 
-          <div className="relative z-10 pr-24">
+          <div className="se-board-head relative z-10 pr-24">
             <div className="math-block-header mb-3"><Trophy size={16} className="text-yellow-500" /> Leaderboard</div>
             <h1 className="math-title mb-2">Mock Exam Leaderboard</h1>
             <p className="math-subtitle">
@@ -290,13 +291,13 @@ const searchParams = useSearchParams();
             <div className="flex gap-3 w-fit">
               <button
                 onClick={() => setViewMode("CUMULATIVE")}
-                className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "CUMULATIVE" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-500 ring-offset-2 dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"}`}
+                className={`se-seg ${viewMode === "CUMULATIVE" ? "se-seg-on" : ""} px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "CUMULATIVE" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-500 ring-offset-2 dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"}`}
               >
                 Overall Journey
               </button>
               <button
                 onClick={() => setViewMode("INDIVIDUAL")}
-                className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "INDIVIDUAL" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-500 ring-offset-2 dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"}`}
+                className={`se-seg ${viewMode === "INDIVIDUAL" ? "se-seg-on" : ""} px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "INDIVIDUAL" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-500 ring-offset-2 dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-500/10"}`}
               >
                 Specific Exam
               </button>
@@ -380,7 +381,7 @@ const searchParams = useSearchParams();
         {!loading && leaderboard.length > 0 && (
           <>
             {/* Pure 2D Flexbox Podium */}
-            <div className="pt-16 pb-8 flex items-end justify-center gap-1 md:gap-4 relative mt-16 z-10">
+            <div className="se-podium pt-16 pb-8 flex items-end justify-center gap-1 md:gap-4 relative mt-16 z-10">
               <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-[150%] max-w-5xl h-32 bg-gradient-to-t from-slate-900/20 dark:from-black/90 to-transparent blur-[20px] pointer-events-none rounded-[100%] transform rotateX(60deg)" />
               
               {/* Silver (Rank 2) */}
@@ -402,7 +403,7 @@ const searchParams = useSearchParams();
             {/* AAA High-Velocity List for 4-10 */}
             {rest.length > 0 && (
               <div className="math-card rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] mt-8 border border-slate-100 dark:border-slate-800 relative isolation-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="se-board-table w-full text-left border-collapse">
                   <thead className="bg-slate-50/80 dark:bg-slate-800/80 text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                     <tr>
                       <th className="px-6 py-5">Rank</th>
@@ -584,8 +585,8 @@ function PodiumCard({ student, rank, onActivateHero }: { student: any, rank: num
         </div>
       </div>
 
-      <div className="text-center mb-3 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 w-56 md:w-64 mx-auto">
-        <p className={`font-black text-sm md:text-base text-white truncate ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>{student.name}</p>
+      <div className="se-podium-plate text-center mb-3 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 w-56 md:w-64 mx-auto">
+        <p className={`se-podium-name font-black text-sm md:text-base text-white ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>{student.name}</p>
         <p className={`text-xs md:text-sm font-black ${config.textColor} mt-0.5 drop-shadow-md`}>{Math.round(student.percentage)}%</p>
         {student.topBadges && student.topBadges.length > 0 && (
           <div className="mt-2 flex justify-center">

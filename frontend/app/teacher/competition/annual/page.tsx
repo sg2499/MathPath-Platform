@@ -976,7 +976,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
           <p className="math-block-header"><Trophy size={14} />Annual Competition</p>
           <h1 className="math-title">Annual Competition Monitor</h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
-            Monitor your students during the event and review their results once released. Review only -- assigning
+            Monitor your students during the event and review their results once released. Review only — assigning
             students, scheduling slots, and releasing results all stay Admin-controlled.
           </p>
         </div>
@@ -1024,7 +1024,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                   <select value={SelectedEventId} onChange={(EventValue) => SetSelectedEventId(EventValue.target.value)} className="math-input min-w-[280px]">
                     {Events.map((EventItem) => (
                       <option key={EventItem.eventId} value={EventItem.eventId}>
-                        {EventItem.name} -- {FormatEventDate(EventItem.competitionDate)}
+                        {EventItem.name} — {FormatEventDate(EventItem.competitionDate)}
                       </option>
                     ))}
                   </select>
@@ -1150,8 +1150,8 @@ function TeacherAnnualCompetitionMonitorPageContent() {
               <div className="math-card p-5">
                 <p className="math-block-header"><Medal size={14} />Results</p>
                 <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                  Kept hidden here too until Admin releases them -- exactly the same lock-down students and parents see.
-                  Ranked ascending by rank within each level -- this is the tab used to review who finished where.
+                  Kept hidden here too until Admin releases them — exactly the same lock-down students and parents see.
+                  Ranked ascending by rank within each level — this is the tab used to review who finished where.
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -1234,7 +1234,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
               <div className="math-card p-5">
                 <p className="math-block-header"><Repeat size={14} />Practice</p>
                 <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                  Every practice paper your students have completed -- not tied to any Annual Competition event, results
+                  Every practice paper your students have completed — not tied to any Annual Competition event, results
                   are visible to them the instant they're scored (no release gate, unlike Official). Not ranked --
                   practice papers are for building confidence and speed, never for competing against classmates.
                 </p>
@@ -1437,7 +1437,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                 <p className="math-block-header"><Sparkles size={14} />Practice Reports</p>
                 <h2 className="mt-1 text-lg font-black text-slate-950 dark:text-white">Individual Student Analytics</h2>
                 <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                  Every one of your own students with any practice activity, shown below as a list -- narrow who&apos;s
+                  Every one of your own students with any practice activity, shown below as a list — narrow who&apos;s
                   shown by level, search by name or code, then click a student to open their full analytics.
                 </p>
 
@@ -1525,7 +1525,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                 <p className="math-block-header"><Medal size={14} />Practice Reports</p>
                 <h2 className="mt-1 text-lg font-black text-slate-950 dark:text-white">Individual Level Analytics</h2>
                 <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                  Cohort-wide performance across your own students who have practiced this level -- averages, the
+                  Cohort-wide performance across your own students who have practiced this level — averages, the
                   section they find hardest, and a per-student leaderboard sorted by accuracy, for a rough forecast of
                   what to expect from your roster on the day of the official event.
                 </p>
@@ -1692,7 +1692,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                 <PracticeLeaderboardPodium
                   Summary={PracticeLeaderboardQuery.data.summary}
                   Rows={RankedPracticeLeaderboardRows}
-                  EmptyDescription="None of your students have completed a practice paper at this level yet -- the leaderboard fills in as soon as the first paper is submitted."
+                  EmptyDescription="None of your students have completed a practice paper at this level yet — the leaderboard fills in as soon as the first paper is submitted."
                 />
               ) : null}
             </div>

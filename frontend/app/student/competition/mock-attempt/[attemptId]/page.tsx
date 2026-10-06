@@ -4,7 +4,7 @@ import { AppShell } from "@/components/common/AppShell";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
+import { MathQuestionDisplay, NeedsWideQuestionBoard } from "@/components/common/MathQuestionDisplay";
 import { OptionButton } from "@/components/student/OptionButton";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
 import { TestTimer } from "@/components/student/TestTimer";
@@ -19,7 +19,7 @@ import {
 } from "@/lib/api/student";
 import type { AttemptPayload } from "@/types/attempt";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ClipboardCheck, Clock3, Gauge, Layers3, Trophy, CheckCircle2 } from "lucide-react";
+import { ClipboardCheck, Gauge, Layers3, Trophy, CheckCircle2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
@@ -152,8 +152,8 @@ export default function StudentCompetitionMockAttemptPage() {
   const sectionTitle = String(metadata.section_title || metadata.sectionTitle || "").trim();
   const sectionNumber = metadata.section_number || metadata.sectionNumber;
   const totalSections = Number(metadata.dps_total_sections || metadata.dpsTotalSections || 0);
-  const currentDisplayType = String((currentQuestion as any)?.displayType ?? (currentQuestion as any)?.display_type ?? "").toUpperCase();
-  const isExpressionQuestion = currentDisplayType === "EXPRESSION" || currentDisplayType === "EXPRESSION_WORKSHEET" || currentDisplayType === "COMPACT_EXPRESSION";
+  // Decided once for the whole mock, so the options never move between questions.
+  const wideBoard = NeedsWideQuestionBoard(questions);
   const showSectionLabel = Boolean(sectionTitle);
   const displaySectionNumber = showSectionLabel ? (sectionNumber || 1) : null;
   const displaySectionTitle = showSectionLabel ? sectionTitle : "Competition Question";
@@ -231,73 +231,64 @@ export default function StudentCompetitionMockAttemptPage() {
           plus .math-page's max-width meant they routinely got clipped off on
           real screen widths. Now normal in-flow flex siblings of the card,
           so they can never be pushed outside the visible page. */}
-      <div className="flex items-stretch gap-2 sm:gap-3">
+      <div className="se-test flex items-stretch gap-2 sm:gap-3">
         <button
+          type="button"
           onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
           disabled={currentIndex === 0}
           aria-label="Previous question"
-          className="hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          className="se-arrow hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </button>
 
-        <section className="math-slide-up math-card flex min-w-0 flex-1 flex-col gap-4 p-4 sm:p-5 xl:min-h-[calc(100svh-11rem)]">
-        <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-gradient-to-br from-white via-orange-50 to-amber-100 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:p-6">
-          <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-amber-300/25 blur-3xl" />
-          <div className="relative z-10">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <p className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
-                Question {currentQuestion.questionNumber} Of {questions.length}
-              </p>
-              {displaySectionNumber !== null && (
-                <p className="inline-flex rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200">
-                  Section {displaySectionNumber}
+        <section className="se-test-card math-slide-up math-card flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
+          <div className="se-test-top relative overflow-hidden px-5 py-4 sm:px-6">
+            <div className="relative z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <h1 className="se-test-title se-test-title-lg">
+                {mockExam.title || "Competition Mock"}
+              </h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="se-chip se-chip-accent">
+                  Question {currentQuestion.questionNumber} Of {questions.length}
                 </p>
-              )}
-              <p className="inline-flex rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200">
-                {displaySectionTitle}
-              </p>
+                {displaySectionNumber !== null && (
+                  <p className="se-chip">
+                    Section {displaySectionNumber}
+                  </p>
+                )}
+                <p className="se-chip">
+                  {displaySectionTitle}
+                </p>
+              </div>
             </div>
-            <h1 className="mt-2 max-w-5xl text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
-              {mockExam.title || "Competition Mock"}
-            </h1>
-            <div className="math-subtitle !mt-3 max-w-3xl flex flex-col gap-1">
-              <p className="font-bold">
+            <p className="se-test-note relative z-10">
+              <span className="se-test-code">
                 {mockExam.mockCode ? `${mockExam.mockCode} · ` : ""}
                 {mockExam.moduleCode || "Module"} · {mockExam.levelCode || "Level"}
-              </p>
-              <p className="opacity-80">
-                Answer carefully. The mock auto-saves each response and submits when time expires.
-              </p>
-            </div>
+              </span>
+              <span className="se-test-note-gap" aria-hidden="true"> · </span>
+              Answer carefully. The mock auto-saves each response and submits when time expires.
+            </p>
           </div>
-        </div>
 
-        <div className="sticky top-[80px] sm:top-[104px] 2xl:top-[144px] z-[90] grid gap-3 rounded-3xl bg-slate-50 p-2 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard icon={<ClipboardCheck size={16} />} label="ANSWERED" value={answeredNumbers.length} />
-          <StatCard icon={<Layers3 size={16} />} label="REMAINING" value={questions.length - answeredNumbers.length} />
-          <StatCard icon={<Gauge size={16} />} label="CURRENT" value={`Q${currentQuestion.questionNumber}`} />
-          <TimerMetricCard remainingSeconds={remainingSeconds} />
-        </div>
+          <div className="se-stat-row sticky z-[90] grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+            <StatCard icon={<ClipboardCheck size={18} />} label="Answered" value={answeredNumbers.length} />
+            <StatCard icon={<Layers3 size={18} />} label="Remaining" value={questions.length - answeredNumbers.length} />
+            <StatCard icon={<Gauge size={18} />} label="Current" value={`Q${currentQuestion.questionNumber}`} />
+            <TimerMetricCard remainingSeconds={remainingSeconds} />
+          </div>
 
-        <div className={`grid flex-1 gap-4 xl:items-stretch ${isExpressionQuestion ? "xl:grid-cols-[minmax(0,1.22fr)_minmax(320px,0.78fr)]" : "xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]"}`}>
-          <div className="math-card flex flex-col min-h-[450px] sm:min-h-[500px] border border-slate-200/80 bg-slate-50/75 p-4 shadow-none dark:border-slate-800 dark:bg-slate-900/55">
-            <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-slate-200/80 pb-3 dark:border-slate-800">
-              <div>
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  {displaySectionNumber !== null && (
-                    <div className="math-block-header !mb-0"><Layers3 size={14} /> Section {displaySectionNumber}</div>
-                  )}
-                  <div className="math-block-header !mb-0">{displaySectionNumber === null ? <Layers3 size={14} /> : null}{displaySectionTitle}</div>
-                </div>
-                <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Question {currentQuestion.questionNumber}</h2>
+          <div className={`se-mcq grid gap-3 ${wideBoard ? "se-mcq-wide" : ""}`}>
+            <div className="se-mcq-panel flex min-w-0 flex-col p-3 sm:p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="se-chip se-chip-accent"><Layers3 size={14} /> {displaySectionTitle}</span>
+                <h2 className="se-mcq-heading">Question {currentQuestion.questionNumber}</h2>
+                <span className={`se-save ml-auto ${savingQuestionId === currentQuestion.questionId ? "se-save-busy" : "se-save-done"}`}>
+                  {savingQuestionId === currentQuestion.questionId ? "Saving..." : "Auto-Saved"}
+                </span>
               </div>
-              <div className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${savingQuestionId === currentQuestion.questionId ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200" : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"}`}>
-                {savingQuestionId === currentQuestion.questionId ? "Saving..." : "Auto-saved"}
-              </div>
-            </div>
-            <div className={`flex flex-1 items-center justify-center px-2 py-4 xl:min-h-0 ${isExpressionQuestion ? "xl:px-1" : ""}`}>
-              <div className={`flex w-full h-full min-h-[300px] items-center justify-center rounded-[28px] bg-white/92 shadow-inner ring-1 ring-slate-100 dark:bg-slate-950/80 dark:ring-slate-700 ${isExpressionQuestion ? "p-3 xl:p-2.5" : "p-4"}`}>
+              <div className="mp-qboard mt-3 flex flex-1 items-center justify-center rounded-[22px] p-2.5 sm:p-3">
                 <MathQuestionDisplay
                   operands={currentQuestion.operands}
                   operators={currentQuestion.operators}
@@ -306,48 +297,55 @@ export default function StudentCompetitionMockAttemptPage() {
                 />
               </div>
             </div>
-          </div>
 
-          <div className={`math-card flex flex-col min-h-[450px] sm:min-h-[500px] border border-slate-200/80 bg-white/88 p-4 shadow-none dark:border-slate-800 dark:bg-slate-950/60 ${isExpressionQuestion ? "xl:p-3.5" : ""}`}>
-            <div className="shrink-0 border-b border-slate-200/80 pb-3 dark:border-slate-800">
-              <div className="math-block-header mb-2"><CheckCircle2 size={14} /> Select Answer</div>
-              <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Choose the correct option</h2>
+            <div className="se-mcq-panel flex min-w-0 flex-col p-3 sm:p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="se-chip"><CheckCircle2 size={14} /> Select Answer</span>
+                <h2 className="se-mcq-heading">Choose The Correct Option</h2>
+              </div>
+              <div className="se-mcq-options mt-3 grid flex-1 content-center gap-3 sm:grid-cols-2">
+                {currentQuestion.options.map((option) => (
+                  <OptionButton
+                    key={option.optionId}
+                    option={option}
+                    selected={selectedAnswers[currentQuestion.questionId] === option.optionId}
+                    disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending || remainingSeconds <= 0}
+                    onClick={() => handleSelect(currentQuestion.questionId, option.optionId)}
+                  />
+                ))}
+              </div>
             </div>
-            <div className={`grid flex-1 overflow-y-auto content-center py-4 sm:grid-cols-2 xl:min-h-0 ${isExpressionQuestion ? "gap-2.5 xl:gap-2" : "gap-3"}`}>
-              {currentQuestion.options.map((option) => (
-                <OptionButton
-                  key={option.optionId}
-                  option={option}
-                  selected={selectedAnswers[currentQuestion.questionId] === option.optionId}
-                  disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending || remainingSeconds <= 0}
-                  onClick={() => handleSelect(currentQuestion.questionId, option.optionId)}
-                />
-              ))}
+          </div>
+
+          <div className="se-test-nav p-3">
+            <QuestionNavigator
+              totalQuestions={questions.length}
+              currentQuestionNumber={currentQuestion.questionNumber}
+              answeredQuestionNumbers={answeredNumbers}
+              onSelectQuestion={(number) => setCurrentIndex(number - 1)}
+            />
+
+            {/* Below md the side arrows are hidden, so Previous / Next live here
+                (same as the practice-sheet screen). */}
+            <div className="mt-3 flex gap-3 md:hidden">
+              <button className="math-button-secondary flex-1" disabled={currentIndex === 0} onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}>Previous</button>
+              <button className="math-button-secondary flex-1" disabled={currentIndex >= questions.length - 1} onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}>Next</button>
+            </div>
+
+            <div className="mt-3 flex justify-center">
+              <button className="math-button-primary w-full max-w-md py-2.5" onClick={() => setShowConfirm(true)} disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending}>
+                Submit Mock
+              </button>
             </div>
           </div>
-        </div>
-
-        <div className="rounded-[24px] border border-slate-200 bg-white/92 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/85">
-          <QuestionNavigator
-            totalQuestions={questions.length}
-            currentQuestionNumber={currentQuestion.questionNumber}
-            answeredQuestionNumbers={answeredNumbers}
-            onSelectQuestion={(number) => setCurrentIndex(number - 1)}
-          />
-
-          <div className="mt-4 flex justify-center">
-            <button className="math-button-primary w-full max-w-md py-3" onClick={() => setShowConfirm(true)} disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending}>
-              Submit Mock
-            </button>
-          </div>
-        </div>
         </section>
 
         <button
+          type="button"
           onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
           disabled={currentIndex >= questions.length - 1}
           aria-label="Next question"
-          className="hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          className="se-arrow hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </button>
@@ -367,20 +365,11 @@ export default function StudentCompetitionMockAttemptPage() {
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex min-h-[96px] items-center gap-3 rounded-[24px]" style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
-      {/* Gamified hover shine */}
-      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
-      
-      <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md h-11 w-11 flex items-center justify-center rounded-2xl text-orange-700 dark:text-orange-300">
-        {icon}
-      </div>
-      <div>
-        <p className="relative z-10 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">
-          {label}
-        </p>
-        <p className="relative z-10 mt-1 origin-left text-3xl font-black leading-none text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
-          {value}
-        </p>
+    <div className="se-stat">
+      <div className="se-stat-icon">{icon}</div>
+      <div className="min-w-0">
+        <p className="se-stat-label">{label}</p>
+        <p className="se-stat-value">{value}</p>
       </div>
     </div>
   );
@@ -388,21 +377,13 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 
 function TimerMetricCard({ remainingSeconds }: { remainingSeconds: number }) {
   return (
-    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex min-h-[96px] items-center justify-between gap-3" style={{ boxShadow: 'hover: 0 20px 40px rgba(0,0,0,0.1)' }}>
-      {/* Gamified hover shine */}
-      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 transition-all duration-700 group-hover:translate-x-full group-hover:opacity-100" />
-      
-      <div className="flex items-center gap-3 relative z-10">
-        <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">
-          <Clock3 size={18} />
-        </div>
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">TIME LEFT</p>
-          <p className="mt-1 text-sm font-bold text-slate-700 transition-colors duration-300 group-hover:text-slate-900 dark:text-slate-300 dark:group-hover:text-slate-100">Exam timer</p>
-        </div>
+    <div className="se-stat se-stat-timer">
+      <div className="min-w-0">
+        <p className="se-stat-label">Time Left</p>
+        <p className="se-stat-sub">Exam Timer</p>
       </div>
-      <div className="relative z-10 shrink-0">
-        <TestTimer remainingSeconds={remainingSeconds} />
+      <div className="shrink-0">
+        <TestTimer remainingSeconds={remainingSeconds} className="!px-3.5 !py-2 !text-sm" />
       </div>
     </div>
   );

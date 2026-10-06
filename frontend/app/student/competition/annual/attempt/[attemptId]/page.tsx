@@ -5,7 +5,7 @@ import { Chip } from "@/components/common/DetailWorkspaceViews";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
+import { MathQuestionDisplay, NeedsWideQuestionBoard } from "@/components/common/MathQuestionDisplay";
 import { QuestionCard } from "@/components/student/QuestionCard";
 import type { AnswerInputBoxHandle } from "@/components/student/AnswerInputBox";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
@@ -421,7 +421,7 @@ function AnnualCompetitionAttemptContent() {
             <>
               <p className="math-subtitle max-w-none">
                 {isPractice
-                  ? "This practice paper has been scored. Results below are yours alone -- practice is never ranked and has no certificate."
+                  ? "This practice paper has been scored. Results below are yours alone — practice is never ranked and has no certificate."
                   : "Your Annual Competition attempt has been scored. Your official rank and certificate will be released once every student at your level has completed their slot."}
               </p>
               {/* 2026-09-22 (Shailesh): "remove the accuracy parameter
@@ -433,18 +433,18 @@ function AnnualCompetitionAttemptContent() {
                   progress metric row above already uses, instead of the
                   ad-hoc unstyled math-card divs this block used before. */}
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <StatCard icon={<ListChecks size={16} />} label="CORRECT" value={result.correctCount} />
-                <StatCard icon={<Gauge size={16} />} label="TIME TAKEN" value={`${Math.round((result.timeTakenSeconds || 0) / 60)}m`} />
+                <StatCard icon={<ListChecks size={16} />} label="Correct" value={result.correctCount} />
+                <StatCard icon={<Gauge size={16} />} label="Time Taken" value={`${Math.round((result.timeTakenSeconds || 0) / 60)}m`} />
                 {!isPractice && result.rank ? (
-                  <StatCard icon={<Trophy size={16} />} label="RANK" value={`#${result.rank}`} />
+                  <StatCard icon={<Trophy size={16} />} label="Rank" value={`#${result.rank}`} />
                 ) : null}
               </div>
             </>
           ) : (
             <p className="math-subtitle max-w-none">
               {isPractice
-                ? "This practice paper has been submitted and is now being scored -- results appear here in just a moment."
-                : "Your Annual Competition attempt has been submitted and is now being scored. Ranked results and certificates are released together once every student at your level has completed their slot -- check back after the competition window closes."}
+                ? "This practice paper has been submitted and is now being scored — results appear here in just a moment."
+                : "Your Annual Competition attempt has been submitted and is now being scored. Ranked results and certificates are released together once every student at your level has completed their slot — check back after the competition window closes."}
             </p>
           )}
           <div className="mt-5 flex flex-wrap gap-3">
@@ -499,7 +499,7 @@ function AnnualCompetitionAttemptContent() {
                         </p>
                         <h3 className="text-lg font-black text-slate-950 dark:text-white">
                           {sectionReview.sectionTitle || `Section ${sectionReview.sectionNumber}`}
-                          {sectionReview.mode ? ` · ${sectionReview.mode}` : ""}
+                          {sectionReview.mode ? ` · ${FormatSectionMode(sectionReview.mode)}` : ""}
                         </h3>
                       </div>
                       <Chip tone="slate">{sectionReview.questions.length} Questions</Chip>
@@ -579,48 +579,50 @@ function AnnualCompetitionAttemptContent() {
           DPS attempt page (2026-09-02) for exactly this kind of screen --
           see that page's own comment for why an absolutely-positioned
           version reliably got clipped on real screen widths. */}
-      <div className="flex items-stretch gap-2 sm:gap-3">
+      <div className="se-test flex items-stretch gap-2 sm:gap-3">
         <button
+          type="button"
           onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
           disabled={currentIndex === 0}
           aria-label="Previous question"
-          className="hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          className="se-arrow hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </button>
 
-        <section className="math-slide-up math-card flex min-w-0 flex-1 flex-col gap-4 p-4 sm:p-5 xl:min-h-[calc(100svh-11rem)]">
-          <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-gradient-to-br from-white via-orange-50 to-amber-100 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:p-6">
-            <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-amber-300/25 blur-3xl" />
+        <section className="se-test-card math-slide-up math-card flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
+          <div className="se-test-top relative overflow-hidden px-5 py-4 sm:px-6">
             <div className="relative z-10">
-              <div className="flex flex-wrap items-center gap-2 mb-2">
-                <p className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
-                  Question {currentQuestion.questionNumber} Of {questions.length}
-                </p>
-                <p className="inline-flex rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-200">
-                  Section {liveAttempt.currentSectionNumber} Of {totalSections}
-                </p>
-                {sectionMode ? (
-                  <p className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
-                    {sectionMode}
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <h1 className="se-test-title se-test-title-lg">
+                  {liveAttempt.attemptType === "PRACTICE" ? "Annual Competition Practice" : "Annual Competition"}
+                </h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="se-chip se-chip-accent">
+                    Question {currentQuestion.questionNumber} Of {questions.length}
                   </p>
-                ) : null}
+                  <p className="se-chip">
+                    Section {liveAttempt.currentSectionNumber} Of {totalSections}
+                  </p>
+                  {sectionMode ? (
+                    <p className="se-chip">
+                      {FormatSectionMode(sectionMode)}
+                    </p>
+                  ) : null}
+                </div>
               </div>
-              <h1 className="mt-2 w-full text-3xl font-black leading-tight tracking-tight text-slate-950 dark:text-white sm:text-4xl">
-                {liveAttempt.attemptType === "PRACTICE" ? "Annual Competition Practice" : "Annual Competition"}
-              </h1>
-              <p className="math-subtitle !mt-3 w-full">
+              <p className="se-test-note">
                 {liveAttempt.attemptType === "PRACTICE"
-                  ? "This is a practice paper leading up to the Annual Competition, not the event itself. Stay connected -- your timer only pauses briefly on a genuine disconnect. Sections lock sequentially and cannot be revisited."
-                  : "Stay connected -- your timer only pauses briefly on a genuine disconnect. Sections lock sequentially and cannot be revisited."}
+                  ? "This is a practice paper leading up to the Annual Competition, not the event itself. Stay connected — your timer only pauses briefly on a genuine disconnect. Sections lock sequentially and cannot be revisited."
+                  : "Stay connected — your timer only pauses briefly on a genuine disconnect. Sections lock sequentially and cannot be revisited."}
               </p>
             </div>
           </div>
 
-          <div className="sticky top-[80px] sm:top-[104px] 2xl:top-[144px] z-[90] grid gap-3 rounded-3xl bg-slate-50 p-2 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard icon={<ClipboardCheck size={16} />} label="ANSWERED" value={answeredNumbers.length} />
-            <StatCard icon={<Layers3 size={16} />} label="REMAINING" value={questions.length - answeredNumbers.length} />
-            <StatCard icon={<Gauge size={16} />} label="CURRENT" value={`Q${currentQuestion.questionNumber}`} />
+          <div className="se-stat-row sticky z-[90] grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+            <StatCard icon={<ClipboardCheck size={18} />} label="Answered" value={answeredNumbers.length} />
+            <StatCard icon={<Layers3 size={18} />} label="Remaining" value={questions.length - answeredNumbers.length} />
+            <StatCard icon={<Gauge size={18} />} label="Current" value={`Q${currentQuestion.questionNumber}`} />
             <TimerMetricCard remainingSeconds={remainingSeconds} />
           </div>
 
@@ -638,6 +640,7 @@ function AnnualCompetitionAttemptContent() {
               }
               saving={savingQuestionId === currentQuestion.questionId}
               compact
+              wide={NeedsWideQuestionBoard(questions)}
               onSave={(answerText) => handleSaveAnswer(currentQuestion.questionId, answerText)}
             />
             {/* 2026-09-10 (Shailesh): "we can add a tooltip somewhere where
@@ -645,9 +648,9 @@ function AnnualCompetitionAttemptContent() {
                 itself is handled page-wide by the global listener above
                 (see its own comment for why), so the hint lives here rather
                 than inside AnswerInputBox. */}
-            <p className="mt-2 text-center text-[11px] font-bold text-slate-500 dark:text-slate-400">
+            <p className="se-test-hint mt-2 text-center font-bold text-slate-500 dark:text-slate-400">
               Press{" "}
-              <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                 Enter
               </kbd>{" "}
               to move to the next question
@@ -656,7 +659,7 @@ function AnnualCompetitionAttemptContent() {
 
           {saveError ? <ErrorState message={apiErrorMessage(saveError)} /> : null}
 
-          <div className="rounded-[24px] border border-slate-200 bg-white/92 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/85">
+          <div className="se-test-nav p-3">
             <QuestionNavigator
               totalQuestions={questions.length}
               currentQuestionNumber={currentQuestion.questionNumber}
@@ -686,7 +689,7 @@ function AnnualCompetitionAttemptContent() {
             </div>
 
             <button
-              className="math-button-primary mt-4 w-full py-3 disabled:cursor-not-allowed disabled:opacity-60"
+              className="math-button-primary mt-3 w-full py-2.5 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => setShowSubmitConfirm(true)}
               disabled={submittingSection}
             >
@@ -700,10 +703,11 @@ function AnnualCompetitionAttemptContent() {
         </section>
 
         <button
+          type="button"
           onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}
           disabled={currentIndex >= questions.length - 1}
           aria-label="Next question"
-          className="hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 shadow-xl backdrop-blur-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-all hover:scale-110 hover:bg-white dark:hover:bg-slate-950 disabled:opacity-30 disabled:pointer-events-none"
+          className="se-arrow hidden md:flex shrink-0 self-center h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </button>
@@ -725,15 +729,21 @@ function AnnualCompetitionAttemptContent() {
   );
 }
 
+// Display only: the section's method arrives as "ABACUS" / "VISUAL"; show it in Init Caps.
+function FormatSectionMode(mode: string): string {
+  const text = String(mode || "");
+  return text === text.toUpperCase() ? text.charAt(0) + text.slice(1).toLowerCase() : text;
+}
+
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex min-h-[96px] items-center gap-3 rounded-[24px]">
-      <div className="math-student-icon-chip relative z-10 h-11 w-11 flex items-center justify-center rounded-2xl text-orange-700 dark:text-orange-300">
+    <div className="se-stat">
+      <div className="se-stat-icon">
         {icon}
       </div>
-      <div>
-        <p className="relative z-10 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">{label}</p>
-        <p className="relative z-10 mt-1 origin-left text-3xl font-black leading-none text-slate-950 dark:text-white">{value}</p>
+      <div className="min-w-0">
+        <p className="se-stat-label">{label}</p>
+        <p className="se-stat-value">{value}</p>
       </div>
     </div>
   );
@@ -825,7 +835,7 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
     <div className="math-card p-5">
       <div className="mb-4">
         <p className="math-block-header"><ListChecks size={14} />Scorecard</p>
-        <h3 className="text-lg font-black text-slate-950 dark:text-white">Section-wise Marks</h3>
+        <h3 className="text-lg font-black text-slate-950 dark:text-white">Section-Wise Marks</h3>
       </div>
 
       {rows.length === 0 ? (
@@ -848,7 +858,7 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
               {rows.map((row) => (
                 <tr key={row.sectionNumber} className="border-b border-slate-100 dark:border-slate-800">
                   <td className="px-3 py-3 font-bold text-slate-900 dark:text-slate-100">
-                    Section {row.sectionNumber} -- {row.sectionTitle}
+                    Section {row.sectionNumber}: {row.sectionTitle}
                   </td>
                   <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.totalQuestions}</td>
                   <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.attemptedCount}</td>
@@ -882,15 +892,13 @@ function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
 
 function TimerMetricCard({ remainingSeconds }: { remainingSeconds: number }) {
   return (
-    <div className="math-student-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex min-h-[96px] items-center justify-between gap-3">
-      <div className="flex items-center gap-3 relative z-10">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-800 dark:text-slate-100">TIME LEFT</p>
-          <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-300">Section timer</p>
-        </div>
+    <div className="se-stat se-stat-timer">
+      <div className="min-w-0">
+        <p className="se-stat-label">Time Left</p>
+        <p className="se-stat-sub">Section Timer</p>
       </div>
-      <div className="relative z-10 shrink-0">
-        <TestTimer remainingSeconds={remainingSeconds} />
+      <div className="shrink-0">
+        <TestTimer remainingSeconds={remainingSeconds} className="!px-3.5 !py-2 !text-sm" />
       </div>
     </div>
   );

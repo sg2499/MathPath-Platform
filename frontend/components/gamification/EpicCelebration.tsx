@@ -15,7 +15,7 @@ const Tiers = [
     min: 96,
     max: 100,
     id: "APEX",
-    text: "APEX FLAWLESS",
+    text: "Apex Flawless",
     shadowColor: "rgba(251,191,36,0.8)",
     extrusionColor: "#b45309",
     trigger: triggerMythic,
@@ -25,7 +25,7 @@ const Tiers = [
     min: 91,
     max: 95,
     id: "IMMORTAL",
-    text: "IMMORTAL",
+    text: "Immortal",
     shadowColor: "rgba(168,85,247,0.8)",
     extrusionColor: "#581c87",
     trigger: triggerCrystal,
@@ -35,7 +35,7 @@ const Tiers = [
     min: 86,
     max: 90,
     id: "ASCENDANT",
-    text: "ASCENDANT",
+    text: "Ascendant",
     shadowColor: "rgba(56,189,248,0.8)",
     extrusionColor: "#0369a1",
     trigger: triggerSurge,
@@ -45,7 +45,7 @@ const Tiers = [
     min: 80,
     max: 85,
     id: "DOMINATING",
-    text: "DOMINATING",
+    text: "Dominating",
     shadowColor: "rgba(239,68,68,0.8)",
     extrusionColor: "#991b1b",
     trigger: triggerBlaze,
@@ -74,7 +74,11 @@ function ConvergeText({ text, extrusionColor }: { text: string; extrusionColor: 
     <motion.div
       initial={{ scale: 1.1 }}
       animate={{ scale: [1.1, 0.98, 1] }}
-      transition={{ delay: 1.8, duration: 0.4, type: "spring", bounce: 0.6 }} // The final screen shake when they snap
+      // The final screen shake when they snap. 2026-10: this was a spring, but a
+      // spring can only run between two values and this has three (1.1 -> 0.98
+      // -> 1), which made the animation library raise an error the moment a
+      // 96-100% celebration started. A short eased tween plays all three.
+      transition={{ delay: 1.8, duration: 0.4, ease: "easeOut", times: [0, 0.6, 1] }}
       className="flex flex-row flex-wrap justify-center p-8"
       style={{ textShadow: generate3DShadow(extrusionColor) }}
     >

@@ -88,17 +88,18 @@ export function VerticalQuestion({
 }) {
   const StackRows = BuildStackRows(operands || [], operators || []);
   const LongestValueLength = StackRows.reduce((Length, Row) => Math.max(Length, Row.value.length), 1);
-  const IsDenseStack = StackRows.length >= 6 || LongestValueLength >= 5;
   const IsVeryDenseStack = StackRows.length >= 8 || LongestValueLength >= 7;
   const NumberColumnStyle = {
     minWidth: `${Math.max(LongestValueLength, 2)}ch`,
   };
   const PaddedQuestionMark = "?".padStart(Math.max(LongestValueLength, 1), " ");
-  const TextSizeClass = IsVeryDenseStack
-    ? "text-[20px] sm:text-[24px]"
-    : IsDenseStack
-      ? "text-[22px] sm:text-[28px]"
-      : "text-[26px] sm:text-[32px]";
+  // 2026-10 (Shailesh): one number size for every question, whatever the
+  // concept, module or level. This used to step down for longer stacks
+  // (32px -> 28px -> 24px), which is why a short sum looked far bigger than a
+  // long one. The size is now the single --mp-question-size value set in
+  // globals.css (the same one MathQuestionDisplay uses); a taller stack simply
+  // makes the card taller, it never scrolls or clips.
+  const TextSizeClass = "mp-q-num";
   const CardPaddingClass = IsVeryDenseStack ? "px-3 py-3.5 sm:px-4 sm:py-4" : "px-4 py-4 sm:px-5 sm:py-4";
 
   return (
@@ -118,7 +119,8 @@ export function VerticalQuestion({
         ))}
       </div>
 
-      <div className="my-2.5 border-t-[3px] border-slate-800 dark:border-slate-200" />
+      {/* The answer line takes the digits' own colour so it is as clear in dark mode as in light. */}
+      <div data-q-mark="rule" className="my-2.5 border-t-[3px] border-current" />
 
       <div
         className={`grid items-baseline gap-1.5 text-right font-mono font-black text-blue-700 dark:text-cyan-300 ${TextSizeClass}`}

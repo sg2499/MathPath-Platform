@@ -124,7 +124,7 @@ export default function TeacherAnnualCompetitionAttemptReviewPage() {
             <p className="math-block-header"><BookOpenCheck size={14} />Attempt Review</p>
             <h1 className="math-title">Not released yet</h1>
             <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-              This attempt hasn't been submitted yet, or -- for an official competition attempt -- results haven't been
+              This attempt hasn't been submitted yet, or — for an official competition attempt — results haven't been
               released by an admin yet. Check back once that's done.
             </p>
           </div>
@@ -286,7 +286,7 @@ function ScorecardTab({ Review }: { Review: TeacherAnnualCompetitionAttemptRevie
               {Rows.map((Row) => (
                 <tr key={Row.sectionNumber} className="border-b border-slate-100 dark:border-slate-800">
                   <td className="px-3 py-3 font-bold text-slate-900 dark:text-slate-100">
-                    Section {Row.sectionNumber} -- {Row.sectionTitle}
+                    Section {Row.sectionNumber} — {Row.sectionTitle}
                   </td>
                   <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{Row.totalQuestions}</td>
                   <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{Row.attemptedCount}</td>

@@ -102,7 +102,7 @@ def _ensure_lesson(db: Session, level: Level, lesson_number: int, lesson_title: 
             level_id=level.id,
             lesson_number=lesson_number,
             lesson_title=lesson_title,
-            description="PM-L3 lesson reproduced from PL3.xlsx (12 authoritative lesson sheets) -- concept, technique, digit width, and operand ranges match the workbook; question values are generated fresh per publish/attempt via question_engine/pm_l3, PM-L3's own dedicated engine.",
+            description="PM-L3 lesson reproduced from PL3.xlsx (12 authoritative lesson sheets) — concept, technique, digit width, and operand ranges match the workbook; question values are generated fresh per publish/attempt via question_engine/pm_l3, PM-L3's own dedicated engine.",
             display_order=lesson_number,
             is_active=True,
         )
@@ -110,7 +110,7 @@ def _ensure_lesson(db: Session, level: Level, lesson_number: int, lesson_title: 
         db.flush()
     else:
         lesson.lesson_title = lesson_title
-        lesson.description = lesson.description or "PM-L3 lesson reproduced from PL3.xlsx (12 authoritative lesson sheets) -- concept, technique, digit width, and operand ranges match the workbook; question values are generated fresh per publish/attempt via question_engine/pm_l3, PM-L3's own dedicated engine."
+        lesson.description = lesson.description or "PM-L3 lesson reproduced from PL3.xlsx (12 authoritative lesson sheets) — concept, technique, digit width, and operand ranges match the workbook; question values are generated fresh per publish/attempt via question_engine/pm_l3, PM-L3's own dedicated engine."
         lesson.display_order = lesson_number
         lesson.is_active = True
     return lesson

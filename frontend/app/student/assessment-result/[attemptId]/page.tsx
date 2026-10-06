@@ -82,7 +82,17 @@ function StudentProgressionBadge(Result: any) {
 function ResultFeedback(Result: any) {
   const Accuracy = Math.min(Math.max(Number(Result?.accuracyPercentage || 0), 0), 100);
   const Seed = String(Result?.attemptId || Result?.assignmentTitle || Accuracy);
-  if (Accuracy >= 90) {
+  // Whether the assessment was cleared is the server's decision (its own
+  // benchmark). The wording below follows it, so this card can never say
+  // "you cleared" beside a Needs Re-Attempt status or the reverse. The fixed
+  // 70% is only the fallback for a result that carries no decision.
+  const Status = String(Result?.status || "").toUpperCase();
+  const Cleared = Status === "CLEARED" || Result?.isPromoted === true || Result?.isReadyForNextLevel === true
+    ? true
+    : Status.includes("RE_ATTEMPT") || Status.includes("REATTEMPT")
+      ? false
+      : Accuracy >= 70;
+  if (Cleared && Accuracy >= 90) {
     const Messages = [
       "You showed excellent focus and strong control of this level. Keep practising so your speed stays as sharp as your accuracy.",
       "Brilliant effort! Your careful work helped you master this assessment. Keep challenging yourself with the same confidence.",
@@ -96,7 +106,7 @@ function ResultFeedback(Result: any) {
       Icon: <Sparkles size={24} />,
     };
   }
-  if (Accuracy >= 70) {
+  if (Cleared) {
     const Messages = [
       "You cleared the assessment and proved that your concepts are growing stronger. Review the missed questions to make your next level even smoother.",
       "Great progress! You crossed the benchmark with steady effort. A quick mistake review will help you build stronger accuracy.",
@@ -198,11 +208,11 @@ export default function StudentAssessmentResultPage() {
             </div>
 
             <div className="relative z-10 mt-5 grid gap-3 sm:grid-cols-5">
-              <Metric icon={<Target size={16} />} label="ACCURACY" value={`${CleanNumber(Math.min(Math.max(Number(Query.data.accuracyPercentage || 0), 0), 100))}%`} />
-              <Metric icon={<CheckCircle2 size={16} />} label="CORRECT" value={Query.data.correct} />
-              <Metric icon={<ShieldAlert size={16} />} label="WRONG" value={Query.data.wrong} />
-              <Metric icon={<Award size={16} />} label="UNANSWERED" value={Query.data.unanswered} />
-              <Metric icon={<Clock3 size={16} />} label="COMPLETION DATE" value={formatMathPathDateTime(Query.data.completedDate || Query.data.submittedAt)} />
+              <Metric icon={<Target size={16} />} label="Accuracy" value={`${CleanNumber(Math.min(Math.max(Number(Query.data.accuracyPercentage || 0), 0), 100))}%`} />
+              <Metric icon={<CheckCircle2 size={16} />} label="Correct" value={Query.data.correct} />
+              <Metric icon={<ShieldAlert size={16} />} label="Wrong" value={Query.data.wrong} />
+              <Metric icon={<Award size={16} />} label="Unanswered" value={Query.data.unanswered} />
+              <Metric icon={<Clock3 size={16} />} label="Completion Date" value={formatMathPathDateTime(Query.data.completedDate || Query.data.submittedAt)} />
             </div>
           </section>
 
@@ -273,7 +283,7 @@ function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; 
       
       <div className="math-student-icon-chip relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-hover:shadow-md">{icon}</div>
       <p className="relative z-10 mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-300">{label}</p>
-      <p className="relative z-10 mt-1 origin-left text-lg font-black leading-tight text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">{value}</p>
+      <p className={`relative z-10 mt-1 origin-left text-lg font-black leading-tight text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white ${String(value ?? "").length > 12 ? "se-metric-long" : ""}`}>{value}</p>
     </div>
   );
 }

@@ -1040,7 +1040,7 @@ def student_dps(dps_id: str, db: Session = Depends(get_db), student: Student = D
         },
         "instructions": [
             f"You will get {question_count} question{'s' if question_count != 1 else ''}.",
-            "Type your answer for each question -- no options to pick from.",
+            "Type your answer for each question — no options to pick from.",
             "Your answers auto-save as you type.",
             "The test will auto-submit when time is up.",
         ],

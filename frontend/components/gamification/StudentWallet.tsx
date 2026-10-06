@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { RankBadge } from './RankBadge';
+import { RankEmblem3D } from './RankEmblem3D';
 import { RankInspectionModal } from './RankInspectionModal';
 import { Coins, Sparkles } from 'lucide-react';
 
@@ -81,7 +81,9 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
   const xpProgress = currentXp - currentTierMinXp;
   const xpNeeded = nextTierMinXp - currentTierMinXp;
   const progressPercent = Math.min(100, Math.max(0, (xpProgress / xpNeeded) * 100));
-  const rankDisplayName = resolvedRankTier.replace('_', ' ');
+  // "COPPER_II" -> "Copper II": Init Caps for the rank word, the numeral stays as it is.
+  const [rankWord, ...rankRest] = resolvedRankTier.split('_');
+  const rankDisplayName = [rankWord.charAt(0) + rankWord.slice(1).toLowerCase(), ...rankRest].join(' ');
 
   // 3D HUD Mouse Tilt effect variables
   const x = useMotionValue(0);
@@ -148,9 +150,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           transformStyle: "preserve-3d",
         }}
         className={cn(
-          "flex flex-col sm:flex-row items-center gap-4 p-3 sm:p-4 rounded-[2rem] transition-all duration-300 select-none",
-          "bg-white dark:bg-slate-950/90 border border-slate-200 dark:border-indigo-500/30",
-          "shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] hover:border-indigo-300 dark:hover:border-indigo-400/50",
+          "se-wallet flex flex-col sm:flex-row items-center gap-4 p-3 sm:p-4 rounded-[1.75rem] transition-all duration-300 select-none",
           className
         )}
       >
@@ -162,12 +162,11 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           style={{ transform: "translateZ(40px)" }}
         >
           {/* Neon energy rings around badge */}
-          <div className="absolute w-28 h-28 md:w-36 md:h-36 border-2 border-indigo-500/40 dark:border-indigo-500/60 rounded-full animate-ping pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="absolute w-24 h-24 md:w-32 md:h-32 border border-purple-500/50 dark:border-purple-500/70 rounded-full animate-spin pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute w-28 h-28 md:w-36 md:h-36 border-2 border-orange-500/40 dark:border-orange-400/60 rounded-full animate-ping pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute w-24 h-24 md:w-32 md:h-32 border border-amber-500/50 dark:border-amber-400/70 rounded-full animate-spin pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
 
-          <RankBadge
+          <RankEmblem3D
             tier={resolvedRankTier}
-            size="md"
             className="transition-transform duration-500 group-hover:scale-110"
           />
         </div>
@@ -179,8 +178,8 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
         >
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <span className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">RANK</span>
-              <span className="text-2xl sm:text-3xl font-black uppercase text-slate-900 dark:text-white tracking-tighter drop-shadow-sm mt-1">{rankDisplayName}</span>
+              <span className="se-wallet-label">Rank</span>
+              <span className="se-wallet-rank">{rankDisplayName}</span>
             </div>
 
             {/* Divider */}
@@ -188,33 +187,33 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
 
             <div className="flex flex-col items-end">
               <div className="flex items-center gap-1.5 mb-1">
-                <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-                <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 tracking-wide">ACQUIRED XP</span>
+                <Sparkles className="se-wallet-accent w-4 h-4" />
+                <span className="se-wallet-label se-wallet-accent">Acquired XP</span>
               </div>
-              <span className="text-sm font-black text-slate-600 dark:text-slate-300">{xpProgress.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
+              <span className="se-wallet-xp">{xpProgress.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
             </div>
           </div>
 
           {/* Heavy Chiseled Shimmering Progress Bar */}
-          <div className="relative w-full h-6 bg-slate-200 dark:bg-slate-800/80 rounded-full overflow-hidden border border-slate-300 dark:border-slate-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] dark:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] group hover:ring-2 hover:ring-indigo-500/40 transition-all">
+          <div className="se-xp-track relative w-full h-5 rounded-full overflow-hidden group transition-all">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
               transition={{ duration: 1.5, ease: 'easeOut' }}
-              className="h-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 dark:from-indigo-500 dark:via-purple-500 dark:to-indigo-400 rounded-full relative shadow-[0_0_10px_rgba(99,102,241,0.6)]"
+              className="se-xp-fill h-full rounded-full relative"
             >
               {/* Inner highlight for 3D pop */}
               <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/20 rounded-t-full" />
 
               {/* Internal diagonal stripes for game-like texture */}
-              <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, #000 10px, #000 20px)' }} />
+              <div className="absolute inset-0 opacity-[0.10]" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, #000 10px, #000 20px)' }} />
             </motion.div>
           </div>
         </div>
 
         {/* Right Side: Game Ledger Coins Chip */}
         <div
-          className="group flex flex-col md:flex-row items-center gap-4 px-5 md:px-6 py-3 md:py-4 rounded-[1.5rem] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/60 shadow-md hover:shadow-[0_15px_30px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative min-w-[160px]"
+          className="se-coins group flex flex-col md:flex-row items-center gap-4 px-5 md:px-6 py-3 md:py-4 rounded-[1.25rem] transition-all duration-300 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative min-w-[160px]"
           style={{ transform: "translateZ(30px)" }}
         >
           {/* Shiny overlay sweep */}
@@ -225,8 +224,8 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           </div>
 
           <div className="flex flex-col items-center md:items-start">
-            <span className="text-[10px] font-black text-orange-600 dark:text-orange-500 uppercase tracking-widest leading-none">MATHCOINS</span>
-            <span className="text-3xl font-black text-slate-900 dark:text-white mt-1 drop-shadow-sm tracking-tight">{coinBalance.toLocaleString()}</span>
+            <span className="se-wallet-label se-wallet-accent">MathCoins</span>
+            <span className="se-wallet-coins">{coinBalance.toLocaleString()}</span>
           </div>
         </div>
 

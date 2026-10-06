@@ -6,6 +6,7 @@ import { Sparkles as DreiSparkles, Stars } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { motion } from "framer-motion";
+import { usePathname } from "next/navigation";
 
 function useDarkMode() {
   const [isDark, setIsDark] = useState(false);
@@ -123,8 +124,18 @@ function GlobalLightAuroraMesh() {
   );
 }
 
+// Test-taking screens (practice sheets, assessments, mock exams, annual
+// practice and the official annual paper) get a plain, still backdrop: no
+// drifting colour, no 3D scene, nothing moving behind a question.
+const TEST_ROUTE_PATTERN = /^\/student\/(attempt|assessment-attempt|competition\/mock-attempt|competition\/annual\/attempt)\//;
+
 export default function StudentGlobalBackground() {
   const isDark = useDarkMode();
+  const pathname = usePathname();
+
+  if (pathname && TEST_ROUTE_PATTERN.test(pathname)) {
+    return <div className="se-test-backdrop fixed inset-0 z-[-10] pointer-events-none" aria-hidden="true" />;
+  }
 
   if (isDark) {
     return (

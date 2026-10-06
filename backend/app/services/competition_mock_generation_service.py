@@ -444,7 +444,7 @@ def _ImCompetitionLevelConfig(LevelRecord: Level) -> dict[str, Any]:
             400,
             "IM_COMPETITION_LEVEL_NOT_CONFIGURED",
             f"No competition mock section structure has been defined yet for IM level '{LevelCode}'. "
-            "IM competition mocks are designed level by level -- add this level's own sections and "
+            "IM competition mocks are designed level by level — add this level's own sections and "
             "concept pools to IM_COMPETITION_LEVEL_REGISTRY before generating mocks for it.",
             {"levelCode": LevelCode, "configuredLevels": sorted(IM_COMPETITION_LEVEL_REGISTRY.keys())},
         )
@@ -3220,7 +3220,7 @@ def GenerateCompetitionMockDraft(
             400,
             "COMPETITION_MOCK_GENERATION_EMPTY",
             "No questions could be generated for this mock. This usually means the section "
-            "allocation sent to the server doesn't match this level's real section keys -- "
+            "allocation sent to the server doesn't match this level's real section keys — "
             "please reload the page and try again, or report this if it persists.",
         )
     QuestionMarksByPosition = _ResolveCompetitionMockQuestionMarks(SelectedQuestions)

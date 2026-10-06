@@ -145,7 +145,7 @@ export default function TrophyRoomPage() {
         <div className="flex items-center space-x-4 mb-8">
           <button
             onClick={() => setActiveTab("mock")}
-            className={`px-8 py-3 rounded-full font-bold transition-all ${
+            className={`se-seg ${activeTab === "mock" ? "se-seg-on" : ""} px-8 py-3 rounded-full font-bold transition-all ${
               activeTab === "mock"
                 ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105"
                 : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-orange-500"
@@ -155,7 +155,7 @@ export default function TrophyRoomPage() {
           </button>
           <button
             onClick={() => setActiveTab("dps")}
-            className={`px-8 py-3 rounded-full font-bold transition-all ${
+            className={`se-seg ${activeTab === "dps" ? "se-seg-on" : ""} px-8 py-3 rounded-full font-bold transition-all ${
               activeTab === "dps"
                 ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105"
                 : "bg-white dark:bg-slate-800 text-slate-500 hover:text-white hover:bg-orange-500"
@@ -593,19 +593,19 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
         </motion.div>
 
         <motion.h3
-          className={`relative font-black text-sm mb-2 z-20 ${isUnlocked ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-600'}`}
+          className={`se-badge-name relative font-black text-sm mb-2 z-20 ${isUnlocked ? 'text-slate-900 dark:text-white' : 'se-locked-text text-slate-400 dark:text-slate-600'}`}
           style={{ z: isUnlocked ? 20 : 0 }}
         >
           {badge.name}
         </motion.h3>
 
-        <p className="relative text-[10px] md:text-xs text-slate-500 mb-4 min-h-[2.5rem] flex-grow z-20">
+        <p className="se-badge-desc relative text-[10px] md:text-xs text-slate-500 mb-4 min-h-[2.5rem] flex-grow z-20">
           {badge.description}
         </p>
 
         {!isUnlocked && badge.requiredCount > 1 && (
           <div className="w-full mt-auto z-20">
-            <div className="flex justify-between text-[9px] font-bold text-slate-400 mb-1">
+            <div className="se-badge-meta flex justify-between text-[9px] font-bold text-slate-400 mb-1">
               <span>Progress</span>
               <span>{badge.currentProgress} / {badge.requiredCount}</span>
             </div>
@@ -617,7 +617,7 @@ function BadgeCard({ badge, onSelectBadge }: { badge: any, onSelectBadge: (data:
 
         {isUnlocked && (
           <div className="relative w-full mt-auto pt-2 border-t border-slate-100 dark:border-slate-800 z-20">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+            <p className="se-badge-meta text-[9px] font-bold text-slate-400 uppercase tracking-wider">
               Unlocked
             </p>
           </div>

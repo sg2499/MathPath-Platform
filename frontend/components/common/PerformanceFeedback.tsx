@@ -53,18 +53,31 @@ export function performanceBand(accuracy: number | string | null | undefined): P
   return "EXCELLENT";
 }
 
+// The band a student is shown. When the page knows whether the sheet's own
+// benchmark was met, that decision wins over the fixed 75% line above, so the
+// feedback card always agrees with the "Benchmark Achieved" / "More Practice"
+// card beside it: met => at least Good Progress, not met => Needs Practice.
+export function studentPerformanceBand(accuracy: number | string | null | undefined, benchmarkCleared?: boolean | null): PerformanceBand {
+  const Band = performanceBand(accuracy);
+  if (Band === "PENDING" || benchmarkCleared === null || benchmarkCleared === undefined) return Band;
+  if (benchmarkCleared) return Band === "NEEDS_PRACTICE" ? "GOOD_PROGRESS" : Band;
+  return "NEEDS_PRACTICE";
+}
+
 export function dynamicPerformanceMessage({
   accuracy,
   seed,
   previousAccuracy,
   attemptNumber = 0,
+  benchmarkCleared,
 }: {
   accuracy?: number | null;
   seed: string;
   previousAccuracy?: number | null;
   attemptNumber?: number | null;
+  benchmarkCleared?: boolean | null;
 }) {
-  const Band = performanceBand(accuracy);
+  const Band = studentPerformanceBand(accuracy, benchmarkCleared);
   const CurrentAccuracy = Number(accuracy ?? 0);
   const PriorAccuracy = previousAccuracy === null || previousAccuracy === undefined ? null : Number(previousAccuracy);
   const IsRetry = Number(attemptNumber || 0) > 0;
@@ -165,14 +178,16 @@ export function StudentPerformanceFeedback({
   previousAccuracy,
   attemptNumber = 0,
   showNeedsPracticeNextStep = true,
+  benchmarkCleared,
 }: {
   accuracy?: number | null;
   seed: string;
   previousAccuracy?: number | null;
   attemptNumber?: number | null;
   showNeedsPracticeNextStep?: boolean;
+  benchmarkCleared?: boolean | null;
 }) {
-  const Band = performanceBand(accuracy);
+  const Band = studentPerformanceBand(accuracy, benchmarkCleared);
   if (Band === "PENDING") return null;
 
   const Tone: FeedbackTone =
@@ -202,7 +217,7 @@ export function StudentPerformanceFeedback({
     <PremiumResultFeedbackCard
       Kicker={Kicker}
       Title={Title}
-      Message={dynamicPerformanceMessage({ accuracy, seed, previousAccuracy, attemptNumber })}
+      Message={dynamicPerformanceMessage({ accuracy, seed, previousAccuracy, attemptNumber, benchmarkCleared })}
       NextStep={NEXT_STEPS[Band]}
       Icon={Icon}
       Tone={Tone}

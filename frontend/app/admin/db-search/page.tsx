@@ -66,7 +66,7 @@ export default function AdminDbSearchPage() {
           <div className="mt-4 flex items-start gap-2 rounded-2xl border border-amber-300/60 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
             <ShieldAlert size={16} className="mt-0.5 shrink-0" />
             <span>
-              Read-only by design -- writes, DDL, and multi-statement queries are rejected before
+              Read-only by design — writes, DDL, and multi-statement queries are rejected before
               they reach the database. Results can include real student names and contact info;
               don&apos;t paste them anywhere outside this admin workspace.
             </span>
@@ -118,7 +118,7 @@ export default function AdminDbSearchPage() {
               </p>
             </div>
             {result.rows.length === 0 ? (
-              <p className="px-6 py-8 text-sm text-slate-400 text-center">Query ran successfully -- no rows returned.</p>
+              <p className="px-6 py-8 text-sm text-slate-400 text-center">Query ran successfully — no rows returned.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-sm">

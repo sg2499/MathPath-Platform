@@ -281,10 +281,18 @@ function StudentCompetitionMockExamsContent() {
     return assignments.filter((assignment) => {
       const exam = assignment.mockExam;
       const completed = IsCompleted(assignment);
-      const statusLabel = completed ? "completed" : "pending";
+      // A mock that has been started but not submitted is "In Progress". The
+      // Pending filter and the Pending counters still mean "not finished yet",
+      // so they include it; the In Progress filter shows only started mocks.
+      const inProgress = !completed && IsInProgress(assignment);
+      const statusLabel = completed ? "completed" : inProgress ? "in progress" : "pending";
       const moduleMatches = moduleFilter === "ALL" || exam.moduleCode === moduleFilter || exam.moduleName === moduleFilter;
       const levelMatches = levelFilter === "ALL" || exam.levelCode === levelFilter || exam.levelName === levelFilter;
-      const statusMatches = statusFilter === "ALL" || statusLabel === statusFilter.toLowerCase();
+      const statusMatches =
+        statusFilter === "ALL" ||
+        (statusFilter === "COMPLETED" && completed) ||
+        (statusFilter === "PENDING" && !completed) ||
+        (statusFilter === "IN_PROGRESS" && inProgress);
       const searchMatches = !normalizedSearch || [
         exam.title,
         exam.mockCode,
@@ -337,26 +345,26 @@ function StudentCompetitionMockExamsContent() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <MetricCard icon={<ClipboardPlus size={18} />} label="ASSIGNED" value={assignments.length} />
-          <MetricCard icon={<PlayCircle size={18} />} label="PENDING" value={pendingCount} />
-          <MetricCard icon={<CheckCircle2 size={18} />} label="COMPLETED" value={completedCount} />
-          <MetricCard icon={<Trophy size={18} />} label="AVG SCORE" value={avgScore === null ? "-" : FormatScore(avgScore)} />
-          <MetricCard icon={<BarChart3 size={18} />} label="AVG ACCURACY" value={avgAccuracy === null ? "-" : `${FormatScore(avgAccuracy)}%`} />
+          <MetricCard icon={<ClipboardPlus size={18} />} label="Assigned" value={assignments.length} />
+          <MetricCard icon={<PlayCircle size={18} />} label="Pending" value={pendingCount} />
+          <MetricCard icon={<CheckCircle2 size={18} />} label="Completed" value={completedCount} />
+          <MetricCard icon={<Trophy size={18} />} label="Avg Score" value={avgScore === null ? "-" : FormatScore(avgScore)} />
+          <MetricCard icon={<BarChart3 size={18} />} label="Avg Accuracy" value={avgAccuracy === null ? "-" : `${FormatScore(avgAccuracy)}%`} />
         </div>
 
         <div className="math-card overflow-hidden p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="shrink-0">
               <div className="math-block-header mb-2"><ClipboardPlus size={14} /> Assigned Mocks</div>
               <h2 className="text-xl font-black text-slate-950 dark:text-white">Competition Mock Library</h2>
             </div>
-            <div className="grid w-full gap-3 lg:w-auto lg:grid-cols-[minmax(220px,1fr)_160px_160px_160px]">
+            <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-auto lg:grid-cols-[minmax(390px,1fr)_160px_160px_160px]">
               <label className="relative block">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-700 dark:text-orange-200" />
                 <input
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search mock, code, module, level"
+                  placeholder="Search Mock, Code, Module, Level"
                   className="h-12 w-full rounded-2xl border border-orange-100 bg-white/90 pl-11 pr-4 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950/60 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-orange-500 dark:focus:ring-orange-950/40"
                 />
               </label>
@@ -386,6 +394,7 @@ function StudentCompetitionMockExamsContent() {
               >
                 <option value="ALL">All Statuses</option>
                 <option value="PENDING">Pending</option>
+                <option value="IN_PROGRESS">In Progress</option>
                 <option value="COMPLETED">Completed</option>
               </select>
             </div>
@@ -496,7 +505,7 @@ function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: stri
       <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
         {label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className={`relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white ${String(value ?? "").length > 12 ? "se-metric-long" : ""}`}>
         {value}
       </p>
     </div>
@@ -606,7 +615,7 @@ function MockRecordsTable({
           onChange={setSort}
         />
       </div>
-      <table className="min-w-full text-left text-sm">
+      <table className="se-mock-table min-w-full text-left text-sm">
         <thead className="border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
           <tr>
             <th className="px-4 py-3"><SortableHeader active={sortKey === "mock"} direction={sortDirection} onClick={() => toggleSort("mock")}>Mock</SortableHeader></th>
@@ -617,7 +626,7 @@ function MockRecordsTable({
             <th className="px-4 py-3"><SortableHeader active={sortKey === "timeTaken"} direction={sortDirection} onClick={() => toggleSort("timeTaken")}>Time Taken</SortableHeader></th>
             <th className="px-4 py-3"><SortableHeader active={sortKey === "assignedDate"} direction={sortDirection} onClick={() => toggleSort("assignedDate")}>Assigned Date</SortableHeader></th>
             <th className="px-4 py-3"><SortableHeader active={sortKey === "completionDate"} direction={sortDirection} onClick={() => toggleSort("completionDate")}>Completion Date</SortableHeader></th>
-            <StudentMockStaticHeader label="ACTION" />
+            <StudentMockStaticHeader label="Action" />
           </tr>
         </thead>
         <tbody className="divide-y divide-orange-100 dark:divide-slate-800">
@@ -635,8 +644,8 @@ function MockRecordsTable({
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{exam.title}</td>
                 <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{exam.mockCode || "-"}</td>
                 <td className="px-4 py-4">
-                  <Chip tone={completed ? "green" : "amber"}>
-                    {completed ? "Completed" : "Pending"}
+                  <Chip tone={completed ? "green" : inProgress ? "blue" : "amber"}>
+                    {completed ? "Completed" : inProgress ? "In Progress" : "Pending"}
                   </Chip>
                 </td>
                 <td className="px-4 py-4 font-black">

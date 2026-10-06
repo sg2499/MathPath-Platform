@@ -369,7 +369,7 @@ function ResultsSortDropdown<Key extends string>({
       <button
         type="button"
         onClick={OnToggleDirection}
-        title={SortDirectionValue === "asc" ? "Ascending -- click for descending" : "Descending -- click for ascending"}
+        title={SortDirectionValue === "asc" ? "Ascending — click for descending" : "Descending — click for ascending"}
         aria-label={SortDirectionValue === "asc" ? "Sort ascending" : "Sort descending"}
         className="math-select inline-flex w-11 shrink-0 items-center justify-center px-0"
       >

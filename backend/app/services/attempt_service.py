@@ -229,6 +229,15 @@ def safe_questions_payload(db: Session, attempt: Attempt) -> list[dict]:
             "questionId": q.id,
             "questionNumber": q.question_number,
             "displayType": q.display_type,
+            # 2026-10 (Shailesh): the question's own stored text -- the
+            # instruction above a box question ("Find Profit %", "Find Simple
+            # Interest", "Odd Numbers") and, for mixed-operation sums, the
+            # exact expression with its real signs. Mocks, assessments and
+            # annual papers have always sent this; practice sheets did not,
+            # so the screen rebuilt the sum from operands alone, dropped the
+            # instruction, and showed "+" where a BODMAS question has "-".
+            # It is the question, never the answer.
+            "questionText": q.question_text,
             "operands": json.loads(q.operands_json or "[]"),
             "operators": json.loads(q.operators_json or "[]"),
             "metadata": metadata,
@@ -751,6 +760,10 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
                 "questionNumber": q.question_number,
                 "questionId": q.id,
                 "displayType": q.display_type,
+                # Same stored question text the attempt screen now receives
+                # (see safe_questions_payload) so the review shows exactly
+                # the question that was asked.
+                "questionText": q.question_text,
                 "operands": json.loads(q.operands_json or "[]"),
                 "operators": json.loads(q.operators_json or "[]"),
                 "studentAnswer": student_value or None,

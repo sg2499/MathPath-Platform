@@ -349,7 +349,7 @@ def YlmCompetitionLevelConfig(LevelRecord: Level) -> dict[str, Any]:
             400,
             "YLM_COMPETITION_LEVEL_NOT_CONFIGURED",
             f"No competition mock section structure has been defined yet for YLM level '{LevelCode}'. "
-            "YLM competition mocks are designed level by level -- add this level's own sections and "
+            "YLM competition mocks are designed level by level — add this level's own sections and "
             "concept pools to YLM_COMPETITION_LEVEL_REGISTRY before generating mocks for it.",
             {"levelCode": LevelCode, "configuredLevels": sorted(YLM_COMPETITION_LEVEL_REGISTRY.keys())},
         )
@@ -454,7 +454,7 @@ def CollectYlmCompetitionSectionLockedQuestions(
             api_error(
                 400,
                 "YLM_COMPETITION_SECTION_GENERATION_INCOMPLETE",
-                f"Could not generate the required {RequiredCount} questions for {SectionTitle} -- "
+                f"Could not generate the required {RequiredCount} questions for {SectionTitle} — "
                 f"only {len(SectionQuestions)} unique questions are available across every concept "
                 f"in this section at this mock size. Try a smaller question count for this section.",
                 {"sectionKey": SectionKey, "required": RequiredCount, "generated": len(SectionQuestions)},

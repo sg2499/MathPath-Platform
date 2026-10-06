@@ -201,14 +201,14 @@ const TypographyOverlay = ({ tier }: { tier: string }) => {
 
   const getTypography = () => {
     switch (tier) {
-      case 'COPPER': return { title: "COPPER FORGED", className: "text-amber-100", shadow: "0 10px 0 #78350f, 0 20px 40px #f59e0b, 0 0 100px #ea580c" };
-      case 'BRONZE': return { title: "BRONZE SHIELD", className: "text-orange-100", shadow: "0 8px 0 #431407, 0 15px 30px #9a3412, 0 0 80px #ea580c" };
-      case 'SILVER': return { title: "SILVER", className: "text-sky-50 tracking-[0.2em]", shadow: "0 0 20px #bae6fd, 0 0 60px #0284c7, 0 5px 0 #082f49" };
-      case 'GOLD': return { title: "GOLDEN ASCENT", className: "text-yellow-100", shadow: "0 5px 0 #713f12, 0 20px 40px #ca8a04, 0 0 100px #eab308" };
-      case 'PLATINUM': return { title: "PLATINUM MATRIX", className: "text-fuchsia-100 tracking-widest", shadow: "0 0 20px #e879f9, 0 0 60px #9333ea, 0 10px 0 #3b0764" };
-      case 'EMERALD': return { title: "EMERALD FRACTAL", className: "text-emerald-50", shadow: "0 8px 0 #022c22, 0 20px 40px #059669, 0 0 80px #10b981" };
-      case 'DIAMOND': return { title: "DIAMOND CORE", className: "text-sky-50 tracking-[0.1em]", shadow: "0 0 30px #7dd3fc, 0 0 80px #0284c7, 0 8px 0 #082f49" };
-      case 'CHAMPION': return { title: "CHAMPION", className: "text-rose-50 tracking-[0.1em]", shadow: "0 15px 0 #4c0519, 0 30px 60px #881337, 0 0 150px #e11d48", stroke: "3px #fda4af" };
+      case 'COPPER': return { title: "Copper Forged", className: "text-amber-100", shadow: "0 10px 0 #78350f, 0 20px 40px #f59e0b, 0 0 100px #ea580c" };
+      case 'BRONZE': return { title: "Bronze Shield", className: "text-orange-100", shadow: "0 8px 0 #431407, 0 15px 30px #9a3412, 0 0 80px #ea580c" };
+      case 'SILVER': return { title: "Silver", className: "text-sky-50 tracking-[0.2em]", shadow: "0 0 20px #bae6fd, 0 0 60px #0284c7, 0 5px 0 #082f49" };
+      case 'GOLD': return { title: "Golden Ascent", className: "text-yellow-100", shadow: "0 5px 0 #713f12, 0 20px 40px #ca8a04, 0 0 100px #eab308" };
+      case 'PLATINUM': return { title: "Platinum Matrix", className: "text-fuchsia-100 tracking-widest", shadow: "0 0 20px #e879f9, 0 0 60px #9333ea, 0 10px 0 #3b0764" };
+      case 'EMERALD': return { title: "Emerald Fractal", className: "text-emerald-50", shadow: "0 8px 0 #022c22, 0 20px 40px #059669, 0 0 80px #10b981" };
+      case 'DIAMOND': return { title: "Diamond Core", className: "text-sky-50 tracking-[0.1em]", shadow: "0 0 30px #7dd3fc, 0 0 80px #0284c7, 0 8px 0 #082f49" };
+      case 'CHAMPION': return { title: "Champion", className: "text-rose-50 tracking-[0.1em]", shadow: "0 15px 0 #4c0519, 0 30px 60px #881337, 0 0 150px #e11d48", stroke: "3px #fda4af" };
       default: return { title: tier, className: "text-white tracking-widest", shadow: "0 0 20px #ffffff" };
     }
   };
@@ -272,7 +272,7 @@ export function RankCinematicOverlay({ tier, onComplete }: RankCinematicOverlayP
           transition={{ delay: 3, duration: 2 }}
           className="absolute bottom-8 left-0 right-0 text-center text-white/50 text-sm font-medium tracking-widest uppercase pointer-events-none z-50"
         >
-          Click anywhere to skip
+          Click Anywhere To Skip
         </motion.div>
       </motion.div>
     </AnimatePresence>,

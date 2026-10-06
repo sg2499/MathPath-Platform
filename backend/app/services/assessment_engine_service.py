@@ -1563,7 +1563,7 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                 400,
                 "ASSESSMENT_MARKS_MISMATCH",
                 "Generated assessment total marks does not equal 100. This indicates a mismatch between the "
-                "saved distribution and actual question generation -- please report this.",
+                "saved distribution and actual question generation — please report this.",
                 {"expectedMarks": 100.0, "actualMarks": RunningWeightedMarksTotal},
             )
         # Replace the placeholder Blueprint.total_marks (total_questions, see
@@ -3139,6 +3139,17 @@ def AssessmentResultPayload(Db: Session, Attempt: AssessmentAttempt, IncludeRevi
             Rows.append({
                 "questionId": Question.id,
                 "questionNumber": Question.question_number,
+                # 2026-10 (Shailesh): how the question is drawn. The review
+                # used to leave this out, so every question in the result
+                # review -- for the student, the teacher and the admin, who
+                # all share this payload -- fell back to the plain stacked
+                # layout: a Skill Stacker / Concept Drill / profit-loss box
+                # lost its box and its instruction ("Add 518007 / Times 6"
+                # became a stacked sum with "Times" as a sign) and a division
+                # was stacked like an addition. The attempt screen has always
+                # sent it (see AssessmentQuestionSafePayload); the review now
+                # shows the question exactly as it was asked.
+                "displayType": Question.display_type,
                 "questionText": Question.question_text,
                 "operands": SafeJson(Question.operands_json, []),
                 "operators": SafeJson(Question.operators_json, []),

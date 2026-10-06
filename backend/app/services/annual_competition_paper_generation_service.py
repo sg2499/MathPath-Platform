@@ -532,7 +532,7 @@ def GenerateAnnualCompetitionLevelPaper(
         marks_per_question=ANNUAL_COMPETITION_MARKS_PER_QUESTION,
         duration_seconds=TotalDurationSeconds,
         status="DRAFT",
-        instructions=f"{LevelCode} Annual Competition -- {len(Sections)} section(s), {ActualQuestionCount} questions, {TotalDurationSeconds // 60} minutes total. 1 mark per correct answer, no negative marking.",
+        instructions=f"{LevelCode} Annual Competition — {len(Sections)} section(s), {ActualQuestionCount} questions, {TotalDurationSeconds // 60} minutes total. 1 mark per correct answer, no negative marking.",
         syllabus_coverage_json=json.dumps({
             "engine": "ANNUAL_COMPETITION_PAPER_GENERATOR",
             "sections": [{"number": Section["number"], "title": Section["title"], "mode": Section.get("mode"), "questionCount": Section["questionCount"], "timeLimitSeconds": Section["timeLimitSeconds"]} for Section in Sections],

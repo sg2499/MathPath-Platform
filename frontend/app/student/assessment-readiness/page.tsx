@@ -256,7 +256,7 @@ export default function StudentAssessmentReadinessPage() {
                   <Chip
                     tone={visibleRow.belowBenchmarkDpsCount ? "red" : "green"}
                   >
-                    {visibleRow.progressPercentage}% progress
+                    {visibleRow.progressPercentage}% Progress
                   </Chip>
                 </>
               }
@@ -281,11 +281,11 @@ export default function StudentAssessmentReadinessPage() {
                   <>
                     <Chip tone="blue">
                       {visibleRow.passedDpsCount}/
-                      {visibleRow.requiredDpsCount} cleared
+                      {visibleRow.requiredDpsCount} Cleared
                     </Chip>
                     {visibleRow.missingDpsCount ? (
                       <Chip tone="amber">
-                        {visibleRow.missingDpsCount} missing
+                        {visibleRow.missingDpsCount} Missing
                       </Chip>
                     ) : null}
                     {visibleRow.belowBenchmarkDpsCount ? (
@@ -572,8 +572,8 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
                           {lesson.lessonTitle}
                         </h4>
                         <p className="mt-1 text-xs font-semibold text-slate-500">
-                          {lesson.sheets.length} sheet
-                          {lesson.sheets.length === 1 ? "" : "s"} in this view
+                          {lesson.sheets.length} Sheet
+                          {lesson.sheets.length === 1 ? "" : "s"} In This View
                         </p>
                       </div>
                       <p className="hidden text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 lg:block">
@@ -821,7 +821,7 @@ function Info({ label, value, icon }: { label: string; value: string | number; i
       <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-800 transition-colors duration-300 group-hover:text-[var(--math-role-primary)] dark:text-slate-100">
         {label}
       </p>
-      <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white">
+      <p className={`relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--math-role-primary)] dark:text-white ${String(value ?? "").length > 12 ? "se-metric-long" : ""}`}>
         {value}
       </p>
     </div>
