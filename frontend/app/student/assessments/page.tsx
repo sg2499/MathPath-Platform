@@ -682,7 +682,7 @@ function StudentAssessmentsPageContent() {
                                     <div className="text-center">Accuracy</div>
                                     <div>Assigned Date</div>
                                     <div>Completion Date</div>
-                                    <div className="text-right pr-2">Action</div>
+                                    <div className="text-right pr-1">Action</div>
                                   </div>
                                   <div className="divide-y divide-slate-100 dark:divide-slate-800">
                                     {levelGroup.rows.map((row, index) => <StudentAssessmentRecordRow key={String(value(row, ["assignmentId", "assessmentAssignmentId", "assessmentId", "id"], String(index)))} row={row} FocusTarget={DeepLinkTarget} />)}
@@ -745,26 +745,17 @@ function StudentAssessmentRecordRow({ row, FocusTarget }: { row: AssessmentRow; 
 
   return (
     <div id={FocusId ? `student-assessment-record-${FocusId}` : undefined} className={`grid grid-cols-[1.08fr_.54fr_.68fr_.5fr_.5fr_.78fr_.78fr_164px] items-center gap-3 px-4 py-4 text-sm ${IsFocused ? "ring-2 ring-cyan-400 bg-cyan-50/70 dark:bg-cyan-950/20" : ""}`}>
-      <div className="min-w-0">
+      <div data-label="Assessment" className="se-card-title min-w-0">
         <p className="font-black text-slate-950 dark:text-white">{title}</p>
         <p className="mt-1 text-xs font-semibold text-slate-500">{scopeText(row) || "Level Assessment"}</p>
       </div>
-      <div className="flex justify-center"><span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{attemptLabel(row)}</span></div>
-      <div className="flex justify-center"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusTone(row.status)}`}>{status}</span></div>
-      <div className="flex justify-center"><PerformanceValueChip Value={recordScore(row)} Tone={recordScore(row) === "—" ? "slate" : "blue"} /></div>
-      <div className="flex justify-center">
-        <div className="flex items-center gap-1.5">
-          {Number.isFinite(parseFloat(recordAccuracy(row))) && parseFloat(recordAccuracy(row)) >= 90 ? (
-            <span title="Gold Badge (Excellent)" className="text-yellow-500 drop-shadow-sm">⭐</span>
-          ) : Number.isFinite(parseFloat(recordAccuracy(row))) && parseFloat(recordAccuracy(row)) >= 75 ? (
-            <span title="Silver Badge (Good)" className="text-slate-400 drop-shadow-sm">🥈</span>
-          ) : null}
-          <PerformanceValueChip Value={recordAccuracy(row)} Tone={AccuracyTone(row)} />
-        </div>
-      </div>
-      <div className="text-xs font-bold text-slate-500">{assignedDate(row)}</div>
-      <div className="text-xs font-bold text-slate-500">{completionDate(row)}</div>
-      <div className="flex min-w-[156px] justify-end pr-1">
+      <div data-label="Attempt" className="flex justify-center"><span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{attemptLabel(row)}</span></div>
+      <div data-label="Status" className="flex justify-center"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusTone(row.status)}`}>{status}</span></div>
+      <div data-label="Score" className="flex justify-center"><PerformanceValueChip Value={recordScore(row)} Tone={recordScore(row) === "—" ? "slate" : "blue"} /></div>
+      <div data-label="Accuracy" className="flex justify-center"><PerformanceValueChip Value={recordAccuracy(row)} Tone={AccuracyTone(row)} /></div>
+      <div data-label="Assigned Date" className="text-xs font-bold text-slate-500">{assignedDate(row)}</div>
+      <div data-label="Completion Date" className="text-xs font-bold text-slate-500">{completionDate(row)}</div>
+      <div data-label="Action" className="se-card-action flex min-w-[156px] justify-end pr-1">
         <Link className={`${isPrimaryAssessmentAction ? "math-button-primary" : "math-role-action-button"} whitespace-nowrap px-3.5 py-2 text-xs`} href={href}>
           <PlayCircle size={15} /> {actionLabel}
         </Link>

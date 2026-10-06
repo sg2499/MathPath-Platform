@@ -25,9 +25,9 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { InitCaps } from "@/lib/initCaps";
 
 function FormatDateTime(value?: string | null) {
-  if (!value) return "-";
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
+  if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
@@ -41,7 +41,7 @@ function RoundHalfUp(value: number) {
 }
 
 function FormatScore(value?: number | null, maxScore?: number | null) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
   const formattedScore = String(RoundHalfUp(Number(value)));
   if (maxScore !== null && maxScore !== undefined && !Number.isNaN(Number(maxScore))) {
     return `${formattedScore}/${String(RoundHalfUp(Number(maxScore)))}`;
@@ -50,7 +50,7 @@ function FormatScore(value?: number | null, maxScore?: number | null) {
 }
 
 function FormatDuration(seconds?: number | null) {
-  if (seconds === null || seconds === undefined) return "-";
+  if (seconds === null || seconds === undefined) return "—";
   const total = Math.max(0, Number(seconds || 0));
   const minutes = Math.floor(total / 60);
   const secs = total % 60;
@@ -449,7 +449,7 @@ function PracticeLevelPanel({
           <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No practice papers assigned yet.</p>
         ) : (
           <div className="math-table overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
+            <table className="se-tbl se-cards min-w-full text-left text-sm">
               <thead className="border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
                 <tr>
                   <th className="px-4 py-3 font-black text-slate-500 dark:text-slate-400">Paper Name</th>
@@ -474,24 +474,24 @@ function PracticeLevelPanel({
 
                   return (
                     <tr key={paper.levelPaperId}>
-                      <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{paper.paperLabel}</td>
-                      <td className="px-4 py-4">
+                      <td data-label="Paper Name" className="se-card-title px-4 py-4 font-black text-slate-950 dark:text-white">{paper.paperLabel}</td>
+                      <td data-label="Status" className="px-4 py-4">
                         <Chip tone={isSubmitted ? "green" : isInProgress ? "amber" : "slate"}>
                           {isSubmitted ? "Submitted" : isInProgress ? "In Progress" : "Pending"}
                         </Chip>
                       </td>
-                      <td className="px-4 py-4 font-black">
+                      <td data-label="Score" className="px-4 py-4 font-black">
                         <Chip tone={ScoreChipTone(scorePercentage)}>
-                          {isSubmitted && result ? FormatScore(result.score, result.maxScore) : "-"}
+                          {isSubmitted && result ? FormatScore(result.score, result.maxScore) : "—"}
                         </Chip>
                       </td>
-                      <td className="px-4 py-4 font-black text-slate-950 dark:text-white">
-                        {isSubmitted ? FormatDuration(result?.timeTakenSeconds) : "-"}
+                      <td data-label="Time Taken" className="px-4 py-4 font-black text-slate-950 dark:text-white">
+                        {isSubmitted ? FormatDuration(result?.timeTakenSeconds) : "—"}
                       </td>
-                      <td className="px-4 py-4 font-black text-slate-950 dark:text-white">
-                        {isSubmitted ? FormatDateTime(attempt?.submittedAt || attempt?.startedAt) : "-"}
+                      <td data-label="Submitted" className="px-4 py-4 font-black text-slate-950 dark:text-white">
+                        {isSubmitted ? FormatDateTime(attempt?.submittedAt || attempt?.startedAt) : "—"}
                       </td>
-                      <td className="px-4 py-4">
+                      <td data-label="Action" className="se-card-action px-4 py-4">
                         {isSubmitted ? (
                           <button
                             className="math-button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
@@ -517,7 +517,7 @@ function PracticeLevelPanel({
                             Start
                           </button>
                         ) : (
-                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500">--</span>
+                          <span className="se-empty text-xs font-bold text-slate-400 dark:text-slate-500">—</span>
                         )}
                       </td>
                     </tr>

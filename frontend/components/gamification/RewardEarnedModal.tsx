@@ -157,8 +157,13 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
         initial={{ opacity: 0, scale: 0.94, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.35, ease: 'easeOut' }}
-        className="relative w-full max-w-[640px] rounded-[2rem] border border-indigo-500/20 p-8 pb-10 sm:p-11"
+        // 2026-10 (phones): the panel can be taller than a phone screen. It used
+        // to be centred with no way to scroll, so the heading and the Continue
+        // button were both cut off. It now scrolls inside the screen and the
+        // Continue button stays pinned to its bottom edge.
+        className="relative w-full max-w-[640px] max-h-[calc(100vh-2rem)] overflow-y-auto overscroll-contain rounded-[2rem] border border-indigo-500/20 p-5 pb-0 sm:p-11 sm:pb-0"
         style={{
+          maxHeight: 'calc(100dvh - 2rem)',
           background: 'linear-gradient(180deg, rgba(17,24,45,0.98) 0%, rgba(9,14,28,0.99) 100%)',
           boxShadow: '0 0 0 1px rgba(99,102,241,0.06), 0 40px 120px rgba(0,0,0,0.55), 0 0 90px rgba(79,70,229,0.16)',
         }}
@@ -172,7 +177,7 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
           <X className="h-4 w-4 text-slate-400" strokeWidth={2.4} />
         </button>
 
-        <div className="mb-5 flex items-center gap-2.5">
+        <div className="mb-5 flex items-center gap-2.5 pr-12">
           <div className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-emerald-400/40 bg-emerald-400/10">
             <Check className="h-3 w-3 text-emerald-400" strokeWidth={3} />
           </div>
@@ -181,7 +186,7 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
           </span>
         </div>
 
-        <h1 className="mb-7 text-xl font-extrabold leading-tight text-slate-50 sm:text-[23px]">
+        <h1 className="mb-7 pr-12 text-xl font-extrabold leading-tight text-slate-50 sm:text-[23px]">
           Nice work &mdash; here&apos;s what you earned
         </h1>
 
@@ -219,44 +224,44 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
         </div>
 
         <div className="flex flex-col">
-          <div className="flex items-center justify-between py-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-3.5">
             <span className="text-[14.5px] font-semibold text-slate-300">{baseLabel}</span>
-            <span className="text-[14.5px] font-extrabold tabular-nums text-slate-200">
+            <span className="ml-auto whitespace-nowrap text-[14.5px] font-extrabold tabular-nums text-slate-200">
               {xp.base} XP &middot; {coins.base} Coins
             </span>
           </div>
 
-          <div className="flex items-center justify-between border-t border-dashed border-slate-700/70 py-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-dashed border-slate-700/70 py-3.5">
             <span className="flex items-center gap-2.5">
               <span className="text-[14.5px] font-semibold text-slate-300">Accuracy Bonus</span>
-              <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-[3px] text-[10.5px] font-extrabold uppercase tracking-[0.04em] text-amber-300">
+              <span className="rounded-full border border-amber-400/30 bg-amber-400/10 whitespace-nowrap px-2.5 py-[3px] text-[10.5px] font-extrabold uppercase tracking-[0.04em] text-amber-300">
                 {accuracyLabel} &middot; {Math.round(accuracyPercent)}%
               </span>
             </span>
-            <span className="text-[14.5px] font-extrabold tabular-nums text-slate-200">
+            <span className="ml-auto whitespace-nowrap text-[14.5px] font-extrabold tabular-nums text-slate-200">
               + {xp.accuracyBonus} XP &middot; + {coins.accuracyBonus} Coins
             </span>
           </div>
 
-          <div className="flex items-center justify-between border-t border-dashed border-slate-700/70 py-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-dashed border-slate-700/70 py-3.5">
             <span className="flex items-center gap-2.5">
               <span className="text-[14.5px] font-semibold text-slate-300">Speed Bonus</span>
-              <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-[3px] text-[10.5px] font-extrabold uppercase tracking-[0.04em] text-cyan-300">
+              <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 whitespace-nowrap px-2.5 py-[3px] text-[10.5px] font-extrabold uppercase tracking-[0.04em] text-cyan-300">
                 {speedLabel}
                 {showSpeedTime ? ` · ${takenMin} Of ${allottedMin} Min` : ''}
               </span>
             </span>
-            <span className="text-[14.5px] font-extrabold tabular-nums text-slate-200">
+            <span className="ml-auto whitespace-nowrap text-[14.5px] font-extrabold tabular-nums text-slate-200">
               + {xp.speedBonus} XP &middot; + {coins.speedBonus} Coins
             </span>
           </div>
 
           {showPunctualityRow ? (
-            <div className="flex items-center justify-between border-t border-dashed border-slate-700/70 py-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-dashed border-slate-700/70 py-3.5">
               <span className="flex items-center gap-2.5">
                 <span className="text-[14.5px] font-semibold text-slate-300">Punctuality Bonus</span>
                 <span
-                  className={`rounded-full border px-2.5 py-[3px] text-[10.5px] font-extrabold uppercase tracking-[0.04em] ${
+                  className={`rounded-full border whitespace-nowrap px-2.5 py-[3px] text-[10.5px] font-extrabold uppercase tracking-[0.04em] ${
                     isPunctualityHit
                       ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
                       : 'border-slate-500/30 bg-slate-500/10 text-slate-400'
@@ -265,7 +270,7 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
                   {isPunctualityHit ? 'On Time' : 'Missed'}
                 </span>
               </span>
-              <span className="text-[14.5px] font-extrabold tabular-nums text-slate-200">
+              <span className="ml-auto whitespace-nowrap text-[14.5px] font-extrabold tabular-nums text-slate-200">
                 + {xp.punctualityBonus} XP &middot; + {coins.punctualityBonus} Coins
               </span>
             </div>
@@ -281,7 +286,7 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
           </div>
         </div>
 
-        <p className="mb-6 mt-5 text-[12.5px] leading-relaxed text-slate-500">
+        <p className="mb-2 mt-5 text-[12.5px] leading-relaxed text-slate-500">
           Base scales with the {footnoteNoun}. Accuracy is the bigger reward &mdash; speed only adds a smaller nudge on
           top, never a penalty for taking your time.
           {showPunctualityRow
@@ -291,6 +296,7 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
             : ''}
         </p>
 
+        <div className="sticky bottom-0 z-10 -mx-5 px-5 pb-5 pt-4 sm:-mx-11 sm:px-11 sm:pb-10" style={{ background: 'linear-gradient(180deg, rgba(9,14,28,0) 0%, rgba(9,14,28,0.98) 34%)' }}>
         <button
           type="button"
           onClick={onContinue}
@@ -299,6 +305,7 @@ export function RewardEarnedModal({ breakdown, onContinue }: RewardEarnedModalPr
           Continue
           <ArrowRight className="h-4 w-4" strokeWidth={2.4} />
         </button>
+        </div>
       </motion.div>
     </motion.div>,
     document.body

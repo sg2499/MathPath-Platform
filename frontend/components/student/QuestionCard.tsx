@@ -4,7 +4,7 @@ import type { DpsStudentQuestion } from "@/types/question";
 import { CheckCircle2, Save } from "lucide-react";
 import { AnswerInputBox, type AnswerInputBoxHandle } from "./AnswerInputBox";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
-import type { Ref } from "react";
+import { useEffect, useRef, type Ref } from "react";
 
 export function QuestionCard({
   question,
@@ -49,8 +49,32 @@ export function QuestionCard({
       QuestionMetadata.questionText ??
       null) as string | null;
 
+  // Phones: the answer box takes focus as soon as a question opens, the
+  // keyboard comes up and the browser scrolls the box into view -- which used
+  // to push the sum itself off the top of the screen. Bringing this card's
+  // top edge to the top of the visible area (just under the pinned test bar)
+  // keeps the sum and the answer box on screen together. Presentation only:
+  // nothing here reads or changes the attempt.
+  const CardRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia("(max-width: 639px)").matches) return;
+    const Align = () => CardRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
+    const First = window.setTimeout(Align, 60);
+    // The keyboard opening resizes the visible area a moment later.
+    const Viewport = window.visualViewport;
+    let Settled = false;
+    const OnResize = () => { if (!Settled) Align(); };
+    Viewport?.addEventListener("resize", OnResize);
+    const Stop = window.setTimeout(() => { Settled = true; }, 1200);
+    return () => {
+      window.clearTimeout(First);
+      window.clearTimeout(Stop);
+      Viewport?.removeEventListener("resize", OnResize);
+    };
+  }, [question.questionId]);
+
   return (
-    <div className={`math-card flex flex-col overflow-hidden ${compact ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
+    <div ref={CardRef} className={`se-question-card math-card flex flex-col overflow-hidden ${compact ? "p-3 sm:p-4" : "p-4 sm:p-5"}`}>
       <div className="flex shrink-0 items-center justify-between gap-2">
         <h2 className={`${compact ? "text-sm" : "text-lg"} font-black text-slate-500 dark:text-slate-400`}>
           Question {question.questionNumber}

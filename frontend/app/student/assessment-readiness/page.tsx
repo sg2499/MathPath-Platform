@@ -592,7 +592,7 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
                         key={
                           sheet.dpsId || `${lesson.lessonId}-${sheet.dpsNumber}`
                         }
-                        className="grid gap-3 border-b border-slate-100 p-4 last:border-b-0 lg:grid-cols-[1fr_96px_160px_170px] lg:items-center dark:border-slate-800"
+                        className="se-ready-row grid gap-3 border-b border-slate-100 p-4 last:border-b-0 lg:grid-cols-[1fr_96px_160px_170px] lg:items-center dark:border-slate-800"
                       >
                         <div className="min-w-0 w-full">
                           <div className="flex w-full items-start gap-3">
@@ -626,14 +626,14 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
                           </div>
                         </div>
 
-                        <div className="text-sm font-black text-slate-950 dark:text-white">
+                        <div data-label="Score" className="se-ready-cell text-sm font-black text-slate-950 dark:text-white">
                           {sheet.latestScore !== null &&
                           sheet.latestMaxScore !== null
                             ? `${sheet.latestScore} / ${sheet.latestMaxScore}`
-                            : "- / -"}
+                            : "—"}
                         </div>
 
-                        <div>
+                        <div data-label="Status" className="se-ready-cell">
                           <span
                             className={`inline-flex whitespace-nowrap rounded-full px-3 py-1 text-xs font-black ${sheetStatusClasses(sheet)}`}
                           >
@@ -641,7 +641,7 @@ function ReadinessDetails({ row, persistenceKey }: { row: StudentAssessmentEligi
                           </span>
                         </div>
 
-                        <div className="text-xs font-bold text-slate-500">
+                        <div data-label="Completion Date" className="se-ready-cell text-xs font-bold text-slate-500">
                           {sheet.latestSubmittedAt
                             ? formatMathPathDateTime(sheet.latestSubmittedAt)
                             : "Not submitted yet"}

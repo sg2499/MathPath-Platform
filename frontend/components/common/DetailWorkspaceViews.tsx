@@ -3253,7 +3253,7 @@ export function CompactRecordTable({
               className={`mp-record-row grid ${GridColumns} items-center gap-3 px-4 ${dense ? "py-3" : "py-4"}`}
             >
               {hideLessonColumn ? null : (
-                <div className="min-w-0">
+                <div data-label="Lesson" className="min-w-0">
                   <p className="text-sm font-black">
                     {CompactLessonLabel(row)}
                   </p>
@@ -3262,7 +3262,7 @@ export function CompactRecordTable({
                   </p>
                 </div>
               )}
-              <div className="min-w-0">
+              <div data-label="DPS" className="mp-record-title min-w-0">
                 <p className="text-sm font-black">{CompactDpsLabel(row)}</p>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
                   {hideLessonColumn
@@ -3271,19 +3271,19 @@ export function CompactRecordTable({
                 </p>
               </div>
               {showAttemptColumn ? (
-                <div className="flex justify-center">
+                <div data-label="Attempt" className="flex justify-center">
                   <SemanticChipComponent tone={attemptTone(row)}>{attemptLabel(row)}</SemanticChipComponent>
                 </div>
               ) : null}
-              <div className="flex justify-center">
+              <div data-label="Status" className="flex justify-center">
                 <SemanticChipComponent tone={Issue.tone}>{Issue.label}</SemanticChipComponent>
               </div>
-              <div className="flex justify-center">
+              <div data-label="Score" className="flex justify-center">
                 <SemanticChipComponent tone={scoreText(row) === "—" ? "slate" : scoreTone(row)}>
                   {scoreText(row)}
                 </SemanticChipComponent>
               </div>
-              <div className="flex justify-center">
+              <div data-label="Accuracy" className="flex justify-center">
                 {isCompleted(row) ? (
                   <SemanticChipComponent tone={accuracyTone(row)}>
                     {accuracy(row)}%
@@ -3292,19 +3292,19 @@ export function CompactRecordTable({
                   <SemanticChipComponent tone="slate">—</SemanticChipComponent>
                 )}
               </div>
-              <div className="flex justify-center">
+              <div data-label="Benchmark" className="flex justify-center">
                 {(() => {
                   const Benchmark = benchmarkLabel(row);
                   return <SemanticChipComponent tone={Benchmark.tone}>{Benchmark.label}</SemanticChipComponent>;
                 })()}
               </div>
-              <div className={role === "student" ? "text-sm font-black text-slate-950 dark:text-white" : "text-sm font-semibold text-slate-600 dark:text-slate-300"}>
+              <div data-label="Time Taken" className={role === "student" ? "text-sm font-black text-slate-950 dark:text-white" : "text-sm font-semibold text-slate-600 dark:text-slate-300"}>
                 {timeTakenText(row)}
               </div>
-              <div className={role === "student" ? "text-sm font-black text-slate-950 dark:text-white" : "text-sm font-semibold text-slate-600 dark:text-slate-300"}>
+              <div data-label="Completion Date" className={role === "student" ? "text-sm font-black text-slate-950 dark:text-white" : "text-sm font-semibold text-slate-600 dark:text-slate-300"}>
                 {completedText(row)}
               </div>
-              <div className="flex justify-center">
+              <div data-label="Review" className="mp-record-action flex justify-center">
                 {onView ? (
                   (() => {
                     const Issue = issueLabel(row);

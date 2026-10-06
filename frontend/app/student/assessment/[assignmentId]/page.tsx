@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { BackButton } from "@/components/student/BackButton";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { apiErrorMessage } from "@/lib/api";
@@ -32,6 +33,7 @@ export default function StudentAssessmentStartPage() {
 
   return (
     <AppShell title="Assessment Brief">
+      <BackButton href="/student/assessments" />
       {Query.isLoading ? <LoadingState label="Loading assessment details..." /> : null}
       {Query.error ? <ErrorState message={apiErrorMessage(Query.error)} /> : null}
 

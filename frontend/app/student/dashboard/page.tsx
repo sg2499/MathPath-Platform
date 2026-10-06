@@ -825,7 +825,7 @@ export default function StudentDashboardPage() {
                {/* 2. Massive Wisdom Prism Canvas (Dynamic Height) */}
                <TiltCard className="group w-full flex-1 min-h-0 perspective-1000" isFlipped={quoteIsFlipped}>
                  <motion.div
-                   className="grid w-full h-full"
+                   className="se-flip grid w-full h-full"
                    style={{ transformStyle: "preserve-3d" }}
                    animate={{ rotateY: quoteIsFlipped ? 180 : 0 }}
                    transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
@@ -833,6 +833,7 @@ export default function StudentDashboardPage() {
                  >
                    {/* FRONT FACE (Inspiration) */}
                    <div
+                     data-face-active={quoteIsFlipped ? "false" : "true"}
                      className="col-start-1 row-start-1 w-full h-full min-h-0"
                      style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
                    >
@@ -893,6 +894,7 @@ export default function StudentDashboardPage() {
 
                    {/* BACK FACE (Conquest Matrix) */}
                    <div
+                     data-face-active={quoteIsFlipped ? "true" : "false"}
                      className="col-start-1 row-start-1 w-full h-full min-h-0"
                      style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
                    >

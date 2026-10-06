@@ -37,7 +37,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
 
 function FormatDuration(seconds?: number | null) {
-  if (seconds === null || seconds === undefined) return "-";
+  if (seconds === null || seconds === undefined) return "—";
   const total = Math.max(0, Number(seconds || 0));
   const minutes = Math.floor(total / 60);
   const secs = total % 60;
@@ -51,9 +51,9 @@ function FormatDuration(seconds?: number | null) {
 }
 
 function FormatDate(value?: string | null) {
-  if (!value) return "-";
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
+  if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
@@ -62,7 +62,7 @@ function RoundHalfUp(value: number) {
 }
 
 function FormatScore(value?: number | null, maxScore?: number | null) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
   const formattedScore = String(RoundHalfUp(Number(value)));
   if (maxScore !== null && maxScore !== undefined && !Number.isNaN(Number(maxScore))) {
     return `${formattedScore}/${String(RoundHalfUp(Number(maxScore)))}`;
@@ -515,7 +515,7 @@ function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: stri
 function AvgAccuracyChip({ value }: { value: number | null }) {
   return (
     <Chip tone={AccuracyChipTone(value)}>
-      Avg Accuracy {value === null ? "-" : `${FormatScore(value)}%`}
+      Avg Accuracy {value === null ? "—" : `${FormatScore(value)}%`}
     </Chip>
   );
 }
@@ -615,7 +615,7 @@ function MockRecordsTable({
           onChange={setSort}
         />
       </div>
-      <table className="se-mock-table min-w-full text-left text-sm">
+      <table className="se-mock-table se-tbl se-cards min-w-full text-left text-sm">
         <thead className="border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
           <tr>
             <th className="px-4 py-3"><SortableHeader active={sortKey === "mock"} direction={sortDirection} onClick={() => toggleSort("mock")}>Mock</SortableHeader></th>
@@ -641,23 +641,23 @@ function MockRecordsTable({
             const actionLabel = completed ? "View Result" : inProgress ? "Continue Mock" : "Start Mock";
             return (
               <tr key={assignment.assignmentId}>
-                <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{exam.title}</td>
-                <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{exam.mockCode || "-"}</td>
-                <td className="px-4 py-4">
+                <td data-label="Mock" className="se-card-title px-4 py-4 font-black text-slate-950 dark:text-white">{exam.title}</td>
+                <td data-label="Mock Code" className="px-4 py-4 font-black text-slate-950 dark:text-white">{exam.mockCode || "—"}</td>
+                <td data-label="Status" className="px-4 py-4">
                   <Chip tone={completed ? "green" : inProgress ? "blue" : "amber"}>
                     {completed ? "Completed" : inProgress ? "In Progress" : "Pending"}
                   </Chip>
                 </td>
-                <td className="px-4 py-4 font-black">
-                  <Chip tone={ScoreChipTone(accuracy)}>{score === null ? "-" : FormatScore(score, maxScore)}</Chip>
+                <td data-label="Score" className="px-4 py-4 font-black">
+                  <Chip tone={ScoreChipTone(accuracy)}>{score === null ? "—" : FormatScore(score, maxScore)}</Chip>
                 </td>
-                <td className="px-4 py-4 font-black">
-                  <Chip tone={AccuracyChipTone(accuracy)}>{accuracy === null ? "-" : `${FormatScore(accuracy)}%`}</Chip>
+                <td data-label="Accuracy" className="px-4 py-4 font-black">
+                  <Chip tone={AccuracyChipTone(accuracy)}>{accuracy === null ? "—" : `${FormatScore(accuracy)}%`}</Chip>
                 </td>
-                <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{completed ? FormatDuration(result?.timeTakenSeconds) : "-"}</td>
-                <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{FormatDate(assignment.assignedAt)}</td>
-                <td className="px-4 py-4 font-black text-slate-950 dark:text-white">{completed ? FormatDate(result?.completedAt) : "-"}</td>
-                <td className="px-4 py-4">
+                <td data-label="Time Taken" className="px-4 py-4 font-black text-slate-950 dark:text-white">{completed ? FormatDuration(result?.timeTakenSeconds) : "—"}</td>
+                <td data-label="Assigned Date" className="px-4 py-4 font-black text-slate-950 dark:text-white">{FormatDate(assignment.assignedAt)}</td>
+                <td data-label="Completion Date" className="px-4 py-4 font-black text-slate-950 dark:text-white">{completed ? FormatDate(result?.completedAt) : "—"}</td>
+                <td data-label="Action" className="se-card-action px-4 py-4">
                   <button
                     className="math-role-action-button h-9 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={starting || (completed && !assignment.latestAttemptId)}
