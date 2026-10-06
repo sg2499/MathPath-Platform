@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Award, CheckCircle2, Clock3, Rocket, ShieldAlert, Sparkles, Target, ClipboardCheck } from "lucide-react";
 import { PremiumResultFeedbackCard } from "@/components/common/PerformanceFeedback";
 import { RewardEarnedModal, type RewardBreakdown } from "@/components/gamification/RewardEarnedModal";
+import { RankCinematicOverlay } from "@/components/gamification/RankCinematicOverlay";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -161,20 +162,34 @@ export default function StudentAssessmentResultPage() {
 
   // Reward-earned modal: XP/coins breakdown, one-time sessionStorage handoff
   // stashed by the attempt page right before navigating here (2026-08-26 --
-  // wired in alongside mock exams and DPS). No cutscene sequencing yet for
-  // assessments -- the modal just shows immediately over the result page.
+  // wired in alongside mock exams and DPS). The modal shows immediately over
+  // the result page; the only thing sequenced after it is a rank-up (below).
   const [RewardBreakdownValue, SetRewardBreakdownValue] = useState<RewardBreakdown | null>(null);
   const [ShowRewardModal, SetShowRewardModal] = useState(false);
+  // Rank-up animation (2026-10-06): plays after the reward window when the
+  // XP this assessment awarded moved the student to a new rank tier -- or at
+  // once if there is no reward window to wait for. Same one-time handoff.
+  const [RankUpTier, SetRankUpTier] = useState<string | null>(null);
+  const [ShowRankUp, SetShowRankUp] = useState(false);
 
   useEffect(() => {
     if (!Params.attemptId) return;
     try {
+      let HasReward = false;
       const Key = `mp_reward_breakdown_${Params.attemptId}`;
       const Raw = sessionStorage.getItem(Key);
       if (Raw) {
         sessionStorage.removeItem(Key);
         SetRewardBreakdownValue(JSON.parse(Raw));
         SetShowRewardModal(true);
+        HasReward = true;
+      }
+      const RankKey = `mp_rank_up_${Params.attemptId}`;
+      const RankRaw = sessionStorage.getItem(RankKey);
+      if (RankRaw) {
+        sessionStorage.removeItem(RankKey);
+        SetRankUpTier(RankRaw);
+        if (!HasReward) SetShowRankUp(true);
       }
     } catch (Error) {
       console.error("Failed to read reward breakdown handoff from sessionStorage", Error);
@@ -186,7 +201,16 @@ export default function StudentAssessmentResultPage() {
   return (
     <>
       {ShowRewardModal && RewardBreakdownValue && (
-        <RewardEarnedModal breakdown={RewardBreakdownValue} onContinue={() => SetShowRewardModal(false)} />
+        <RewardEarnedModal
+          breakdown={RewardBreakdownValue}
+          onContinue={() => {
+            SetShowRewardModal(false);
+            if (RankUpTier) SetShowRankUp(true);
+          }}
+        />
+      )}
+      {!ShowRewardModal && ShowRankUp && RankUpTier && (
+        <RankCinematicOverlay tier={RankUpTier} onComplete={() => SetShowRankUp(false)} />
       )}
       <AppShell title="Assessment Result">
       {Query.isLoading ? <LoadingState label="Loading assessment result..." /> : null}

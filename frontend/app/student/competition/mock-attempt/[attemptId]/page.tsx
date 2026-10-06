@@ -9,6 +9,7 @@ import { OptionButton } from "@/components/student/OptionButton";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
 import { TestTimer } from "@/components/student/TestTimer";
 import { PhoneTestBar } from "@/components/student/PhoneTestBar";
+import { PhoneQuestionArrowRow } from "@/components/student/PhoneQuestionArrows";
 import { useAttemptTimer } from "@/hooks/useAttemptTimer";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
@@ -316,6 +317,14 @@ export default function StudentCompetitionMockAttemptPage() {
                   />
                 ))}
               </div>
+              <PhoneQuestionArrowRow
+                nav={{
+                  canPrevious: currentIndex > 0,
+                  canNext: currentIndex < questions.length - 1,
+                  onPrevious: () => setCurrentIndex((value) => Math.max(0, value - 1)),
+                  onNext: () => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1)),
+                }}
+              />
             </div>
           </div>
 
@@ -327,12 +336,8 @@ export default function StudentCompetitionMockAttemptPage() {
               onSelectQuestion={(number) => setCurrentIndex(number - 1)}
             />
 
-            {/* Below md the side arrows are hidden, so Previous / Next live here
-                (same as the practice-sheet screen). */}
-            <div className="mt-3 flex gap-3 md:hidden">
-              <button className="math-button-secondary flex-1" disabled={currentIndex === 0} onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}>Previous</button>
-              <button className="math-button-secondary flex-1" disabled={currentIndex >= questions.length - 1} onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}>Next</button>
-            </div>
+            {/* Below md the side arrows are hidden; Previous / Next are the small
+                round arrows under the options (PhoneQuestionArrowRow above). */}
 
             <div className="mt-3 flex justify-center">
               <button className="math-button-primary w-full max-w-md py-2.5" onClick={() => setShowConfirm(true)} disabled={manualSubmitMutation.isPending || autoSubmitMutation.isPending}>

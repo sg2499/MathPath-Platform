@@ -3112,6 +3112,18 @@ def AssessmentResultPayload(Db: Session, Attempt: AssessmentAttempt, IncludeRevi
         # -- see the _side_effects_result comment in SubmitAssessmentAttempt
         # above. A plain GET result reload never has it.
         "rewardBreakdown": (getattr(Attempt, "_side_effects_result", None) or {}).get("reward_breakdown"),
+        # Same request only, same as rewardBreakdown: did the XP this
+        # assessment just awarded move the student to a new rank tier, and
+        # which one. Lets the assessment result page play the rank-up
+        # animation after its reward window, exactly as the practice-sheet
+        # and mock result pages do. Information only -- nothing about the
+        # award itself changes.
+        "rankedUp": bool((getattr(Attempt, "_side_effects_result", None) or {}).get("ranked_up", False)),
+        "newRankTier": (
+            (getattr(Attempt, "_side_effects_result", None) or {}).get("new_rank")
+            if (getattr(Attempt, "_side_effects_result", None) or {}).get("ranked_up")
+            else None
+        ),
         **ProgressionPayload,
     }
     if IncludeReview:

@@ -104,7 +104,7 @@ export function ResultSummary({ result }: { result: AttemptResult }) {
 
       <RetryWorkflowCard result={result} />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="se-result-tiles mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Metric icon={<Target size={18} />} label="Accuracy" value={`${s.accuracyPercentage}%`} />
         <Metric icon={<CheckCircle2 size={18} />} label="Correct" value={s.correct} />
         <Metric icon={<XCircle size={18} />} label="Wrong" value={s.wrong} />

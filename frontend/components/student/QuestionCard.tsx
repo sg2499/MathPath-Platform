@@ -5,6 +5,7 @@ import { CheckCircle2, Save } from "lucide-react";
 import { AnswerInputBox, type AnswerInputBoxHandle } from "./AnswerInputBox";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useEffect, useRef, type Ref } from "react";
+import { PhoneQuestionArrow, type PhoneQuestionNav } from "./PhoneQuestionArrows";
 
 export function QuestionCard({
   question,
@@ -15,6 +16,7 @@ export function QuestionCard({
   wide = false,
   onSave,
   answerInputRef,
+  phoneNav,
 }: {
   question: DpsStudentQuestion;
   savedAnswerText?: string | null;
@@ -31,6 +33,9 @@ export function QuestionCard({
   // see AnswerInputBox's own docstring and the attempt page's
   // flushAndAwaitAllPendingSaves() for the race this closes.
   answerInputRef?: Ref<AnswerInputBoxHandle>;
+  // Phones: Previous / Next arrows either side of the answer box (see
+  // PhoneQuestionArrows). Not rendered at all on tablets and laptops.
+  phoneNav?: PhoneQuestionNav;
 }) {
   // Section/lesson context now lives in the attempt page's top info bar
   // (see app/student/attempt/[attemptId]/page.tsx) -- repeating it here
@@ -108,7 +113,8 @@ export function QuestionCard({
           <MathQuestionDisplay operands={question.operands} operators={question.operators} displayType={(question as any).displayType ?? (question as any).display_type} questionText={QuestionText} />
         </div>
 
-        <div className={`flex flex-1 items-center justify-center ${wide ? "min-h-[140px]" : compact ? "min-h-[150px] lg:min-h-0" : "min-h-[220px]"}`}>
+        <div className={`se-answer-slot flex flex-1 items-center justify-center ${wide ? "min-h-[140px]" : compact ? "min-h-[150px] lg:min-h-0" : "min-h-[220px]"}`}>
+          {phoneNav ? <PhoneQuestionArrow direction="previous" disabled={!phoneNav.canPrevious} onClick={phoneNav.onPrevious} /> : null}
           <AnswerInputBox
             key={question.questionId}
             ref={answerInputRef}
@@ -116,6 +122,7 @@ export function QuestionCard({
             disabled={disabled}
             onSave={onSave}
           />
+          {phoneNav ? <PhoneQuestionArrow direction="next" disabled={!phoneNav.canNext} onClick={phoneNav.onNext} /> : null}
         </div>
       </div>
     </div>

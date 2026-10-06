@@ -211,7 +211,7 @@ export default function ResultPage() {
           <BackButton href="/student/dashboard" label="Back To Dashboard" className="!mb-0" />
           <ResultSummary result={query.data} />
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 px-2 sm:px-0">
             <div className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700">
               <CheckCircle2 size={14} />
               Review Ready
@@ -219,8 +219,8 @@ export default function ResultPage() {
           </div>
 
           <section>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+            <div className="mb-4 flex items-center gap-3 px-2 sm:px-0">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
                 <BookOpenCheck size={22} />
               </div>
               <div>
