@@ -24,11 +24,36 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
   const [activeCinematicTier, setActiveCinematicTier] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // The side arrows are only useful when the strip is wider than the window.
+  const [stripScrolls, setStripScrolls] = useState(false);
+  // Where the progress line ends: the middle of the student's own medallion.
+  const [ownRankAt, setOwnRankAt] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen || !mounted) return;
+    const Strip = scrollContainerRef.current;
+    if (!Strip) return;
+    const Measure = () => {
+      setStripScrolls(Strip.scrollWidth > Strip.clientWidth + 1);
+      const Track = Strip.querySelector('[data-rank-track]')?.getBoundingClientRect();
+      const Own = Strip.querySelector('[data-rank-current="true"]')?.getBoundingClientRect();
+      if (Track && Own && Track.width > 0) {
+        setOwnRankAt(((Own.left + Own.width / 2 - Track.left) / Track.width) * 100);
+      }
+    };
+    Measure();
+    // Bring the student's own rank into view when the strip does scroll.
+    Strip.querySelector('[data-rank-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+    if (typeof ResizeObserver === 'undefined') return;
+    const Observer = new ResizeObserver(Measure);
+    Observer.observe(Strip);
+    return () => Observer.disconnect();
+  }, [isOpen, mounted]);
 
   if (!mounted) return null;
 
@@ -61,7 +86,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
             className="relative w-full max-w-[95vw] lg:max-w-7xl max-h-[90vh] bg-slate-950/60 border border-indigo-500/30 rounded-[2rem] shadow-[0_0_100px_rgba(79,70,229,0.15)] overflow-hidden flex flex-col z-10 backdrop-blur-md"
           >
             {/* Top-Right Action Buttons */}
-            <div className="absolute top-6 right-6 z-50 flex items-center gap-4">
+            <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50 flex items-center gap-2 md:gap-4">
               <button
                 onClick={() => setShowGuide(true)}
                 className="px-4 py-2 bg-indigo-600/20 border border-indigo-500/50 hover:bg-indigo-600/40 rounded-full text-indigo-300 hover:text-white transition-all hover:scale-105 shadow-xl hover:shadow-[0_0_15px_rgba(79,70,229,0.4)] flex items-center gap-2 backdrop-blur-md"
@@ -81,56 +106,69 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
             <div className="relative p-6 md:p-8 pb-6 overflow-hidden border-b border-slate-800/60 bg-gradient-to-b from-slate-900/80 to-slate-950">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50" />
 
-              <div className="flex items-center gap-3 mb-3">
-                <Award className="w-6 h-6 text-indigo-400" />
-                <span className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] shadow-indigo-500/50">Rank Conquest Roadmap</span>
-              </div>
-              <h2 className="text-5xl font-black text-white uppercase tracking-tighter drop-shadow-md">
-                Division Pathway
-              </h2>
-              <p className="text-slate-400 text-lg mt-2 max-w-none md:whitespace-nowrap">
-                Track your ascension through the MathPath divisions. Conquer lessons to unlock legendary tiers.
-              </p>
+              <div className="flex items-end justify-between gap-6">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Award className="w-6 h-6 text-indigo-400" />
+                    <span className="text-xs md:text-sm font-black text-indigo-400 uppercase tracking-[0.08em] md:tracking-[0.2em] whitespace-nowrap">Rank Conquest Roadmap</span>
+                  </div>
+                  <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter drop-shadow-md">
+                    Division Pathway
+                  </h2>
+                  <p className="text-slate-400 text-base md:text-lg mt-2">
+                    Track your ascension through the MathPath divisions. Conquer lessons to unlock legendary tiers.
+                  </p>
+                </div>
 
-              <div className="absolute right-10 bottom-8 hidden md:flex flex-col items-end gap-1.5">
-                <span className="text-[10px] font-black text-indigo-400/80 uppercase tracking-[0.2em] shadow-indigo-500/50 drop-shadow-sm">Total Acquired XP</span>
-                <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl px-5 py-2 flex items-center gap-2 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-md">
-                  <span className="text-3xl font-black text-white tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
-                    {currentXp.toLocaleString()}
-                  </span>
-                  <span className="text-sm font-black text-indigo-300 mt-1">XP</span>
+                {/* Sits on the title row, clear of the buttons in the corner. */}
+                <div className="hidden md:flex items-center gap-3 shrink-0">
+                  <span className="text-[10px] font-black text-indigo-300/90 uppercase tracking-[0.12em] whitespace-nowrap">Total Acquired XP</span>
+                  <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl px-5 py-2 flex items-center gap-2 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
+                    <span className="text-3xl font-black text-white tracking-tight tabular-nums">
+                      {currentXp.toLocaleString()}
+                    </span>
+                    <span className="text-sm font-black text-indigo-300 mt-1">XP</span>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Visual Roadmap Body */}
-            <div className="flex-1 overflow-hidden p-6 md:p-8 relative bg-[radial-gradient(circle_at_bottom,_var(--tw-gradient-stops))] from-indigo-950/20 via-transparent to-transparent flex flex-col justify-center">
+            <div className="se-rank-dark flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-5 md:px-8 md:py-6 relative bg-[radial-gradient(circle_at_bottom,_var(--tw-gradient-stops))] from-indigo-950/20 via-transparent to-transparent flex flex-col [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {/* Background Grid Texture */}
               <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
 
               {/* Navigation Arrows */}
               <button
                 onClick={() => scrollContainerRef.current?.scrollBy({ left: -400, behavior: 'smooth' })}
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-slate-900/90 border border-indigo-500/50 hover:bg-indigo-600 rounded-full text-indigo-400 hover:text-white transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:scale-110 hidden md:block"
+                className={cn("absolute left-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-slate-900/90 border border-indigo-500/50 hover:bg-indigo-600 rounded-full text-indigo-400 hover:text-white transition-colors shadow-[0_0_20px_rgba(79,70,229,0.3)]", stripScrolls ? "hidden md:block" : "hidden")}
+                aria-label="Earlier ranks"
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
 
               <button
                 onClick={() => scrollContainerRef.current?.scrollBy({ left: 400, behavior: 'smooth' })}
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-slate-900/90 border border-indigo-500/50 hover:bg-indigo-600 rounded-full text-indigo-400 hover:text-white transition-all shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:scale-110 hidden md:block"
+                className={cn("absolute right-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-slate-900/90 border border-indigo-500/50 hover:bg-indigo-600 rounded-full text-indigo-400 hover:text-white transition-colors shadow-[0_0_20px_rgba(79,70,229,0.3)]", stripScrolls ? "hidden md:block" : "hidden")}
+                aria-label="Later ranks"
               >
                 <ChevronRight className="w-6 h-6" />
               </button>
 
-              <div ref={scrollContainerRef} className="relative w-full overflow-x-auto pb-24 pt-12 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                <div className="relative min-w-[1200px] w-full mx-auto px-10">
+              <div
+                ref={scrollContainerRef}
+                className="relative w-full my-auto shrink-0 overflow-x-auto pb-24 pt-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rank-roadmap-strip"
+              >
+                <div
+                  className="relative w-full mx-auto px-10"
+                  style={{ minWidth: 'calc(var(--rm-size) * 7 + var(--rm-own) + 7 * 14px + 5rem)' }}
+                >
                   {/* Connecting Line (Underneath Badges) */}
-                <div className="absolute top-1/2 left-0 right-0 h-2 -translate-y-1/2 bg-slate-900 rounded-full overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]">
+                <div data-rank-track className="absolute top-1/2 left-0 right-0 h-2 -translate-y-1/2 bg-slate-900 rounded-full overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]">
                   {/* Glowing progress fill */}
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${(currentIndex / (RANK_LIST.length - 1)) * 100}%` }}
+                    animate={{ width: `${ownRankAt ?? (currentIndex / (RANK_LIST.length - 1)) * 100}%` }}
                     transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
                     className="h-full bg-gradient-to-r from-indigo-600 via-purple-500 to-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.8)] relative"
                   >
@@ -148,19 +186,19 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
                     return (
                       <div key={rankName} className="flex flex-col items-center justify-center relative group">
 
-                        {/* Hover/Active Spotlight */}
+                        {/* The student's own rank: a soft pool of light behind it */}
                         {isActive && (
-                          <div className="absolute -inset-10 bg-indigo-500/20 rounded-full blur-[40px] pointer-events-none animate-pulse" />
+                          <div className="absolute -inset-10 rounded-full pointer-events-none bg-[radial-gradient(closest-side,rgba(99,102,241,0.30),rgba(99,102,241,0.10)_55%,transparent)]" />
                         )}
 
                         <div
+                          data-rank-current={isActive ? "true" : undefined}
                           className={cn(
-                            "relative z-10 transition-all duration-500 transform-gpu will-change-transform",
+                            "relative z-10 transition-transform duration-300",
                             isLocked
-                              ? "grayscale opacity-40 hover:opacity-100 transition-all duration-300 cursor-not-allowed"
-                              : isActive
-                                ? "scale-110 md:scale-125 z-20 hover:scale-125 cursor-pointer"
-                                : "opacity-90 hover:scale-110 hover:z-20 cursor-pointer"
+                              ? "se-rank-locked cursor-not-allowed"
+                              : "hover:-translate-y-1.5 cursor-pointer",
+                            isActive && "z-20"
                           )}
                           onClick={() => {
                             // Lock logic: Only allow cinematic if the tier is unlocked (active or completed)
@@ -171,19 +209,19 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
                         >
                           <RankBadge
                             tier={isActive ? currentRankTier : rankName}
-                            size="lg"
-                            className={cn("pointer-events-none", isActive && "drop-shadow-[0_0_40px_rgba(99,102,241,0.6)]")}
+                            fluid={isActive ? "var(--rm-own)" : "var(--rm-size)"}
+                            className="pointer-events-none"
                           />
 
                           {/* Status Icon Overlay */}
                           {isCompleted && (
-                            <div className="absolute -bottom-2 -right-2 bg-slate-900 rounded-full p-1 border border-indigo-500 shadow-lg pointer-events-none">
+                            <div className="absolute bottom-0 right-0 bg-slate-900 rounded-full p-1 border border-indigo-500 shadow-lg pointer-events-none">
                               <CheckCircle2 className="w-4 h-4 text-indigo-400" />
                             </div>
                           )}
                           {isLocked && (
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-950/80 rounded-full p-2.5 border border-slate-800 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                              <Lock className="w-5 h-5 text-slate-400" />
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-950/85 rounded-full p-2.5 border border-slate-700 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              <Lock className="w-5 h-5 text-slate-300" />
                             </div>
                           )}
                         </div>
@@ -217,7 +255,7 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
             </div>
 
             {/* Motivational Footer Banner */}
-              <div className="mt-6 mx-auto max-w-3xl bg-gradient-to-r from-indigo-950/30 via-purple-900/20 to-indigo-950/30 border border-indigo-500/20 p-6 rounded-2xl flex flex-col md:flex-row items-center gap-6 shadow-2xl">
+              <div className="mt-4 mx-auto w-full max-w-4xl shrink-0 bg-gradient-to-r from-indigo-950/30 via-purple-900/20 to-indigo-950/30 border border-indigo-500/20 px-6 py-5 rounded-2xl flex flex-col md:flex-row items-center gap-6 shadow-2xl">
                 <div className="w-12 h-12 rounded-full bg-indigo-950/50 flex items-center justify-center border border-indigo-500/30 shrink-0">
                   <Zap className="w-6 h-6 text-indigo-400" />
                 </div>

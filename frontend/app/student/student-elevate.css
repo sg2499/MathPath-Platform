@@ -1599,36 +1599,52 @@ html .math-role-student :is([class*="text-[8px]"], [class*="text-[9px]"], [class
   font-size: 0.8rem;
 }
 
-/* ---------- 3D rank medallion (dashboard wallet) --------------------------- */
-.se-emblem {
-  display: inline-flex;
+/* ---------- rank medallion ------------------------------------------------
+   A vector drawing with one clean shadow. --rank-rgb is the rank's own colour
+   (set by RankBadge). No blur stacks, no GPU layer, no scale: each of those
+   turned the drawing into a soft bitmap.                                    */
+.se-rank-svg {
+  filter: drop-shadow(0 7px 8px rgb(var(--rank-rgb) / 0.30)) drop-shadow(0 1px 1px rgb(var(--rank-rgb) / 0.35));
 }
 
-.se-emblem-flat {
-  transition: opacity 400ms ease;
+html.dark .se-rank-svg,
+.se-rank-dark .se-rank-svg {
+  filter: drop-shadow(0 8px 10px rgb(0 0 0 / 0.55)) drop-shadow(0 0 14px rgb(var(--rank-rgb) / 0.30));
 }
 
-.se-emblem-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  pointer-events: none;
-  filter: drop-shadow(0 14px 16px rgba(249, 115, 22, 0.23));
-  transition: opacity 400ms ease;
+/* A rank not reached yet: the same drawing as plain dark metal, still sharp. */
+.se-rank-locked .se-rank-svg {
+  filter: grayscale(1) brightness(0.62) contrast(1.08) drop-shadow(0 8px 10px rgb(0 0 0 / 0.5));
+  transition: filter 200ms ease;
 }
 
-html.dark .se-emblem-canvas {
-  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 18px rgba(249, 115, 22, 0.28));
+.se-rank-locked:hover .se-rank-svg {
+  filter: grayscale(1) brightness(0.8) contrast(1.08) drop-shadow(0 8px 10px rgb(0 0 0 / 0.5));
 }
 
-.se-emblem[data-live="true"] .se-emblem-canvas {
-  opacity: 1;
+/* Rank roadmap strip: one medallion size for the row, taken from the room the
+   window has (width and height), so all eight ranks fit on a laptop without
+   being cut. The student's own rank is drawn larger. Phones swipe the strip. */
+.rank-roadmap-strip {
+  --rm-size: 104px;
+  --rm-own: calc(var(--rm-size) * 1.45);
 }
 
-.se-emblem[data-live="true"] .se-emblem-flat {
-  opacity: 0;
+@media (min-width: 768px) {
+  .rank-roadmap-strip {
+    --rm-size: clamp(80px, min(7.8vw, 15vh), 120px);
+  }
+}
+
+/* Nothing moves on a still medallion (dashboard) or on a rank not reached yet,
+   and a locked rank carries no glints: grey glow reads as haze. */
+.se-rank-still [data-fx],
+.se-rank-locked [data-fx] {
+  display: none;
+}
+
+.se-rank-locked .se-rank-svg [style*="drop-shadow"] {
+  filter: none !important;
 }
 
 /* Headings: the display face reads best a step below its heaviest weight. */
