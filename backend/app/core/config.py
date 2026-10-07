@@ -56,6 +56,19 @@ BREVO_FROM_EMAIL = _env_first("BREVO_FROM_EMAIL", Default=SMTP_FROM_EMAIL)
 # Phase 8.8 active project convention.
 # Keep assessment readiness bypass ON for end-to-end assessment workflow testing until the owner explicitly requests strict live gate restoration.
 # A stale TEMPORARY_ASSESSMENT_READINESS_BYPASS=false environment variable must not silently override this convention.
+#
+# 2026-10-07 (Shailesh's decision): this is no longer a testing stopgap, it
+# is the policy. Readiness is a GUIDE: it shows how much of a level's
+# practice a student has finished, and the teacher decides when to assign
+# the level assessment. Students who joined the platform mid-level can never
+# have every sheet of that level, and "there will be scenarios in the future
+# where some students are not being able to complete all the required
+# sheets even if they start right from the first one, so it's better to
+# keep the system flexible". Nothing about the behaviour changed on that
+# date; only the words on the screens, which used to call this "testing",
+# "QA", "demo verification" and "bypass". The variable names below keep
+# their history. Set ASSESSMENT_READINESS_FORCE_STRICT=true only if the
+# owner ever asks for the strict gate.
 ASSESSMENT_READINESS_FORCE_STRICT = os.getenv("ASSESSMENT_READINESS_FORCE_STRICT", "false").lower() == "true"
 TEMPORARY_ASSESSMENT_READINESS_BYPASS = not ASSESSMENT_READINESS_FORCE_STRICT
 
@@ -64,7 +77,7 @@ ASSESSMENT_READINESS_GATE_MODE = (
     "TEMPORARY_BYPASS" if TEMPORARY_ASSESSMENT_READINESS_BYPASS else "STRICT_READINESS"
 )
 ASSESSMENT_READINESS_GATE_LABEL = (
-    "Testing Bypass Active" if TEMPORARY_ASSESSMENT_READINESS_BYPASS else "Strict Readiness Gate Active"
+    "Readiness: Guide Only" if TEMPORARY_ASSESSMENT_READINESS_BYPASS else "Strict Readiness Gate Active"
 )
 
 # Controlled Admin-only assessment readiness testing override.

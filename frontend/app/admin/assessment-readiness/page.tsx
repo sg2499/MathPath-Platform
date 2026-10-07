@@ -411,8 +411,10 @@ export default function AdminAssessmentReadinessPage() {
           {readinessGate ? (
             <div
               className={`mt-5 rounded-[28px] border p-4 shadow-sm ${
+                // 2026-10-07 (Shailesh): readiness as a guide is the policy,
+                // not a testing mode and not a warning: plain information.
                 readinessGate.temporaryBypassEnabled
-                  ? "math-tone-warning border-amber-200 bg-amber-50/90"
+                  ? "math-tone-info border-blue-200 bg-blue-50/90"
                   : "math-tone-success border-emerald-200 bg-emerald-50/90"
               }`}
             >
@@ -421,7 +423,7 @@ export default function AdminAssessmentReadinessPage() {
                   <span
                     className={`mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
                       readinessGate.temporaryBypassEnabled
-                        ? "bg-amber-100 text-amber-700"
+                        ? "bg-blue-100 text-blue-700"
                         : "bg-emerald-100 text-emerald-700"
                     }`}
                   >
@@ -432,18 +434,18 @@ export default function AdminAssessmentReadinessPage() {
                       Assessment Readiness Status
                     </p>
                     <h2 className="mt-1 text-base font-black text-slate-950 dark:text-white">
-                      {readinessGate.temporaryBypassEnabled ? "Readiness Bypass Active" : readinessGate.label}
+                      {readinessGate.temporaryBypassEnabled ? "Readiness Is A Guide" : readinessGate.label}
                     </h2>
-                    <p className="mt-1 max-w-4xl text-sm font-semibold leading-6 text-slate-600 dark:text-slate-200">
+                    <p className={`mt-1 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-200 ${readinessGate.temporaryBypassEnabled ? "" : "max-w-4xl"}`}>
                       {readinessGate.temporaryBypassEnabled
-                        ? "Assessment assignment is currently allowed for QA across eligible level matches until the owner explicitly restores strict readiness."
+                        ? "Teachers can assign a level assessment to any student in that level. The list below shows who has finished the level's practice."
                         : readinessGate.assignmentImpactLabel}
                     </p>
-                    <p className="mt-1 max-w-4xl text-xs font-bold leading-5 text-slate-500 dark:text-slate-300">
-                      {readinessGate.temporaryBypassEnabled
-                        ? "Working convention: keep the assessment readiness bypass ON until explicitly disabled."
-                        : readinessGate.nextPhaseNote}
-                    </p>
+                    {readinessGate.temporaryBypassEnabled ? null : (
+                      <p className="mt-1 max-w-4xl text-xs font-bold leading-5 text-slate-500 dark:text-slate-300">
+                        {readinessGate.nextPhaseNote}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="rounded-[22px] border border-white/70 bg-white/80 px-4 py-3 text-center shadow-sm dark:border-slate-700 dark:bg-slate-950/70">

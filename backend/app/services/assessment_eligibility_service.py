@@ -215,7 +215,11 @@ def assessment_eligibility_payload(db: Session, student: Student, level_id: str 
     elif missing:
         status = "PRACTICE_INCOMPLETE"
         status_label = "Practice Incomplete"
-        message = "The student must complete all DPS sheets in this level before assessment assignment."
+        # 2026-10-07: was "The student must complete all DPS sheets in this
+        # level before assessment assignment." Readiness is a guide, not a
+        # gate (see app/core/config.py), and this line is also read by the
+        # student on their own readiness page.
+        message = "Some DPS sheets in this level are not completed yet."
     else:
         status = "NEEDS_DPS_REATTEMPT"
         status_label = "Needs DPS Re-Attempt"
