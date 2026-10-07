@@ -22,6 +22,7 @@ import {
   getAnnualCompetitionAttemptReview,
   getAnnualCompetitionResult,
   saveAnnualCompetitionAnswer,
+  beginAnnualCompetitionSection,
   startAnnualCompetitionAttempt,
   startAnnualCompetitionPracticeAttempt,
   submitAnnualCompetitionSection,
@@ -30,6 +31,7 @@ import {
   type AnnualCompetitionAttemptReviewQuestion,
 } from "@/lib/api/student";
 import { setPaperInProgress } from "@/lib/paperFocus";
+import { AnnualSectionBriefing } from "@/components/competition/AnnualSectionBriefing";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Award, ClipboardCheck, Gauge, Layers3, ListChecks, ShieldAlert, Trophy } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -57,6 +59,29 @@ function IsRetryableSaveError(error: unknown): boolean {
   const status = (error as { response?: { status?: number } } | null)?.response?.status;
   if (status == null) return true;
   return status >= 500 || status === 408 || status === 429;
+}
+
+// Lean replies (heartbeat, submit, save) list every section but without
+// its question count, which only the full read carries. Keep the count the
+// page already has, so the screen before a section can go on showing it.
+function MergeSections(
+  previous: AnnualCompetitionAttempt["sections"] | undefined,
+  next: AnnualCompetitionAttempt["sections"]
+): AnnualCompetitionAttempt["sections"] {
+  if (!previous) return next;
+  const countByNumber = new Map(previous.map((section) => [section.sectionNumber, section.questionCount]));
+  return next.map((section) =>
+    section.questionCount == null && countByNumber.get(section.sectionNumber) != null
+      ? { ...section, questionCount: countByNumber.get(section.sectionNumber) }
+      : section
+  );
+}
+
+// True when the attempt's active section is still behind its "coming up"
+// screen (see components/competition/AnnualSectionBriefing.tsx).
+function ActiveSectionIsHeld(attempt: AnnualCompetitionAttempt | null | undefined): boolean {
+  if (!attempt || attempt.status !== "IN_PROGRESS") return false;
+  return Boolean(attempt.sections.find((section) => section.sectionNumber === attempt.currentSectionNumber)?.briefingPending);
 }
 
 export default function AnnualCompetitionAttemptPage() {
@@ -105,6 +130,15 @@ function AnnualCompetitionAttemptContent() {
   // mirroring the DPS attempt page's own pendingSavesRef.
   const pendingSavesRef = useRef<Set<Promise<unknown>>>(new Set());
 
+  // 2026-10-07 (section screens): the screen shown before each section.
+  // begunSectionsRef remembers every section this page has already started
+  // ("attemptId:sectionNumber"), so a late-arriving stale read can never
+  // put the screen back over a running section (see the effect below).
+  const begunSectionsRef = useRef<Set<string>>(new Set());
+  const beginningRef = useRef(false);
+  const [beginningSection, setBeginningSection] = useState(false);
+  const [beginSectionError, setBeginSectionError] = useState<unknown>(null);
+
   const attemptQuery = useQuery({
     queryKey: ["annual-competition-attempt", attemptId],
     queryFn: () => getAnnualCompetitionAttempt(attemptId),
@@ -116,7 +150,18 @@ function AnnualCompetitionAttemptContent() {
   });
 
   useEffect(() => {
-    if (attemptQuery.data) setLiveAttempt(attemptQuery.data);
+    if (!attemptQuery.data) return;
+    // A read that left the server BEFORE the student started a section can
+    // arrive after it, still saying that section is behind its screen. It
+    // must not put the screen back up over a section whose clock is
+    // running: drop it and read again.
+    const data = attemptQuery.data;
+    if (ActiveSectionIsHeld(data) && begunSectionsRef.current.has(`${data.attemptId}:${data.currentSectionNumber}`)) {
+      attemptQuery.refetch();
+      return;
+    }
+    setLiveAttempt(data);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptQuery.data]);
 
   // Package 6 (Scoring + Results): only ever queried once the attempt has
@@ -209,11 +254,23 @@ function AnnualCompetitionAttemptContent() {
           // The heartbeat response is deliberately lean (no question data) --
           // fetch the new section's questions (or the final SUBMITTED state)
           // via a real GET rather than trying to patch that in locally.
-          attemptQuery.refetch();
+          // Not when the new section is still behind its screen: there are
+          // no questions to fetch yet (they come with the begin-section
+          // reply), and the screen needs nothing this reply does not have.
+          if (!ActiveSectionIsHeld(updated)) attemptQuery.refetch();
           setCurrentIndex(0);
           setLocalAnswers({});
         }
-        return { ...prev, status: updated.status, currentSectionNumber: updated.currentSectionNumber, submittedAt: updated.submittedAt, sections: updated.sections };
+        return {
+          ...prev,
+          status: updated.status,
+          currentSectionNumber: updated.currentSectionNumber,
+          submittedAt: updated.submittedAt,
+          sections: MergeSections(prev.sections, updated.sections),
+          // A section change means the questions the page holds belong to
+          // the section that just closed.
+          ...(sectionChanged ? { activeSectionQuestions: [] } : {}),
+        };
       });
     },
     [attemptQuery]
@@ -254,8 +311,12 @@ function AnnualCompetitionAttemptContent() {
     fireNow();
   }, [fireNow]);
 
+  // While the section is behind its screen its clock is not running, so the
+  // local countdown is not anchored to it yet: it anchors (afresh, from the
+  // full time) at the moment the section starts.
+  const sectionIsHeld = Boolean(activeSectionState?.briefingPending) && liveAttempt?.status === "IN_PROGRESS";
   const remainingSeconds = useAttemptTimer(
-    activeSectionState?.remainingSeconds ?? 999999,
+    sectionIsHeld ? 999999 : activeSectionState?.remainingSeconds ?? 999999,
     handleLocalTimeUp
   );
 
@@ -322,12 +383,19 @@ function AnnualCompetitionAttemptContent() {
           const movedOn = updated.status !== "IN_PROGRESS" || updated.currentSectionNumber !== sectionAtCall;
           setLiveAttempt((prev) =>
             prev
-              ? { ...prev, status: updated.status, currentSectionNumber: updated.currentSectionNumber, submittedAt: updated.submittedAt, sections: updated.sections }
+              ? {
+                  ...prev,
+                  status: updated.status,
+                  currentSectionNumber: updated.currentSectionNumber,
+                  submittedAt: updated.submittedAt,
+                  sections: MergeSections(prev.sections, updated.sections),
+                  ...(movedOn ? { activeSectionQuestions: [] } : {}),
+                }
               : updated
           );
           if (movedOn) {
             // Lean reply (no question data) -- same as the heartbeat path.
-            attemptQuery.refetch();
+            if (!ActiveSectionIsHeld(updated)) attemptQuery.refetch();
             setCurrentIndex(0);
             setLocalAnswers({});
           }
@@ -424,14 +492,23 @@ function AnnualCompetitionAttemptContent() {
       });
       setLiveAttempt((prev) =>
         prev
-          ? { ...prev, status: updated.status, currentSectionNumber: updated.currentSectionNumber, submittedAt: updated.submittedAt, sections: updated.sections }
+          ? {
+              ...prev,
+              status: updated.status,
+              currentSectionNumber: updated.currentSectionNumber,
+              submittedAt: updated.submittedAt,
+              sections: MergeSections(prev.sections, updated.sections),
+              activeSectionQuestions: [],
+            }
           : updated
       );
       setCurrentIndex(0);
       setLocalAnswers({});
       setShowSubmitConfirm(false);
       // Lean response (no question data) -- same as the heartbeat path.
-      attemptQuery.refetch();
+      // (Not when the next section is behind its screen: its questions come
+      // with the begin-section reply.)
+      if (!ActiveSectionIsHeld(updated)) attemptQuery.refetch();
     } catch (error) {
       const detail = apiErrorDetail(error);
       if (detail?.code === "COMPETITION_ATTEMPT_SESSION_SUPERSEDED") {
@@ -443,6 +520,54 @@ function AnnualCompetitionAttemptContent() {
     } finally {
       setSubmittingSection(false);
       setIsFinalizingSubmit(false);
+    }
+  }
+
+  // The student pressed Start Section on the screen before a section, or
+  // its countdown ran out. Tried again by itself on a hiccup, like an answer
+  // save; nothing is lost while it retries, because the section's clock
+  // only starts when the server has actually begun it.
+  async function handleBeginSection() {
+    if (!liveAttempt || !sessionToken || beginningRef.current) return;
+    const sectionNumber = liveAttempt.currentSectionNumber;
+    beginningRef.current = true;
+    setBeginningSection(true);
+    setBeginSectionError(null);
+    let retriesDone = 0;
+    try {
+      for (;;) {
+        try {
+          const updated = await beginAnnualCompetitionSection(attemptId, { sessionToken, sectionNumber });
+          begunSectionsRef.current.add(`${attemptId}:${sectionNumber}`);
+          setCurrentIndex(0);
+          setLocalAnswers({});
+          setSaveError(null);
+          // The full attempt, this section's questions included.
+          setLiveAttempt((prev) => (prev ? { ...prev, ...updated, sections: MergeSections(prev.sections, updated.sections) } : updated));
+          return;
+        } catch (error) {
+          const detail = apiErrorDetail(error);
+          if (detail?.code === "COMPETITION_ATTEMPT_SESSION_SUPERSEDED") {
+            setSessionSuperseded(true);
+            setSessionToken(undefined);
+            return;
+          }
+          if (detail?.code === "COMPETITION_SECTION_NOT_ACTIVE" || detail?.code === "COMPETITION_ATTEMPT_NO_ACTIVE_SECTION") {
+            // The paper has moved on without this page (another device).
+            attemptQuery.refetch();
+            return;
+          }
+          if (!IsRetryableSaveError(error) || retriesDone >= 3) {
+            setBeginSectionError(error);
+            return;
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, SAVE_RETRY_DELAYS_MS[retriesDone]));
+          retriesDone += 1;
+        }
+      }
+    } finally {
+      beginningRef.current = false;
+      setBeginningSection(false);
     }
   }
 
@@ -629,6 +754,32 @@ function AnnualCompetitionAttemptContent() {
     return (
       <AppShell title="Annual Competition">
         <ErrorState message={apiErrorMessage(bootstrapError)} />
+      </AppShell>
+    );
+  }
+
+  // 2026-10-07 (section screens): the section has not started yet -- show
+  // which one is coming (and which one was just submitted). Shown even
+  // before the session token has arrived; its Start button and countdown
+  // wait for the token.
+  if (sectionIsHeld && activeSectionState) {
+    const previousSection =
+      [...liveAttempt.sections]
+        .filter((section) => section.sectionNumber < activeSectionState.sectionNumber)
+        .sort((a, b) => b.sectionNumber - a.sectionNumber)[0] || null;
+    return (
+      <AppShell title="Annual Competition">
+        <AnnualSectionBriefing
+          IsPractice={liveAttempt.attemptType === "PRACTICE"}
+          Upcoming={activeSectionState}
+          Previous={previousSection}
+          TotalSections={liveAttempt.sections.length}
+          CountdownSeconds={liveAttempt.sectionBriefingSeconds ?? 15}
+          CanStart={Boolean(sessionToken)}
+          IsStarting={beginningSection}
+          ErrorMessage={beginSectionError ? apiErrorMessage(beginSectionError) : null}
+          OnStart={handleBeginSection}
+        />
       </AppShell>
     );
   }

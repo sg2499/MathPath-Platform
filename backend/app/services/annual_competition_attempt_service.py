@@ -138,8 +138,10 @@ import secrets
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core import config as app_config
 from app.core.errors import api_error
 from app.services.answer_matching import answers_match
 from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals, RoundPercentageForDisplay
@@ -330,11 +332,82 @@ def _AllSectionsOrdered(db: Session, AttemptRecord: CompetitionEventAttempt) -> 
     )
 
 
-def _ActivateSection(SectionState: CompetitionEventAttemptSectionState, NowUtc: datetime) -> None:
+def _ActivateSection(SectionState: CompetitionEventAttemptSectionState, NowUtc: datetime, *, Briefing: bool = False) -> None:
+    """Makes `SectionState` the ACTIVE section with its full time.
+
+    Briefing=True (2026-10-07, section screens) additionally holds it back
+    behind its "coming up" screen: the section is ACTIVE -- so there is
+    still exactly one ACTIVE section, and the live board, the resume path
+    and the reconciliation sweep all keep working unchanged -- but its
+    clock does not run and its questions are not sent until the student
+    starts it (BeginCompetitionEventSection)."""
     SectionState.status = "ACTIVE"
     SectionState.started_at = NowUtc
     SectionState.remaining_seconds_at_last_heartbeat = SectionState.time_limit_seconds
     SectionState.last_heartbeat_at = NowUtc
+    SectionState.briefing_pending = True if Briefing else None
+
+
+# ---------------------------------------------------------------------------
+# The screen before each section (2026-10-07, Shailesh)
+#
+# "when a student submits one section or the section gets auto submitted when
+# the timer runs out, the next section pops up and starts without any
+# intimation ... each section has a method involved be it abacus or visual
+# ... show a slide or a screen when the student starts the paper showing the
+# first section name and the method and when they go on submitting each
+# section then the next screen should show the section they submitted and
+# the one coming up and the final section that they submit should just take
+# them out as it does now."
+#
+# The page cannot do this alone: a section's clock used to start the instant
+# the section before it closed, so any screen in between would have cost the
+# student that many seconds of the next section (and of their time taken,
+# the ranking tie-break), and the next section's questions were served at
+# once. So the engine now knows about it:
+#
+#   * a paper page that can show the screen says so when it starts or
+#     resumes the attempt (SupportsSectionBriefing); the answer is stored on
+#     the attempt (section_briefing_enabled). An older cached page never
+#     says so, and for it nothing changes at all;
+#   * a section activated for such an attempt is briefing_pending: ACTIVE,
+#     full time, clock held, questions withheld, answers refused;
+#   * BeginCompetitionEventSection starts it: the clock runs from that
+#     moment.
+#
+# Time on the screen is never deducted, so it is not in time taken either
+# (time taken is time_limit - remaining, summed; see the scoring service).
+# The countdown that ends the screen by itself lives in the page; it is
+# ANNUAL_SECTION_BRIEFING_SECONDS long. ANNUAL_SECTION_BRIEFING_ENABLED=false
+# switches the whole thing off without a deploy.
+# ---------------------------------------------------------------------------
+def _BriefingWanted(AttemptRecord: CompetitionEventAttempt) -> bool:
+    return bool(app_config.ANNUAL_SECTION_BRIEFING_ENABLED and AttemptRecord.section_briefing_enabled)
+
+
+def _BeginSectionNow(SectionState: CompetitionEventAttemptSectionState, NowUtc: datetime) -> None:
+    """The screen is over: the section's clock runs from this moment."""
+    SectionState.briefing_pending = None
+    SectionState.started_at = NowUtc
+    SectionState.last_heartbeat_at = NowUtc
+    SectionState.remaining_seconds_at_last_heartbeat = SectionState.time_limit_seconds
+
+
+def _RecordClientBriefingSupport(
+    db: Session, AttemptRecord: CompetitionEventAttempt, SupportsSectionBriefing: bool, NowUtc: datetime
+) -> None:
+    """Start/Resume: remember whether the page now holding this attempt's
+    session token can show the screen. If it cannot (an older cached page
+    took the attempt over) while a section is waiting behind its screen,
+    start that section here -- that page has no way to, and would otherwise
+    sit on a section with no questions."""
+    AttemptRecord.section_briefing_enabled = True if SupportsSectionBriefing else None
+    if SupportsSectionBriefing or AttemptRecord.status != IN_PROGRESS_STATUS:
+        return
+    ActiveSectionState = _ActiveSection(db, AttemptRecord)
+    if ActiveSectionState and ActiveSectionState.briefing_pending:
+        _BeginSectionNow(ActiveSectionState, NowUtc)
+        db.flush()
 
 
 def _AdvanceOrFinalize(
@@ -352,6 +425,9 @@ def _AdvanceOrFinalize(
     even if a level paper's section numbers were ever non-contiguous."""
     CompletedSection.status = "AUTO_SUBMITTED" if Auto else "COMPLETED"
     CompletedSection.submitted_at = NowUtc
+    # A closed section is never "behind its screen" (the sweep can close one
+    # that was).
+    CompletedSection.briefing_pending = None
     if CompletedSection.remaining_seconds_at_last_heartbeat is None or CompletedSection.remaining_seconds_at_last_heartbeat < 0:
         CompletedSection.remaining_seconds_at_last_heartbeat = 0
 
@@ -360,7 +436,7 @@ def _AdvanceOrFinalize(
     NextSection = AllSections[CompletedIndex + 1] if CompletedIndex is not None and CompletedIndex + 1 < len(AllSections) else None
 
     if NextSection:
-        _ActivateSection(NextSection, NowUtc)
+        _ActivateSection(NextSection, NowUtc, Briefing=_BriefingWanted(AttemptRecord))
         AttemptRecord.current_section_number = NextSection.section_number
     else:
         AttemptRecord.status = "SUBMITTED"
@@ -479,6 +555,9 @@ def _SectionStatePayload(SectionState: CompetitionEventAttemptSectionState, Time
         "remainingSeconds": SectionState.remaining_seconds_at_last_heartbeat,
         "startedAt": SectionState.started_at.isoformat() if SectionState.started_at else None,
         "submittedAt": SectionState.submitted_at.isoformat() if SectionState.submitted_at else None,
+        # 2026-10-07 (section screens): True while this ACTIVE section is
+        # behind its "coming up" screen (clock held, no questions yet).
+        "briefingPending": bool(SectionState.briefing_pending),
     }
 
 
@@ -590,14 +669,35 @@ def _AttemptPayload(
             _SectionStatePayload(SectionState, TimersBySectionNumber.get(SectionState.section_number))
             for SectionState in Sections
         ],
+        # 2026-10-07 (section screens): how long the screen before a section
+        # counts down before starting the section by itself.
+        "sectionBriefingSeconds": app_config.ANNUAL_SECTION_BRIEFING_SECONDS,
     }
     if IncludeSessionToken:
         Payload["sessionToken"] = AttemptRecord.session_token
     if IncludeQuestions and AttemptRecord.status == IN_PROGRESS_STATUS:
         ActiveSectionState = _ActiveSection(db, AttemptRecord)
+        # A section still behind its screen has not started: its questions
+        # are not sent until BeginCompetitionEventSection, so the screen
+        # cannot be used to read them early.
         Payload["activeSectionQuestions"] = (
-            _ActiveSectionQuestionsPayload(db, AttemptRecord, ActiveSectionState) if ActiveSectionState else []
+            _ActiveSectionQuestionsPayload(db, AttemptRecord, ActiveSectionState)
+            if ActiveSectionState and not ActiveSectionState.briefing_pending
+            else []
         )
+        # How many questions each section has, for the screen ("50
+        # Questions"). One grouped count, and only on this full read (the
+        # page load and the begin-section reply), never on a heartbeat.
+        MockExamId = LevelPaperRecord.mock_exam_id if LevelPaperRecord else None
+        if MockExamId:
+            CountBySectionNumber = dict(
+                db.query(CompetitionMockQuestion.section_number, func.count(CompetitionMockQuestion.id))
+                .filter(CompetitionMockQuestion.mock_exam_id == MockExamId)
+                .group_by(CompetitionMockQuestion.section_number)
+                .all()
+            )
+            for SectionPayload in Payload["sections"]:
+                SectionPayload["questionCount"] = int(CountBySectionNumber.get(SectionPayload["sectionNumber"], 0))
     return Payload
 
 
@@ -624,6 +724,7 @@ def _BuildFreshAttempt(
     NowUtc: datetime,
     *,
     AttemptNumber: int,
+    SupportsSectionBriefing: bool = False,
 ) -> CompetitionEventAttempt:
     """Shared by both a brand-new first attempt and a retry-granted
     subsequent one -- same slot gate, same level-paper/section-timer
@@ -673,6 +774,7 @@ def _BuildFreshAttempt(
         attempt_number=AttemptNumber,
         status=IN_PROGRESS_STATUS,
         session_token=secrets.token_urlsafe(32),
+        section_briefing_enabled=True if SupportsSectionBriefing else None,
         current_section_number=SectionTimers[0].section_number,
         started_at=NowUtc,
     )
@@ -687,14 +789,21 @@ def _BuildFreshAttempt(
             time_limit_seconds=Timer.time_limit_seconds,
         )
         if Index == 0:
-            _ActivateSection(SectionState, NowUtc)
+            # The very first section waits behind its screen too, when the
+            # page asked for it (see "The screen before each section").
+            _ActivateSection(SectionState, NowUtc, Briefing=_BriefingWanted(AttemptRecord))
         db.add(SectionState)
 
     return AttemptRecord
 
 
 def _BuildFreshPracticeAttempt(
-    db: Session, LevelPaperRecord: CompetitionEventLevelPaper, StudentRecord: Student, NowUtc: datetime
+    db: Session,
+    LevelPaperRecord: CompetitionEventLevelPaper,
+    StudentRecord: Student,
+    NowUtc: datetime,
+    *,
+    SupportsSectionBriefing: bool = False,
 ) -> CompetitionEventAttempt:
     """2026-09-11 (Shailesh, Competition Practice feature, Phase D):
     practice's own attempt-builder, parallel to (not sharing code with)
@@ -731,6 +840,7 @@ def _BuildFreshPracticeAttempt(
         attempt_type="PRACTICE",
         status=IN_PROGRESS_STATUS,
         session_token=secrets.token_urlsafe(32),
+        section_briefing_enabled=True if SupportsSectionBriefing else None,
         current_section_number=SectionTimers[0].section_number,
         started_at=NowUtc,
     )
@@ -745,7 +855,9 @@ def _BuildFreshPracticeAttempt(
             time_limit_seconds=Timer.time_limit_seconds,
         )
         if Index == 0:
-            _ActivateSection(SectionState, NowUtc)
+            # The very first section waits behind its screen too, when the
+            # page asked for it (see "The screen before each section").
+            _ActivateSection(SectionState, NowUtc, Briefing=_BriefingWanted(AttemptRecord))
         db.add(SectionState)
 
     return AttemptRecord
@@ -773,7 +885,9 @@ def _RequireStudentOnEventRoster(db: Session, *, EventId: str, StudentId: str) -
 # Public API
 # ---------------------------------------------------------------------------
 
-def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: str) -> dict[str, Any]:
+def StartCompetitionEventAttempt(
+    db: Session, StudentRecord: Student, EventId: str, *, SupportsSectionBriefing: bool = False
+) -> dict[str, Any]:
     """Starts a student's first attempt for this event, or resumes an
     existing IN_PROGRESS one. Either way, a fresh session_token is issued
     -- this IS the "resume here" remediation the plan describes: whichever
@@ -840,7 +954,13 @@ def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: s
             # touches an existing attempt").
             _RequireStudentOnEventRoster(db, EventId=EventId, StudentId=StudentRecord.id)
             NewAttempt = _BuildFreshAttempt(
-                db, EventId, AssignmentRecord, StudentRecord, NowUtc, AttemptNumber=ExistingAttempt.attempt_number + 1
+                db,
+                EventId,
+                AssignmentRecord,
+                StudentRecord,
+                NowUtc,
+                AttemptNumber=ExistingAttempt.attempt_number + 1,
+                SupportsSectionBriefing=SupportsSectionBriefing,
             )
             RetryGrant.status = "USED"
             RetryGrant.used_at = NowUtc
@@ -852,6 +972,9 @@ def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: s
         # that should already have advanced/finalized while nobody was
         # looking (same lazy check every other entry point runs).
         ExistingAttempt.session_token = secrets.token_urlsafe(32)
+        # Before the lazy advance below, so a section it activates already
+        # follows what THIS page can show.
+        _RecordClientBriefingSupport(db, ExistingAttempt, SupportsSectionBriefing, NowUtc)
         _EnsureActiveSectionOrAdvance(db, ExistingAttempt, NowUtc)
         db.commit()
         db.refresh(ExistingAttempt)
@@ -861,14 +984,16 @@ def StartCompetitionEventAttempt(db: Session, StudentRecord: Student, EventId: s
     # above, for the far more common case: a student's very first attempt
     # off a (possibly stale, pre-Roster) assignment.
     _RequireStudentOnEventRoster(db, EventId=EventId, StudentId=StudentRecord.id)
-    AttemptRecord = _BuildFreshAttempt(db, EventId, AssignmentRecord, StudentRecord, NowUtc, AttemptNumber=1)
+    AttemptRecord = _BuildFreshAttempt(
+        db, EventId, AssignmentRecord, StudentRecord, NowUtc, AttemptNumber=1, SupportsSectionBriefing=SupportsSectionBriefing
+    )
     db.commit()
     db.refresh(AttemptRecord)
     return _AttemptPayload(db, AttemptRecord, IncludeSessionToken=True)
 
 
 def StartAnnualCompetitionPracticeAttempt(
-    db: Session, StudentRecord: Student, CompetitionLevelCode: str
+    db: Session, StudentRecord: Student, CompetitionLevelCode: str, *, SupportsSectionBriefing: bool = False
 ) -> dict[str, Any]:
     """2026-09-11 (Shailesh, Competition Practice feature, Phase D): "Start
     Next Practice Paper" -- practice's own start/resume entry point,
@@ -918,6 +1043,9 @@ def StartAnnualCompetitionPracticeAttempt(
         # that should already have advanced/finalized while nobody was
         # looking.
         ExistingAttempt.session_token = secrets.token_urlsafe(32)
+        # Before the lazy advance below, so a section it activates already
+        # follows what THIS page can show.
+        _RecordClientBriefingSupport(db, ExistingAttempt, SupportsSectionBriefing, NowUtc)
         _EnsureActiveSectionOrAdvance(db, ExistingAttempt, NowUtc)
         db.commit()
         db.refresh(ExistingAttempt)
@@ -941,7 +1069,9 @@ def StartAnnualCompetitionPracticeAttempt(
             "You have no unused practice papers for this level yet — ask your admin/teacher to assign more.",
         )
 
-    AttemptRecord = _BuildFreshPracticeAttempt(db, LevelPaperRecord, StudentRecord, NowUtc)
+    AttemptRecord = _BuildFreshPracticeAttempt(
+        db, LevelPaperRecord, StudentRecord, NowUtc, SupportsSectionBriefing=SupportsSectionBriefing
+    )
     db.commit()
     db.refresh(AttemptRecord)
     return _AttemptPayload(db, AttemptRecord, IncludeSessionToken=True)
@@ -990,6 +1120,15 @@ def RecordCompetitionEventHeartbeat(
             f"Section {SectionNumber} is no longer the active section for this attempt.",
         )
 
+    if ActiveSectionState.briefing_pending:
+        # The section is still behind its "coming up" screen: the student is
+        # here (so "last seen" moves, and the live board does not call them
+        # stuck), but the section has not started and no time is deducted.
+        ActiveSectionState.last_heartbeat_at = NowUtc
+        db.commit()
+        db.refresh(AttemptRecord)
+        return _AttemptPayload(db, AttemptRecord)
+
     LastHeartbeatAt = _Aware(ActiveSectionState.last_heartbeat_at) or _Aware(ActiveSectionState.started_at) or NowUtc
     RawGapSeconds = max(0.0, (NowUtc - LastHeartbeatAt).total_seconds())
     EffectiveElapsedSeconds = min(RawGapSeconds, float(HEARTBEAT_GRACE_SECONDS))
@@ -1034,11 +1173,61 @@ def SubmitCompetitionEventSection(
             f"Section {SectionNumber} is no longer the active section for this attempt.",
         )
 
+    _RefuseIfSectionNotBegun(ActiveSectionState)
     _AdvanceOrFinalize(db, AttemptRecord, ActiveSectionState, NowUtc, Auto=False)
 
     db.commit()
     db.refresh(AttemptRecord)
     return _AttemptPayload(db, AttemptRecord)
+
+
+def _RefuseIfSectionNotBegun(ActiveSectionState: CompetitionEventAttemptSectionState) -> None:
+    """A section still behind its screen has no questions on the page yet:
+    nothing can be answered in it or submitted for it."""
+    if ActiveSectionState.briefing_pending:
+        api_error(
+            409,
+            "COMPETITION_SECTION_NOT_BEGUN",
+            f"Section {ActiveSectionState.section_number} has not been started yet.",
+        )
+
+
+def BeginCompetitionEventSection(
+    db: Session, StudentRecord: Student, AttemptId: str, SessionToken: str | None, SectionNumber: int
+) -> dict[str, Any]:
+    """The student pressed Start Section on the screen before a section, or
+    its countdown ran out: the section's clock runs from now. Same guards as
+    the heartbeat. Safe to call twice (a retry after a lost reply): a
+    section that has already begun is simply returned as it is, its clock
+    untouched. Replies with the full attempt, questions included, so the
+    page needs no second request."""
+    AttemptRecord = _GetOwnedAttemptOr404(db, StudentRecord, AttemptId)
+    AttemptRecord = _LockAttemptForUpdate(db, AttemptId) or AttemptRecord  # see _LockAttemptForUpdate docstring
+    NowUtc = _NowUtc()
+    _EnsureActiveSectionOrAdvance(db, AttemptRecord, NowUtc)
+    if AttemptRecord.status != IN_PROGRESS_STATUS:
+        db.commit()
+        db.refresh(AttemptRecord)
+        return _AttemptPayload(db, AttemptRecord, IncludeQuestions=True)
+
+    _VerifySessionToken(AttemptRecord, SessionToken)
+
+    ActiveSectionState = _ActiveSection(db, AttemptRecord)
+    if not ActiveSectionState:
+        api_error(409, "COMPETITION_ATTEMPT_NO_ACTIVE_SECTION", "This attempt has no active section.")
+    if ActiveSectionState.section_number != SectionNumber:
+        api_error(
+            409,
+            "COMPETITION_SECTION_NOT_ACTIVE",
+            f"Section {SectionNumber} is no longer the active section for this attempt.",
+        )
+
+    if ActiveSectionState.briefing_pending:
+        _BeginSectionNow(ActiveSectionState, NowUtc)
+
+    db.commit()
+    db.refresh(AttemptRecord)
+    return _AttemptPayload(db, AttemptRecord, IncludeQuestions=True)
 
 
 def SaveCompetitionEventAnswer(
@@ -1090,6 +1279,7 @@ def SaveCompetitionEventAnswer(
             "COMPETITION_SECTION_NOT_ACTIVE",
             f"Section {SectionNumber} is no longer the active section for this attempt.",
         )
+    _RefuseIfSectionNotBegun(ActiveSectionState)
 
     LevelPaperRecord = db.get(CompetitionEventLevelPaper, AttemptRecord.level_paper_id)
     MockExamId = LevelPaperRecord.mock_exam_id if LevelPaperRecord else None

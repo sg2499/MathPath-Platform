@@ -86,3 +86,15 @@ ASSESSMENT_TESTING_OVERRIDE_ENABLED = os.getenv("ASSESSMENT_TESTING_OVERRIDE_ENA
 ASSESSMENT_TESTING_OVERRIDE_LABEL = (
     "Admin Testing Override Available" if ASSESSMENT_TESTING_OVERRIDE_ENABLED else "Admin Testing Override Disabled"
 )
+
+# Annual Competition: the screen shown before each section (2026-10-07).
+# "true" (the default) lets a paper page that asks for it show the screen;
+# the next section's clock does not run, and its questions are not sent,
+# until the student starts the section. Set ANNUAL_SECTION_BRIEFING_ENABLED
+# to "false" and restart the backend to switch the screens off for every
+# paper without a deploy: sections then follow one another immediately,
+# exactly as before this feature.
+ANNUAL_SECTION_BRIEFING_ENABLED = os.getenv("ANNUAL_SECTION_BRIEFING_ENABLED", "true").lower() == "true"
+# How long the screen counts down before it starts the section by itself.
+# Sent to the paper page with every attempt payload.
+ANNUAL_SECTION_BRIEFING_SECONDS = 15

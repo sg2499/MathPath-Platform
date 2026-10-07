@@ -629,6 +629,7 @@ export type TeacherAnnualCompetitionLiveRow = {
   lastHeartbeatAt: string | null;
   heartbeatGapSeconds: number | null;
   heartbeatGapMilliseconds: number | null;
+  clockHeld?: boolean;
 };
 
 export type TeacherAnnualCompetitionLiveMonitoring = {

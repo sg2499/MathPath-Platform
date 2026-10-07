@@ -264,6 +264,10 @@ def _LiveStatusRows(
         TotalSectionCount: int | None = None
         TotalDurationSeconds: int | None = None
         TotalRemainingSecondsAtLastHeartbeat: int | None = None
+        # 2026-10-07 (section screens): True while the student is on the
+        # screen shown before a section. Their clock is not running, so the
+        # board must not tick it down between refreshes.
+        ClockHeld = False
 
         if AttemptRecord and AttemptRecord.status == "IN_PROGRESS":
             CurrentSectionNumber = AttemptRecord.current_section_number
@@ -275,6 +279,7 @@ def _LiveStatusRows(
                 TotalDurationSeconds = sum(int(State.time_limit_seconds or 0) for State in SectionStates)
             ActiveSectionState = next((State for State in SectionStates if State.status == "ACTIVE"), None)
             if ActiveSectionState:
+                ClockHeld = bool(ActiveSectionState.briefing_pending)
                 RemainingSecondsAtLastHeartbeat = ActiveSectionState.remaining_seconds_at_last_heartbeat
                 LastHeartbeatAtValue = _Aware(ActiveSectionState.last_heartbeat_at) or _Aware(ActiveSectionState.started_at)
                 if LastHeartbeatAtValue:
@@ -322,6 +327,7 @@ def _LiveStatusRows(
                 "lastHeartbeatAt": LastHeartbeatAtValue.isoformat() if LastHeartbeatAtValue else None,
                 "heartbeatGapSeconds": int(GapSeconds) if GapSeconds is not None else None,
                 "heartbeatGapMilliseconds": int(max(0.0, GapSeconds) * 1000) if GapSeconds is not None else None,
+                "clockHeld": ClockHeld,
             }
         )
     return Rows

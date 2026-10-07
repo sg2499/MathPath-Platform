@@ -637,6 +637,13 @@ class CompetitionEventAttempt(Base):
     # heartbeat/answer/submit call carrying a stale token is rejected. Closes
     # the multi-device desync gap identified during plan review.
     session_token = Column(String(100), nullable=True)
+    # 2026-10-07 (section screens): True when the paper page that last
+    # started/resumed this attempt said it can show the screen before each
+    # section. Only then is a newly activated section held back
+    # (briefing_pending below). NULL/False = sections follow one another
+    # immediately, the behaviour before this feature and what an older
+    # cached paper page still expects.
+    section_briefing_enabled = Column(Boolean, nullable=True)
     current_section_number = Column(Integer, default=1, nullable=False)
     started_at = Column(DateTime(timezone=True), nullable=True)
     submitted_at = Column(DateTime(timezone=True), nullable=True)
@@ -672,6 +679,14 @@ class CompetitionEventAttemptSectionState(Base):
     last_heartbeat_at = Column(DateTime(timezone=True), nullable=True)
     started_at = Column(DateTime(timezone=True), nullable=True)
     submitted_at = Column(DateTime(timezone=True), nullable=True)
+    # 2026-10-07 (section screens): True while this ACTIVE section is still
+    # showing its "coming up" screen and the student has not started it.
+    # While True: heartbeats deduct no time, the section's questions are not
+    # sent, and answers cannot be saved. Cleared by
+    # BeginCompetitionEventSection. NULL/False on every row written before
+    # this feature and on every section of an attempt whose page did not ask
+    # for the screen -- those behave exactly as before.
+    briefing_pending = Column(Boolean, nullable=True)
 
     attempt = relationship("CompetitionEventAttempt")
 
