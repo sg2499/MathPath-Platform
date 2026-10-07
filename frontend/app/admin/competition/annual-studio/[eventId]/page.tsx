@@ -36,6 +36,7 @@ import {
   updateAnnualCompetitionSectionTimer,
   updateAnnualCompetitionSlot,
   type AnnualCompetitionAssignmentPreviewRow,
+  type AnnualCompetitionAssignmentRunResult,
   type AnnualCompetitionLevelPaper,
   type AnnualCompetitionLiveMonitoringRow,
   type AnnualCompetitionPracticeBankStudentRow,
@@ -88,6 +89,74 @@ function triggerBlobDownload(BlobValue: Blob, FileName: string) {
 // badge instead of a plain number, so the existing Rank & Release table
 // (already the admin-facing leaderboard -- see pkg-08's own note) reads
 // like one at a glance without needing a separate page.
+// ---------------------------------------------------------------------------
+// Assignments tab wording (2026-10-07, Shailesh: "it should never mislead the
+// admin"). The engine's own counters (created / updated / overrides preserved
+// / not matched) only say what the ENGINE did, so a student whose level was
+// set by hand and whom the engine has no rule for read as "not matched", as if
+// they had been left out. Everything below leads with what the admin wants to
+// know: who has a level, who does not, and what to do about it.
+// ---------------------------------------------------------------------------
+function Plural(Count: number, One: string, Many: string) {
+  return Count === 1 ? One : Many;
+}
+
+function NotifiedSentence(Count: number | undefined) {
+  if (!Count) return "";
+  return ` ${Count} ${Plural(Count, "student was", "students were")} notified about their paper.`;
+}
+
+function AssignmentRunMessage(Result: AnnualCompetitionAssignmentRunResult) {
+  const Total = Result.totalConsidered;
+  if (Total === 0) return "There are no students on this event's roster yet, so there was nothing to assign.";
+
+  const Without = Result.studentsWithoutLevel;
+  const Kept = Result.adminSetLevelsKept;
+  const Changed = Result.created + Result.updated;
+
+  const Head =
+    Without === 0
+      ? Total === 1
+        ? "The student has a level."
+        : `All ${Total} students have a level.`
+      : `${Result.studentsWithLevel} of ${Total} students have a level.`;
+
+  let Engine: string;
+  if (Changed === 0) {
+    if (Kept === 0) Engine = "The engine changed nothing.";
+    else if (Kept === Total && Total > 1) Engine = `The engine changed nothing: all ${Kept} levels were set by an admin and were kept.`;
+    else Engine = `The engine changed nothing: ${Kept} ${Plural(Kept, "level set by an admin was", "levels set by an admin were")} kept.`;
+  } else {
+    Engine = `Engine: ${Result.created} newly assigned, ${Result.updated} changed${Kept > 0 ? `, ${Kept} admin-set ${Plural(Kept, "level", "levels")} kept` : ""}.`;
+  }
+
+  const Missing =
+    Without > 0 ? ` ${Without} still ${Plural(Without, "has", "have")} no level: set ${Plural(Without, "it", "them")} by hand below.` : "";
+
+  return `${Head} ${Engine}${Missing}${NotifiedSentence(Result.studentsNotified)}`;
+}
+
+// Why the engine has no suggestion for a student, in plain words. The codes
+// are the engine's own (annual_competition_assignment_service.py REASON_*).
+const NO_RULE_REASON_TEXT: Record<string, string> = {
+  // Kept short on purpose: this line sits under "No level yet: set by hand"
+  // in the Status column and must not be the thing that makes the column
+  // wide (a wide Status column wraps the names and levels beside it).
+  YLM_L1_EXCLUDED_PENDING_YLP1_CONFIRMATION: "No engine rule for YLM-L1",
+  BRIDGE_BELOW_LESSON_15_NO_DEFINED_TARGET: "Bridge, below Lesson 15",
+  STUDENT_HAS_NO_CURRENT_LEVEL: "No current level",
+  CURRENT_LEVEL_NOT_IN_ANNUAL_COMPETITION_SCOPE: "Level not in the competition",
+};
+
+function NoRuleReasonText(Reason: string | null) {
+  if (!Reason) return "No engine rule for this student";
+  return NO_RULE_REASON_TEXT[Reason] || "No engine rule for this student";
+}
+
+function EventStatusLabel(Status: string) {
+  return Status ? Status.charAt(0).toUpperCase() + Status.slice(1).toLowerCase() : Status;
+}
+
 function RankBadge({ Rank }: { Rank: number | null }) {
   if (!Rank) return <span>--</span>;
   const MedalStyle =
@@ -342,7 +411,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const SetLockedMutation = useMutation({
     mutationFn: (Status: string) => updateAnnualCompetitionEvent(EventId, { status: Status }),
     onSuccess: (Updated) => {
-      SetLastMessage(`Event status set to ${Updated.status}.`);
+      SetLastMessage(`Event status set to ${EventStatusLabel(Updated.status)}.${NotifiedSentence(Updated.studentsNotified)}`);
       InvalidateOverview();
       InvalidateEventsList();
     },
@@ -486,7 +555,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     mutationFn: () =>
       runAnnualCompetitionAssignments(EventId, SelectedStudentIdsForRun.size > 0 ? Array.from(SelectedStudentIdsForRun) : undefined),
     onSuccess: (Result) => {
-      SetLastMessage(`Assignment engine run: ${Result.created} created, ${Result.updated} updated, ${Result.skippedAdminOverrides} admin overrides preserved, ${Result.noRuleMatched} not matched.`);
+      SetLastMessage(AssignmentRunMessage(Result));
       InvalidatePreview();
     },
   });
@@ -525,8 +594,10 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const RowOverrideMutation = useMutation({
     mutationFn: (Vars: { StudentId: string; LevelCode: string }) =>
       overrideAnnualCompetitionAssignment(EventId, { studentId: Vars.StudentId, assignedLevelCode: Vars.LevelCode }),
-    onSuccess: (_Result, Vars) => {
-      SetLastMessage(`Assignment overridden for student ${Vars.StudentId}.`);
+    onSuccess: (Result, Vars) => {
+      SetLastMessage(
+        `${Result.studentName || Result.studentCode || "Student"} is now set to ${FormatCompetitionLevelLabel(Result.assignedLevelCode)}.${NotifiedSentence(Result.studentsNotified)}`
+      );
       SetRowOverrideLevelByStudentId((Prev) => {
         const Next = { ...Prev };
         delete Next[Vars.StudentId];
@@ -552,8 +623,8 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     onSuccess: (Result) => {
       SetLastMessage(
         Result.studentsFailed > 0
-          ? `Set ${FormatCompetitionLevelLabel(Result.assignedLevelCode)} for ${Result.studentsSucceeded} of ${Result.studentsRequested} selected students — ${Result.studentsFailed} failed (${Result.failed.map((F) => F.studentIdentifier).join(", ")}).`
-          : `Set ${FormatCompetitionLevelLabel(Result.assignedLevelCode)} for all ${Result.studentsSucceeded} selected students.`
+          ? `Set ${FormatCompetitionLevelLabel(Result.assignedLevelCode)} for ${Result.studentsSucceeded} of ${Result.studentsRequested} selected students. ${Result.studentsFailed} failed (${Result.failed.map((F) => F.studentIdentifier).join(", ")}).${NotifiedSentence(Result.studentsNotified)}`
+          : `Set ${FormatCompetitionLevelLabel(Result.assignedLevelCode)} for all ${Result.studentsSucceeded} selected students.${NotifiedSentence(Result.studentsNotified)}`
       );
       SetSelectedStudentIdsForRun(new Set());
       InvalidatePreview();
@@ -1482,7 +1553,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
         {ActiveTab === "ASSIGNMENTS" && (
           <div className="space-y-6">
             <div className="math-card p-5">
-              <SectionTitle icon={<ClipboardList size={14} />} kicker="Assignment Engine" title="Preview &amp; Run" description="Preview never writes anything — review the computed mapping before committing. Re-running never overwrites a row already marked ADMIN_OVERRIDE." />
+              <SectionTitle icon={<ClipboardList size={14} />} kicker="Assignment Engine" title="Preview &amp; Run" description="Preview changes nothing. A run assigns or updates only levels the engine set itself; it never changes a level an admin has set." />
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
@@ -1556,10 +1627,11 @@ export default function AdminAnnualCompetitionEventDetailPage() {
 
               {PreviewQuery.data && (
                 <div className="mt-4 flex flex-wrap gap-4 text-xs font-black text-slate-600 dark:text-slate-300">
-                  <span>{PreviewQuery.data.totalStudentsConsidered} considered</span>
-                  <span className="text-emerald-600 dark:text-emerald-300">{PreviewQuery.data.wouldAssignCount} would assign</span>
-                  <span className="text-amber-600 dark:text-amber-300">{PreviewQuery.data.noRuleMatchedCount} no rule matched</span>
-                  <span className="text-slate-500">{PreviewQuery.data.adminOverridePreservedCount} overrides preserved</span>
+                  <span>{PreviewQuery.data.totalStudentsConsidered} {Plural(PreviewQuery.data.totalStudentsConsidered, "student", "students")}</span>
+                  <span className="text-emerald-600 dark:text-emerald-300">{PreviewQuery.data.studentsWithLevelCount} {Plural(PreviewQuery.data.studentsWithLevelCount, "has", "have")} a level</span>
+                  {/* Amber only when somebody really has no level, so a warning colour always means "something to do". */}
+                  <span className={PreviewQuery.data.studentsWithoutLevelCount > 0 ? "text-amber-600 dark:text-amber-300" : "text-slate-500"}>{PreviewQuery.data.studentsWithoutLevelCount} without a level</span>
+                  <span className="text-slate-500">a run would change {PreviewQuery.data.wouldAssignCount}</span>
                   {SelectedStudentIdsForRun.size > 0 && (
                     <span className="text-[color:var(--mp-role-primary)]">{SelectedStudentIdsForRun.size} selected for next run</span>
                   )}
@@ -1648,8 +1720,8 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                         </th>
                         <th className="px-2 py-1.5">Student</th>
                         <th className="px-2 py-1.5">Current Level</th>
-                        <th className="px-2 py-1.5">Computed Level</th>
-                        <th className="px-2 py-1.5">Existing</th>
+                        <th className="whitespace-nowrap px-2 py-1.5">Engine Suggestion</th>
+                        <th className="whitespace-nowrap px-2 py-1.5">Assigned Level</th>
                         <th className="px-2 py-1.5">Status</th>
                         <th className="px-2 py-1.5">Set Level</th>
                       </tr>
@@ -1696,16 +1768,24 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                 <ShieldAlert size={12} className="ml-1.5 inline text-amber-500" aria-label="No paper registry entry yet" />
                               )}
                             </td>
-                            <td className="px-2 py-2">{Row.existingAssignedLevelCode ? FormatCompetitionLevelLabel(Row.existingAssignedLevelCode) : "--"} {Row.existingAssignmentSource === "ADMIN_OVERRIDE" && <span className="text-slate-400">(override)</span>}</td>
+                            <td className="px-2 py-2">{Row.existingAssignedLevelCode ? FormatCompetitionLevelLabel(Row.existingAssignedLevelCode) : "--"} {Row.existingAssignmentSource === "ADMIN_OVERRIDE" && <span className="text-slate-400">(set by admin)</span>}</td>
                             <td className="px-2 py-2">
-                              {Row.noRuleMatched ? (
-                                <span className="text-amber-600 dark:text-amber-300">{Row.reason}</span>
-                              ) : Row.wouldOverwriteAdminOverride ? (
-                                <span className="text-slate-400">preserved</span>
+                              {/* What matters first is whether the student HAS a level.
+                                  A level set by an admin is kept whether or not the
+                                  engine has a rule for the student, so it is never
+                                  shown as a warning. Amber is only for a student
+                                  who really has no level yet. */}
+                              {Row.existingAssignmentSource === "ADMIN_OVERRIDE" ? (
+                                <span className="text-slate-500 dark:text-slate-400">Set by admin, kept</span>
+                              ) : Row.noRuleMatched && !Row.existingAssignedLevelCode ? (
+                                <span className="text-amber-600 dark:text-amber-300">
+                                  <span className="block whitespace-nowrap">No level yet: set by hand</span>
+                                  <span className="block whitespace-nowrap text-[11px] font-semibold opacity-90">{NoRuleReasonText(Row.reason)}</span>
+                                </span>
                               ) : Row.wouldChangeOnRun ? (
-                                <span className="text-emerald-600 dark:text-emerald-300">would assign</span>
+                                <span className="text-emerald-600 dark:text-emerald-300">{Row.existingAssignedLevelCode ? "Will change on run" : "Will be assigned on run"}</span>
                               ) : (
-                                <span className="text-slate-400">no change</span>
+                                <span className="text-slate-500 dark:text-slate-400">Already assigned</span>
                               )}
                             </td>
                             <td className="px-2 py-2" onClick={(EventValue) => EventValue.stopPropagation()}>

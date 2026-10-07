@@ -610,6 +610,31 @@ function AnnualCompetitionContent() {
     }, 100);
   }, [DeepLinkLevelCode, scopesQuery.data]);
 
+  // 2026-10-07 (Shailesh, official-paper notification: "the redirection
+  // should be accurate"). The tab used to be read from the link once, when
+  // the page first loaded, so a student ALREADY on this page (say, on the
+  // Practice tab) who clicked the notification stayed where they were. The
+  // link is now followed every time it changes: `focus` is a fresh value on
+  // each notification click (NotificationsBell.tsx). Landing on Official
+  // also re-reads the assignments, so a paper assigned a moment ago is on
+  // the page the student arrives at, and the page starts from the top.
+  const DeepLinkFocus = SearchParams.get("focus");
+  const LastDeepLinkFocusRef = useRef(DeepLinkFocus);
+  const RefetchAssignmentsRef = useRef(query.refetch);
+  RefetchAssignmentsRef.current = query.refetch;
+  useEffect(() => {
+    if (DeepLinkTab === "OFFICIAL") SetActiveTab("OFFICIAL");
+    else if (DeepLinkTab === "PRACTICE") SetActiveTab("PRACTICE");
+    // Only for a click made while this page is already open: the first load
+    // fetches the assignments by itself.
+    if (DeepLinkFocus === LastDeepLinkFocusRef.current) return;
+    LastDeepLinkFocusRef.current = DeepLinkFocus;
+    if (DeepLinkTab === "OFFICIAL") {
+      void RefetchAssignmentsRef.current({ cancelRefetch: false });
+      window.scrollTo({ top: 0 });
+    }
+  }, [DeepLinkTab, DeepLinkFocus]);
+
   if (!ready) return null;
 
   if (query.isLoading) {

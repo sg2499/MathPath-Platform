@@ -63,6 +63,7 @@ function NormalizeTone(Notification: NotificationRecord): NotificationTone {
   if (Color === "BLUE" || Category === "PRACTICE") return "blue";
   if (Category === "COMPETITION_MOCK") return "indigo";
   if (Category === "ANNUAL_COMPETITION_PRACTICE") return "teal";
+  if (Category === "ANNUAL_COMPETITION_OFFICIAL") return "indigo";
   return "gray";
 }
 
@@ -108,6 +109,8 @@ function IconFor(Notification: NotificationRecord) {
     return <Target size={16} />;
   if (Category === "ANNUAL_COMPETITION_PRACTICE")
     return <Repeat size={16} />;
+  if (Category === "ANNUAL_COMPETITION_OFFICIAL")
+    return <Trophy size={16} />;
   return <Sparkles size={16} />;
 }
 
@@ -233,6 +236,15 @@ function IsCompetitionMockNotification(Notification: NotificationRecord) {
 // own ANNUAL_PRACTICE_* type strings.
 function IsAnnualCompetitionPracticeNotification(Notification: NotificationRecord) {
   return NotificationText(Notification).Category === "ANNUAL_COMPETITION_PRACTICE";
+}
+
+// 2026-10-07 (Shailesh): "your official Annual Competition paper is assigned"
+// (and "your level has changed"). Category is the sole signal, and it is
+// checked FIRST in the student block below, so none of the broader
+// title/type matchers (its title contains "ASSIGNED") can send it anywhere
+// but the Official tab of the student's Annual Competition page.
+function IsAnnualCompetitionOfficialNotification(Notification: NotificationRecord) {
+  return NotificationText(Notification).Category === "ANNUAL_COMPETITION_OFFICIAL";
 }
 
 function IsMockNotification(Notification: NotificationRecord) {
@@ -542,6 +554,16 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   }
 
   if (Role === "student") {
+    if (IsAnnualCompetitionOfficialNotification(Notification)) {
+      // Always the Official tab, where the student's paper card (level, slot,
+      // Instructions button) is. Fixed here rather than read from the stored
+      // route so the landing place can never drift.
+      // `focus` is a fresh value on every click, so the link is never
+      // identical to the page the student is already on: a student sitting
+      // on this very page with the Practice tab open is still switched to
+      // Official (the page watches this value).
+      return { Route: `/student/competition/annual?focus=${Date.now()}`, TargetTab: "OFFICIAL", TargetSubTab: "" };
+    }
     if (IsLeaderboardRankNotification(Notification)) {
       // Rank-change / podium notification (2026-09-01) -- target_route is
       // always fully built server-side (the exact leaderboard page, tab,

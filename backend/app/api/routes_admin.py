@@ -6089,6 +6089,7 @@ def admin_update_annual_competition_event(
         Status=payload.status,
         CompetitionDate=payload.competitionDate,
         ResultsReleaseAt=ResultsReleaseAtValue,
+        UpdatedBy=user,
     )
 
 

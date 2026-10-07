@@ -119,6 +119,9 @@ from app.models import (
     Student,
     User,
 )
+from app.services.annual_competition_official_notification_service import (
+    SendAnnualCompetitionOfficialAssignmentNotifications,
+)
 from app.services.annual_competition_studio_service import _ResolveSlotIdForLevelCode
 from app.services.lesson_progress_service import (
     ComputeLessonProgressForStudents,
@@ -675,6 +678,10 @@ def PreviewAnnualCompetitionAssignments(
         "eventName": EventRecord.name,
         "totalStudentsConsidered": len(Rows),
         "wouldAssignCount": sum(1 for Row in Rows if Row["wouldChangeOnRun"]),
+        # 2026-10-07: who has a level right now / who does not -- the two
+        # numbers the count line under the buttons leads with.
+        "studentsWithLevelCount": sum(1 for Row in Rows if Row["existingAssignedLevelCode"]),
+        "studentsWithoutLevelCount": sum(1 for Row in Rows if not Row["existingAssignedLevelCode"]),
         "noRuleMatchedCount": sum(1 for Row in Rows if Row["noRuleMatched"]),
         "adminOverridePreservedCount": sum(1 for Row in Rows if Row["wouldOverwriteAdminOverride"]),
         "rows": Rows,
@@ -750,6 +757,37 @@ def RunAnnualCompetitionAssignmentEngine(
 
     db.commit()
 
+    ConsideredStudentIds = [Computation.student_id for Computation in Computations]
+
+    # 2026-10-07 (Shailesh, official-paper notifications): every considered
+    # student who has a level and has not been told about it yet is notified
+    # here -- not only the rows this run just wrote. That is what makes "the
+    # engine was run, so everyone assigned is notified" true even for a
+    # student whose level was set by hand (the engine never touches that
+    # row) and for rows written before this feature existed. Sends nothing
+    # while the event is DRAFT.
+    NotifiedCount = SendAnnualCompetitionOfficialAssignmentNotifications(
+        db, EventId=EventId, StudentIds=ConsideredStudentIds, ActorUserId=RunBy.id if RunBy else None
+    )
+
+    # 2026-10-07 (Shailesh): "it should never mislead the admin." The four
+    # engine counters alone read as if students were left unassigned when
+    # they were not (a hand-set level the engine has no rule for showed up
+    # only as "not matched"). These three say what the admin actually wants
+    # to know after a run: who has a level now, and who still does not.
+    AssignedRows = (
+        db.query(CompetitionEventAssignment)
+        .filter(
+            CompetitionEventAssignment.event_id == EventId,
+            CompetitionEventAssignment.student_id.in_(ConsideredStudentIds),
+            CompetitionEventAssignment.is_active == True,  # noqa: E712
+        )
+        .all()
+        if ConsideredStudentIds
+        else []
+    )
+    StudentsWithLevel = len({Row.student_id for Row in AssignedRows})
+
     return {
         "eventId": EventId,
         "totalConsidered": len(Computations),
@@ -757,4 +795,8 @@ def RunAnnualCompetitionAssignmentEngine(
         "updated": UpdatedCount,
         "skippedAdminOverrides": SkippedOverrideCount,
         "noRuleMatched": len(Computations) - len(Actionable),
+        "studentsWithLevel": StudentsWithLevel,
+        "studentsWithoutLevel": len(Computations) - StudentsWithLevel,
+        "adminSetLevelsKept": sum(1 for Row in AssignedRows if Row.assignment_source == "ADMIN_OVERRIDE"),
+        "studentsNotified": NotifiedCount,
     }
