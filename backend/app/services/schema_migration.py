@@ -1408,6 +1408,23 @@ def ensure_annual_competition_practice_bank_columns() -> None:
             if "notified_at" not in existing:
                 connection.execute(text("ALTER TABLE competition_event_assignments ADD COLUMN notified_at TIMESTAMP"))
 
+    # 2026-10-07 (section screens): the two flags behind the screen shown
+    # before each section. Nullable, no default, no backfill: an existing
+    # row reads as "no screen", which is exactly how it behaved before.
+    # IF NOT EXISTS (Postgres): both backend workers run this at boot, and
+    # the slower one must not fail on a column the other has just added.
+    if_not_exists = "" if is_sqlite else "IF NOT EXISTS "
+    if "competition_event_attempts" in tables:
+        existing = {column["name"] for column in inspector.get_columns("competition_event_attempts")}
+        if "section_briefing_enabled" not in existing:
+            with engine.begin() as connection:
+                connection.execute(text(f"ALTER TABLE competition_event_attempts ADD COLUMN {if_not_exists}section_briefing_enabled BOOLEAN"))
+    if "competition_event_attempt_section_states" in tables:
+        existing = {column["name"] for column in inspector.get_columns("competition_event_attempt_section_states")}
+        if "briefing_pending" not in existing:
+            with engine.begin() as connection:
+                connection.execute(text(f"ALTER TABLE competition_event_attempt_section_states ADD COLUMN {if_not_exists}briefing_pending BOOLEAN"))
+
     if "competition_event_level_papers" in tables:
         existing = {column["name"] for column in inspector.get_columns("competition_event_level_papers")}
         with engine.begin() as connection:

@@ -589,6 +589,12 @@ export type AnnualCompetitionSectionState = {
   remainingSeconds: number | null;
   startedAt: string | null;
   submittedAt: string | null;
+  // True while this ACTIVE section is still behind its "coming up" screen:
+  // its clock is not running and its questions have not been sent
+  // (2026-10-07, section screens).
+  briefingPending?: boolean;
+  // Sent on the full attempt read (page load, begin-section reply).
+  questionCount?: number;
 };
 
 // Point 8 (2026-09-08): typed free-text answer (DPS-style), not MCQ --
@@ -634,14 +640,41 @@ export type AnnualCompetitionAttempt = {
   // Only present while status is IN_PROGRESS -- the currently-active
   // section's questions/options/saved-answers.
   activeSectionQuestions?: AnnualCompetitionQuestion[];
+  // How long the screen before a section counts down before it starts the
+  // section by itself (2026-10-07, section screens).
+  sectionBriefingSeconds?: number;
 
   // Only on the reply to saving an answer (lean since 2026-10-07): exactly
   // what the server stored for that one question.
   savedAnswer?: { questionId: string; savedAnswerText: string };
 };
 
+// 2026-10-07 (section screens): every Start/Resume from this build of the
+// app tells the server that the paper page can show the screen before each
+// section. The server then holds a newly started section (clock not
+// running, questions not sent) until beginAnnualCompetitionSection. A page
+// from before this build never sends the flag, and nothing changes for it.
+const SUPPORTS_SECTION_BRIEFING = true;
+
 export async function startAnnualCompetitionAttempt(eventId: string): Promise<AnnualCompetitionAttempt> {
-  const { data } = await api.post<AnnualCompetitionAttempt>("/student/annual-competition/attempts/start", { eventId });
+  const { data } = await api.post<AnnualCompetitionAttempt>("/student/annual-competition/attempts/start", {
+    eventId,
+    supportsSectionBriefing: SUPPORTS_SECTION_BRIEFING,
+  });
+  return data;
+}
+
+// The student pressed Start Section on the screen before a section, or its
+// countdown ran out: the section's clock runs from now. The reply is the
+// full attempt with that section's questions. Safe to call again after a
+// lost reply. A short limit of its own so a stalled call can be retried.
+export async function beginAnnualCompetitionSection(
+  attemptId: string,
+  payload: { sessionToken: string; sectionNumber: number }
+): Promise<AnnualCompetitionAttempt> {
+  const { data } = await api.post<AnnualCompetitionAttempt>(`/student/annual-competition/attempts/${attemptId}/sections/begin`, payload, {
+    timeout: 12000,
+  });
   return data;
 }
 
@@ -768,6 +801,7 @@ export async function getMyAnnualCompetitionPracticeScopes(): Promise<AnnualComp
 export async function startAnnualCompetitionPracticeAttempt(competitionLevelCode: string): Promise<AnnualCompetitionAttempt> {
   const { data } = await api.post<AnnualCompetitionAttempt>("/student/annual-competition/practice/attempts/start", {
     competitionLevelCode,
+    supportsSectionBriefing: SUPPORTS_SECTION_BRIEFING,
   });
   return data;
 }

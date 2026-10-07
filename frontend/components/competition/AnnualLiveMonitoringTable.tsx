@@ -29,6 +29,9 @@ export type AnnualLiveMonitoringRow = {
   totalSectionCount: number | null;
   totalRemainingSecondsAtLastHeartbeat: number | null;
   heartbeatGapMilliseconds: number | null;
+  // True while the student is on the screen shown before a section: their
+  // clock is not running (2026-10-07, section screens).
+  clockHeld?: boolean;
 };
 
 const LiveStatusTone: Record<AnnualLiveMonitoringRow["liveStatus"], string> = {
@@ -103,6 +106,23 @@ function RemainingCell({
   // answer arrived, it was already this old". No reliance on the admin's
   // clock agreeing with the server's.
   const HeartbeatAtMs = FetchedAtMs - Row.heartbeatGapMilliseconds;
+
+  // On the screen before a section the student's clock is not running at
+  // all: show what is left and hold it still, instead of ticking it down
+  // and jumping back up at every refresh.
+  if (Row.clockHeld) {
+    EndAtRef.current = null;
+    const Away = NowMs >= HeartbeatAtMs + GraceSeconds * 1000;
+    return (
+      <span
+        className={Away ? "text-rose-600 dark:text-rose-300" : "text-slate-900 dark:text-white"}
+        title={Away ? "Paused: no signal from this student's device" : "Between sections: the clock starts when the student starts the next section"}
+      >
+        {FormatMinSec(Math.max(0, Row.totalRemainingSecondsAtLastHeartbeat))}
+      </span>
+    );
+  }
+
   const FreshEndAtMs = HeartbeatAtMs + Row.totalRemainingSecondsAtLastHeartbeat * 1000;
   if (EndAtRef.current == null || Math.abs(EndAtRef.current - FreshEndAtMs) > END_TIME_TOLERANCE_MS) {
     EndAtRef.current = FreshEndAtMs;

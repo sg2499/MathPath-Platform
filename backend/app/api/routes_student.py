@@ -39,6 +39,7 @@ from app.services.annual_competition_attempt_service import (
     GetCompetitionEventAttemptForStudent,
     RecordCompetitionEventHeartbeat,
     SubmitCompetitionEventSection,
+    BeginCompetitionEventSection,
     SaveCompetitionEventAnswer,
     ListMyAnnualCompetitionAssignments,
     GetCompetitionEventInstructions,
@@ -121,6 +122,10 @@ class SubmitCompetitionMockRequest(BaseModel):
 
 class StartAnnualCompetitionAttemptRequest(BaseModel):
     eventId: str
+    # 2026-10-07 (section screens): sent as true by a paper page that can
+    # show the screen before each section. Absent/false from an older cached
+    # page, for which sections follow one another immediately as before.
+    supportsSectionBriefing: bool = False
 
 
 class StartAnnualCompetitionPracticeAttemptRequest(BaseModel):
@@ -128,6 +133,7 @@ class StartAnnualCompetitionPracticeAttemptRequest(BaseModel):
     # related to any event whatsoever" -- eventId dropped, practice is
     # scoped purely by competition level now.
     competitionLevelCode: str
+    supportsSectionBriefing: bool = False  # see StartAnnualCompetitionAttemptRequest
 
 
 class AnnualCompetitionHeartbeatRequest(BaseModel):
@@ -358,7 +364,7 @@ def student_annual_competition_instructions(event_id: str, db: Session = Depends
 def student_start_annual_competition_attempt(
     payload: StartAnnualCompetitionAttemptRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
 ):
-    return StartCompetitionEventAttempt(db, student, payload.eventId)
+    return StartCompetitionEventAttempt(db, student, payload.eventId, SupportsSectionBriefing=payload.supportsSectionBriefing)
 
 
 # --- Annual Competition Practice (Phase D): "Start Next Practice Paper" --
@@ -375,7 +381,9 @@ def student_start_annual_competition_attempt(
 def student_start_annual_competition_practice_attempt(
     payload: StartAnnualCompetitionPracticeAttemptRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
 ):
-    return StartAnnualCompetitionPracticeAttempt(db, student, payload.competitionLevelCode)
+    return StartAnnualCompetitionPracticeAttempt(
+        db, student, payload.competitionLevelCode, SupportsSectionBriefing=payload.supportsSectionBriefing
+    )
 
 
 # 2026-09-14 (Shailesh): "the student must see the instructions page for the
@@ -440,6 +448,16 @@ def student_submit_annual_competition_section(
     attempt_id: str, payload: SubmitAnnualCompetitionSectionRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
 ):
     return SubmitCompetitionEventSection(db, student, attempt_id, payload.sessionToken, payload.sectionNumber)
+
+
+# 2026-10-07 (section screens): the student pressed Start Section on the
+# screen shown before a section (or its countdown ran out). Same body as a
+# heartbeat. See BeginCompetitionEventSection.
+@router.post("/annual-competition/attempts/{attempt_id}/sections/begin")
+def student_begin_annual_competition_section(
+    attempt_id: str, payload: AnnualCompetitionHeartbeatRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)
+):
+    return BeginCompetitionEventSection(db, student, attempt_id, payload.sessionToken, payload.sectionNumber)
 
 
 @router.post("/annual-competition/attempts/{attempt_id}/answers")
