@@ -95,6 +95,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
 from app.services.annual_competition_attempt_service import _ReconcileSingleAttemptIfAbandoned
+from app.services.annual_competition_retired_sections import RetiredSectionNumbersForLevelPaper
 from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals, RoundPercentageForDisplay
 from app.models import (
     CompetitionEvent,
@@ -158,6 +159,17 @@ def _RawMetricsForAttempt(db: Session, AttemptRecord: CompetitionEventAttempt) -
     # for per-section time, instead of calling _AllSectionStatesOrdered
     # twice.
     SectionStates = _AllSectionStatesOrdered(db, AttemptRecord)
+    # 2026-10-07 (Shailesh, IM-3's removed Squares section): "remove the
+    # scores obtained from the section which was removed ... recompute the
+    # stats there out of 300 only so everything is consistent". A retired
+    # section is dropped right here, from the one attempt-scoped section
+    # list everything below is built from -- so the score, the total, the
+    # percentage, the accuracy, every count, the time taken and both
+    # per-section breakdowns all leave it out together, and can never
+    # disagree with each other. See annual_competition_retired_sections.py.
+    RetiredSectionNumbers = RetiredSectionNumbersForLevelPaper(db, LevelPaperRecord)
+    if RetiredSectionNumbers:
+        SectionStates = [SectionState for SectionState in SectionStates if SectionState.section_number not in RetiredSectionNumbers]
     AttemptSectionNumbers = {SectionState.section_number for SectionState in SectionStates}
     QuestionRecords = (
         db.query(CompetitionMockQuestion)
@@ -498,6 +510,53 @@ def RecomputeAnnualCompetitionResults(db: Session, *, EventId: str | None = None
 
     db.commit()
     return {"eventId": EventId, "competitionLevelCode": CompetitionLevelCode, "recomputedCount": RecomputedCount}
+
+
+def RetiredSectionRecomputeFor(db: Session, ResultRecord: CompetitionEventResult) -> dict[str, Any] | None:
+    """2026-10-07 (Shailesh, IM-3's removed Squares section): does this
+    stored result still count a retired section? Pure read, no writes.
+
+    Returns None when there is nothing to do -- the attempt's paper has no
+    retired section, or the stored result already leaves it out. Otherwise
+    {"attempt", "before", "after"}: the attempt record, the numbers stored
+    today and the numbers the same attempt scores on its remaining sections
+    (what ComputeAndFinalizeCompetitionEventResult would store). Used by
+    scripts/backfill_annual_competition_question_rules.py both to preview
+    and to decide which results to recompute, so running it twice finds
+    nothing the second time.
+    """
+    AttemptRecord = db.get(CompetitionEventAttempt, ResultRecord.attempt_id)
+    if not AttemptRecord:
+        return None
+    LevelPaperRecord = db.get(CompetitionEventLevelPaper, AttemptRecord.level_paper_id)
+    RetiredSectionNumbers = RetiredSectionNumbersForLevelPaper(db, LevelPaperRecord)
+    if not RetiredSectionNumbers:
+        return None
+    Metrics = _RawMetricsForAttempt(db, AttemptRecord)
+    StoredSectionNumbers: set[int] = set()
+    for RawJson in (ResultRecord.per_section_score_json, ResultRecord.per_section_time_json):
+        try:
+            Entries = json.loads(RawJson or "[]")
+        except (TypeError, ValueError):
+            Entries = []
+        for Entry in Entries if isinstance(Entries, list) else []:
+            if isinstance(Entry, dict) and Entry.get("sectionNumber") is not None:
+                StoredSectionNumbers.add(int(Entry["sectionNumber"]))
+    Before = {
+        "score": float(ResultRecord.score or 0), "maxScore": float(ResultRecord.max_score or 0),
+        "correctCount": int(ResultRecord.correct_count or 0), "wrongCount": int(ResultRecord.wrong_count or 0),
+        "unansweredCount": int(ResultRecord.unanswered_count or 0),
+        "timeTakenSeconds": int(ResultRecord.time_taken_seconds or 0),
+    }
+    After = {
+        "score": float(Metrics["score"]), "maxScore": float(Metrics["maxScore"]),
+        "correctCount": int(Metrics["correctCount"]), "wrongCount": int(Metrics["wrongCount"]),
+        "unansweredCount": int(Metrics["unansweredCount"]),
+        "timeTakenSeconds": int(Metrics["timeTakenSeconds"]),
+    }
+    if Before == After and not (StoredSectionNumbers & RetiredSectionNumbers):
+        return None
+    return {"attempt": AttemptRecord, "before": Before, "after": After}
 
 
 def RecomputeAnnualCompetitionPracticeResults(db: Session, *, CompetitionLevelCode: str | None = None) -> dict[str, Any]:

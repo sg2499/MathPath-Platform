@@ -115,6 +115,13 @@ from app.services.annual_competition_question_rules import (
 # have much larger achievable domains), so this only spends extra work on
 # the rare slots that actually need it.
 ANNUAL_COMPETITION_SLOT_MAX_RETRIES = 50
+# The question rules a paper was generated under, stamped into every paper's
+# generation_config_json as "questionRulesVersion". A stored paper without
+# this exact value predates today's rules -- that is how the backfill
+# (scripts/backfill_annual_competition_question_rules.py) tells an old paper
+# from a current one without re-checking every sum. Move it forward whenever
+# the rules a paper must follow change.
+ANNUAL_COMPETITION_QUESTION_RULES_VERSION = "2026-10-07"
 # 2026-10-07: a section marked strictQuotas never lets one pattern borrow
 # another pattern's questions (see the collector below), so a slot's own
 # pattern gets a far deeper retry budget instead. The extra retries are
@@ -726,6 +733,46 @@ def _StoreAnnualCompetitionQuestion(
     return QuestionRecord
 
 
+def _AnnualPaperFacts(LevelCode: str, Sections: list[dict[str, Any]], PaperSeed: str, ActualQuestionCount: int) -> dict[str, Any]:
+    """Everything a paper's own exam record says about itself -- question
+    total, marks, duration, the one-line description, the section list and
+    the generation record. Built in one place so a freshly generated paper
+    and a paper rebuilt in place (RebuildAnnualCompetitionPaperContent
+    below) can never describe themselves differently."""
+    TotalDurationSeconds = sum(int(Section["timeLimitSeconds"]) for Section in Sections)
+    return {
+        "total_questions": ActualQuestionCount,
+        "total_marks": ActualQuestionCount * ANNUAL_COMPETITION_MARKS_PER_QUESTION,
+        "duration_seconds": TotalDurationSeconds,
+        "instructions": f"{LevelCode} Annual Competition — {len(Sections)} section(s), {ActualQuestionCount} questions, {TotalDurationSeconds // 60} minutes total. 1 mark per correct answer, no negative marking.",
+        "syllabus_coverage_json": json.dumps({
+            "engine": "ANNUAL_COMPETITION_PAPER_GENERATOR",
+            "sections": [{"number": Section["number"], "title": Section["title"], "mode": Section.get("mode"), "questionCount": Section["questionCount"], "timeLimitSeconds": Section["timeLimitSeconds"]} for Section in Sections],
+        }),
+        "generation_config_json": json.dumps({
+            "engine": "ANNUAL_COMPETITION_PAPER_GENERATOR",
+            "levelCode": LevelCode,
+            "paperSeed": PaperSeed,
+            "requestedQuestionCount": sum(int(Section["questionCount"]) for Section in Sections),
+            "actualQuestionCount": ActualQuestionCount,
+            "questionRulesVersion": ANNUAL_COMPETITION_QUESTION_RULES_VERSION,
+        }),
+    }
+
+
+def AnnualPaperQuestionRulesVersion(ExamRecord: CompetitionMockExam | None) -> str | None:
+    """The question rules a stored paper was generated under, or None for a
+    paper from before the rules were versioned."""
+    if ExamRecord is None:
+        return None
+    try:
+        Config = json.loads(ExamRecord.generation_config_json or "{}")
+    except (TypeError, ValueError):
+        return None
+    Version = Config.get("questionRulesVersion") if isinstance(Config, dict) else None
+    return str(Version) if Version else None
+
+
 def GenerateAnnualCompetitionLevelPaper(
     db: Session,
     *,
@@ -789,7 +836,7 @@ def GenerateAnnualCompetitionLevelPaper(
     if ActualQuestionCount <= 0:
         api_error(400, "ANNUAL_COMPETITION_GENERATION_EMPTY", f"No questions could be generated for {LevelCode}'s Annual Competition paper.")
 
-    TotalDurationSeconds = sum(int(Section["timeLimitSeconds"]) for Section in Sections)
+    PaperFacts = _AnnualPaperFacts(LevelCode, Sections, PaperSeed, ActualQuestionCount)
     DisplayMockCode = MockCode or f"ANNUAL-{LevelCode}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:6].upper()}"
     MockTitle = Title or f"{LevelCode} Annual Competition Paper {datetime.now(timezone.utc).strftime('%d %b %Y %H:%M')}"
 
@@ -800,23 +847,14 @@ def GenerateAnnualCompetitionLevelPaper(
         level_id=LevelRecord.id,
         competition_scope=CompetitionScope,
         difficulty_band=DEFAULT_ANNUAL_COMPETITION_DIFFICULTY_BAND,
-        total_questions=ActualQuestionCount,
-        total_marks=ActualQuestionCount * ANNUAL_COMPETITION_MARKS_PER_QUESTION,
+        total_questions=PaperFacts["total_questions"],
+        total_marks=PaperFacts["total_marks"],
         marks_per_question=ANNUAL_COMPETITION_MARKS_PER_QUESTION,
-        duration_seconds=TotalDurationSeconds,
+        duration_seconds=PaperFacts["duration_seconds"],
         status="DRAFT",
-        instructions=f"{LevelCode} Annual Competition — {len(Sections)} section(s), {ActualQuestionCount} questions, {TotalDurationSeconds // 60} minutes total. 1 mark per correct answer, no negative marking.",
-        syllabus_coverage_json=json.dumps({
-            "engine": "ANNUAL_COMPETITION_PAPER_GENERATOR",
-            "sections": [{"number": Section["number"], "title": Section["title"], "mode": Section.get("mode"), "questionCount": Section["questionCount"], "timeLimitSeconds": Section["timeLimitSeconds"]} for Section in Sections],
-        }),
-        generation_config_json=json.dumps({
-            "engine": "ANNUAL_COMPETITION_PAPER_GENERATOR",
-            "levelCode": LevelCode,
-            "paperSeed": PaperSeed,
-            "requestedQuestionCount": sum(int(Section["questionCount"]) for Section in Sections),
-            "actualQuestionCount": ActualQuestionCount,
-        }),
+        instructions=PaperFacts["instructions"],
+        syllabus_coverage_json=PaperFacts["syllabus_coverage_json"],
+        generation_config_json=PaperFacts["generation_config_json"],
         created_by_user_id=CreatedBy.id if CreatedBy else None,
         is_active=True,
     )
@@ -953,3 +991,89 @@ def RebuildAnnualCompetitionMultiplyDivideSections(
             )
     db.flush()
     return {"status": "REBUILT", "sections": Report, "rebuiltSectionNumbers": [int(Section["number"]) for Section in SectionsToRebuild]}
+
+
+# ---------------------------------------------------------------------------
+# Backfill support (2026-10-07): bring an ALREADY STORED paper wholly onto
+# today's question rules.
+#
+# Shailesh: "once done we will need to backfill the assigned but pending
+# practice papers and after it is applied then official and practice papers
+# generated after that will obviously follow the new rules and conventions."
+#
+# The 2026-10-07 rules change what whole sections look like (new sum shapes,
+# mixed order, exact shares) and remove a section outright from IM-3, so --
+# unlike the multiplication / division rebuild above, which swaps single
+# sections -- this replaces the paper's entire content with a freshly
+# generated paper of its level. The paper keeps its own exam record (same
+# id, same code, same title), so the practice-bank entry that points at it,
+# its "Practice Paper N" number and its assignment date are untouched; only
+# the questions inside, and what the exam record says about them, change.
+#
+# Like the rebuild above it never decides WHICH papers qualify and never
+# commits -- it flushes, and the caller owns the transaction, one paper at a
+# time (RebuildUnopenedPracticePaperToCurrentRules in
+# annual_competition_studio_service.py, which is also what puts the section
+# timers right).
+# ---------------------------------------------------------------------------
+def RebuildAnnualCompetitionPaperContent(db: Session, *, MockExamId: str, CompetitionLevelCode: str) -> dict[str, Any]:
+    """Replace every question of one stored Annual Competition paper with a
+    freshly generated paper of its level, and bring the exam record's own
+    totals and description in line. Flushes; does not commit.
+
+    Returns {"questionsBefore", "questionsAfter", "sectionsBefore",
+    "sectionsAfter", "paperSeed"}.
+    """
+    LevelConfig = GetAnnualCompetitionLevelConfig(CompetitionLevelCode)
+    if not LevelConfig:
+        api_error(400, "ANNUAL_COMPETITION_LEVEL_NOT_CONFIGURED", f"'{CompetitionLevelCode}' has no Annual Competition paper spec configured yet.")
+    ExamRecord = db.get(CompetitionMockExam, MockExamId)
+    if not ExamRecord:
+        api_error(404, "ANNUAL_COMPETITION_PAPER_NOT_FOUND", "This paper's content could not be found.")
+
+    Sections = LevelConfig["sections"]
+    PaperSeed = uuid4().hex
+    # Generated in full BEFORE anything stored is touched: if generation
+    # fails, the paper is exactly as it was.
+    NewQuestions = _CollectAnnualCompetitionQuestions(CompetitionLevelCode, Sections, LevelConfig["sectionConceptPools"], PaperSeed)
+    ExpectedCount = sum(int(Section["questionCount"]) for Section in Sections)
+    if len(NewQuestions) != ExpectedCount:
+        api_error(
+            500,
+            "ANNUAL_COMPETITION_PAPER_REBUILD_COUNT_MISMATCH",
+            f"Generated {len(NewQuestions)} questions for {CompetitionLevelCode}; the level's paper has {ExpectedCount}.",
+        )
+
+    OldRows = (
+        db.query(CompetitionMockQuestion.id, CompetitionMockQuestion.section_number)
+        .filter(CompetitionMockQuestion.mock_exam_id == MockExamId)
+        .all()
+    )
+    OldIds = [Row[0] for Row in OldRows]
+    SectionsBefore = sorted({int(Row[1] or 0) for Row in OldRows})
+    # In slices: a 450-question paper would otherwise put 450 ids in one IN (...).
+    for Start in range(0, len(OldIds), 200):
+        Slice = OldIds[Start:Start + 200]
+        db.query(CompetitionMockQuestionOption).filter(CompetitionMockQuestionOption.mock_question_id.in_(Slice)).delete(synchronize_session=False)
+        db.query(CompetitionMockQuestion).filter(CompetitionMockQuestion.id.in_(Slice)).delete(synchronize_session=False)
+    db.flush()
+
+    for Index, Question in enumerate(NewQuestions, start=1):
+        _StoreAnnualCompetitionQuestion(db, MockExamId=MockExamId, QuestionNumber=Index, Question=Question)
+
+    PaperFacts = _AnnualPaperFacts(CompetitionLevelCode, Sections, PaperSeed, len(NewQuestions))
+    ExamRecord.total_questions = PaperFacts["total_questions"]
+    ExamRecord.total_marks = PaperFacts["total_marks"]
+    ExamRecord.marks_per_question = ANNUAL_COMPETITION_MARKS_PER_QUESTION
+    ExamRecord.duration_seconds = PaperFacts["duration_seconds"]
+    ExamRecord.instructions = PaperFacts["instructions"]
+    ExamRecord.syllabus_coverage_json = PaperFacts["syllabus_coverage_json"]
+    ExamRecord.generation_config_json = PaperFacts["generation_config_json"]
+    db.flush()
+    return {
+        "questionsBefore": len(OldIds),
+        "questionsAfter": len(NewQuestions),
+        "sectionsBefore": SectionsBefore,
+        "sectionsAfter": [int(Section["number"]) for Section in Sections],
+        "paperSeed": PaperSeed,
+    }

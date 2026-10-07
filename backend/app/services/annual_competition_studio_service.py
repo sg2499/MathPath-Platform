@@ -77,7 +77,12 @@ from app.models import (
     Student,
     User,
 )
-from app.services.annual_competition_paper_generation_service import GenerateAnnualCompetitionLevelPaper
+from app.services.annual_competition_paper_generation_service import (
+    ANNUAL_COMPETITION_QUESTION_RULES_VERSION,
+    AnnualPaperQuestionRulesVersion,
+    GenerateAnnualCompetitionLevelPaper,
+    RebuildAnnualCompetitionPaperContent,
+)
 from app.services.annual_competition_paper_registry import ANNUAL_COMPETITION_LEVEL_REGISTRY
 from app.services.annual_competition_official_notification_service import (
     NOTIFIABLE_EVENT_STATUSES,
@@ -1797,6 +1802,100 @@ def GetAnnualCompetitionPracticeBankForStudent(
         "remainingCount": len(Rows) - ConsumedCount,
         "papers": Rows,
     }
+
+
+# ---------------------------------------------------------------------------
+# 2026-10-07 (Shailesh): "once done we will need to backfill the assigned but
+# pending practice papers". One unopened practice paper, brought wholly onto
+# today's question rules, in place.
+#
+# Called one paper at a time by
+# scripts/backfill_annual_competition_question_rules.py, which owns the
+# transaction (commit on REBUILT, rollback otherwise).
+# ---------------------------------------------------------------------------
+def RebuildUnopenedPracticePaperToCurrentRules(db: Session, *, LevelPaperId: str, Apply: bool) -> dict[str, Any]:
+    """Check one practice-bank paper and, with Apply=True, rebuild it under
+    today's question rules. Flushes; never commits.
+
+    Returns {"status": ..., ...} where status is one of
+      NOT_FOUND       no such paper
+      NOT_PRACTICE    not a practice-bank paper -- never touched here
+      OPENED          a student has an attempt on it (any status), or it is
+                      already used -- never touched
+      NO_CONTENT      no paper content is linked to it
+      NOT_CONFIGURED  its level has no Annual Competition paper spec
+      CURRENT         already generated under today's rules -- left alone
+      WOULD_REBUILD   Apply=False and it predates today's rules
+      REBUILT         Apply=True and it was rebuilt (flushed, not committed)
+
+    What a rebuild keeps: the bank entry itself (same id, same student, same
+    assignment date, so the same "Practice Paper N" number) and the paper's
+    own exam record (same id, code and title). What it replaces: every
+    question, and the exam record's totals and description. The section
+    timers are left exactly as they are when the paper's sections have not
+    changed, and put back to the level's defaults when they have (IM-3,
+    which lost its Squares section).
+
+    The bank entry's row is locked first, the same lock a student's "start
+    practice paper" takes (StartAnnualCompetitionPracticeAttempt), so a
+    student can never open a paper while it is being rebuilt, and a paper a
+    student has just opened is seen as OPENED here.
+    """
+    LevelPaperRecord = (
+        db.query(CompetitionEventLevelPaper)
+        .filter(CompetitionEventLevelPaper.id == LevelPaperId)
+        .with_for_update()
+        .populate_existing()
+        .first()
+    )
+    if not LevelPaperRecord:
+        return {"status": "NOT_FOUND"}
+    LevelCode = LevelPaperRecord.competition_level_code
+    if LevelPaperRecord.paper_kind != "PRACTICE":
+        return {"status": "NOT_PRACTICE", "levelCode": LevelCode}
+    HasAnyAttempt = (
+        db.query(CompetitionEventAttempt.id).filter(CompetitionEventAttempt.level_paper_id == LevelPaperRecord.id).first()
+        is not None
+    )
+    if HasAnyAttempt or LevelPaperRecord.consumed_at is not None:
+        return {"status": "OPENED", "levelCode": LevelCode}
+    if not LevelPaperRecord.mock_exam_id:
+        return {"status": "NO_CONTENT", "levelCode": LevelCode}
+    LevelConfig = ANNUAL_COMPETITION_LEVEL_REGISTRY.get(LevelCode)
+    if not LevelConfig:
+        return {"status": "NOT_CONFIGURED", "levelCode": LevelCode}
+
+    ExamRecord = db.get(CompetitionMockExam, LevelPaperRecord.mock_exam_id)
+    if not ExamRecord:
+        return {"status": "NO_CONTENT", "levelCode": LevelCode}
+    StoredVersion = AnnualPaperQuestionRulesVersion(ExamRecord)
+    Timers = (
+        db.query(CompetitionEventSectionTimer)
+        .filter(CompetitionEventSectionTimer.level_paper_id == LevelPaperRecord.id)
+        .all()
+    )
+    TimerSectionNumbers = sorted(int(Timer.section_number) for Timer in Timers)
+    CurrentSectionNumbers = [int(Section["number"]) for Section in LevelConfig["sections"]]
+    Facts = {
+        "levelCode": LevelCode,
+        "questionsBefore": int(ExamRecord.total_questions or 0),
+        "questionsAfter": sum(int(Section["questionCount"]) for Section in LevelConfig["sections"]),
+        "sectionsBefore": TimerSectionNumbers,
+        "sectionsAfter": CurrentSectionNumbers,
+        "rulesVersionBefore": StoredVersion,
+    }
+    if StoredVersion == ANNUAL_COMPETITION_QUESTION_RULES_VERSION:
+        return {"status": "CURRENT", **Facts}
+    if not Apply:
+        return {"status": "WOULD_REBUILD", **Facts}
+
+    Outcome = RebuildAnnualCompetitionPaperContent(db, MockExamId=ExamRecord.id, CompetitionLevelCode=LevelCode)
+    if TimerSectionNumbers != CurrentSectionNumbers:
+        _SeedDefaultSectionTimers(db, LevelPaperRecord)
+        db.flush()  # timer rows must be visible to _RecomputeLevelPaperStatus's query
+    _RecomputeLevelPaperStatus(db, LevelPaperRecord)
+    db.flush()
+    return {"status": "REBUILT", **Facts, "questionsBefore": Outcome["questionsBefore"], "questionsAfter": Outcome["questionsAfter"]}
 
 
 def DeleteAnnualCompetitionPracticeAttempt(db: Session, *, LevelPaperId: str) -> dict[str, Any]:
