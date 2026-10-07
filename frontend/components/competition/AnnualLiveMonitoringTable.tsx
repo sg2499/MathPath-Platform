@@ -143,6 +143,47 @@ function LastSeenCell({ Row, FetchedAtMs, NowMs }: { Row: AnnualLiveMonitoringRo
   return <span>{FormatAgo(Seconds)}</span>;
 }
 
+// 2026-10-07 (Shailesh): "when one slot gets underway for one level the admin
+// can filter that and see the live monitoring for that level." The options
+// are the levels the viewer actually has students in (sent by the server);
+// the choice is applied on the server, so a filtered board only loads that
+// level's students.
+export const ANNUAL_LIVE_ALL_LEVELS = "ALL";
+
+export function AnnualLiveLevelFilter({
+  Value,
+  LevelCodes,
+  OnChange,
+}: {
+  Value: string;
+  LevelCodes: string[];
+  OnChange: (Next: string) => void;
+}) {
+  // Keep the selected level in the list even if no student is in it (for
+  // example an address shared from another event), so the control never
+  // shows a blank.
+  const Options = Value !== ANNUAL_LIVE_ALL_LEVELS && !LevelCodes.includes(Value) ? [...LevelCodes, Value] : LevelCodes;
+  return (
+    <select
+      value={Value}
+      onChange={(EventValue) => OnChange(EventValue.target.value)}
+      className="math-select text-xs font-black"
+      // Sized like the buttons beside it, not the full-width form field
+      // .math-select is by default: as wide as its longest level name and
+      // no wider, so the toolbar stays on one line.
+      style={{ width: "auto", maxWidth: "100%", borderRadius: "9999px", padding: "0.5rem 0.9rem" }}
+      aria-label="Filter the live board by level"
+    >
+      <option value={ANNUAL_LIVE_ALL_LEVELS}>All Levels</option>
+      {Options.map((Code) => (
+        <option key={Code} value={Code}>
+          {FormatCompetitionLevelLabel(Code)}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 // "Updated 3s ago", next to the Refresh Now button: the board is live
 // without anything being pressed.
 export function AnnualLiveUpdatedAgo({ FetchedAtMs }: { FetchedAtMs: number }) {

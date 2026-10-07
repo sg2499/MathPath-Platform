@@ -79,8 +79,10 @@ from app.models import (
 )
 from app.services.annual_competition_attempt_service import (
     HEARTBEAT_GRACE_SECONDS,
+    ReconcileOnReadIfAbandoned,
     _ReconcileSingleAttemptIfAbandoned,
 )
+from app.services.annual_competition_paper_registry import ANNUAL_COMPETITION_LEVEL_REGISTRY
 from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals, RoundPercentageForDisplay
 
 LIVE_STATUS_NOT_STARTED = "NOT_STARTED"
@@ -326,7 +328,12 @@ def _LiveStatusRows(
 
 
 def GetAnnualCompetitionLiveMonitoring(
-    db: Session, *, EventId: str, StudentIdsFilter: list[str] | None = None, SlotId: str | None = None
+    db: Session,
+    *,
+    EventId: str,
+    StudentIdsFilter: list[str] | None = None,
+    SlotId: str | None = None,
+    CompetitionLevelCode: str | None = None,
 ) -> dict[str, Any]:
     """Package 7 checklist item 1: started/in-progress/submitted/stuck
     status per student, per slot, during the event window. `StudentIdsFilter
@@ -336,6 +343,23 @@ def GetAnnualCompetitionLiveMonitoring(
     NowUtc = _NowUtc()
 
     AssignmentRecords = _ResolveAssignmentsForRoster(db, EventId=EventId, StudentIdsFilter=StudentIdsFilter, SlotId=SlotId)
+
+    # 2026-10-07 (Shailesh, level filter): "the different levels would be
+    # allotted different slots so when one slot gets underway for one level
+    # the admin can filter that and see the live monitoring for that level."
+    # The list of levels offered is always every level this viewer has
+    # students in (never narrowed by the filter itself, or picking one level
+    # would empty the dropdown), in the registry's own order. The filter is
+    # applied here, before any row is built, so a filtered read only loads
+    # and sends that level's students.
+    LevelCodesPresent = {AssignmentRecord.assigned_level_code for AssignmentRecord in AssignmentRecords}
+    RegistryOrder = list(ANNUAL_COMPETITION_LEVEL_REGISTRY.keys())
+    LevelCodes = [Code for Code in RegistryOrder if Code in LevelCodesPresent] + sorted(LevelCodesPresent - set(RegistryOrder))
+    if CompetitionLevelCode:
+        AssignmentRecords = [
+            AssignmentRecord for AssignmentRecord in AssignmentRecords if AssignmentRecord.assigned_level_code == CompetitionLevelCode
+        ]
+
     Rows = _LiveStatusRows(db, AssignmentRecords, NowUtc)
     Rows.sort(key=lambda Row: ((Row["slot"] or {}).get("scheduledStartAt") or "", Row["studentName"] or ""))
 
@@ -356,6 +380,9 @@ def GetAnnualCompetitionLiveMonitoring(
         # How long a student's clock keeps running without a heartbeat before
         # it pauses. The screen stops its own countdown at the same point.
         "heartbeatGraceSeconds": HEARTBEAT_GRACE_SECONDS,
+        # Levels this viewer can filter by, and the filter this reply used.
+        "levelCodes": LevelCodes,
+        "competitionLevelCode": CompetitionLevelCode or None,
         "summary": Summary,
         "rows": Rows,
     }
@@ -391,7 +418,10 @@ def _TeacherResultRow(db: Session, AssignmentRecord: CompetitionEventAssignment)
     # genuinely abandoned attempt should self-heal here too, the same as the
     # single-attempt review endpoints, rather than sitting "released: False"
     # until someone happens to press the manual reconcile button.
-    if AttemptRecord and _ReconcileSingleAttemptIfAbandoned(db, AttemptRecord, _NowUtc()):
+    # 2026-10-07: but never while the event is still on -- a teacher opening
+    # Results mid-slot must not submit the paper of a child who is only
+    # disconnected. See ReconcileOnReadIfAbandoned.
+    if AttemptRecord and ReconcileOnReadIfAbandoned(db, AttemptRecord, _NowUtc()):
         db.commit()
 
     if not AttemptRecord:

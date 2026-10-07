@@ -31,7 +31,12 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Activity, ArrowLeft, Calendar, CalendarClock, ChevronDown, ChevronRight, Eye, Flame, Medal, Repeat, RefreshCcw, Search, Sparkles, Trophy, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AnnualLiveMonitoringTable, AnnualLiveUpdatedAgo } from "@/components/competition/AnnualLiveMonitoringTable";
+import {
+  ANNUAL_LIVE_ALL_LEVELS,
+  AnnualLiveLevelFilter,
+  AnnualLiveMonitoringTable,
+  AnnualLiveUpdatedAgo,
+} from "@/components/competition/AnnualLiveMonitoringTable";
 import { useUrlTabState } from "@/hooks/useUrlTabState";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -766,10 +771,18 @@ function TeacherAnnualCompetitionMonitorPageContent() {
     }
   }, [Events, SelectedEventId]);
 
+  // Level filter for the live board (same control as the admin's), kept in
+  // the page address so a refresh stays on the level being watched.
+  const [LiveLevelFilter, SetLiveLevelFilter] = useUrlTabState<string>(
+    "level",
+    [ANNUAL_LIVE_ALL_LEVELS, ...ANNUAL_COMPETITION_LEVEL_CODES],
+    ANNUAL_LIVE_ALL_LEVELS
+  );
   const LiveQuery = useQuery({
-    queryKey: ["teacher", "annual-competition", "live", SelectedEventId],
-    queryFn: () => getTeacherAnnualCompetitionLive(SelectedEventId),
+    queryKey: ["teacher", "annual-competition", "live", SelectedEventId, LiveLevelFilter],
+    queryFn: () => getTeacherAnnualCompetitionLive(SelectedEventId, LiveLevelFilter === ANNUAL_LIVE_ALL_LEVELS ? null : LiveLevelFilter),
     enabled: Ready && Boolean(SelectedEventId) && TopTab === "OFFICIAL" && ActiveTab === "LIVE",
+    placeholderData: (Previous) => Previous,
     // Every 5 seconds (was 15) since 2026-10-07 -- see the admin event page's
     // identical query for why this is cheap enough.
     refetchInterval: TopTab === "OFFICIAL" && ActiveTab === "LIVE" ? 5000 : false,
@@ -1085,6 +1098,11 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                   <p className="math-block-header"><Activity size={14} />Live Status</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <AnnualLiveUpdatedAgo FetchedAtMs={LiveQuery.dataUpdatedAt} />
+                    <AnnualLiveLevelFilter
+                      Value={LiveLevelFilter}
+                      LevelCodes={LiveQuery.data?.levelCodes ?? []}
+                      OnChange={SetLiveLevelFilter}
+                    />
                     <button
                       type="button"
                       disabled={LiveQuery.isFetching}

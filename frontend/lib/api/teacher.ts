@@ -638,6 +638,10 @@ export type TeacherAnnualCompetitionLiveMonitoring = {
   generatedAt: string;
   // How long a student's clock runs without a heartbeat before it pauses.
   heartbeatGraceSeconds: number;
+  // Every level this teacher has students in (the Level filter's options),
+  // and the level this reply was filtered to (null = all levels).
+  levelCodes: string[];
+  competitionLevelCode: string | null;
   summary: {
     totalCount: number;
     notStartedCount: number;
@@ -649,8 +653,13 @@ export type TeacherAnnualCompetitionLiveMonitoring = {
   rows: TeacherAnnualCompetitionLiveRow[];
 };
 
-export async function getTeacherAnnualCompetitionLive(eventId: string): Promise<TeacherAnnualCompetitionLiveMonitoring> {
-  const { data } = await api.get<TeacherAnnualCompetitionLiveMonitoring>(`/teacher/competition/annual/events/${eventId}/live`);
+export async function getTeacherAnnualCompetitionLive(
+  eventId: string,
+  levelCode?: string | null
+): Promise<TeacherAnnualCompetitionLiveMonitoring> {
+  const { data } = await api.get<TeacherAnnualCompetitionLiveMonitoring>(`/teacher/competition/annual/events/${eventId}/live`, {
+    params: levelCode ? { levelCode } : undefined,
+  });
   return data;
 }
 

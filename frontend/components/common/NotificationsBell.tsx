@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { isPaperInProgress, onPaperInProgressChange } from "@/lib/paperFocus";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type NotificationTone =
@@ -558,6 +559,13 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
       // Always the Official tab, where the student's paper card (level, slot,
       // Instructions button) is. Fixed here rather than read from the stored
       // route so the landing place can never drift.
+      // "Your result is out": straight to the student's own result page.
+      // The notification itself says nothing about the result.
+      const { Type } = NotificationText(Notification);
+      const ResultAttemptId = MetadataString(Notification, "attemptId") || Notification.attemptId || "";
+      if (Type.includes("RESULT") && ResultAttemptId) {
+        return { Route: `/student/competition/annual/attempt/${encodeURIComponent(ResultAttemptId)}`, TargetTab: "", TargetSubTab: "" };
+      }
       // `focus` is a fresh value on every click, so the link is never
       // identical to the page the student is already on: a student sitting
       // on this very page with the Practice tab open is still switched to
@@ -770,21 +778,32 @@ export function NotificationsBell() {
     // change, well before the panel could be open), but the recurring
     // interval and focus/visibilitychange refreshes below must not
     // silently reorder the list out from under a click while it's open.
+    // Paused while a paper is being sat on this page (see lib/paperFocus.ts):
+    // the background refresh is skipped, and one refresh runs the moment the
+    // paper is over, so nothing is missed.
     const Interval = window.setInterval(() => {
       if (OpenRef.current) return;
+      if (isPaperInProgress()) return;
       FetchNotifications();
     }, 15000);
 
     function HandleFocus() {
       if (document.visibilityState === "hidden") return;
       if (OpenRef.current) return;
+      if (isPaperInProgress()) return;
       FetchNotifications();
     }
+
+    const StopListeningForPaper = onPaperInProgressChange(() => {
+      if (isPaperInProgress() || OpenRef.current) return;
+      FetchNotifications();
+    });
 
     window.addEventListener("focus", HandleFocus);
     document.addEventListener("visibilitychange", HandleFocus);
     return () => {
       window.clearInterval(Interval);
+      StopListeningForPaper();
       window.removeEventListener("focus", HandleFocus);
       document.removeEventListener("visibilitychange", HandleFocus);
     };

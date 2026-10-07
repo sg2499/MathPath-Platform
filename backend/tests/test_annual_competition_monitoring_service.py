@@ -762,3 +762,120 @@ def test_live_board_query_count_does_not_grow_with_the_roster():
         return len(statements)
 
     assert _count_for(3) == _count_for(12)
+
+
+# ---------------------------------------------------------------------------
+# Level filter on the live board (2026-10-07, Shailesh): "when one slot gets
+# underway for one level the admin can filter that and see the live
+# monitoring for that level."
+# ---------------------------------------------------------------------------
+
+def test_live_board_level_filter_narrows_rows_and_counts_but_not_the_level_list():
+    db = _session()
+    student_a, event = _full_setup(db, sid="student-a", level_code="PM-L2", assignment_id="assign-a")
+    student_b, _ = _full_setup(db, sid="student-b", level_code="IM-L1", assignment_id="assign-b")
+    student_c, _ = _full_setup(db, sid="student-c", level_code="IM-L1", assignment_id="assign-c")
+    attempt_engine.StartCompetitionEventAttempt(db, student_b, event.id)
+
+    everyone = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event.id)
+    assert everyone["summary"]["totalCount"] == 3
+    # Registry order (PM before IM), not alphabetical.
+    assert everyone["levelCodes"] == ["PM-L2", "IM-L1"]
+    assert everyone["competitionLevelCode"] is None
+
+    only_im = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event.id, CompetitionLevelCode="IM-L1")
+    assert {row["studentId"] for row in only_im["rows"]} == {"student-b", "student-c"}
+    assert only_im["summary"] == {
+        "totalCount": 2, "notStartedCount": 1, "inProgressCount": 1, "stuckCount": 0, "submittedCount": 0, "finalizedCount": 0,
+    }
+    # Choosing a level must not empty the dropdown it was chosen from.
+    assert only_im["levelCodes"] == ["PM-L2", "IM-L1"]
+    assert only_im["competitionLevelCode"] == "IM-L1"
+
+    nobody = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event.id, CompetitionLevelCode="MM-L1")
+    assert nobody["rows"] == [] and nobody["summary"]["totalCount"] == 0
+
+
+def test_live_board_level_filter_respects_the_teachers_own_students():
+    db = _session()
+    student_a, event = _full_setup(db, sid="student-a", level_code="PM-L2", assignment_id="assign-a")
+    _full_setup(db, sid="student-b", level_code="IM-L1", assignment_id="assign-b")
+
+    mine = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event.id, StudentIdsFilter=["student-a"], CompetitionLevelCode="PM-L2")
+    assert [row["studentId"] for row in mine["rows"]] == ["student-a"]
+    # A teacher is only offered levels their own students are in.
+    assert mine["levelCodes"] == ["PM-L2"]
+
+
+# ---------------------------------------------------------------------------
+# A staff screen must not submit a paused OFFICIAL paper while its event is
+# still on (2026-10-07). Found when a teacher's Official > Results tab closed
+# two live local papers just by being opened.
+# ---------------------------------------------------------------------------
+
+def _paused_official_attempt(db, event_status="SCHEDULED"):
+    student, event = _full_setup(db, section_seconds=(300, 300))
+    event.status = event_status
+    db.commit()
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id) if event_status != "COMPLETED" else None
+    if started is None:
+        event.status = "SCHEDULED"; db.commit()
+        started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+        event.status = event_status; db.commit()
+    section = db.query(CompetitionEventAttemptSectionState).filter_by(attempt_id=started["attemptId"], section_number=1).first()
+    section.last_heartbeat_at = datetime.now(timezone.utc) - timedelta(minutes=5)  # a child offline for five minutes
+    db.commit()
+    return student, event, started["attemptId"]
+
+
+def _status(db, attempt_id):
+    db.expire_all()
+    return db.get(CompetitionEventAttempt, attempt_id).status
+
+
+def test_teacher_results_tab_does_not_close_a_paused_paper_while_the_event_is_on():
+    db = _session()
+    student, event, attempt_id = _paused_official_attempt(db, "SCHEDULED")
+
+    engine.ListAnnualCompetitionResultsForRoster(db, EventId=event.id, StudentIdsFilter=[student.id])
+
+    assert _status(db, attempt_id) == "IN_PROGRESS"
+    # ...and the student really can carry on.
+    resumed = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    assert resumed["attemptId"] == attempt_id and resumed["status"] == "IN_PROGRESS"
+
+
+def test_staff_review_reads_do_not_close_a_paused_paper_while_the_event_is_on():
+    db = _session()
+    student, event, attempt_id = _paused_official_attempt(db, "SCHEDULED")
+
+    for read in (
+        lambda: attempt_engine.GetCompetitionEventAttemptReviewForAdmin(db, AttemptId=attempt_id),
+        lambda: attempt_engine.GetCompetitionEventAttemptReviewForTeacher(db, attempt_id, StudentIdsFilter=[student.id]),
+    ):
+        try:
+            read()
+        except HTTPException:
+            pass  # a review of an unfinished paper may be refused; what matters is that it did not end the paper
+        assert _status(db, attempt_id) == "IN_PROGRESS"
+
+
+def test_teacher_results_tab_still_closes_an_abandoned_paper_once_the_event_is_completed():
+    db = _session()
+    student, event, attempt_id = _paused_official_attempt(db, "COMPLETED")
+
+    engine.ListAnnualCompetitionResultsForRoster(db, EventId=event.id, StudentIdsFilter=[student.id])
+
+    assert _status(db, attempt_id) == "FINALIZED"
+
+
+def test_the_admin_sweep_still_closes_a_paused_paper_while_the_event_is_on():
+    """The sweep is the admin's own deliberate act, so it is NOT covered by
+    the read-path exception."""
+    db = _session()
+    student, event, attempt_id = _paused_official_attempt(db, "SCHEDULED")
+
+    result = attempt_engine.ReconcileExpiredCompetitionEventAttempts(db, EventId=event.id)
+
+    assert result["reconciledCount"] == 1
+    assert _status(db, attempt_id) == "FINALIZED"

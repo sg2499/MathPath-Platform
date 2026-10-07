@@ -317,10 +317,12 @@ def teacher_list_annual_competition_events(db: Session = Depends(get_db), teache
 
 @router.get("/competition/annual/events/{event_id}/live")
 def teacher_get_annual_competition_live_monitoring(
-    event_id: str, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)
+    event_id: str, levelCode: str | None = None, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)
 ):
     student_ids = [student.id for student in own_students_query(db, teacher).filter(Student.is_active == True).all()]
-    return GetAnnualCompetitionLiveMonitoring(db, EventId=event_id, StudentIdsFilter=student_ids)
+    return GetAnnualCompetitionLiveMonitoring(
+        db, EventId=event_id, StudentIdsFilter=student_ids, CompetitionLevelCode=levelCode or None
+    )
 
 
 @router.get("/competition/annual/events/{event_id}/results")

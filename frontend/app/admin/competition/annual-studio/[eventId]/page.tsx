@@ -71,7 +71,12 @@ import {
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { AnnualLiveMonitoringTable, AnnualLiveUpdatedAgo } from "@/components/competition/AnnualLiveMonitoringTable";
+import {
+  ANNUAL_LIVE_ALL_LEVELS,
+  AnnualLiveLevelFilter,
+  AnnualLiveMonitoringTable,
+  AnnualLiveUpdatedAgo,
+} from "@/components/competition/AnnualLiveMonitoringTable";
 import { useUrlTabState } from "@/hooks/useUrlTabState";
 import type { ReactNode } from "react";
 
@@ -376,10 +381,20 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     enabled: Ready && ActiveTab === "ROSTER",
   });
 
+  // Level filter for the live board, kept in the page address like the tab
+  // itself so a refresh mid-slot stays on the level being watched.
+  const [LiveLevelFilter, SetLiveLevelFilter] = useUrlTabState<string>(
+    "level",
+    [ANNUAL_LIVE_ALL_LEVELS, ...ANNUAL_COMPETITION_LEVEL_CODES],
+    ANNUAL_LIVE_ALL_LEVELS
+  );
   const LiveMonitoringQuery = useQuery({
-    queryKey: ["admin", "annual-competition", "monitoring-live", EventId],
-    queryFn: () => getAnnualCompetitionLiveMonitoring(EventId),
+    queryKey: ["admin", "annual-competition", "monitoring-live", EventId, LiveLevelFilter],
+    queryFn: () => getAnnualCompetitionLiveMonitoring(EventId, null, LiveLevelFilter === ANNUAL_LIVE_ALL_LEVELS ? null : LiveLevelFilter),
     enabled: Ready && Boolean(EventId) && ActiveTab === "MONITORING",
+    // Changing the level keeps the rows on screen until the new ones arrive,
+    // instead of flashing an empty board.
+    placeholderData: (Previous) => Previous,
     // Genuinely "live" -- auto-refresh while the tab is open, same spirit
     // as the reconciliation sweep it sits next to (this never mutates
     // anything itself, it only reads more often). Every 5 seconds since
@@ -644,7 +659,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const ReleaseResultsForLevelMutation = useMutation({
     mutationFn: (LevelCode: string | null) => releaseAnnualCompetitionResults(EventId, LevelCode),
     onSuccess: (Result) => {
-      SetLastMessage(`Released ${Result.newlyReleasedCount} result${Result.newlyReleasedCount === 1 ? "" : "s"}${Result.competitionLevelCode ? ` for ${FormatCompetitionLevelLabel(Result.competitionLevelCode)}` : " across every level"}.`);
+      SetLastMessage(`Released ${Result.newlyReleasedCount} result${Result.newlyReleasedCount === 1 ? "" : "s"}${Result.competitionLevelCode ? ` for ${FormatCompetitionLevelLabel(Result.competitionLevelCode)}` : " across every level"}.${Result.studentsNotified ? ` ${Result.studentsNotified} ${Plural(Result.studentsNotified, "student was", "students were")} told their result is out.` : ""}`);
       InvalidateResults();
     },
   });
@@ -1849,6 +1864,11 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 />
                 <div className="flex flex-wrap items-center gap-2">
                   <AnnualLiveUpdatedAgo FetchedAtMs={LiveMonitoringQuery.dataUpdatedAt} />
+                  <AnnualLiveLevelFilter
+                    Value={LiveLevelFilter}
+                    LevelCodes={LiveMonitoringQuery.data?.levelCodes ?? []}
+                    OnChange={SetLiveLevelFilter}
+                  />
                   <button
                     type="button"
                     disabled={LiveMonitoringQuery.isFetching}
@@ -1862,10 +1882,23 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                     type="button"
                     disabled={ReconcileMutation.isPending}
                     onClick={() => {
-                      if (window.confirm("Force-close every abandoned attempt (no heartbeat within the grace window) in this event? This cannot be undone.")) {
+                      // 2026-10-07 (event-day readiness): this submits the paper
+                      // of every student whose device has gone quiet, and a
+                      // child who is only disconnected mid-slot is exactly
+                      // that. The old wording ("abandoned attempt ... grace
+                      // window") did not say so. It now does, with how many
+                      // students it would end right now.
+                      const StuckNow = LiveMonitoringQuery.data?.summary.stuckCount ?? 0;
+                      const Warning =
+                        "This submits the paper of every student in this event whose device has sent no signal for 45 seconds." +
+                        "\n\nThat includes students who are only disconnected and could still come back and finish. Their paper ends now, with whatever they have answered." +
+                        `\n\nStudents shown as Stuck right now: ${StuckNow}${LiveLevelFilter === ANNUAL_LIVE_ALL_LEVELS ? "" : " in the level you are viewing (the sweep covers every level)"}.` +
+                        "\n\nUse it only after a slot has finished. It cannot be undone.\n\nSubmit those papers now?";
+                      if (window.confirm(Warning)) {
                         ReconcileMutation.mutate();
                       }
                     }}
+                    title="Submits the paper of every student whose device has gone quiet. Use only after a slot has finished."
                     className="inline-flex items-center gap-2 rounded-full border border-rose-300 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:-translate-y-px dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
                   >
                     <ShieldAlert size={13} />

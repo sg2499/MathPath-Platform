@@ -658,19 +658,37 @@ def ReleaseCompetitionEventResults(
         ResultsQuery = ResultsQuery.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
     NowUtc = _NowUtc()
     NewlyReleasedCount = 0
+    NewlyReleasedResultIds: list[str] = []
     for ResultRecord in ResultsQuery.all():
         if not ResultRecord.is_released:
             ResultRecord.is_released = True
             ResultRecord.released_at = NowUtc
             ResultRecord.released_by_user_id = ReleasedBy.id
             NewlyReleasedCount += 1
+            NewlyReleasedResultIds.append(ResultRecord.id)
 
     db.commit()
+
+    # 2026-10-07 (Shailesh): tell each student whose result was JUST released
+    # that it is out -- and nothing else; they open the page to see it. In its
+    # own step after the release is committed, so a notification problem can
+    # never undo or fail a release. See
+    # annual_competition_official_notification_service.py. Imported here, not
+    # at module top, to keep this module importable on its own.
+    from app.services.annual_competition_official_notification_service import (
+        SendAnnualCompetitionResultsReleasedNotifications,
+    )
+
+    NotifiedCount = SendAnnualCompetitionResultsReleasedNotifications(
+        db, ResultIds=NewlyReleasedResultIds, ActorUserId=ReleasedBy.id if ReleasedBy else None
+    )
+
     return {
         "eventId": EventId,
         "competitionLevelCode": CompetitionLevelCode,
         "levelsReleased": LevelCodes,
         "newlyReleasedCount": NewlyReleasedCount,
+        "studentsNotified": NotifiedCount,
     }
 
 

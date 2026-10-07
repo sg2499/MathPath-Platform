@@ -1487,6 +1487,40 @@ def _ReconcileSingleAttemptIfAbandoned(db: Session, AttemptRecord: CompetitionEv
     return True
 
 
+# Event statuses during which an OFFICIAL paper may still be legitimately
+# paused: the event is on, and a student whose device dropped out can come
+# back and carry on from where their clock stopped.
+_EVENT_STATUSES_WITH_LIVE_PAPERS = frozenset({"SCHEDULED", "LIVE"})
+
+
+def ReconcileOnReadIfAbandoned(db: Session, AttemptRecord: CompetitionEventAttempt, NowUtc: datetime) -> bool:
+    """_ReconcileSingleAttemptIfAbandoned for the staff READ paths (a teacher's
+    results roster, an admin's or teacher's attempt review), with one
+    exception that matters on event day.
+
+    2026-10-07 (found while testing the live board; decided with Shailesh):
+    those screens force-closed any paper that had sent no heartbeat for
+    HEARTBEAT_GRACE_SECONDS, simply because somebody opened them. That is
+    right for a paper nobody will ever return to. It is wrong for an
+    OFFICIAL paper while its event is SCHEDULED or LIVE: a child whose
+    connection dropped for a minute is exactly such a paper, the whole
+    design promises they "pick up from the exact persisted remaining time",
+    and a teacher glancing at Results would have submitted it for them --
+    with no way back short of an admin retry grant.
+
+    So: an OFFICIAL attempt of an event that is still on is never closed by
+    a read. It is closed by the student finishing, by the admin's own Run
+    Reconciliation Sweep (a deliberate act), or by a read once the event is
+    COMPLETED. PRACTICE papers (no event, nobody waiting on a slot) and
+    every other case behave exactly as before.
+    """
+    if AttemptRecord and AttemptRecord.attempt_type == "OFFICIAL" and AttemptRecord.event_id:
+        EventRecord = db.get(CompetitionEvent, AttemptRecord.event_id)
+        if EventRecord and EventRecord.status in _EVENT_STATUSES_WITH_LIVE_PAPERS:
+            return False
+    return _ReconcileSingleAttemptIfAbandoned(db, AttemptRecord, NowUtc)
+
+
 def ReconcileExpiredCompetitionEventAttempts(db: Session, *, EventId: str) -> dict[str, Any]:
     """Admin-triggered safety net -- see module docstring. Naturally
     idempotent: a second run finds nothing left to do, since reconciled
@@ -1716,7 +1750,8 @@ def GetCompetitionEventAttemptReviewForAdmin(db: Session, *, AttemptId: str) -> 
     # attempt with no result yet, indistinguishable from one a student is
     # right now actively taking -- self-heals on the very first read instead
     # of waiting for someone to notice and press the manual reconcile button.
-    if _ReconcileSingleAttemptIfAbandoned(db, AttemptRecord, _NowUtc()):
+    # (Not while the paper's event is still on -- see ReconcileOnReadIfAbandoned.)
+    if ReconcileOnReadIfAbandoned(db, AttemptRecord, _NowUtc()):
         db.commit()
 
     # 2026-09-12 (Shailesh, decoupling): a PRACTICE attempt's event_id is now
@@ -1971,7 +2006,8 @@ def GetCompetitionEventAttemptReviewForTeacher(db: Session, AttemptId: str, *, S
     # 2026-09-17 (Shailesh: "never ever anywhere"): same self-heal as the
     # admin and student review functions above -- see
     # _ReconcileSingleAttemptIfAbandoned's docstring.
-    if _ReconcileSingleAttemptIfAbandoned(db, AttemptRecord, _NowUtc()):
+    # (Not while the paper's event is still on -- see ReconcileOnReadIfAbandoned.)
+    if ReconcileOnReadIfAbandoned(db, AttemptRecord, _NowUtc()):
         db.commit()
 
     ResultRecord = db.query(CompetitionEventResult).filter(CompetitionEventResult.attempt_id == AttemptRecord.id).first()

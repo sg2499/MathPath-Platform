@@ -55,6 +55,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     CompetitionEvent,
     CompetitionEventAssignment,
+    CompetitionEventResult,
     CompetitionEventSlot,
     Student,
     User,
@@ -65,6 +66,7 @@ from app.services.notification_service import CreateNotification
 ANNUAL_COMPETITION_OFFICIAL_CATEGORY = "ANNUAL_COMPETITION_OFFICIAL"
 ANNUAL_OFFICIAL_ASSIGNED_TYPE = "ANNUAL_OFFICIAL_ASSIGNED"
 ANNUAL_OFFICIAL_LEVEL_CHANGED_TYPE = "ANNUAL_OFFICIAL_LEVEL_CHANGED"
+ANNUAL_OFFICIAL_RESULT_RELEASED_TYPE = "ANNUAL_OFFICIAL_RESULT_RELEASED"
 
 # The event statuses in which a student can both see the event and still sit
 # it (CompetitionEvent.status: DRAFT -> SCHEDULED -> LIVE -> COMPLETED). DRAFT
@@ -223,6 +225,94 @@ def SendAnnualCompetitionOfficialAssignmentNotifications(
         Sent = NotifyAnnualCompetitionOfficialAssignmentsForStudents(
             db, EventId=EventId, StudentIds=StudentIds, ActorUserId=ActorUserId
         )
+        db.commit()
+        return Sent
+    except Exception:  # noqa: BLE001 -- see docstring
+        db.rollback()
+        return 0
+
+
+# ---------------------------------------------------------------------------
+# "Your result is out" (2026-10-07, Shailesh)
+#
+# "once the results are published that should also trigger a notification
+# stating that the results have been published without mentioning the details
+# about the result, keep that part a suspense and redirect the student to the
+# result page where they go in and see for themselves."
+#
+# Sent from ReleaseCompetitionEventResults, and only for results that call
+# has JUST released (is_released flips from False to True exactly once), so
+# releasing a second level, or pressing Release again, never repeats it for a
+# student already told. Students only. Nothing about the result is in the
+# title, the message or the metadata -- no score, rank, accuracy or time --
+# so nothing leaks through the bell before the student opens their own page.
+# ---------------------------------------------------------------------------
+def _ResultReleasedTargetRoute(AttemptId: str) -> str:
+    return f"/student/competition/annual/attempt/{AttemptId}"
+
+
+def NotifyAnnualCompetitionResultsReleased(
+    db: Session,
+    *,
+    ResultIds: list[str],
+    ActorUserId: str | None = None,
+) -> int:
+    """One notification per released OFFICIAL result in ResultIds. Returns how
+    many were sent. Flushes but never commits: the caller owns the
+    transaction."""
+    if not ResultIds:
+        return 0
+    Results = db.query(CompetitionEventResult).filter(CompetitionEventResult.id.in_(ResultIds)).all()
+    EventNameById: dict[str, str] = {}
+    Sent = 0
+    for ResultRecord in Results:
+        if ResultRecord.attempt_type != "OFFICIAL" or not ResultRecord.is_released or not ResultRecord.attempt_id:
+            continue
+        StudentRecord = db.get(Student, ResultRecord.student_id)
+        StudentUser = db.get(User, StudentRecord.user_id) if StudentRecord and StudentRecord.user_id else None
+        if not StudentUser:
+            continue
+        if ResultRecord.event_id not in EventNameById:
+            EventRecord = db.get(CompetitionEvent, ResultRecord.event_id) if ResultRecord.event_id else None
+            EventNameById[ResultRecord.event_id] = EventRecord.name if EventRecord else "the Annual Competition"
+        EventName = EventNameById[ResultRecord.event_id]
+        CreateNotification(
+            db,
+            recipient_user_id=StudentUser.id,
+            recipient_role="STUDENT",
+            actor_user_id=ActorUserId,
+            actor_role="ADMIN" if ActorUserId else None,
+            student_id=StudentRecord.id,
+            attempt_id=ResultRecord.attempt_id,
+            type=ANNUAL_OFFICIAL_RESULT_RELEASED_TYPE,
+            category=ANNUAL_COMPETITION_OFFICIAL_CATEGORY,
+            title="Your Annual Competition Result Is Out",
+            message=f"Results for {EventName} have been published. Open yours to see how you did.",
+            target_route=_ResultReleasedTargetRoute(ResultRecord.attempt_id),
+            metadata={
+                "event": ANNUAL_OFFICIAL_RESULT_RELEASED_TYPE,
+                "eventId": ResultRecord.event_id,
+                "eventName": EventName,
+                "attemptId": ResultRecord.attempt_id,
+                "targetAction": "open-official-result",
+            },
+        )
+        Sent += 1
+    db.flush()
+    return Sent
+
+
+def SendAnnualCompetitionResultsReleasedNotifications(
+    db: Session,
+    *,
+    ResultIds: list[str],
+    ActorUserId: str | None = None,
+) -> int:
+    """The entry point ReleaseCompetitionEventResults uses AFTER its own
+    commit: sends, commits, and never raises. A notification failure must
+    never turn a release that really happened into an error."""
+    try:
+        Sent = NotifyAnnualCompetitionResultsReleased(db, ResultIds=ResultIds, ActorUserId=ActorUserId)
         db.commit()
         return Sent
     except Exception:  # noqa: BLE001 -- see docstring
