@@ -1128,13 +1128,19 @@ def SaveCompetitionEventAnswer(
 
     db.commit()
     db.refresh(AttemptRecord)
-    # Returns the full attempt payload (including the refreshed
-    # activeSectionQuestions, each carrying its own savedAnswerText) rather
-    # than a lean ack -- unlike Competition Mock's flat single-timer
-    # question list, this screen has nothing else driving a refetch after a
-    # save, so the save response IS the frontend's source of truth for what
-    # is currently marked answered.
-    return _AttemptPayload(db, AttemptRecord, IncludeQuestions=True)
+    # 2026-10-07 (event-day readiness): a LEAN reply -- the attempt's own
+    # state plus the one answer just saved -- the same shape the heartbeat
+    # and section-submit replies already use. This used to send the whole
+    # active section back (all 50 questions, about 11 KB, re-read from the
+    # database) on every single answer a student typed: the heaviest call in
+    # the paper, made more often than any other. The page never needed it:
+    # it already holds the questions, and it already keeps what the student
+    # typed (localAnswers) until the section changes. `savedAnswer` confirms
+    # exactly what was stored. A reply that shows the section or status has
+    # moved on makes the page re-read the attempt, as a heartbeat does.
+    Payload = _AttemptPayload(db, AttemptRecord)
+    Payload["savedAnswer"] = {"questionId": QuestionRecord.id, "savedAnswerText": CleanAnswerText}
+    return Payload
 
 
 def _SlotPayload(SlotRecord: CompetitionEventSlot | None) -> dict[str, Any] | None:

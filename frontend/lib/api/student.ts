@@ -634,6 +634,10 @@ export type AnnualCompetitionAttempt = {
   // Only present while status is IN_PROGRESS -- the currently-active
   // section's questions/options/saved-answers.
   activeSectionQuestions?: AnnualCompetitionQuestion[];
+
+  // Only on the reply to saving an answer (lean since 2026-10-07): exactly
+  // what the server stored for that one question.
+  savedAnswer?: { questionId: string; savedAnswerText: string };
 };
 
 export async function startAnnualCompetitionAttempt(eventId: string): Promise<AnnualCompetitionAttempt> {
@@ -666,7 +670,13 @@ export async function saveAnnualCompetitionAnswer(
   attemptId: string,
   payload: { sessionToken: string; sectionNumber: number; questionId: string; answerText: string }
 ): Promise<AnnualCompetitionAttempt> {
-  const { data } = await api.post<AnnualCompetitionAttempt>(`/student/annual-competition/attempts/${attemptId}/answers`, payload);
+  // A short limit of its own (the client-wide default is 90 s): a save that
+  // has not been answered in 12 seconds is treated as failed, so the paper
+  // page can try it again while the section is still open. Since 2026-10-07
+  // the reply is lean: the attempt's state plus `savedAnswer`, no questions.
+  const { data } = await api.post<AnnualCompetitionAttempt>(`/student/annual-competition/attempts/${attemptId}/answers`, payload, {
+    timeout: 12000,
+  });
   return data;
 }
 

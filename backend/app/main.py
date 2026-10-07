@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from app.database import Base, engine, SessionLocal
+from app.database import Base, engine, SessionLocal, REQUEST_CONCURRENCY_LIMIT
 from app.models import *  # noqa
 from app.api.routes_health import router as health_router
 from app.api.routes_auth import router as auth_router
@@ -58,6 +58,38 @@ app.add_middleware(
     # the server but invisible to axios and silently do nothing.
     expose_headers=["X-New-Access-Token"],
 )
+
+
+class RequestConcurrencyLimitMiddleware:
+    """Lets at most `limit` HTTP requests be worked on at once in this
+    worker; the rest wait here, holding nothing. See
+    REQUEST_CONCURRENCY_LIMIT in app/database.py for the standstill this
+    prevents and why the number is what it is.
+
+    A plain ASGI wrapper (not BaseHTTPMiddleware) so it adds nothing to a
+    request's path but one semaphore, and so the slot is held for the whole
+    request -- including any background task that runs after the reply and
+    opens a connection of its own."""
+
+    def __init__(self, app, limit: int):
+        self.app = app
+        self.limit = limit
+        self._semaphore = None
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        if self._semaphore is None:
+            # Created on first use, inside the running event loop.
+            import asyncio
+
+            self._semaphore = asyncio.Semaphore(self.limit)
+        async with self._semaphore:
+            await self.app(scope, receive, send)
+
+
+app.add_middleware(RequestConcurrencyLimitMiddleware, limit=REQUEST_CONCURRENCY_LIMIT)
 
 
 @app.middleware("http")

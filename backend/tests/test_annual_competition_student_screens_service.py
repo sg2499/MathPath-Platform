@@ -315,7 +315,16 @@ def test_save_answer_upserts_and_reflects_in_saved_answer_text():
     attempt_id, token = started["attemptId"], started["sessionToken"]
 
     result = engine.SaveCompetitionEventAnswer(db, student, attempt_id, token, 1, "q-1-1", "4")
-    saved_question = next(q for q in result["activeSectionQuestions"] if q["questionId"] == "q-1-1")
+    # 2026-10-07 (event-day readiness): the save reply is lean -- the
+    # attempt's state plus the one answer just stored -- not the whole
+    # section's questions again (it was the heaviest call in the paper).
+    assert result["savedAnswer"] == {"questionId": "q-1-1", "savedAnswerText": "4"}
+    assert "activeSectionQuestions" not in result
+    assert result["status"] == "IN_PROGRESS" and result["currentSectionNumber"] == 1
+    assert [section["sectionNumber"] for section in result["sections"]] == [1]
+    # The paper page (a reload, or the next section) still reads it back in full.
+    page = engine.GetCompetitionEventAttemptForStudent(db, student, attempt_id)
+    saved_question = next(q for q in page["activeSectionQuestions"] if q["questionId"] == "q-1-1")
     assert saved_question["savedAnswerText"] == "4"
 
     answer_row = (
