@@ -588,6 +588,13 @@ class CompetitionEventAssignment(Base):
     overridden_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     computed_at = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=True, nullable=False)
+    # 2026-10-07 (Shailesh, official-paper notifications): the level this
+    # student was last NOTIFIED about for this event. NULL = never told.
+    # Makes "notify once, and again only if the level changes" a property of
+    # the row itself, so every write path can call the notifier freely. See
+    # annual_competition_official_notification_service.py.
+    notified_level_code = Column(String(50), nullable=True)
+    notified_at = Column(DateTime(timezone=True), nullable=True)
 
     event = relationship("CompetitionEvent")
     student = relationship("Student")

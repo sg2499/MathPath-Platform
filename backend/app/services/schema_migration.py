@@ -1397,6 +1397,17 @@ def ensure_annual_competition_practice_bank_columns() -> None:
     tables = set(inspector.get_table_names())
     is_sqlite = engine.dialect.name == "sqlite"
 
+    # 2026-10-07 (official-paper notifications): which level each student
+    # was last notified about. Nullable, no default, no backfill: an existing
+    # row simply reads as "not told yet".
+    if "competition_event_assignments" in tables:
+        existing = {column["name"] for column in inspector.get_columns("competition_event_assignments")}
+        with engine.begin() as connection:
+            if "notified_level_code" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_assignments ADD COLUMN notified_level_code VARCHAR(50)"))
+            if "notified_at" not in existing:
+                connection.execute(text("ALTER TABLE competition_event_assignments ADD COLUMN notified_at TIMESTAMP"))
+
     if "competition_event_level_papers" in tables:
         existing = {column["name"] for column in inspector.get_columns("competition_event_level_papers")}
         with engine.begin() as connection:

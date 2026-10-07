@@ -79,6 +79,10 @@ from app.models import (
 )
 from app.services.annual_competition_paper_generation_service import GenerateAnnualCompetitionLevelPaper
 from app.services.annual_competition_paper_registry import ANNUAL_COMPETITION_LEVEL_REGISTRY
+from app.services.annual_competition_official_notification_service import (
+    NOTIFIABLE_EVENT_STATUSES,
+    SendAnnualCompetitionOfficialAssignmentNotifications,
+)
 from app.services.annual_competition_practice_notification_service import (
     NotifyAnnualCompetitionPracticeAssigned,
 )
@@ -218,6 +222,7 @@ def UpdateCompetitionEvent(
     Status: str | None = None,
     CompetitionDate: datetime | None = None,
     ResultsReleaseAt: Any = "__UNSET__",
+    UpdatedBy: User | None = None,
 ) -> dict[str, Any]:
     EventRecord = _GetEventOr404(db, EventId)
     if Name is not None:
@@ -236,7 +241,22 @@ def UpdateCompetitionEvent(
         EventRecord.results_release_at = ResultsReleaseAt
     db.commit()
     db.refresh(EventRecord)
-    return _EventPayload(EventRecord)
+
+    # 2026-10-07 (Shailesh, official-paper notifications): a level given
+    # while the event was still DRAFT could not be notified then (students
+    # cannot see a DRAFT event), so it is notified here, the moment the event
+    # becomes SCHEDULED. Idempotent per student -- switching DRAFT ->
+    # SCHEDULED -> DRAFT -> SCHEDULED never notifies anyone twice. See
+    # annual_competition_official_notification_service.py.
+    NotifiedCount = 0
+    if Status is not None and EventRecord.status in NOTIFIABLE_EVENT_STATUSES:
+        NotifiedCount = SendAnnualCompetitionOfficialAssignmentNotifications(
+            db, EventId=EventRecord.id, ActorUserId=UpdatedBy.id if UpdatedBy else None
+        )
+        db.refresh(EventRecord)
+    Payload = _EventPayload(EventRecord)
+    Payload["studentsNotified"] = NotifiedCount
+    return Payload
 
 
 def SuspendCompetitionEvent(db: Session, *, EventId: str, Reason: str, SuspendedBy: User) -> dict[str, Any]:
@@ -968,14 +988,27 @@ def OverrideCompetitionEventAssignment(
     )
     db.commit()
     db.refresh(AssignmentRecord)
+    # Official-paper notification (2026-10-07): a hand-set level notifies the
+    # student exactly like an engine-assigned one. Sends nothing while the
+    # event is still DRAFT, or if the student was already told this level.
+    NotifiedCount = SendAnnualCompetitionOfficialAssignmentNotifications(
+        db,
+        EventId=EventId,
+        StudentIds=[AssignmentRecord.student_id],
+        ActorUserId=OverriddenBy.id if OverriddenBy else None,
+    )
+    db.refresh(AssignmentRecord)
     return {
         "assignmentId": AssignmentRecord.id,
         "eventId": AssignmentRecord.event_id,
         "studentId": AssignmentRecord.student_id,
+        "studentCode": StudentRecord.student_code,
+        "studentName": StudentRecord.user.full_name if StudentRecord.user else None,
         "assignedLevelCode": AssignmentRecord.assigned_level_code,
         "slotId": AssignmentRecord.slot_id,
         "assignmentSource": AssignmentRecord.assignment_source,
         "overriddenByUserId": AssignmentRecord.overridden_by_user_id,
+        "studentsNotified": NotifiedCount,
     }
 
 
@@ -1045,12 +1078,23 @@ def BulkOverrideCompetitionEventAssignments(
             continue
         Succeeded.append({"studentId": AssignmentRecord.student_id, "studentCode": StudentRecord.student_code})
 
+    # Official-paper notification (2026-10-07), in its own step after every
+    # level above is already committed: one notification per student who was
+    # not already told this level. Nothing is sent while the event is DRAFT.
+    NotifiedCount = SendAnnualCompetitionOfficialAssignmentNotifications(
+        db,
+        EventId=EventId,
+        StudentIds=[Entry["studentId"] for Entry in Succeeded],
+        ActorUserId=OverriddenBy.id if OverriddenBy else None,
+    )
+
     return {
         "eventId": EventId,
         "assignedLevelCode": AssignedLevelCode,
         "studentsRequested": len(CleanedStudentIds),
         "studentsSucceeded": len(Succeeded),
         "studentsFailed": len(Failed),
+        "studentsNotified": NotifiedCount,
         "succeeded": Succeeded,
         "failed": Failed,
     }

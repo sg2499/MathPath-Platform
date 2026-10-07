@@ -1511,6 +1511,9 @@ export type AnnualCompetitionEvent = {
   createdByUserId?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  // Only on the reply to an update: students notified about their official
+  // paper because the event just became Scheduled.
+  studentsNotified?: number;
 };
 
 export type AnnualCompetitionSlot = {
@@ -1592,6 +1595,10 @@ export type AnnualCompetitionAssignmentPreview = {
   wouldAssignCount: number;
   noRuleMatchedCount: number;
   adminOverridePreservedCount: number;
+  // 2026-10-07: who has a level right now and who does not. These lead the
+  // count line, so an admin never has to infer it from the engine counters.
+  studentsWithLevelCount: number;
+  studentsWithoutLevelCount: number;
   rows: AnnualCompetitionAssignmentPreviewRow[];
 };
 
@@ -1602,6 +1609,12 @@ export type AnnualCompetitionAssignmentRunResult = {
   updated: number;
   skippedAdminOverrides: number;
   noRuleMatched: number;
+  // 2026-10-07: the state after the run (the engine counters above only say
+  // what the engine itself did), plus how many students were notified.
+  studentsWithLevel: number;
+  studentsWithoutLevel: number;
+  adminSetLevelsKept: number;
+  studentsNotified: number;
 };
 
 // The 12 real assignment-target level codes, in display order -- mirrors
@@ -1773,7 +1786,7 @@ export async function runAnnualCompetitionAssignments(eventId: string, studentId
 export async function overrideAnnualCompetitionAssignment(
   eventId: string,
   payload: { studentId: string; assignedLevelCode: string; slotId?: string | null }
-): Promise<{ assignmentId: string; eventId: string; studentId: string; assignedLevelCode: string; slotId: string | null; assignmentSource: string; overriddenByUserId: string | null }> {
+): Promise<{ assignmentId: string; eventId: string; studentId: string; studentCode: string | null; studentName: string | null; assignedLevelCode: string; slotId: string | null; assignmentSource: string; overriddenByUserId: string | null; studentsNotified: number }> {
   const { data } = await api.post(`/admin/annual-competition/events/${eventId}/assignments/override`, payload);
   return data;
 }
@@ -1791,6 +1804,7 @@ export type AnnualCompetitionBulkOverrideResult = {
   studentsRequested: number;
   studentsSucceeded: number;
   studentsFailed: number;
+  studentsNotified: number;
   succeeded: Array<{ studentId: string; studentCode: string | null }>;
   failed: Array<{ studentIdentifier: string; reason: string }>;
 };
