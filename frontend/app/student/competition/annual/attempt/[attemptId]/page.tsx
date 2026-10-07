@@ -46,6 +46,19 @@ function triggerBlobDownload(BlobValue: Blob, FileName: string) {
   window.URL.revokeObjectURL(Url);
 }
 
+// Waits between tries of a failed answer save (see persistAnswer).
+const SAVE_RETRY_DELAYS_MS = [1000, 2000, 4000, 6000, 8000];
+
+// Worth trying again: the request never got an answer (connection dropped,
+// timed out), or the server said it was busy or broken. NOT worth trying
+// again: the server understood and refused (the section is over, the
+// question is not in this section, the session moved to another device).
+function IsRetryableSaveError(error: unknown): boolean {
+  const status = (error as { response?: { status?: number } } | null)?.response?.status;
+  if (status == null) return true;
+  return status >= 500 || status === 408 || status === 429;
+}
+
 export default function AnnualCompetitionAttemptPage() {
   return <AnnualCompetitionAttemptContent />;
 }
@@ -263,30 +276,81 @@ function AnnualCompetitionAttemptContent() {
     .filter((question) => (savedAnswers[question.questionId] || "").trim())
     .map((question) => question.questionNumber);
 
+  // What the student most recently typed for each question. A retry of an
+  // OLDER value for the same question checks this and gives way, so it can
+  // never land after (and overwrite) the newer one.
+  const latestTypedRef = useRef<Map<string, string>>(new Map());
+  // The attempt and session as they are NOW, readable from inside a retry
+  // loop that started several seconds ago.
+  const liveAttemptRef = useRef(liveAttempt);
+  liveAttemptRef.current = liveAttempt;
+  const sessionTokenRef = useRef(sessionToken);
+  sessionTokenRef.current = sessionToken;
+
+  // 2026-10-07 (event-day readiness). Two changes to saving an answer:
+  //
+  // 1. A save that fails because the server or the connection hiccuped is
+  //    tried again by itself (after 1, 2, 4, 6 and 8 seconds). It used to
+  //    show an error and stop: the answer then existed only in this browser
+  //    and was lost when the section ended -- the one place a busy server
+  //    could cost a child marks. An error is shown only if every try fails.
+  //    Each try is still tracked by pendingSavesRef through the promise
+  //    handleSaveAnswer holds, so Submit goes on waiting for it.
+  // 2. The server's reply is lean (the attempt's state plus the one answer
+  //    saved), like the heartbeat's, instead of the whole section's
+  //    questions. Only status / section / timers are taken from it; if it
+  //    shows the section or the paper has moved on, the attempt is re-read.
   async function persistAnswer(questionId: string, answerText: string) {
     if (!liveAttempt || !sessionToken || liveAttempt.status !== "IN_PROGRESS" || remainingSeconds <= 0) return;
+    const sectionAtCall = liveAttempt.currentSectionNumber;
+    latestTypedRef.current.set(questionId, answerText);
     setLocalAnswers((prev) => ({ ...prev, [questionId]: answerText }));
     setSavingQuestionId(questionId);
     setSaveError(null);
+    let retriesDone = 0;
     try {
-      const updated = await saveAnnualCompetitionAnswer(attemptId, {
-        sessionToken,
-        sectionNumber: liveAttempt.currentSectionNumber,
-        questionId,
-        answerText,
-      });
-      setLiveAttempt((prev) => (prev ? { ...prev, ...updated } : updated));
-      if (updated.status !== "IN_PROGRESS" || updated.currentSectionNumber !== liveAttempt.currentSectionNumber) {
-        setCurrentIndex(0);
-        setLocalAnswers({});
-      }
-    } catch (error) {
-      const detail = apiErrorDetail(error);
-      if (detail?.code === "COMPETITION_ATTEMPT_SESSION_SUPERSEDED") {
-        setSessionSuperseded(true);
-        setSessionToken(undefined);
-      } else {
-        setSaveError(error);
+      for (;;) {
+        const tokenNow = sessionTokenRef.current;
+        if (!tokenNow) return;
+        try {
+          const updated = await saveAnnualCompetitionAnswer(attemptId, {
+            sessionToken: tokenNow,
+            sectionNumber: sectionAtCall,
+            questionId,
+            answerText,
+          });
+          const movedOn = updated.status !== "IN_PROGRESS" || updated.currentSectionNumber !== sectionAtCall;
+          setLiveAttempt((prev) =>
+            prev
+              ? { ...prev, status: updated.status, currentSectionNumber: updated.currentSectionNumber, submittedAt: updated.submittedAt, sections: updated.sections }
+              : updated
+          );
+          if (movedOn) {
+            // Lean reply (no question data) -- same as the heartbeat path.
+            attemptQuery.refetch();
+            setCurrentIndex(0);
+            setLocalAnswers({});
+          }
+          return;
+        } catch (error) {
+          const detail = apiErrorDetail(error);
+          if (detail?.code === "COMPETITION_ATTEMPT_SESSION_SUPERSEDED") {
+            setSessionSuperseded(true);
+            setSessionToken(undefined);
+            return;
+          }
+          if (!IsRetryableSaveError(error) || retriesDone >= SAVE_RETRY_DELAYS_MS.length) {
+            setSaveError(error);
+            return;
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, SAVE_RETRY_DELAYS_MS[retriesDone]));
+          retriesDone += 1;
+          // A newer answer for this question has its own save under way.
+          if (latestTypedRef.current.get(questionId) !== answerText) return;
+          // The section (or the paper) ended while waiting: nothing to save into.
+          const attemptNow = liveAttemptRef.current;
+          if (!attemptNow || attemptNow.status !== "IN_PROGRESS" || attemptNow.currentSectionNumber !== sectionAtCall) return;
+        }
       }
     } finally {
       setSavingQuestionId(null);
