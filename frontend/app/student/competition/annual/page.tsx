@@ -21,6 +21,7 @@ import {
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { CalendarClock, ChevronDown, ChevronRight, Eye, History, Hourglass, MapPin, PlayCircle, Repeat, Trophy } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useUrlTabState } from "@/hooks/useUrlTabState";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { InitCaps } from "@/lib/initCaps";
 
@@ -118,12 +119,18 @@ function StatusChip({ assignment }: { assignment: AnnualCompetitionAssignmentFor
 // only the "can they open the instructions screen at all" check.
 const INSTRUCTIONS_VISIBLE_MINUTES_BEFORE_SLOT = 10;
 
-function InstructionsNotYetVisible(assignment: AnnualCompetitionAssignmentForStudent, now: Date) {
-  if (!assignment.slot?.scheduledStartAt) return false;
+// When the instructions screen opens for this assignment, or null when it
+// is not time-gated at all (no slot).
+function InstructionsVisibleFromMs(assignment: AnnualCompetitionAssignmentForStudent): number | null {
+  if (!assignment.slot?.scheduledStartAt) return null;
   const start = new Date(assignment.slot.scheduledStartAt);
-  if (Number.isNaN(start.getTime())) return false;
-  const visibleFrom = new Date(start.getTime() - INSTRUCTIONS_VISIBLE_MINUTES_BEFORE_SLOT * 60 * 1000);
-  return now < visibleFrom;
+  if (Number.isNaN(start.getTime())) return null;
+  return start.getTime() - INSTRUCTIONS_VISIBLE_MINUTES_BEFORE_SLOT * 60 * 1000;
+}
+
+function InstructionsNotYetVisible(assignment: AnnualCompetitionAssignmentForStudent, now: Date) {
+  const visibleFromMs = InstructionsVisibleFromMs(assignment);
+  return visibleFromMs != null && now.getTime() < visibleFromMs;
 }
 
 function AssignmentCard({
@@ -139,7 +146,22 @@ function AssignmentCard({
   onResume: () => void;
   onViewResult: () => void;
 }) {
-  const now = new Date();
+  // 2026-10-07 (Shailesh): "as soon as it comes under or equal to 10 mins
+  // before the desired start time it should get enabled automatically",
+  // like Start Competition does at the slot time. The clock used to be read
+  // once, when the card was drawn, so the button stayed on "Not Open Yet"
+  // until a browser refresh. It is now a running clock (one tick a second,
+  // the same pattern the instructions page uses for Start Competition) --
+  // and it only runs while there is still an opening time ahead to wait for.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const instructionsOpenAtMs = InstructionsVisibleFromMs(assignment);
+  const waitingForInstructions = instructionsOpenAtMs != null && nowMs < instructionsOpenAtMs;
+  useEffect(() => {
+    if (!waitingForInstructions) return;
+    const intervalId = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, [waitingForInstructions]);
+  const now = new Date(nowMs);
   const notStarted = assignment.latestAttemptStatus === "NOT_STARTED";
   const inProgress = assignment.latestAttemptStatus === "IN_PROGRESS";
   // Root-cause fix (Shailesh, 2026-09-09): hasActiveRetryGrant only ever
@@ -188,7 +210,7 @@ function AssignmentCard({
             <button
               className="math-role-action-button h-10 px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               disabled={starting || instructionsGated}
-              title={instructionsGated ? `Instructions open ${FormatDateTime(assignment.slot?.scheduledStartAt)}` : undefined}
+              title={instructionsGated && instructionsOpenAtMs != null ? `Instructions open ${FormatDateTime(new Date(instructionsOpenAtMs).toISOString())}` : undefined}
               onClick={onStart}
             >
               <PlayCircle size={16} />
@@ -207,7 +229,7 @@ function AssignmentCard({
             <button
               className="math-role-action-button h-10 px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               disabled={starting || instructionsGated}
-              title={instructionsGated ? `Instructions open ${FormatDateTime(assignment.slot?.scheduledStartAt)}` : undefined}
+              title={instructionsGated && instructionsOpenAtMs != null ? `Instructions open ${FormatDateTime(new Date(instructionsOpenAtMs).toISOString())}` : undefined}
               onClick={onStart}
             >
               <PlayCircle size={16} />
@@ -250,7 +272,8 @@ function AssignmentCard({
 // than a toggle nested inside the existing assignment card, same reasoning
 // as that decision: practice is a genuinely separate concern (own bank, own
 // history, no slot/no retake-blocking), not a variant of the official flow.
-type AnnualCompetitionTab = "OFFICIAL" | "PRACTICE";
+const ANNUAL_COMPETITION_TABS = ["OFFICIAL", "PRACTICE"] as const;
+type AnnualCompetitionTab = (typeof ANNUAL_COMPETITION_TABS)[number];
 
 // 2026-09-14 (Shailesh): "the icon and wordings look crammed and weird
 // instead of clean and professional just like all the other tabs in the
@@ -548,7 +571,11 @@ function AnnualCompetitionContent() {
   const DeepLinkLevelCode = SearchParams.get("levelCode");
   const DeepLinkLevelAppliedRef = useRef(false);
 
-  const [ActiveTab, SetActiveTab] = useState<AnnualCompetitionTab>(DeepLinkTab === "PRACTICE" ? "PRACTICE" : "OFFICIAL");
+  // 2026-10-07 (Shailesh): the tab lives in the page address, so a browser
+  // refresh stays on Practice instead of going back to Official, and a
+  // notification link opened while this page is already open switches the
+  // tab (useUrlTabState follows the address as well as writing it).
+  const [ActiveTab, SetActiveTab] = useUrlTabState<AnnualCompetitionTab>("tab", ANNUAL_COMPETITION_TABS, "OFFICIAL");
   // 2026-09-14 (Shailesh): a student's Annual Competition level can change
   // between competition years, so a student who has practice papers from
   // more than one level needs to be able to narrow the view down to just
@@ -623,8 +650,7 @@ function AnnualCompetitionContent() {
   const RefetchAssignmentsRef = useRef(query.refetch);
   RefetchAssignmentsRef.current = query.refetch;
   useEffect(() => {
-    if (DeepLinkTab === "OFFICIAL") SetActiveTab("OFFICIAL");
-    else if (DeepLinkTab === "PRACTICE") SetActiveTab("PRACTICE");
+    // (Switching the tab itself is useUrlTabState's job: it follows `tab`.)
     // Only for a click made while this page is already open: the first load
     // fetches the assignments by itself.
     if (DeepLinkFocus === LastDeepLinkFocusRef.current) return;

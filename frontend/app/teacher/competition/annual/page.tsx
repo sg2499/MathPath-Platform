@@ -20,7 +20,6 @@ import {
   getTeacherAnnualCompetitionPracticeReportForStudent,
   getTeacherAnnualCompetitionPracticeResults,
   getTeacherAnnualCompetitionResults,
-  type TeacherAnnualCompetitionLiveRow,
   type TeacherAnnualCompetitionPracticeDailyLeaderboardRow,
   type TeacherAnnualCompetitionPracticeReportForLevel,
   type TeacherAnnualCompetitionPracticeReportForStudent,
@@ -32,6 +31,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Activity, ArrowLeft, Calendar, CalendarClock, ChevronDown, ChevronRight, Eye, Flame, Medal, Repeat, RefreshCcw, Search, Sparkles, Trophy, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnnualLiveMonitoringTable, AnnualLiveUpdatedAgo } from "@/components/competition/AnnualLiveMonitoringTable";
+import { useUrlTabState } from "@/hooks/useUrlTabState";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -625,18 +626,6 @@ function LevelStudentWiseAnalyticsView({ Report }: { Report: TeacherAnnualCompet
   );
 }
 
-const LiveStatusTone: Record<TeacherAnnualCompetitionLiveRow["liveStatus"], string> = {
-  NOT_STARTED: "bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300",
-  IN_PROGRESS: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200",
-  STUCK: "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200",
-  SUBMITTED: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200",
-  FINALIZED: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200",
-};
-
-function LiveStatusChip({ status }: { status: TeacherAnnualCompetitionLiveRow["liveStatus"] }) {
-  return <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${LiveStatusTone[status]}`}>{status.replace("_", " ")}</span>;
-}
-
 // 2026-09-14 (Shailesh, Official/Practice restructure): "it should also
 // have the proper separation that is it should have 2 tabs just like the
 // student login which will say official and practice. under the official
@@ -658,6 +647,7 @@ function LiveStatusChip({ status }: { status: TeacherAnnualCompetitionLiveRow["l
 // event, so this tab works even before Admin has created a single OFFICIAL
 // event, and its own level-code filter is gated on nothing but the tab
 // being active.
+const LEADERBOARD_MODES = ["CUMULATIVE", "DAILY"] as const;
 const TopTabList = ["OFFICIAL", "PRACTICE"] as const;
 type TopTabKey = (typeof TopTabList)[number];
 
@@ -703,7 +693,6 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   // pre-select Practice and, once the roster has loaded, auto-expand the
   // notified student's row.
   const SearchParams = useSearchParams();
-  const DeepLinkTab = SearchParams.get("tab");
   const DeepLinkStudentCode = SearchParams.get("studentCode");
   // 2026-09-15 (Shailesh): "on clicking it, it should take them to the
   // correct page with the student's level block expanded for whichever
@@ -716,8 +705,13 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   const DeepLinkStudentAppliedRef = useRef(false);
 
   const [SelectedEventId, SetSelectedEventId] = useState<string>("");
-  const [TopTab, SetTopTab] = useState<TopTabKey>(DeepLinkTab === "PRACTICE" ? "PRACTICE" : "OFFICIAL");
-  const [ActiveTab, SetActiveTab] = useState<OfficialSubTabKey>("LIVE");
+  // 2026-10-07 (Shailesh): every tab on this page lives in the page address,
+  // so a browser refresh stays on it instead of going back to the first one
+  // (see useUrlTabState). `tab` and `subTab` are the same names notification
+  // links already use; Official's own tabs get `officialTab` because
+  // "RESULTS" exists under both Official and Practice.
+  const [TopTab, SetTopTab] = useUrlTabState<TopTabKey>("tab", TopTabList, "OFFICIAL");
+  const [ActiveTab, SetActiveTab] = useUrlTabState<OfficialSubTabKey>("officialTab", OfficialSubTabList, "LIVE");
   // 2026-09-29 (Shailesh: "we need the level filter as well where the
   // teacher can filter out and see the results level wise") -- same "ALL"
   // default + query-param pattern as the admin Results tab
@@ -739,8 +733,8 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   // notification deep-link behavior both keep working exactly as before --
   // the deep-link only ever needed TopTab === "PRACTICE", and that still
   // lands a teacher on the same Results view they always saw.
-  const [PracticeSubTab, SetPracticeSubTab] = useState<PracticeSubTabKey>("RESULTS");
-  const [PracticeReportsSubTab, SetPracticeReportsSubTab] = useState<PracticeReportsSubTabKey>("STUDENT");
+  const [PracticeSubTab, SetPracticeSubTab] = useUrlTabState<PracticeSubTabKey>("subTab", PracticeSubTabList, "RESULTS");
+  const [PracticeReportsSubTab, SetPracticeReportsSubTab] = useUrlTabState<PracticeReportsSubTabKey>("reportTab", PracticeReportsSubTabList, "STUDENT");
   const [ReportsStudentSearchText, SetReportsStudentSearchText] = useState("");
   // "ALL" = every one of the teacher's own students with any practice
   // activity, across every level -- narrows WHICH STUDENT BLOCKS are shown
@@ -751,7 +745,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   // active -- the level filter above stays shared/outside both (single
   // ReportsLevelCode state, single query), only the displayed table+its own
   // stat-card row switches.
-  const [LevelReportSubTab, SetLevelReportSubTab] = useState<LevelReportSubTabKey>("SECTION");
+  const [LevelReportSubTab, SetLevelReportSubTab] = useUrlTabState<LevelReportSubTabKey>("levelTab", LevelReportSubTabList, "SECTION");
   // The student the analytics modal is open for -- null when closed. See
   // StudentAnalyticsModal's own comment (2026-09-16 redesign: "a seperate
   // window popping up when a student is clicked upon"). No teacher filter
@@ -776,7 +770,9 @@ function TeacherAnnualCompetitionMonitorPageContent() {
     queryKey: ["teacher", "annual-competition", "live", SelectedEventId],
     queryFn: () => getTeacherAnnualCompetitionLive(SelectedEventId),
     enabled: Ready && Boolean(SelectedEventId) && TopTab === "OFFICIAL" && ActiveTab === "LIVE",
-    refetchInterval: TopTab === "OFFICIAL" && ActiveTab === "LIVE" ? 15000 : false,
+    // Every 5 seconds (was 15) since 2026-10-07 -- see the admin event page's
+    // identical query for why this is cheap enough.
+    refetchInterval: TopTab === "OFFICIAL" && ActiveTab === "LIVE" ? 5000 : false,
   });
 
   const ResultsQuery = useQuery({
@@ -870,7 +866,8 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   // block on the admin page for the full reasoning. Automatically scoped to
   // this teacher's own roster server-side, same as the cumulative query
   // above.
-  const [LeaderboardMode, SetLeaderboardMode] = useState<"CUMULATIVE" | "DAILY">("CUMULATIVE");
+  // Kept in the page address too (2026-10-07), like the tabs above it.
+  const [LeaderboardMode, SetLeaderboardMode] = useUrlTabState<"CUMULATIVE" | "DAILY">("board", LEADERBOARD_MODES, "CUMULATIVE");
   const [LeaderboardDate, SetLeaderboardDate] = useState<string>(() => TodayInIst());
   const PracticeDailyLeaderboardQuery = useQuery({
     queryKey: ["teacher", "annual-competition", "practice-daily-leaderboard-level", LeaderboardLevelCode, LeaderboardDate],
@@ -1086,15 +1083,18 @@ function TeacherAnnualCompetitionMonitorPageContent() {
               <div className="math-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="math-block-header"><Activity size={14} />Live Status</p>
-                  <button
-                    type="button"
-                    disabled={LiveQuery.isFetching}
-                    onClick={() => LiveQuery.refetch()}
-                    className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
-                  >
-                    <RefreshCcw size={14} />
-                    {LiveQuery.isFetching ? "Refreshing..." : "Refresh Now"}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <AnnualLiveUpdatedAgo FetchedAtMs={LiveQuery.dataUpdatedAt} />
+                    <button
+                      type="button"
+                      disabled={LiveQuery.isFetching}
+                      onClick={() => LiveQuery.refetch()}
+                      className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
+                    >
+                      <RefreshCcw size={14} />
+                      Refresh Now
+                    </button>
+                  </div>
                 </div>
 
                 {LiveQuery.data && (
@@ -1112,32 +1112,11 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                 ) : LiveQuery.error ? (
                   <div className="mt-4"><ErrorState message={apiErrorMessage(LiveQuery.error)} /></div>
                 ) : LiveQuery.data && LiveQuery.data.rows.length > 0 ? (
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-left text-sm font-bold">
-                      <thead>
-                        <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                          <th className="px-2 py-1.5">Student</th>
-                          <th className="px-2 py-1.5">Level</th>
-                          <th className="px-2 py-1.5">Slot</th>
-                          <th className="px-2 py-1.5">Status</th>
-                          <th className="px-2 py-1.5">Section</th>
-                          <th className="px-2 py-1.5">Remaining</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {LiveQuery.data.rows.map((Row: TeacherAnnualCompetitionLiveRow) => (
-                          <tr key={Row.assignmentId} className="border-t border-[color:var(--mp-role-border)]">
-                            <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                            <td className="px-2 py-2">{FormatCompetitionLevelLabel(Row.assignedLevelCode)}</td>
-                            <td className="px-2 py-2">{Row.slot?.slotLabel || Row.slot?.mode || "--"}</td>
-                            <td className="px-2 py-2"><LiveStatusChip status={Row.liveStatus} /></td>
-                            <td className="px-2 py-2">{Row.currentSectionNumber ?? "--"}</td>
-                            <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.remainingSecondsAtLastHeartbeat)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <AnnualLiveMonitoringTable
+                    Rows={LiveQuery.data.rows}
+                    FetchedAtMs={LiveQuery.dataUpdatedAt}
+                    GraceSeconds={LiveQuery.data.heartbeatGraceSeconds ?? 45}
+                  />
                 ) : (
                   <div className="mt-4">
                     <EmptyState title="No students of yours are assigned" description="Nothing to monitor for this event yet." />
