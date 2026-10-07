@@ -641,3 +641,124 @@ def test_teacher_annual_competition_routes_are_all_get_only():
     assert len(annual_routes) == 8, "expected exactly the 8 pkg-07/Phase E/2026-09-14-batch/practice-reports/daily-leaderboard teacher routes"
     for route in annual_routes:
         assert route.methods == {"GET"}, f"{route.path} must be GET-only -- teacher has no write path here"
+
+
+# ---------------------------------------------------------------------------
+# Overall countdown + "section N of M" (2026-10-07, Shailesh): "the admin
+# should be able to see the full timer [counting] down from the max to 0",
+# and which section the student is on, "updated as soon as the student moves
+# from one section to another".
+# ---------------------------------------------------------------------------
+
+def test_overall_timer_starts_at_the_whole_paper_time():
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(300, 300, 300, 300))
+    attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+
+    result = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event.id)
+    row = result["rows"][0]
+    assert row["currentSectionNumber"] == 1
+    assert row["totalSectionCount"] == 4
+    assert row["totalDurationSeconds"] == 1200
+    # Nothing used yet: the full 20 minutes, not just section 1's five.
+    assert row["totalRemainingSecondsAtLastHeartbeat"] == 1200
+    assert row["remainingSecondsAtLastHeartbeat"] == 300
+    assert row["heartbeatGapMilliseconds"] is not None and row["heartbeatGapMilliseconds"] >= 0
+    assert result["heartbeatGraceSeconds"] == attempt_engine.HEARTBEAT_GRACE_SECONDS
+
+
+def test_overall_timer_counts_time_used_in_the_active_section():
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(300, 300))
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    section = db.query(CompetitionEventAttemptSectionState).filter_by(attempt_id=started["attemptId"], section_number=1).first()
+    section.remaining_seconds_at_last_heartbeat = 180  # two minutes used
+    db.commit()
+
+    row = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event.id)["rows"][0]
+    assert row["totalRemainingSecondsAtLastHeartbeat"] == 180 + 300
+    assert row["totalDurationSeconds"] == 600
+
+
+def test_finishing_a_section_early_moves_the_section_and_forfeits_its_leftover():
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(300, 300, 300))
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    section = db.query(CompetitionEventAttemptSectionState).filter_by(attempt_id=started["attemptId"], section_number=1).first()
+    section.remaining_seconds_at_last_heartbeat = 120  # leaves 2:00 on the table
+    db.commit()
+
+    attempt_engine.SubmitCompetitionEventSection(db, student, started["attemptId"], started["sessionToken"], 1)
+
+    row = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event.id)["rows"][0]
+    assert row["liveStatus"] == "IN_PROGRESS"
+    assert row["currentSectionNumber"] == 2
+    assert row["totalSectionCount"] == 3
+    # Sections 2 and 3 in full; section 1's unused 2:00 is gone.
+    assert row["totalRemainingSecondsAtLastHeartbeat"] == 600
+
+
+def test_overall_timer_fields_are_empty_before_the_start_and_after_the_end():
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(600,))
+
+    row = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event.id)["rows"][0]
+    assert row["liveStatus"] == "NOT_STARTED"
+    assert row["totalRemainingSecondsAtLastHeartbeat"] is None
+    assert row["totalSectionCount"] is None
+    assert row["heartbeatGapMilliseconds"] is None
+
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    attempt_engine.SubmitCompetitionEventSection(db, student, started["attemptId"], started["sessionToken"], 1)
+    row = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event.id)["rows"][0]
+    assert row["liveStatus"] in ("SUBMITTED", "FINALIZED")
+    assert row["totalRemainingSecondsAtLastHeartbeat"] is None
+    assert row["currentSectionNumber"] is None
+
+
+def test_stuck_student_still_reports_where_their_clock_stood():
+    db = _session()
+    student, event = _full_setup(db, section_seconds=(300, 300))
+    started = attempt_engine.StartCompetitionEventAttempt(db, student, event.id)
+    section = db.query(CompetitionEventAttemptSectionState).filter_by(attempt_id=started["attemptId"], section_number=1).first()
+    section.remaining_seconds_at_last_heartbeat = 200
+    section.last_heartbeat_at = datetime.now(timezone.utc) - timedelta(minutes=10)
+    db.commit()
+
+    row = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event.id)["rows"][0]
+    assert row["liveStatus"] == "STUCK"
+    assert row["totalRemainingSecondsAtLastHeartbeat"] == 500
+    # The screen caps its own countdown at the grace window, so it needs the
+    # real gap to know it is past it.
+    assert row["heartbeatGapMilliseconds"] > attempt_engine.HEARTBEAT_GRACE_SECONDS * 1000
+
+
+def test_live_board_query_count_does_not_grow_with_the_roster():
+    """The board is re-read every 5 seconds by everyone who has it open
+    during the event, so its cost must not scale per student."""
+    from sqlalchemy import event as sa_event
+
+    def _count_for(student_count):
+        db = _session()
+        event_record = None
+        for index in range(student_count):
+            student, event_record = _full_setup(
+                db, sid=f"student-{index}", section_seconds=(300, 300), assignment_id=f"assign-{index}",
+                level_code="PM-L2" if index == 0 else f"PM-L2-{index}",
+            )
+            if index % 2 == 0:
+                attempt_engine.StartCompetitionEventAttempt(db, student, event_record.id)
+        db.commit()
+        db.expire_all()
+        statements = []
+        listener = lambda conn, cursor, statement, parameters, context, executemany: statements.append(statement)  # noqa: E731
+        bind = db.get_bind()
+        sa_event.listen(bind, "before_cursor_execute", listener)
+        try:
+            result = engine.GetAnnualCompetitionLiveMonitoring(db, EventId=event_record.id)
+        finally:
+            sa_event.remove(bind, "before_cursor_execute", listener)
+        assert result["summary"]["totalCount"] == student_count
+        return len(statements)
+
+    assert _count_for(3) == _count_for(12)

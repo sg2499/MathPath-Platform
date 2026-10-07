@@ -618,9 +618,17 @@ export type TeacherAnnualCompetitionLiveRow = {
   attemptStatus: string;
   liveStatus: "NOT_STARTED" | "IN_PROGRESS" | "STUCK" | "SUBMITTED" | "FINALIZED";
   currentSectionNumber: number | null;
+  // 2026-10-07: the overall countdown. Time left in the WHOLE paper as of the
+  // student's last heartbeat, how many sections the paper has, and how long
+  // ago that heartbeat was (to the millisecond) so the screen can keep
+  // counting between reads. See _LiveStatusRows (monitoring service).
+  totalSectionCount: number | null;
+  totalDurationSeconds: number | null;
+  totalRemainingSecondsAtLastHeartbeat: number | null;
   remainingSecondsAtLastHeartbeat: number | null;
   lastHeartbeatAt: string | null;
   heartbeatGapSeconds: number | null;
+  heartbeatGapMilliseconds: number | null;
 };
 
 export type TeacherAnnualCompetitionLiveMonitoring = {
@@ -628,6 +636,8 @@ export type TeacherAnnualCompetitionLiveMonitoring = {
   eventName: string;
   eventStatus: string;
   generatedAt: string;
+  // How long a student's clock runs without a heartbeat before it pauses.
+  heartbeatGraceSeconds: number;
   summary: {
     totalCount: number;
     notStartedCount: number;

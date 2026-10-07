@@ -38,7 +38,6 @@ import {
   type AnnualCompetitionAssignmentPreviewRow,
   type AnnualCompetitionAssignmentRunResult,
   type AnnualCompetitionLevelPaper,
-  type AnnualCompetitionLiveMonitoringRow,
   type AnnualCompetitionPracticeBankStudentRow,
   type AnnualCompetitionResultRow,
   type AnnualCompetitionSlot,
@@ -72,6 +71,8 @@ import {
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { AnnualLiveMonitoringTable, AnnualLiveUpdatedAgo } from "@/components/competition/AnnualLiveMonitoringTable";
+import { useUrlTabState } from "@/hooks/useUrlTabState";
 import type { ReactNode } from "react";
 
 function triggerBlobDownload(BlobValue: Blob, FileName: string) {
@@ -239,18 +240,6 @@ const TabLabels: Record<TabKey, string> = {
   RESULTS: "Results",
 };
 
-const LiveStatusTone: Record<AnnualCompetitionLiveMonitoringRow["liveStatus"], string> = {
-  NOT_STARTED: "bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300",
-  IN_PROGRESS: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200",
-  STUCK: "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200",
-  SUBMITTED: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200",
-  FINALIZED: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200",
-};
-
-function LiveStatusChip({ status }: { status: AnnualCompetitionLiveMonitoringRow["liveStatus"] }) {
-  return <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${LiveStatusTone[status]}`}>{status.replace("_", " ")}</span>;
-}
-
 function FormatSecondsAsMinSec(Value: number | null): string {
   if (Value == null) return "-";
   const Total = Math.max(0, Math.round(Value));
@@ -265,7 +254,9 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const EventId = Params.eventId;
   const QueryClient = useQueryClient();
 
-  const [ActiveTab, SetActiveTab] = useState<TabKey>("SLOTS");
+  // The selected tab lives in the page address (?tab=MONITORING), so a
+  // browser refresh stays on it. See useUrlTabState.
+  const [ActiveTab, SetActiveTab] = useUrlTabState<TabKey>("tab", TabList, "SLOTS");
   const [LastMessage, SetLastMessage] = useState<string | null>(null);
 
   // --- Slot form state ---
@@ -391,8 +382,11 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     enabled: Ready && Boolean(EventId) && ActiveTab === "MONITORING",
     // Genuinely "live" -- auto-refresh while the tab is open, same spirit
     // as the reconciliation sweep it sits next to (this never mutates
-    // anything itself, it only reads more often).
-    refetchInterval: ActiveTab === "MONITORING" ? 15000 : false,
+    // anything itself, it only reads more often). Every 5 seconds since
+    // 2026-10-07, so a student moving to the next section shows promptly;
+    // the server read is a fixed handful of queries (see _LiveStatusRows),
+    // and the Remaining column counts by itself between reads.
+    refetchInterval: ActiveTab === "MONITORING" ? 5000 : false,
   });
 
   const ResultsQuery = useQuery({
@@ -1851,9 +1845,10 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   icon={<Activity size={14} />}
                   kicker="Live View"
                   title="Started / In Progress / Stuck / Submitted"
-                  description="Recomputed on every load (auto-refreshes every 15s while this tab is open) — nothing here is a stored flag. STUCK uses the exact same no-heartbeat-within-the-grace-window threshold the reconciliation sweep below acts on."
+                  description="Updates by itself every 5 seconds while this tab is open. Remaining is the time left in the whole paper. Stuck means no signal from the student's device for 45 seconds; their clock is paused until they are back."
                 />
                 <div className="flex flex-wrap items-center gap-2">
+                  <AnnualLiveUpdatedAgo FetchedAtMs={LiveMonitoringQuery.dataUpdatedAt} />
                   <button
                     type="button"
                     disabled={LiveMonitoringQuery.isFetching}
@@ -1861,7 +1856,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                     className="inline-flex items-center gap-2 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
                   >
                     <RefreshCcw size={14} />
-                    {LiveMonitoringQuery.isFetching ? "Refreshing..." : "Refresh Now"}
+                    Refresh Now
                   </button>
                   <button
                     type="button"
@@ -1892,34 +1887,11 @@ export default function AdminAnnualCompetitionEventDetailPage() {
               {LiveMonitoringQuery.isLoading ? (
                 <div className="mt-4"><LoadingState label="Loading live status..." /></div>
               ) : LiveMonitoringQuery.data && LiveMonitoringQuery.data.rows.length > 0 ? (
-                <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[860px] text-left text-sm font-bold">
-                    <thead>
-                      <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                        <th className="px-2 py-1.5">Student</th>
-                        <th className="px-2 py-1.5">Level</th>
-                        <th className="px-2 py-1.5">Slot</th>
-                        <th className="px-2 py-1.5">Status</th>
-                        <th className="px-2 py-1.5">Section</th>
-                        <th className="px-2 py-1.5">Remaining</th>
-                        <th className="px-2 py-1.5">Last Heartbeat Gap</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {LiveMonitoringQuery.data.rows.map((Row: AnnualCompetitionLiveMonitoringRow) => (
-                        <tr key={Row.assignmentId} className="border-t border-[color:var(--mp-role-border)]">
-                          <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                          <td className="px-2 py-2">{FormatCompetitionLevelLabel(Row.assignedLevelCode)}</td>
-                          <td className="px-2 py-2">{Row.slot?.slotLabel || Row.slot?.mode || "--"}</td>
-                          <td className="px-2 py-2"><LiveStatusChip status={Row.liveStatus} /></td>
-                          <td className="px-2 py-2">{Row.currentSectionNumber ?? "--"}</td>
-                          <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.remainingSecondsAtLastHeartbeat)}</td>
-                          <td className="px-2 py-2">{Row.heartbeatGapSeconds != null ? `${Row.heartbeatGapSeconds}s` : "--"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <AnnualLiveMonitoringTable
+                  Rows={LiveMonitoringQuery.data.rows}
+                  FetchedAtMs={LiveMonitoringQuery.dataUpdatedAt}
+                  GraceSeconds={LiveMonitoringQuery.data.heartbeatGraceSeconds ?? 45}
+                />
               ) : (
                 <div className="mt-4">
                   <EmptyState title="No assignments yet" description="Run the assignment engine first — nothing to monitor until students are assigned to this event." />

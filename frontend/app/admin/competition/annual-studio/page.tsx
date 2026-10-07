@@ -83,6 +83,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
+import { useUrlTabState } from "@/hooks/useUrlTabState";
 
 // 2026-09-27 (Shailesh, Practice Leaderboard sort filter): "just like the
 // other sort filters we have across the platform" -- reuses the exact same
@@ -709,6 +710,7 @@ function LevelStudentWiseAnalyticsView({ Report }: { Report: AnnualCompetitionPr
 // this page's own pre-existing content (create event + events list, each
 // event drilling into its own slots/papers/assignments/monitoring/results);
 // Practice is fully event-independent -- see PracticeSubTabList below.
+const LEADERBOARD_MODES = ["CUMULATIVE", "DAILY"] as const;
 const TopTabList = ["OFFICIAL", "PRACTICE"] as const;
 type TopTabKey = (typeof TopTabList)[number];
 
@@ -755,13 +757,15 @@ function AdminAnnualCompetitionStudioPageContent() {
   // once on mount to pre-select the right tabs/filter and, once the roster
   // has loaded, auto-expand the notified student's row.
   const SearchParams = useSearchParams();
-  const DeepLinkTab = SearchParams.get("tab");
-  const DeepLinkSubTab = SearchParams.get("subTab");
   const DeepLinkStudentCode = SearchParams.get("studentCode");
   const DeepLinkLevelCode = SearchParams.get("levelCode");
 
-  const [TopTab, SetTopTab] = useState<TopTabKey>(DeepLinkTab === "PRACTICE" ? "PRACTICE" : "OFFICIAL");
-  const [PracticeSubTab, SetPracticeSubTab] = useState<PracticeSubTabKey>(DeepLinkSubTab === "RESULTS" ? "RESULTS" : "BANK");
+  // 2026-10-07 (Shailesh): every tab on this page lives in the page address,
+  // so a browser refresh stays on it instead of going back to Official /
+  // Paper Bank (see useUrlTabState). `tab` and `subTab` are the same names
+  // the notification links already use, so those keep working unchanged.
+  const [TopTab, SetTopTab] = useUrlTabState<TopTabKey>("tab", TopTabList, "OFFICIAL");
+  const [PracticeSubTab, SetPracticeSubTab] = useUrlTabState<PracticeSubTabKey>("subTab", PracticeSubTabList, "BANK");
 
   // 2026-09-16 (Shailesh, 504 fix -- "bulletproof end to end"): this page
   // used to track a success message and per-mutation errors as separate,
@@ -1360,7 +1364,7 @@ function AdminAnnualCompetitionStudioPageContent() {
   // clicked upon").
   // ---------------------------------------------------------------------
 
-  const [PracticeReportsSubTab, SetPracticeReportsSubTab] = useState<PracticeReportsSubTabKey>("STUDENT");
+  const [PracticeReportsSubTab, SetPracticeReportsSubTab] = useUrlTabState<PracticeReportsSubTabKey>("reportTab", PracticeReportsSubTabList, "STUDENT");
   const [ReportsStudentSearchText, SetReportsStudentSearchText] = useState("");
   // "ALL" = every student with any practice activity, across every level.
   const [ReportsBlockLevelFilter, SetReportsBlockLevelFilter] = useState<string>("ALL");
@@ -1372,7 +1376,7 @@ function AdminAnnualCompetitionStudioPageContent() {
   // active -- the level filter above stays shared/outside both (single
   // ReportsLevelCode state, single query), only the displayed table+its own
   // stat-card row switches.
-  const [LevelReportSubTab, SetLevelReportSubTab] = useState<LevelReportSubTabKey>("SECTION");
+  const [LevelReportSubTab, SetLevelReportSubTab] = useUrlTabState<LevelReportSubTabKey>("levelTab", LevelReportSubTabList, "SECTION");
   // The student the analytics modal is open for -- null when closed. The
   // whole roster row is kept (not just an id) so the modal has the
   // student's papers on hand immediately to derive Section Wise Analytics'
@@ -1523,7 +1527,8 @@ function AdminAnnualCompetitionStudioPageContent() {
   // than a mode flag threaded through the cumulative one above (the row
   // shapes genuinely differ -- see PracticeDailyLeaderboardPodium's own
   // comment on why it's a sibling component, not a variant).
-  const [LeaderboardMode, SetLeaderboardMode] = useState<"CUMULATIVE" | "DAILY">("CUMULATIVE");
+  // Kept in the page address too (2026-10-07), like the tabs above it.
+  const [LeaderboardMode, SetLeaderboardMode] = useUrlTabState<"CUMULATIVE" | "DAILY">("board", LEADERBOARD_MODES, "CUMULATIVE");
   const [LeaderboardDate, SetLeaderboardDate] = useState<string>(() => TodayInIst());
   const PracticeDailyLeaderboardQuery = useQuery({
     queryKey: ["admin", "annual-competition", "practice-daily-leaderboard-level", LeaderboardLevelCode, LeaderboardDate],

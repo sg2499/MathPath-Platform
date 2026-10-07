@@ -118,19 +118,6 @@ def _LatestAttemptForAssignment(db: Session, AssignmentRecord: CompetitionEventA
     )
 
 
-def _ActiveSectionForAttempt(db: Session, AttemptRecord: CompetitionEventAttempt | None) -> CompetitionEventAttemptSectionState | None:
-    if not AttemptRecord:
-        return None
-    return (
-        db.query(CompetitionEventAttemptSectionState)
-        .filter(
-            CompetitionEventAttemptSectionState.attempt_id == AttemptRecord.id,
-            CompetitionEventAttemptSectionState.status == "ACTIVE",
-        )
-        .first()
-    )
-
-
 def _SlotPayload(SlotRecord: CompetitionEventSlot | None) -> dict[str, Any] | None:
     if not SlotRecord:
         return None
@@ -167,61 +154,175 @@ def _ResolveAssignmentsForRoster(
     return Query.all()
 
 
-def _LiveStatusRow(db: Session, AssignmentRecord: CompetitionEventAssignment, NowUtc: datetime) -> dict[str, Any] | None:
-    StudentRecord = db.get(Student, AssignmentRecord.student_id)
-    if not StudentRecord:
-        # Defensive only -- an assignment should never outlive its student
-        # (the FK cascades on delete), but a monitoring read must never 500
-        # over a single bad row.
-        return None
-    UserRecord = db.get(User, StudentRecord.user_id) if StudentRecord.user_id else None
-    SlotRecord = db.get(CompetitionEventSlot, AssignmentRecord.slot_id) if AssignmentRecord.slot_id else None
-    AttemptRecord = _LatestAttemptForAssignment(db, AssignmentRecord)
+# Largest IN (...) list sent in one query. SQLite (tests, local) caps bound
+# parameters at 999; a real event's roster can be larger than that.
+_IN_CHUNK_SIZE = 500
 
-    LiveStatus = LIVE_STATUS_NOT_STARTED
-    CurrentSectionNumber: int | None = None
-    RemainingSecondsAtLastHeartbeat: int | None = None
-    LastHeartbeatAtValue: datetime | None = None
-    GapSeconds: float | None = None
 
-    if AttemptRecord and AttemptRecord.status == "IN_PROGRESS":
-        CurrentSectionNumber = AttemptRecord.current_section_number
-        ActiveSectionState = _ActiveSectionForAttempt(db, AttemptRecord)
-        if ActiveSectionState:
-            RemainingSecondsAtLastHeartbeat = ActiveSectionState.remaining_seconds_at_last_heartbeat
-            LastHeartbeatAtValue = _Aware(ActiveSectionState.last_heartbeat_at) or _Aware(ActiveSectionState.started_at)
-            if LastHeartbeatAtValue:
-                GapSeconds = (NowUtc - LastHeartbeatAtValue).total_seconds()
-        # Same "no heartbeat within the grace window right now" definition
-        # as ReconcileExpiredCompetitionEventAttempts -- see module
-        # docstring. No ACTIVE section at all (a data oddity) is treated as
-        # stuck too, since nothing will self-correct it without a touch.
-        IsStuck = GapSeconds is None or GapSeconds > HEARTBEAT_GRACE_SECONDS
-        LiveStatus = LIVE_STATUS_STUCK if IsStuck else LIVE_STATUS_IN_PROGRESS
-    elif AttemptRecord and AttemptRecord.status in ("SUBMITTED", "FINALIZED"):
-        LiveStatus = AttemptRecord.status
-    # else: no attempt row at all (or, defensively, one still literally at
-    # the schema default) -- NOT_STARTED, same synthesis
-    # _AssignmentWithAttemptPayload already uses for the student-facing
-    # discovery endpoint.
+def _InChunks(Values: list[str]) -> list[list[str]]:
+    return [Values[Index : Index + _IN_CHUNK_SIZE] for Index in range(0, len(Values), _IN_CHUNK_SIZE)]
 
-    return {
-        "assignmentId": AssignmentRecord.id,
-        "studentId": StudentRecord.id,
-        "studentCode": StudentRecord.student_code,
-        "studentName": UserRecord.full_name if UserRecord else StudentRecord.student_code,
-        "className": StudentRecord.class_name,
-        "section": StudentRecord.section,
-        "assignedLevelCode": AssignmentRecord.assigned_level_code,
-        "slot": _SlotPayload(SlotRecord),
-        "attemptId": AttemptRecord.id if AttemptRecord else None,
-        "attemptStatus": AttemptRecord.status if AttemptRecord else LIVE_STATUS_NOT_STARTED,
-        "liveStatus": LiveStatus,
-        "currentSectionNumber": CurrentSectionNumber,
-        "remainingSecondsAtLastHeartbeat": RemainingSecondsAtLastHeartbeat,
-        "lastHeartbeatAt": LastHeartbeatAtValue.isoformat() if LastHeartbeatAtValue else None,
-        "heartbeatGapSeconds": int(GapSeconds) if GapSeconds is not None else None,
-    }
+
+def _LiveStatusRows(
+    db: Session, AssignmentRecords: list[CompetitionEventAssignment], NowUtc: datetime
+) -> list[dict[str, Any]]:
+    """Every row of the live status board, built from a FIXED number of
+    queries however many students are on it.
+
+    2026-10-07 (Shailesh, live countdown + section "as soon as the student
+    moves"): the board is now re-read every 5 seconds instead of every 15,
+    by every admin and teacher who has it open, during the event itself. The
+    previous per-student version issued four to five queries per row (student,
+    user, slot, latest attempt, active section) -- about 1,500 queries a read
+    for a 300-student event. This reads the same five tables once each.
+
+    Also new on every row, for the overall countdown the board now shows:
+
+      * totalSectionCount -- how many sections this student's paper has
+        ("2 of 4").
+      * totalDurationSeconds -- the whole paper's time (10:00 / 20:00 / 35:00).
+      * totalRemainingSecondsAtLastHeartbeat -- time left in the WHOLE paper
+        as of the student's last heartbeat: what is left of the active section
+        plus the full time of every section not started yet. A section the
+        student finished early has forfeited its leftover (by design -- see
+        SubmitCompetitionEventSection), so it is simply not counted.
+      * heartbeatGapMilliseconds -- how long ago that heartbeat was, to the
+        millisecond, so the screen can keep counting between reads without
+        depending on the admin's own clock agreeing with the server's.
+
+    The screen counts down from totalRemainingSecondsAtLastHeartbeat by the
+    time since that heartbeat, capped at HEARTBEAT_GRACE_SECONDS -- exactly
+    the deduction RecordCompetitionEventHeartbeat itself will apply when the
+    student's next heartbeat arrives. So a disconnected student's timer stops
+    on the admin's screen at the same value the student will resume from.
+    """
+    if not AssignmentRecords:
+        return []
+
+    AssignmentIds = [AssignmentRecord.id for AssignmentRecord in AssignmentRecords]
+    StudentIds = list({AssignmentRecord.student_id for AssignmentRecord in AssignmentRecords})
+    SlotIds = list({AssignmentRecord.slot_id for AssignmentRecord in AssignmentRecords if AssignmentRecord.slot_id})
+
+    StudentById: dict[str, Student] = {}
+    for Chunk in _InChunks(StudentIds):
+        for StudentRecord in db.query(Student).filter(Student.id.in_(Chunk)).all():
+            StudentById[StudentRecord.id] = StudentRecord
+
+    UserIds = list({StudentRecord.user_id for StudentRecord in StudentById.values() if StudentRecord.user_id})
+    UserById: dict[str, User] = {}
+    for Chunk in _InChunks(UserIds):
+        for UserRecord in db.query(User).filter(User.id.in_(Chunk)).all():
+            UserById[UserRecord.id] = UserRecord
+
+    SlotById: dict[str, CompetitionEventSlot] = {}
+    for Chunk in _InChunks(SlotIds):
+        for SlotRecord in db.query(CompetitionEventSlot).filter(CompetitionEventSlot.id.in_(Chunk)).all():
+            SlotById[SlotRecord.id] = SlotRecord
+
+    # Latest attempt per assignment: the highest attempt_number, the same
+    # choice _LatestAttemptForAssignment makes one assignment at a time.
+    LatestAttemptByAssignmentId: dict[str, CompetitionEventAttempt] = {}
+    for Chunk in _InChunks(AssignmentIds):
+        for AttemptRecord in (
+            db.query(CompetitionEventAttempt).filter(CompetitionEventAttempt.assignment_id.in_(Chunk)).all()
+        ):
+            Current = LatestAttemptByAssignmentId.get(AttemptRecord.assignment_id)
+            if not Current or (AttemptRecord.attempt_number or 0) > (Current.attempt_number or 0):
+                LatestAttemptByAssignmentId[AttemptRecord.assignment_id] = AttemptRecord
+
+    InProgressAttemptIds = [
+        AttemptRecord.id for AttemptRecord in LatestAttemptByAssignmentId.values() if AttemptRecord.status == "IN_PROGRESS"
+    ]
+    SectionStatesByAttemptId: dict[str, list[CompetitionEventAttemptSectionState]] = {}
+    for Chunk in _InChunks(InProgressAttemptIds):
+        for SectionState in (
+            db.query(CompetitionEventAttemptSectionState)
+            .filter(CompetitionEventAttemptSectionState.attempt_id.in_(Chunk))
+            .all()
+        ):
+            SectionStatesByAttemptId.setdefault(SectionState.attempt_id, []).append(SectionState)
+
+    Rows: list[dict[str, Any]] = []
+    for AssignmentRecord in AssignmentRecords:
+        StudentRecord = StudentById.get(AssignmentRecord.student_id)
+        if not StudentRecord:
+            # Defensive only -- an assignment should never outlive its student
+            # (the FK cascades on delete), but a monitoring read must never
+            # 500 over a single bad row.
+            continue
+        UserRecord = UserById.get(StudentRecord.user_id) if StudentRecord.user_id else None
+        SlotRecord = SlotById.get(AssignmentRecord.slot_id) if AssignmentRecord.slot_id else None
+        AttemptRecord = LatestAttemptByAssignmentId.get(AssignmentRecord.id)
+
+        LiveStatus = LIVE_STATUS_NOT_STARTED
+        CurrentSectionNumber: int | None = None
+        RemainingSecondsAtLastHeartbeat: int | None = None
+        LastHeartbeatAtValue: datetime | None = None
+        GapSeconds: float | None = None
+        TotalSectionCount: int | None = None
+        TotalDurationSeconds: int | None = None
+        TotalRemainingSecondsAtLastHeartbeat: int | None = None
+
+        if AttemptRecord and AttemptRecord.status == "IN_PROGRESS":
+            CurrentSectionNumber = AttemptRecord.current_section_number
+            SectionStates = sorted(
+                SectionStatesByAttemptId.get(AttemptRecord.id, []), key=lambda State: State.section_number or 0
+            )
+            if SectionStates:
+                TotalSectionCount = len(SectionStates)
+                TotalDurationSeconds = sum(int(State.time_limit_seconds or 0) for State in SectionStates)
+            ActiveSectionState = next((State for State in SectionStates if State.status == "ACTIVE"), None)
+            if ActiveSectionState:
+                RemainingSecondsAtLastHeartbeat = ActiveSectionState.remaining_seconds_at_last_heartbeat
+                LastHeartbeatAtValue = _Aware(ActiveSectionState.last_heartbeat_at) or _Aware(ActiveSectionState.started_at)
+                if LastHeartbeatAtValue:
+                    GapSeconds = (NowUtc - LastHeartbeatAtValue).total_seconds()
+                ActiveRemaining = (
+                    RemainingSecondsAtLastHeartbeat
+                    if RemainingSecondsAtLastHeartbeat is not None
+                    else int(ActiveSectionState.time_limit_seconds or 0)
+                )
+                NotStartedSeconds = sum(
+                    int(State.time_limit_seconds or 0) for State in SectionStates if State.status == "PENDING"
+                )
+                TotalRemainingSecondsAtLastHeartbeat = max(0, int(ActiveRemaining)) + NotStartedSeconds
+            # Same "no heartbeat within the grace window right now" definition
+            # as ReconcileExpiredCompetitionEventAttempts -- see module
+            # docstring. No ACTIVE section at all (a data oddity) is treated as
+            # stuck too, since nothing will self-correct it without a touch.
+            IsStuck = GapSeconds is None or GapSeconds > HEARTBEAT_GRACE_SECONDS
+            LiveStatus = LIVE_STATUS_STUCK if IsStuck else LIVE_STATUS_IN_PROGRESS
+        elif AttemptRecord and AttemptRecord.status in ("SUBMITTED", "FINALIZED"):
+            LiveStatus = AttemptRecord.status
+        # else: no attempt row at all (or, defensively, one still literally at
+        # the schema default) -- NOT_STARTED, same synthesis
+        # _AssignmentWithAttemptPayload already uses for the student-facing
+        # discovery endpoint.
+
+        Rows.append(
+            {
+                "assignmentId": AssignmentRecord.id,
+                "studentId": StudentRecord.id,
+                "studentCode": StudentRecord.student_code,
+                "studentName": UserRecord.full_name if UserRecord else StudentRecord.student_code,
+                "className": StudentRecord.class_name,
+                "section": StudentRecord.section,
+                "assignedLevelCode": AssignmentRecord.assigned_level_code,
+                "slot": _SlotPayload(SlotRecord),
+                "attemptId": AttemptRecord.id if AttemptRecord else None,
+                "attemptStatus": AttemptRecord.status if AttemptRecord else LIVE_STATUS_NOT_STARTED,
+                "liveStatus": LiveStatus,
+                "currentSectionNumber": CurrentSectionNumber,
+                "totalSectionCount": TotalSectionCount,
+                "totalDurationSeconds": TotalDurationSeconds,
+                "totalRemainingSecondsAtLastHeartbeat": TotalRemainingSecondsAtLastHeartbeat,
+                "remainingSecondsAtLastHeartbeat": RemainingSecondsAtLastHeartbeat,
+                "lastHeartbeatAt": LastHeartbeatAtValue.isoformat() if LastHeartbeatAtValue else None,
+                "heartbeatGapSeconds": int(GapSeconds) if GapSeconds is not None else None,
+                "heartbeatGapMilliseconds": int(max(0.0, GapSeconds) * 1000) if GapSeconds is not None else None,
+            }
+        )
+    return Rows
 
 
 def GetAnnualCompetitionLiveMonitoring(
@@ -235,7 +336,7 @@ def GetAnnualCompetitionLiveMonitoring(
     NowUtc = _NowUtc()
 
     AssignmentRecords = _ResolveAssignmentsForRoster(db, EventId=EventId, StudentIdsFilter=StudentIdsFilter, SlotId=SlotId)
-    Rows = [Row for Row in (_LiveStatusRow(db, AssignmentRecord, NowUtc) for AssignmentRecord in AssignmentRecords) if Row]
+    Rows = _LiveStatusRows(db, AssignmentRecords, NowUtc)
     Rows.sort(key=lambda Row: ((Row["slot"] or {}).get("scheduledStartAt") or "", Row["studentName"] or ""))
 
     Summary = {
@@ -252,6 +353,9 @@ def GetAnnualCompetitionLiveMonitoring(
         "eventName": EventRecord.name,
         "eventStatus": EventRecord.status,
         "generatedAt": NowUtc.isoformat(),
+        # How long a student's clock keeps running without a heartbeat before
+        # it pauses. The screen stops its own countdown at the same point.
+        "heartbeatGraceSeconds": HEARTBEAT_GRACE_SECONDS,
         "summary": Summary,
         "rows": Rows,
     }
