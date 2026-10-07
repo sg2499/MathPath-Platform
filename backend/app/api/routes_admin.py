@@ -301,12 +301,12 @@ def AssessmentReadinessGateAuditPayload(rows: list[dict[str, Any]]) -> dict[str,
         "testingOverrideLabel": ASSESSMENT_TESTING_OVERRIDE_LABEL,
         "notReadyStudentsImpacted": len(NotReadyRows),
         "assignmentImpactLabel": (
-            "Testing bypass currently allows assessment assignment before readiness is complete."
+            "Teachers can assign a level assessment to any student in that level."
             if TEMPORARY_ASSESSMENT_READINESS_BYPASS
             else "Strict readiness gate currently blocks assessment assignment until eligibility is complete."
         ),
         "nextPhaseNote": (
-            "Global testing bypass is active. Use only for broad local testing; set TEMPORARY_ASSESSMENT_READINESS_BYPASS=false before live deployment."
+            "Readiness is shown as a guide. The list below shows who has finished the level's practice."
             if TEMPORARY_ASSESSMENT_READINESS_BYPASS
             else (
                 "Strict readiness gate is active with Admin Testing Override available for controlled QA/demo use."

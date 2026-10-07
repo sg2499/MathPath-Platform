@@ -1989,7 +1989,7 @@ def AssessmentAssignmentReadinessMessage(Eligibility: dict | None, Override: Ass
     if Override:
         return "Eligible By Admin Testing Override. Use only for testing or demo assignment."
     if TEMPORARY_ASSESSMENT_READINESS_BYPASS:
-        return "Testing mode allows assessment assignment before readiness is complete."
+        return "Can be assigned. Readiness is a guide; the teacher decides."
     BaseMessage = Eligibility.get("message") if Eligibility else None
     return BaseMessage or "Assessment readiness is required before assignment. Ask Admin to enable Testing Override only for controlled testing."
 
@@ -1999,7 +1999,7 @@ def AssessmentGateModePayload(rows: list[dict]) -> dict:
     return {
         "strictReadinessMode": StrictMode,
         "assignmentGateMode": "STRICT_READINESS" if StrictMode else "GLOBAL_TESTING_BYPASS",
-        "assignmentGateLabel": "Strict Readiness Gate" if StrictMode else "Testing Bypass Active",
+        "assignmentGateLabel": "Strict Readiness Gate" if StrictMode else "Readiness: Guide Only",
         "blockedStudents": len([row for row in rows if not row.get("canAssign") and not row.get("alreadyAssigned") and not row.get("requiresReattempt")]),
         "strictBlockedStudents": len([row for row in rows if StrictMode and not row.get("canAssign") and not row.get("alreadyAssigned") and not row.get("requiresReattempt")]),
         "readyStudents": len([row for row in rows if row.get("readinessGateMode") == "READY"]),

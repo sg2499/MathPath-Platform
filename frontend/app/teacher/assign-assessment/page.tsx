@@ -51,7 +51,11 @@ function StudentStatusPill({ Student }: { Student: TeacherAssignableAssessmentSt
     return <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">Controlled Access</span>;
   }
   if (Student.readinessBypassApplied) {
-    return <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">Workflow Verification</span>;
+    // 2026-10-07 (Shailesh): readiness is a guide, the teacher decides. This
+    // student can be assigned; the tag says what is true about their
+    // practice ("Practice Incomplete", "Needs DPS Re-Attempt") instead of
+    // the old "Workflow Verification", which described a testing mode.
+    return <span className="whitespace-nowrap rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">{Student.statusLabel || "Practice Incomplete"}</span>;
   }
   if (Student.canAssign) {
     return <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Ready</span>;
@@ -62,15 +66,25 @@ function StudentStatusPill({ Student }: { Student: TeacherAssignableAssessmentSt
   return <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-700">Not Ready</span>;
 }
 
+// The line under a student who can be assigned although their practice is
+// not complete (readiness is a guide; the teacher decides).
+function GuideLineForStudent(Student: TeacherAssignableAssessmentStudent) {
+  if (Student.status === "NEEDS_DPS_REATTEMPT") return "Can be assigned. Some sheets are below the 70% benchmark.";
+  if (Student.status === "NO_DPS_IN_LEVEL") return "Can be assigned. This level has no DPS sheets yet.";
+  return "Can be assigned. Practice is not complete.";
+}
+
 function ReadinessGateBanner({ Summary }: { Summary: NonNullable<Awaited<ReturnType<typeof getTeacherAssignAssessmentOptions>>["summary"]> }) {
   if (Summary.readinessBypassEnabled) {
     return (
-      <div className="rounded-[24px] border border-amber-200 bg-amber-50/90 p-4 text-sm font-extrabold text-amber-900 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+      // 2026-10-07 (Shailesh): this is the platform's policy, not a testing
+      // mode and not a warning, so it reads as plain information.
+      <div className="rounded-[24px] border border-blue-200 bg-blue-50/90 p-4 text-sm font-extrabold text-blue-900 shadow-sm dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-100">
         <div className="flex gap-3">
-          <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+          <ShieldCheck size={18} className="mt-0.5 shrink-0" />
           <div>
-            <p className="font-black">Assessment Workflow Verification Enabled</p>
-            <p className="mt-1 text-xs font-bold">Assessment assignment is open for demo verification across the selected learner group.</p>
+            <p className="font-black">Readiness Is A Guide</p>
+            <p className="mt-1 text-xs font-bold">You can assign the level assessment to any student in that level. Readiness shows how much of the level's practice each student has finished.</p>
           </div>
         </div>
       </div>
@@ -277,12 +291,12 @@ export default function TeacherAssignAssessmentPage() {
               Assessment Assignment
             </p>
             <h1 className="math-title">Assign Assessment</h1>
-            <p className="math-subtitle">Assign live level assessments to students who have met readiness requirements.</p>
+            <p className="math-subtitle">Assign live level assessments to your students.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <Metric label="Students" value={Data?.summary.students ?? 0} helper="Teacher Roster" icon={<UsersRound size={17} />} />
             <Metric label="Live Assessments" value={Data?.summary.availableAssessments ?? 0} helper="Open For Assignment" icon={<GraduationCap size={17} />} />
-            <Metric label="Eligible Students" value={Data?.summary.assignableStudents ?? 0} helper={Data?.summary.strictReadinessMode ? "Ready / Override" : "Testing Scope"} icon={<UserCheck size={17} />} />
+            <Metric label="Eligible Students" value={Data?.summary.assignableStudents ?? 0} helper={Data?.summary.strictReadinessMode ? "Ready / Override" : "Assignable Now"} icon={<UserCheck size={17} />} />
             <Metric label="Assigned Assessments" value={Data?.summary.alreadyAssigned ?? 0} helper="Original Assignments" icon={<ShieldCheck size={17} />} />
             <Metric label="Re-Attempt Needed" value={Data?.summary.reattemptNeeded ?? 0} helper="Below Benchmark" icon={<RotateCcw size={17} />} />
           </div>
@@ -342,16 +356,18 @@ export default function TeacherAssignAssessmentPage() {
 
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-[22px] border border-white/70 bg-white/85 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/75">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 dark:text-slate-300">Readiness Gate</p>
-                <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{Data?.summary.readinessBypassEnabled ? "Readiness Bypass Active" : Data?.summary.assignmentGateLabel || "Readiness Gate"}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 dark:text-slate-300">{Data?.summary.readinessBypassEnabled ? "Readiness" : "Readiness Gate"}</p>
+                <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{Data?.summary.readinessBypassEnabled ? "Guide Only" : Data?.summary.assignmentGateLabel || "Readiness Gate"}</p>
               </div>
               <div className="rounded-[22px] border border-white/70 bg-white/85 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/75">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 dark:text-slate-300">Ready Students</p>
                 <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{Data?.summary.readyStudents ?? 0}</p>
               </div>
               <div className="rounded-[22px] border border-white/70 bg-white/85 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/75">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 dark:text-slate-300">Blocked Students</p>
-                <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{Data?.summary.strictReadinessMode ? (Data?.summary.strictBlockedStudents ?? 0) : 0}</p>
+                {/* Nobody is blocked while readiness is a guide, so this card counts
+                    the students whose practice is not complete instead. */}
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 dark:text-slate-300">{Data?.summary.strictReadinessMode ? "Blocked Students" : "Practice Incomplete"}</p>
+                <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{Data?.summary.strictReadinessMode ? (Data?.summary.strictBlockedStudents ?? 0) : (Data?.summary.readinessBypassStudents ?? 0)}</p>
               </div>
             </div>
 
@@ -363,7 +379,7 @@ export default function TeacherAssignAssessmentPage() {
                     Eligible Students
                   </p>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">Assignment Queue</h2>
-                  <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-300">{Data?.summary.readinessBypassEnabled ? "Readiness bypass is active until the owner explicitly restores strict readiness. Matching students can be assigned for QA." : Data?.summary.testingOverrideEnabled ? "Ready students and learners with controlled access from the selected assessment level can be assigned." : "Only ready students from the selected assessment level can be assigned."}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-300">{Data?.summary.readinessBypassEnabled ? "Assign any student in the assessment's level." : Data?.summary.testingOverrideEnabled ? "Ready students and learners with controlled access from the selected assessment level can be assigned." : "Only ready students from the selected assessment level can be assigned."}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button type="button" className="math-role-action-button px-4 py-2" onClick={SelectAllAssignable} disabled={!SelectedAssessment || !AssignableStudents.length}>
@@ -404,7 +420,7 @@ export default function TeacherAssignAssessmentPage() {
                             <StudentStatusPill Student={Student} />
                           </div>
                           <p className="mt-1 text-xs font-bold text-slate-500"><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{Student.studentCode}</span> · {Student.moduleCode || "Module"} · {Student.levelCode || "Level"}</p>
-                          <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{Student.canAssign ? (Student.approvedReattemptAccess ? "Admin-approved re-attempt access is available." : Student.testingOverrideApplied ? "Eligible through controlled assessment access." : Student.readinessBypassApplied ? "Assessment workflow verification is currently enabled." : "Ready for original assessment assignment.") : BlockReason}</p>
+                          <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{Student.canAssign ? (Student.approvedReattemptAccess ? "Admin-approved re-attempt access is available." : Student.testingOverrideApplied ? "Eligible through controlled assessment access." : Student.readinessBypassApplied ? GuideLineForStudent(Student) : "Ready for original assessment assignment.") : BlockReason}</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center text-xs font-black text-slate-600 dark:text-slate-300">
