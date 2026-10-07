@@ -144,6 +144,7 @@ from sqlalchemy.orm import Session
 from app.core import config as app_config
 from app.core.errors import api_error
 from app.services.answer_matching import answers_match
+from app.services.annual_competition_retired_sections import RetiredSectionNumbersForLevelPaper
 from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals, RoundPercentageForDisplay
 from app.models import (
     CompetitionEvent,
@@ -330,6 +331,29 @@ def _AllSectionsOrdered(db: Session, AttemptRecord: CompetitionEventAttempt) -> 
         .order_by(CompetitionEventAttemptSectionState.section_number.asc())
         .all()
     )
+
+
+def _ReviewSectionsOrdered(
+    db: Session, AttemptRecord: CompetitionEventAttempt, LevelPaperRecord: CompetitionEventLevelPaper | None
+) -> list[CompetitionEventAttemptSectionState]:
+    """The sections a COMPLETED attempt's review shows -- its Answer Sheet
+    and Scorecard, for admin, teacher and student alike.
+
+    2026-10-07 (Shailesh, IM-3's removed Squares section): "for the
+    completed attempt views across admin, teacher and students, lets update
+    the answer sheet and scorecard tabs with 4 section sum info only and
+    remove the things which is no longer there". Every section the attempt
+    had, less any retired one -- the same sections the result is scored on
+    (annual_competition_scoring_service._RawMetricsForAttempt), so the tabs
+    and the score beside them always describe the same paper. Used by the
+    three review functions only; the live attempt flow keeps
+    _AllSectionsOrdered.
+    """
+    Sections = _AllSectionsOrdered(db, AttemptRecord)
+    RetiredSectionNumbers = RetiredSectionNumbersForLevelPaper(db, LevelPaperRecord)
+    if not RetiredSectionNumbers:
+        return Sections
+    return [SectionState for SectionState in Sections if SectionState.section_number not in RetiredSectionNumbers]
 
 
 def _ActivateSection(SectionState: CompetitionEventAttemptSectionState, NowUtc: datetime, *, Briefing: bool = False) -> None:
@@ -1060,6 +1084,15 @@ def StartAnnualCompetitionPracticeAttempt(
             CompetitionEventLevelPaper.consumed_at.is_(None),
         )
         .order_by(CompetitionEventLevelPaper.assigned_at.asc())
+        # 2026-10-07: the paper row is held for the length of this start.
+        # A backfill that rebuilds an unopened practice paper
+        # (RebuildUnopenedPracticePaperToCurrentRules in
+        # annual_competition_studio_service.py) takes the same row lock
+        # before it looks for attempts, so the two can never overlap: either
+        # the student starts first and the backfill then sees the attempt
+        # and leaves the paper alone, or the backfill finishes first and the
+        # student starts on the rebuilt paper. No effect on SQLite.
+        .with_for_update()
         .first()
     )
     if not LevelPaperRecord:
@@ -1969,7 +2002,7 @@ def GetCompetitionEventAttemptReviewForAdmin(db: Session, *, AttemptId: str) -> 
         _AttemptReviewSectionPayload(
             db, AttemptRecord, SectionState, TimersBySectionNumber.get(SectionState.section_number), MockExamId, AnswersByQuestionId,
         )
-        for SectionState in _AllSectionsOrdered(db, AttemptRecord)
+        for SectionState in _ReviewSectionsOrdered(db, AttemptRecord, LevelPaperRecord)
     ]
 
     return {
@@ -2151,7 +2184,7 @@ def GetCompetitionEventAttemptReviewForStudent(db: Session, StudentRecord: Stude
         _AttemptReviewSectionPayload(
             db, AttemptRecord, SectionState, TimersBySectionNumber.get(SectionState.section_number), MockExamId, AnswersByQuestionId,
         )
-        for SectionState in _AllSectionsOrdered(db, AttemptRecord)
+        for SectionState in _ReviewSectionsOrdered(db, AttemptRecord, LevelPaperRecord)
     ]
 
     return {
@@ -2228,7 +2261,7 @@ def GetCompetitionEventAttemptReviewForTeacher(db: Session, AttemptId: str, *, S
         _AttemptReviewSectionPayload(
             db, AttemptRecord, SectionState, TimersBySectionNumber.get(SectionState.section_number), MockExamId, AnswersByQuestionId,
         )
-        for SectionState in _AllSectionsOrdered(db, AttemptRecord)
+        for SectionState in _ReviewSectionsOrdered(db, AttemptRecord, LevelPaperRecord)
     ]
 
     return {
