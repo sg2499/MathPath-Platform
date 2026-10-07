@@ -1395,7 +1395,7 @@ EXPECTED_TOTAL_MINUTES = {
     "PM-L4": 20,
     "IM-L1": 20,
     "IM-L2": 20,
-    "IM-L3": 25,
+    "IM-L3": 20,  # 2026-10-07 (Shailesh): Squares section removed, was 25
     # 2026-09-14 batch (Shailesh): Section 6 (Percentage) removed entirely --
     # was 30. See the matching EXPECTED table update in
     # test_annual_competition_paper_generation_service.py.

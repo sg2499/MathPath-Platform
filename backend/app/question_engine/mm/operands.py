@@ -93,6 +93,14 @@ def _AddLessDecimalPlaces(Config: MMConfig, Stage: str) -> int:
         return 0
     if not _IsDecimalConcept(Config):
         return 0
+    # 2026-10-07 (Shailesh, Annual Competition MM-1 / MM-2 "Decimal Add-Less
+    # (Visual)": "keep 2 numbers after the decimal point"). Opt-in only via
+    # GeneratorConfig["addLessDecimalPlacesOverride"] -- every other caller
+    # (which never sets this key) falls through to the exact lines below,
+    # so its output is unchanged.
+    PlacesOverride = Config.GeneratorConfig.get("addLessDecimalPlacesOverride") if isinstance(Config.GeneratorConfig, dict) else None
+    if PlacesOverride:
+        return max(1, min(3, int(PlacesOverride)))
     Band = _LessonBand(Config)
     if Band <= 2:
         return 1 if Stage == "WARM_UP" else 2

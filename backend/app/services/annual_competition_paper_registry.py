@@ -484,6 +484,244 @@ _MM_L1_CUBE_ROOTS_POOL: list[dict[str, Any]] = [
 # ---------------------------------------------------------------------------
 ANNUAL_COMPETITION_MARKS_PER_QUESTION = 1
 
+# ---------------------------------------------------------------------------
+# 2026-10-07 (Shailesh): the per-level question rules for the Annual
+# Competition, official and practice papers alike -- "these need to be
+# pristine, accurate and exact". The full request, the answers given to the
+# open questions ("go ahead with the default answers") and the measurements
+# behind every line are in the project note
+# claude/mathpath-annual-question-rules-oct7-findings.md.
+#
+# Three registry keys are new, all read only by the Annual Competition
+# collector (annual_competition_paper_generation_service.py) and never
+# passed to a module engine:
+#   quota                 how many of a section's questions this entry gets
+#                         (every entry of a pool carries one, or none do --
+#                         then the section is split equally as before)
+#   mixKey                the pattern name used when a section is mixed
+#                         (defaults to the entry's title)
+#   annualNeverBelowZero  the first number is never negative and the running
+#                         total never drops below zero
+# and two section keys:
+#   mixMaxRun             mix the section's patterns through the paper, no
+#                         pattern more than this many questions in a row
+#   strictQuotas          a pattern that cannot fill its quota fails the
+#                         paper loudly instead of quietly borrowing sums
+#                         from the next pattern (how MM-2's roots came out
+#                         34 square roots / 16 cube roots instead of 25 / 25)
+# ---------------------------------------------------------------------------
+def _SplitByWeights(Total: int, Weights: list[int]) -> list[int]:
+    """Total shared out in proportion to Weights, whole numbers that add up
+    to exactly Total (largest remainder first, earlier entry on a tie)."""
+    WeightSum = sum(Weights)
+    Exact = [Total * Weight / WeightSum for Weight in Weights]
+    Shares = [int(Value) for Value in Exact]
+    Order = sorted(range(len(Weights)), key=lambda Index: (-(Exact[Index] - Shares[Index]), Index))
+    for Index in Order[: Total - sum(Shares)]:
+        Shares[Index] += 1
+    return Shares
+
+
+# Of every 25 PM-1 / PM-2 sums of one shape: 4 direct only, 7 that use the
+# complement of 5, 7 that use the complement of 10, 7 that use both --
+# "PM 1 should include all concepts, current Q paper has only direct sums".
+_BEAD_PROFILE_WEIGHTS: list[tuple[str, int, str]] = [
+    ("DIRECT", 4, "DIRECT_ADD_LESS"),
+    ("FIVE", 7, "COMPLEMENT_OF_5"),
+    ("TEN", 7, "COMPLEMENT_OF_10"),
+    ("ALL", 7, "MIXED_REVISION"),
+]
+
+
+def _BeadSumPool(Total: int, Shapes: list[tuple[str, list[int]]], MaxTotal: int = 999) -> list[dict[str, Any]]:
+    """One entry per (row shape, technique mix) with its exact quota: Total
+    split equally over the shapes, each shape's share split 4 : 7 : 7 : 7
+    over the technique mixes."""
+    Pool: list[dict[str, Any]] = []
+    ShapeShares = _SplitByWeights(Total, [1] * len(Shapes))
+    for (Title, Shape), ShapeShare in zip(Shapes, ShapeShares):
+        ProfileShares = _SplitByWeights(ShapeShare, [Weight for _Profile, Weight, _Family in _BEAD_PROFILE_WEIGHTS])
+        for (Profile, _Weight, ConceptFamily), Quota in zip(_BEAD_PROFILE_WEIGHTS, ProfileShares):
+            if Quota <= 0:
+                continue
+            Pool.append({
+                "generatorFamily": "ANNUAL_RULE", "annualRuleKind": "BEAD_SUM", "title": Title, "mixKey": Title,
+                "conceptFamily": ConceptFamily, "beadShape": list(Shape), "beadProfile": Profile,
+                "beadMaxTotal": MaxTotal, "quota": Quota,
+            })
+    return Pool
+
+
+# Bloomers and Beginners: "make direct sums with mixed digit like 5+2+2,
+# 9-5-2, 3+10+5, 12-1+7, 12+55-50, 22+15-27, 50+40-60, 31-21+27. Mix the
+# patterns don't keep single digit sums together. Mix all the patterns and
+# present". Three rows, every row one or two digits, every bead move
+# direct, answers 0 to 99. A quarter all single digit, a quarter single and
+# double together, half all double -- the proportions of his own eight
+# examples (2 : 2 : 4). Beginners keeps sharing Bloomers' paper design
+# (Shailesh, 2026-10-07: default accepted).
+def _DirectSumsPool(Total: int) -> list[dict[str, Any]]:
+    SingleShare, MixedShare, DoubleShare = _SplitByWeights(Total, [1, 1, 2])
+    MixedShapes = [[1, 2, 1], [2, 1, 1], [1, 1, 2], [2, 2, 1], [2, 1, 2], [1, 2, 2]]
+    Groups: list[tuple[str, str, list[int], int]] = [("Direct Add-Less (Single Digit)", "SINGLE", [1, 1, 1], SingleShare)]
+    for Shape, Share in zip(MixedShapes, _SplitByWeights(MixedShare, [1] * len(MixedShapes))):
+        Groups.append(("Direct Add-Less (Single & Double Digit)", "MIXED", Shape, Share))
+    Groups.append(("Direct Add-Less (Double Digit)", "DOUBLE", [2, 2, 2], DoubleShare))
+    return [
+        {
+            "generatorFamily": "ANNUAL_RULE", "annualRuleKind": "BEAD_SUM", "title": Title, "mixKey": MixKey,
+            "conceptFamily": "DIRECT_ADD_LESS", "beadShape": Shape, "beadProfile": "DIRECT", "beadMaxTotal": 99,
+            "quota": Quota,
+        }
+        for Title, MixKey, Shape, Quota in Groups if Quota > 0
+    ]
+
+
+_ANNUAL_DIRECT_SUMS_POOL = _DirectSumsPool(100)
+
+# PM-1 and PM-2 Abacus: "Abacus sums should not be of single digits. A mix
+# of 2d 3 rows + 1d 2 rows / 2d+2d+2d+2d (2digit, 4rows) / 3d 3 rows /
+# 2d 2rows + 3d 1row". Rows come in the order written.
+_PM_ABACUS_SUM_SHAPES: list[tuple[str, list[int]]] = [
+    ("Add/Less 2D,3R & 1D,2R (Abacus)", [2, 2, 2, 1, 1]),
+    ("Add/Less 2D,4R (Abacus)", [2, 2, 2, 2]),
+    ("Add/Less 3D,3R (Abacus)", [3, 3, 3]),
+    ("Add/Less 2D,2R & 3D,1R (Abacus)", [2, 2, 3]),
+]
+# PM-2 Visual: "2d 1 rows +1d 2 rows / 2d 4rows / 3d 1 row + 2d 2 rows /
+# 2d 2rows + 3d 1row+ 1d 1row".
+_PM_L2_VISUAL_SUM_SHAPES: list[tuple[str, list[int]]] = [
+    ("Add/Less 2D,1R & 1D,2R (Visual)", [2, 1, 1]),
+    ("Add/Less 2D,4R (Visual)", [2, 2, 2, 2]),
+    ("Add/Less 3D,1R & 2D,2R (Visual)", [3, 2, 2]),
+    ("Add/Less 2D,2R & 3D,1R & 1D,1R (Visual)", [2, 2, 3, 1]),
+]
+_PM_L1_ANNUAL_ABACUS_POOL = _BeadSumPool(100, _PM_ABACUS_SUM_SHAPES)
+_PM_L2_ANNUAL_ABACUS_POOL = _BeadSumPool(50, _PM_ABACUS_SUM_SHAPES)
+_PM_L2_ANNUAL_VISUAL_POOL = _BeadSumPool(50, _PM_L2_VISUAL_SUM_SHAPES)
+
+# PM-3 Visual: "from visual sums remove 2d 2r sums". They are what the
+# level's "3D,2R & 2D,2R" sheet produces when it is asked for one sum at a
+# time, so that entry is left out of the competition paper; the other five
+# shapes share its questions.
+_PM_L3_ANNUAL_VISUAL_POOL = [
+    Entry for Entry in _PM_L3_VISUAL_POOL if Entry.get("title") != "Add/Less 3D,2R & 2D,2R (Visual)"
+]
+
+# PM-3 and PM-4 multiplication: "mix the multiplication sums now it is
+# multiply with 2 then 3 then 4 serially change the order like 66x 2,
+# 54 x 9, 86 x 4, 95 x 7". One entry per multiplier 2 to 9 with an equal
+# share, any two-digit number (his own example goes to 95; the old ceiling
+# was 90), mixed so the same multiplier never comes twice running.
+def _MixedMultiplyPool(GeneratorFamily: str, ConceptFamily: str, Total: int) -> list[dict[str, Any]]:
+    Multipliers = list(range(2, 10))
+    return [
+        {
+            "generatorFamily": GeneratorFamily, "title": "2D X 1D Multiplication", "conceptFamily": ConceptFamily,
+            "numberMin": 11, "numberMax": 99, "multiplierMin": Multiplier, "multiplierMax": Multiplier,
+            "mixKey": f"X{Multiplier}", "quota": Quota,
+        }
+        for Multiplier, Quota in zip(Multipliers, _SplitByWeights(Total, [1] * len(Multipliers)))
+    ]
+
+
+_PM_L3_ANNUAL_MULTIPLY_POOL = _MixedMultiplyPool("PM_L3_MULTIPLY", "PM_L3_MULTIPLICATION", 100)
+_PM_L4_ANNUAL_MULTIPLY_POOL = _MixedMultiplyPool("PM_L4_MULTIPLY", "PM_L4_MULTIPLICATION", 100)
+
+
+# IM-1 "Abacus /Visual add less Section - Remove negative numbers in the
+# start of the sum, no borrowing sums in decimal and normal number to be
+# given"; IM-2 "Visual add less sums should not have negative numbers in the
+# beginning & avoid borrowing concept in visuals".
+def _NeverBelowZero(Entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [{**Entry, "annualNeverBelowZero": True} for Entry in Entries]
+
+
+_IM_L1_ANNUAL_DECIMAL_ADD_LESS_POOL = _NeverBelowZero(_IM_L1_DECIMAL_ADD_LESS_POOL)
+_IM_L1_ANNUAL_MIXED_ROW_ADD_LESS_POOL = _NeverBelowZero(_IM_L1_MIXED_ROW_ADD_LESS_POOL)
+_IM_L2_ANNUAL_DECIMAL_ADD_LESS_VISUAL_POOL = _NeverBelowZero(_IM_L2_DECIMAL_ADD_LESS_VISUAL_POOL)
+
+# IM-2: "4d x1d to be removed from multiplication. 3d/2d to be removed."
+_IM_L2_ANNUAL_MULTIPLICATION_POOL = [Entry for Entry in _IM_L2_MULTIPLICATION_POOL if Entry["multiplicationDigits"] != (4, 1)]
+_IM_L2_ANNUAL_DIVISION_POOL = [Entry for Entry in _IM_L2_DIVISION_POOL if Entry["divisionDigits"] != (3, 2)]
+
+# IM-3: "remove 2dx2d rest are ok. Also remove squares from IM-3" -- the
+# Squares section itself is gone from the level's section list below.
+_IM_L3_ANNUAL_MULTIPLICATION_POOL = [Entry for Entry in _IM_L3_MULTIPLICATION_POOL if Entry["multiplicationDigits"] != (2, 2)]
+
+# IM-4: "remove 3dx2d multiplication, decimal number multiplication. decimal
+# number division. Division with estimation for patterns 3d/1d, 4d/1d,
+# 3de/2d can be included".
+_IM_L4_ANNUAL_MULTIPLICATION_POOL: list[dict[str, Any]] = [
+    {"generatorFamily": "IM", "title": "2D x 2D Multiplication", "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "multiplicationDigits": (2, 2)},
+]
+_IM_L4_ANNUAL_DIVISION_POOL: list[dict[str, Any]] = [
+    {"generatorFamily": "IM", "title": "4D / 2D Division", "conceptFamily": "WHOLE_NUMBER_DIVISION", "divisionDigits": (4, 2)},
+    {"generatorFamily": "IM", "title": "5D / 2D Division", "conceptFamily": "WHOLE_NUMBER_DIVISION", "divisionDigits": (5, 2)},
+    {"generatorFamily": "IM", "title": "3D / 2D Division", "conceptFamily": "WHOLE_NUMBER_DIVISION", "divisionDigits": (3, 2)},
+    {"generatorFamily": "IM", "title": "3D / 1D Division With Estimation", "conceptFamily": "WHOLE_NUMBER_DIVISION", "divisionDigits": (3, 1), "isLongDivisionEstimation": True},
+    {"generatorFamily": "IM", "title": "4D / 1D Division With Estimation", "conceptFamily": "WHOLE_NUMBER_DIVISION", "divisionDigits": (4, 1), "isLongDivisionEstimation": True},
+    {"generatorFamily": "IM", "title": "3D / 2D Division With Estimation", "conceptFamily": "WHOLE_NUMBER_DIVISION", "divisionDigits": (3, 2), "isLongDivisionEstimation": True},
+]
+
+# "For decimal number visual across IM3 to MM 2 keep 2 numbers after the
+# decimal point". IM-3 and IM-4 already do; MM-1 and MM-2 showed one
+# (272.1). addLessDecimalPlacesOverride is an opt-in key of the Master
+# Module engine, default off, so 272.1 becomes 272.14 here and nowhere else.
+_MM_ANNUAL_DECIMAL_ADD_LESS_POOL: list[dict[str, Any]] = [
+    {**Entry, "addLessDecimalPlacesOverride": 2} for Entry in _MM_DECIMAL_ADD_LESS_POOL
+]
+
+# MM-1's own patterns (it shared MM-2's until now):
+#   Multiplication  3dx2d, 2dx2d, 4dx1d decimal (24.16 x 0.04),
+#                   5dx1d decimal (231.15 x 0.08)
+#   Division        4d/2d, 5d/2d, decimal 4d/1d (81.37 / 8), 5d/1d (110.31 / 4)
+#   Add Percentage  4d x 2d (97.03 x 29%), 3d x 2d (3.88 x 78%)
+#   Less Percentage 4d x 2d (70.37 - 81%), 3d x 2d (4.47 - 39%)
+_MM_L1_ANNUAL_MULTIPLICATION_POOL: list[dict[str, Any]] = [
+    {"generatorFamily": "MM", "title": "3D x 2D Multiplication", "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "multiplicationDigits": (3, 2), "quota": 25},
+    {"generatorFamily": "MM", "title": "2D x 2D Multiplication", "conceptFamily": "WHOLE_NUMBER_MULTIPLICATION", "multiplicationDigits": (2, 2), "quota": 25},
+    {"generatorFamily": "ANNUAL_RULE", "annualRuleKind": "DECIMAL_MULTIPLICATION", "title": "Decimal Multiplication 4D x 1D", "conceptFamily": "DECIMAL_MULTIPLICATION", "decimalWholeDigits": 2, "quota": 25},
+    {"generatorFamily": "ANNUAL_RULE", "annualRuleKind": "DECIMAL_MULTIPLICATION", "title": "Decimal Multiplication 5D x 1D", "conceptFamily": "DECIMAL_MULTIPLICATION", "decimalWholeDigits": 3, "quota": 25},
+]
+_MM_L1_ANNUAL_DIVISION_POOL: list[dict[str, Any]] = [
+    {"generatorFamily": "MM", "title": "4D ÷ 2D Division", "conceptFamily": "WHOLE_NUMBER_DIVISION", "divisionDigits": (4, 2), "quota": 25},
+    {"generatorFamily": "MM", "title": "5D ÷ 2D Division", "conceptFamily": "WHOLE_NUMBER_DIVISION", "divisionDigits": (5, 2), "quota": 25},
+    {"generatorFamily": "ANNUAL_RULE", "annualRuleKind": "DECIMAL_DIVISION", "title": "Decimal Division 4D ÷ 1D", "conceptFamily": "DECIMAL_DIVISION", "decimalWholeDigits": 2, "quota": 25},
+    {"generatorFamily": "ANNUAL_RULE", "annualRuleKind": "DECIMAL_DIVISION", "title": "Decimal Division 5D ÷ 1D", "conceptFamily": "DECIMAL_DIVISION", "decimalWholeDigits": 3, "quota": 25},
+]
+_MM_L1_ANNUAL_PERCENTAGE_POOL: list[dict[str, Any]] = [
+    {"generatorFamily": "ANNUAL_RULE", "annualRuleKind": "PERCENTAGE", "title": "Add Percentage 4D x 2D", "conceptFamily": "PERCENTAGE_ADD_LESS", "percentageMode": "ADD_PERCENTAGE", "decimalWholeDigits": 2, "quota": 13},
+    {"generatorFamily": "ANNUAL_RULE", "annualRuleKind": "PERCENTAGE", "title": "Add Percentage 3D x 2D", "conceptFamily": "PERCENTAGE_ADD_LESS", "percentageMode": "ADD_PERCENTAGE", "decimalWholeDigits": 1, "quota": 12},
+    {"generatorFamily": "ANNUAL_RULE", "annualRuleKind": "PERCENTAGE", "title": "Less Percentage 4D x 2D", "conceptFamily": "PERCENTAGE_ADD_LESS", "percentageMode": "LESS_PERCENTAGE", "decimalWholeDigits": 2, "quota": 13},
+    {"generatorFamily": "ANNUAL_RULE", "annualRuleKind": "PERCENTAGE", "title": "Less Percentage 3D x 2D", "conceptFamily": "PERCENTAGE_ADD_LESS", "percentageMode": "LESS_PERCENTAGE", "decimalWholeDigits": 1, "quota": 12},
+]
+
+# MM-2: "Keep square root & cube root 25, 25 each. Same for Squares &
+# Cubes". The cube-root half used to run dry at 16 (only the answers 30 to
+# 45 were ever drawn), so it now draws cube roots of 5-digit and 6-digit
+# numbers, answers 22 to 99 (Shailesh, 2026-10-07: default accepted). The
+# engine reads the digit count from the entry's title, so the two entries
+# are titled for the engine and carry "Cube Root" as the name every report
+# has always shown for them.
+_MM_L2_ANNUAL_SQUARES_CUBES_POOL: list[dict[str, Any]] = [
+    {**_MM_SQUARES_CUBES_POOL[0], "quota": 25},
+    {**_MM_SQUARES_CUBES_POOL[1], "quota": 25},
+]
+_MM_L2_ANNUAL_ROOTS_POOL: list[dict[str, Any]] = [
+    {**_MM_ROOTS_POOL[0], "quota": 25},
+    {"generatorFamily": "MM", "title": "Cube Root 5 Digit Number", "conceptTitle": "Cube Root", "conceptFamily": "CUBE_ROOT", "mmLessonNumber": 20, "mmStagingQuestionNumber": 9, "quota": 13},
+    {"generatorFamily": "MM", "title": "Cube Root 6 Digit Number", "conceptTitle": "Cube Root", "conceptFamily": "CUBE_ROOT", "mmLessonNumber": 20, "mmStagingQuestionNumber": 9, "quota": 12},
+]
+
+# A level's section that the competition paper no longer has, kept by name
+# so a result or report of an attempt taken before it was removed still
+# shows it properly. IM-3's Squares section was removed on 2026-10-07.
+ANNUAL_COMPETITION_RETIRED_SECTION_TITLES: dict[str, dict[int, str]] = {
+    "IM-L3": {5: "Squares (Visual)"},
+}
+
+
 ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     # "Bloomers (Below 8 Years)" -- content-identical clone of YLM-L1 below,
     # see the comment above _YLM_L1_DIRECT_POOL for why.
@@ -505,9 +743,9 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     # seeds each) against this exact registry before this change shipped.
     "YLM-L0": {
         "sections": [
-            {"key": "SEC1", "number": 1, "title": "Direct Sums (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600},
+            {"key": "SEC1", "number": 1, "title": "Direct Sums (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600, "mixMaxRun": 2, "strictQuotas": True},
         ],
-        "sectionConceptPools": {"SEC1": _YLM_L1_DIRECT_POOL},
+        "sectionConceptPools": {"SEC1": _ANNUAL_DIRECT_SUMS_POOL},
     },
     # "Beginners (Above 8 Years)" -- publicly-displayed name only, see
     # ANNUAL_COMPETITION_LEVEL_DISPLAY_LABELS below. Code/content unchanged.
@@ -516,22 +754,22 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
     # reasoning and same verification -- see the comment there.
     "YLM-L1": {
         "sections": [
-            {"key": "SEC1", "number": 1, "title": "Direct Sums (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600},
+            {"key": "SEC1", "number": 1, "title": "Direct Sums (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600, "mixMaxRun": 2, "strictQuotas": True},
         ],
-        "sectionConceptPools": {"SEC1": _YLM_L1_DIRECT_POOL},
+        "sectionConceptPools": {"SEC1": _ANNUAL_DIRECT_SUMS_POOL},
     },
     "PM-L1": {
         "sections": [
-            {"key": "SEC1", "number": 1, "title": "All Concepts (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600},
+            {"key": "SEC1", "number": 1, "title": "All Concepts (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600, "mixMaxRun": 2, "strictQuotas": True},
         ],
-        "sectionConceptPools": {"SEC1": _PM_L1_ALL_CONCEPTS_POOL},
+        "sectionConceptPools": {"SEC1": _PM_L1_ANNUAL_ABACUS_POOL},
     },
     "PM-L2": {
         "sections": [
-            {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
-            {"key": "SEC2", "number": 2, "title": "Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300, "mixMaxRun": 2, "strictQuotas": True},
+            {"key": "SEC2", "number": 2, "title": "Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300, "mixMaxRun": 2, "strictQuotas": True},
         ],
-        "sectionConceptPools": {"SEC1": _PM_L2_ABACUS_POOL, "SEC2": _PM_L2_VISUAL_POOL},
+        "sectionConceptPools": {"SEC1": _PM_L2_ANNUAL_ABACUS_POOL, "SEC2": _PM_L2_ANNUAL_VISUAL_POOL},
     },
     "PM-L3": {
         "sections": [
@@ -545,18 +783,18 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
             # page.tsx's sectionMode usage). The underlying question pool
             # (_PM_L3_MULTIPLY_POOL) is untouched: "nothing else in that
             # paper changes."
-            {"key": "SEC3", "number": 3, "title": "Multiplication (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600},
+            {"key": "SEC3", "number": 3, "title": "Multiplication (Abacus)", "mode": "ABACUS", "questionCount": 100, "timeLimitSeconds": 600, "mixMaxRun": 1, "strictQuotas": True},
         ],
-        "sectionConceptPools": {"SEC1": _PM_L3_ABACUS_POOL, "SEC2": _PM_L3_VISUAL_POOL, "SEC3": _PM_L3_MULTIPLY_POOL},
+        "sectionConceptPools": {"SEC1": _PM_L3_ABACUS_POOL, "SEC2": _PM_L3_ANNUAL_VISUAL_POOL, "SEC3": _PM_L3_ANNUAL_MULTIPLY_POOL},
     },
     "PM-L4": {
         "sections": [
             {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC2", "number": 2, "title": "Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
-            {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300, "mixMaxRun": 1, "strictQuotas": True},
             {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
         ],
-        "sectionConceptPools": {"SEC1": _PM_L4_ABACUS_POOL, "SEC2": _PM_L4_VISUAL_POOL, "SEC3": _PM_L4_MULTIPLY_POOL, "SEC4": _PM_L4_DIVIDE_POOL},
+        "sectionConceptPools": {"SEC1": _PM_L4_ABACUS_POOL, "SEC2": _PM_L4_VISUAL_POOL, "SEC3": _PM_L4_ANNUAL_MULTIPLY_POOL, "SEC4": _PM_L4_DIVIDE_POOL},
     },
     "IM-L1": {
         "sections": [
@@ -566,8 +804,8 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
             {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
         ],
         "sectionConceptPools": {
-            "SEC1": _IM_L1_DECIMAL_ADD_LESS_POOL,
-            "SEC2": _IM_L1_MIXED_ROW_ADD_LESS_POOL,
+            "SEC1": _IM_L1_ANNUAL_DECIMAL_ADD_LESS_POOL,
+            "SEC2": _IM_L1_ANNUAL_MIXED_ROW_ADD_LESS_POOL,
             "SEC3": _IM_L1_MULTIPLICATION_POOL,
             "SEC4": _IM_L1_DIVISION_POOL,
         },
@@ -581,9 +819,9 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
         ],
         "sectionConceptPools": {
             "SEC1": _IM_L2_DECIMAL_ADD_LESS_ABACUS_POOL,
-            "SEC2": _IM_L2_DECIMAL_ADD_LESS_VISUAL_POOL,
-            "SEC3": _IM_L2_MULTIPLICATION_POOL,
-            "SEC4": _IM_L2_DIVISION_POOL,
+            "SEC2": _IM_L2_ANNUAL_DECIMAL_ADD_LESS_VISUAL_POOL,
+            "SEC3": _IM_L2_ANNUAL_MULTIPLICATION_POOL,
+            "SEC4": _IM_L2_ANNUAL_DIVISION_POOL,
         },
     },
     "IM-L3": {
@@ -592,14 +830,16 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
             {"key": "SEC2", "number": 2, "title": "Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
             {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
-            {"key": "SEC5", "number": 5, "title": "Squares (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
         ],
+        # 2026-10-07 (Shailesh): "Also remove squares from IM-3". Section 5
+        # and its pool entry are gone outright, exactly like IM-L4's
+        # Percentage section on 2026-09-14: 300 questions / 1200s, down from
+        # 350 / 1500 -- every total is summed live from this list.
         "sectionConceptPools": {
             "SEC1": _IM_L3_DECIMAL_ADD_LESS_ABACUS_POOL,
             "SEC2": _IM_L3_DECIMAL_ADD_LESS_VISUAL_POOL,
-            "SEC3": _IM_L3_MULTIPLICATION_POOL,
+            "SEC3": _IM_L3_ANNUAL_MULTIPLICATION_POOL,
             "SEC4": _IM_L3_DIVISION_POOL,
-            "SEC5": _IM_L3_SQUARES_POOL,
         },
     },
     # 2026-09-14 batch (Shailesh): "for the IM-L4 paper, remove Section 6
@@ -620,8 +860,8 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
         "sectionConceptPools": {
             "SEC1": _IM_L4_ADD_LESS_BORROWING_POOL,
             "SEC2": _IM_L4_DECIMAL_ADD_LESS_POOL,
-            "SEC3": _IM_L4_MULTIPLICATION_POOL,
-            "SEC4": _IM_L4_DIVISION_POOL,
+            "SEC3": _IM_L4_ANNUAL_MULTIPLICATION_POOL,
+            "SEC4": _IM_L4_ANNUAL_DIVISION_POOL,
             "SEC5": _IM_L4_SQUARES_POOL,
         },
     },
@@ -644,19 +884,19 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
         "sections": [
             {"key": "SEC1", "number": 1, "title": "Add/Less (Abacus)", "mode": "ABACUS", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC2", "number": 2, "title": "Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
-            {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
-            {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
+            {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300, "strictQuotas": True},
+            {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300, "strictQuotas": True},
             {"key": "SEC5", "number": 5, "title": "Squares (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
-            {"key": "SEC6", "number": 6, "title": "Percentage (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC6", "number": 6, "title": "Percentage (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300, "strictQuotas": True},
             {"key": "SEC7", "number": 7, "title": "Cube Roots (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
         ],
         "sectionConceptPools": {
             "SEC1": _MM_ADD_LESS_BORROWING_POOL,
-            "SEC2": _MM_DECIMAL_ADD_LESS_POOL,
-            "SEC3": _MM_MULTIPLICATION_POOL,
-            "SEC4": _MM_DIVISION_POOL,
+            "SEC2": _MM_ANNUAL_DECIMAL_ADD_LESS_POOL,
+            "SEC3": _MM_L1_ANNUAL_MULTIPLICATION_POOL,
+            "SEC4": _MM_L1_ANNUAL_DIVISION_POOL,
             "SEC5": _MM_L1_SQUARES_POOL,
-            "SEC6": _MM_PERCENTAGE_POOL,
+            "SEC6": _MM_L1_ANNUAL_PERCENTAGE_POOL,
             "SEC7": _MM_L1_CUBE_ROOTS_POOL,
         },
     },
@@ -666,18 +906,18 @@ ANNUAL_COMPETITION_LEVEL_REGISTRY: dict[str, dict[str, Any]] = {
             {"key": "SEC2", "number": 2, "title": "Decimal Add/Less (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
             {"key": "SEC3", "number": 3, "title": "Multiplication (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
             {"key": "SEC4", "number": 4, "title": "Division (Visual)", "mode": "VISUAL", "questionCount": 100, "timeLimitSeconds": 300},
-            {"key": "SEC5", "number": 5, "title": "Squares and Cubes (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC5", "number": 5, "title": "Squares and Cubes (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300, "strictQuotas": True},
             {"key": "SEC6", "number": 6, "title": "Percentage (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
-            {"key": "SEC7", "number": 7, "title": "Roots (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300},
+            {"key": "SEC7", "number": 7, "title": "Roots (Visual)", "mode": "VISUAL", "questionCount": 50, "timeLimitSeconds": 300, "strictQuotas": True},
         ],
         "sectionConceptPools": {
             "SEC1": _MM_ADD_LESS_BORROWING_POOL,
-            "SEC2": _MM_DECIMAL_ADD_LESS_POOL,
+            "SEC2": _MM_ANNUAL_DECIMAL_ADD_LESS_POOL,
             "SEC3": _MM_MULTIPLICATION_POOL,
             "SEC4": _MM_DIVISION_POOL,
-            "SEC5": _MM_SQUARES_CUBES_POOL,
+            "SEC5": _MM_L2_ANNUAL_SQUARES_CUBES_POOL,
             "SEC6": _MM_PERCENTAGE_POOL,
-            "SEC7": _MM_ROOTS_POOL,
+            "SEC7": _MM_L2_ANNUAL_ROOTS_POOL,
         },
     },
 }

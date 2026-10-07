@@ -143,6 +143,24 @@ def test_multiply_divide_sections_are_found_from_the_registry_tags():
 # ---------------------------------------------------------------------------
 # 2. Generation
 # ---------------------------------------------------------------------------
+def _pm_l3_as_it_was_before_the_mixed_multiplication(patch):
+    """2026-10-07: PM-L3's multiplication is now one entry per multiplier 2
+    to 9, so it can no longer produce an "NN x 1" sum even with the rule
+    switched off. The tests that need a paper built the OLD way put the old
+    section back for the length of one call: the level's own ten-entry
+    pool, table-of-1 sheet included, in sheet order."""
+    from app.services import annual_competition_paper_registry as registry
+
+    current = ANNUAL_COMPETITION_LEVEL_REGISTRY["PM-L3"]
+    old_sections = [
+        {key: value for key, value in section.items() if key not in ("mixMaxRun", "strictQuotas")}
+        for section in current["sections"]
+    ]
+    old_pools = {**current["sectionConceptPools"], "SEC3": registry._PM_L3_MULTIPLY_POOL}
+    patch.setitem(ANNUAL_COMPETITION_LEVEL_REGISTRY, "PM-L3", {"sections": old_sections, "sectionConceptPools": old_pools})
+    return [s for s in old_sections if s["key"] == "SEC3"], old_pools
+
+
 def _multiply_divide_sections(level_code):
     config = ANNUAL_COMPETITION_LEVEL_REGISTRY[level_code]
     pools = config["sectionConceptPools"]
@@ -176,7 +194,7 @@ def test_without_the_rule_the_old_content_really_did_break_it(monkeypatch):
     """Guards the tests above against passing for the wrong reason: with the
     rule switched off, the same generator does produce the ten x 1 sums."""
     monkeypatch.setattr(generation, "ClassifyAnnualMultiplyDivideSum", lambda _operands, _operators: None)
-    sections, pools = _multiply_divide_sections("PM-L3")
+    sections, pools = _pm_l3_as_it_was_before_the_mixed_multiplication(monkeypatch)
     questions = _CollectAnnualCompetitionQuestions("PM-L3", sections, pools, "pm-l3-old")
     assert len([q for q in questions if q["operands"][1] == 1]) == 10
 
@@ -229,6 +247,8 @@ def _old_style_paper(db, monkeypatch, level, level_code, student, *, paper_kind=
     _GeneratePracticePapersForOneStudent links a practice paper."""
     with monkeypatch.context() as patch:
         patch.setattr(generation, "ClassifyAnnualMultiplyDivideSum", lambda _operands, _operators: None)
+        if level_code == "PM-L3":
+            _pm_l3_as_it_was_before_the_mixed_multiplication(patch)
         payload = GenerateAnnualCompetitionLevelPaper(
             db, LevelId=level.id, CreatedBy=None, CompetitionScope="ANNUAL_COMPETITION_PRACTICE", CompetitionLevelCode=level_code
         )
