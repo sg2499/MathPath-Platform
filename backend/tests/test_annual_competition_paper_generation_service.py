@@ -70,7 +70,9 @@ EXPECTED = {
     "PM-L4": ("PM", 4, 300, 20 * 60),
     "IM-L1": ("IM", 4, 300, 20 * 60),
     "IM-L2": ("IM", 4, 300, 20 * 60),
-    "IM-L3": ("IM", 5, 350, 25 * 60),
+    # 2026-10-07 (Shailesh): "Also remove squares from IM-3" -- was
+    # ("IM", 5, 350, 25 * 60).
+    "IM-L3": ("IM", 4, 300, 20 * 60),
     # 2026-09-14 batch (Shailesh): Section 6 (Percentage) removed entirely --
     # was ("IM", 6, 400, 30 * 60). Totals are always computed live from
     # whatever sections remain, never hardcoded, so this table just reflects
@@ -394,10 +396,14 @@ def test_mm_l1_and_mm_l2_are_independent_registry_entries():
 
     # Sections 1-4 (untouched by this batch) still match exactly between the
     # two levels -- only Section 5/7 are meant to differ now.
+    # 2026-10-07: MM-1's Sections 3, 4 and 6 now have their own patterns
+    # (and an exact share for each one), so the two levels' section entries
+    # are compared on what a student sees -- title, method, count, time.
     for section_key in ("SEC1", "SEC2", "SEC3", "SEC4", "SEC6"):
         mm_l1_section = next(s for s in mm_l1["sections"] if s["key"] == section_key)
         mm_l2_section = next(s for s in mm_l2["sections"] if s["key"] == section_key)
-        assert mm_l1_section == mm_l2_section
+        for field in ("number", "title", "mode", "questionCount", "timeLimitSeconds"):
+            assert mm_l1_section[field] == mm_l2_section[field]
 
     mm_l1_sec5 = next(s for s in mm_l1["sections"] if s["key"] == "SEC5")
     mm_l2_sec5 = next(s for s in mm_l2["sections"] if s["key"] == "SEC5")
@@ -509,7 +515,9 @@ def test_mm_l1_cube_roots_section_is_digit_targeted_4_5_6():
 # repeatedly -- each run draws all the way to the same 49-of-89 tightest
 # slot the bug report hit -- to give this fix real, repeated exercise
 # rather than relying on a single lucky/unlucky random seed.
-@pytest.mark.parametrize("level_code,module_code", [("IM-L3", "IM"), ("IM-L4", "IM")])
+# 2026-10-07: IM-L3 no longer has a Squares section ("Also remove squares
+# from IM-3"), so this now exercises IM-L4's alone.
+@pytest.mark.parametrize("level_code,module_code", [("IM-L4", "IM")])
 def test_im_squares_section_generates_reliably_across_many_runs(level_code, module_code):
     for _run in range(15):
         db = _session()
@@ -646,11 +654,13 @@ def test_ylm_double_digit_pool_entry_only_ever_produces_double_digit_bases():
         q for q in questions
         if json.loads(q.metadata_json or "{}").get("annualCompetitionConceptTitle") == "Direct Add-Less (Double Digit)"
     ]
-    # 2026-09-22 bump: ~33 of 100 (100 // 3) now expected from this entry alone.
-    assert len(double_digit_entry_questions) >= 30
+    # 2026-10-07 (Shailesh: "12+55-50, 22+15-27, 50+40-60, 31-21+27"): half
+    # the paper, exactly, and now every ROW of these sums is double digit --
+    # not just the first one.
+    assert len(double_digit_entry_questions) == 50
     for q in double_digit_entry_questions:
         assert _ylm_base_digit_width(q) == "2D"
-        assert json.loads(q.metadata_json or "{}").get("digit_pattern") == "2D"
+        assert all(10 <= abs(int(row)) <= 99 for row in json.loads(q.operands_json))
         assert q.concept_family == "DIRECT_ADD_LESS"  # concept never changes, only operand width
 
 

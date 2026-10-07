@@ -89,6 +89,11 @@ from app.services.annual_competition_paper_registry import (
     ANNUAL_COMPETITION_MARKS_PER_QUESTION,
     GetAnnualCompetitionLevelConfig,
 )
+from app.services.annual_competition_question_rules import (
+    GenerateAnnualRuleQuestion,
+    MixSchedule,
+    StartsNegativeOrDipsBelowZero,
+)
 
 # 2026-09-15 (Shailesh): "we need to make sure this never happens and always
 # gets assigned flawlessly and seamlessly whether we assign 5 or 25 sheets".
@@ -110,6 +115,15 @@ from app.services.annual_competition_paper_registry import (
 # have much larger achievable domains), so this only spends extra work on
 # the rare slots that actually need it.
 ANNUAL_COMPETITION_SLOT_MAX_RETRIES = 50
+# 2026-10-07: a section marked strictQuotas never lets one pattern borrow
+# another pattern's questions (see the collector below), so a slot's own
+# pattern gets a far deeper retry budget instead. The extra retries are
+# only ever spent by a slot that is still missing -- in the proof run of
+# 300 papers per level no slot came anywhere near it.
+ANNUAL_COMPETITION_STRICT_SLOT_MAX_RETRIES = 600
+# Registry keys that steer the Annual Competition collector itself and are
+# never handed to a module engine as generator configuration.
+_ANNUAL_COLLECTOR_ONLY_KEYS = {"quota", "mixKey", "conceptTitle", "annualNeverBelowZero"}
 DEFAULT_ANNUAL_COMPETITION_DIFFICULTY_BAND = "ANNUAL_COMPETITION"
 
 
@@ -281,6 +295,22 @@ def IsAnnualMultiplyDivideSection(ConceptPool: list[dict[str, Any]]) -> bool:
 def _OrderedConceptSchedule(ConceptPool: list[dict[str, Any]], RequiredCount: int) -> list[dict[str, Any]]:
     if not ConceptPool or RequiredCount <= 0:
         return []
+    # 2026-10-07: a pool whose every entry carries a "quota" gets exactly
+    # those counts ("keep square root & cube root 25, 25 each") instead of
+    # the equal split. The quotas must add up to the section's question
+    # count -- anything else is a registry mistake and stops generation
+    # rather than quietly producing a short or lopsided section.
+    if all("quota" in Spec for Spec in ConceptPool):
+        if sum(int(Spec["quota"]) for Spec in ConceptPool) != RequiredCount:
+            api_error(
+                500,
+                "ANNUAL_COMPETITION_QUOTA_MISMATCH",
+                f"A section's pattern quotas add up to {sum(int(Spec['quota']) for Spec in ConceptPool)}, not its {RequiredCount} questions. This is a registry bug, not a data issue.",
+            )
+        QuotaSchedule: list[dict[str, Any]] = []
+        for Spec in ConceptPool:
+            QuotaSchedule.extend([Spec] * int(Spec["quota"]))
+        return QuotaSchedule
     Base = RequiredCount // len(ConceptPool)
     Remainder = RequiredCount % len(ConceptPool)
     Schedule: list[dict[str, Any]] = []
@@ -431,7 +461,7 @@ def _GeneratePmL4DivideQuestion(Spec: dict[str, Any], Seed: str) -> dict[str, An
     return generate_pm_l4_divide_question(Config, Rng)
 
 
-_IM_EXCLUDE = {"generatorFamily", "title", "conceptFamily", "operationFocus"}
+_IM_EXCLUDE = {"generatorFamily", "title", "conceptFamily", "operationFocus"} | _ANNUAL_COLLECTOR_ONLY_KEYS
 
 
 def _GenerateImQuestion(Spec: dict[str, Any], Seed: str, LevelCode: str) -> dict[str, Any] | None:
@@ -448,7 +478,7 @@ def _GenerateImQuestion(Spec: dict[str, Any], Seed: str, LevelCode: str) -> dict
     return Questions[0] if Questions else None
 
 
-_MM_EXCLUDE = {"generatorFamily", "title", "conceptFamily", "operationFocus", "mmStagingQuestionNumber", "mmLessonNumber"}
+_MM_EXCLUDE = {"generatorFamily", "title", "conceptFamily", "operationFocus", "mmStagingQuestionNumber", "mmLessonNumber"} | _ANNUAL_COLLECTOR_ONLY_KEYS
 
 
 def _GenerateMmQuestion(Spec: dict[str, Any], Seed: str, LevelCode: str) -> dict[str, Any] | None:
@@ -511,6 +541,10 @@ def _GenerateOneAnnualQuestion(Spec: dict[str, Any], Seed: str, LevelCode: str) 
         return _GenerateImQuestion(Spec, Seed, LevelCode)
     if Family == "MM":
         return _GenerateMmQuestion(Spec, Seed, LevelCode)
+    if Family == "ANNUAL_RULE":
+        # 2026-10-07: the Annual Competition's own sum builders (see
+        # annual_competition_question_rules.py).
+        return GenerateAnnualRuleQuestion(Spec, Seed)
     raise ValueError(f"Annual Competition generator does not support generatorFamily: {Family!r}")
 
 
@@ -538,6 +572,19 @@ def _CollectAnnualCompetitionQuestions(LevelCode: str, Sections: list[dict[str, 
                 f"No concept pool is configured for section '{SectionKey}' of {LevelCode}. This is a registry bug, not a data issue.",
             )
         Schedule = _OrderedConceptSchedule(ConceptPool, RequiredCount)
+        # 2026-10-07 (Shailesh): "Mix the patterns don't keep single digit
+        # sums together", "now it is multiply with 2 then 3 then 4 serially
+        # change the order". A section marked mixMaxRun has its patterns
+        # mixed through the paper, the order drawn from the paper's own
+        # seed, with no pattern running longer than that many questions.
+        MixMaxRun = int(Section.get("mixMaxRun") or 0)
+        if MixMaxRun > 0:
+            Schedule = MixSchedule(Schedule, random.Random(f"ANNUAL-MIX-{LevelCode}-{PaperSeed}-{SectionKey}"), MixMaxRun)
+        # A strictQuotas section never fills one pattern's slot from another
+        # pattern: each pattern gets exactly its own share or the paper
+        # fails to generate.
+        StrictQuotas = bool(Section.get("strictQuotas"))
+        SlotMaxRetries = ANNUAL_COMPETITION_STRICT_SLOT_MAX_RETRIES if StrictQuotas else ANNUAL_COMPETITION_SLOT_MAX_RETRIES
         # Multiplication / division rule (see ClassifyAnnualMultiplyDivideSum):
         # counted per section, in question order.
         RoundSumsInSection = 0
@@ -568,12 +615,20 @@ def _CollectAnnualCompetitionQuestions(LevelCode: str, Sections: list[dict[str, 
             # even split is not.
             PoolSize = len(ConceptPool)
             ScheduledPoolIndex = ConceptPool.index(ScheduledConceptSpec) if ScheduledConceptSpec in ConceptPool else 0
-            for FallbackOffset in range(PoolSize):
+            for FallbackOffset in range(1 if StrictQuotas else PoolSize):
                 ConceptSpec = ConceptPool[(ScheduledPoolIndex + FallbackOffset) % PoolSize]
-                for RetryIndex in range(ANNUAL_COMPETITION_SLOT_MAX_RETRIES):
+                for RetryIndex in range(SlotMaxRetries):
                     Seed = f"ANNUAL-{LevelCode}-{PaperSeed}-{SectionKey}-SLOT{SlotIndex}-C{FallbackOffset}-{RetryIndex}"
                     Candidate = _GenerateOneAnnualQuestion(ConceptSpec, Seed, LevelCode)
                     if not Candidate:
+                        continue
+                    # 2026-10-07 (Shailesh, IM-1 and IM-2 visual): "Remove
+                    # negative numbers in the start of the sum, no borrowing
+                    # sums". A draw that starts negative, or whose running
+                    # total drops below zero at any step, is another retry.
+                    if ConceptSpec.get("annualNeverBelowZero") and StartsNegativeOrDipsBelowZero(
+                        Candidate.get("operands"), Candidate.get("operators")
+                    ):
                         continue
                     # A sum that needs no working is never accepted, and a
                     # round-number one only while this section still has
@@ -617,7 +672,7 @@ def _CollectAnnualCompetitionQuestions(LevelCode: str, Sections: list[dict[str, 
             Metadata = Accepted.get("metadata") if isinstance(Accepted.get("metadata"), dict) else {}
             Metadata = dict(Metadata)
             Metadata.update({
-                "annualCompetitionConceptTitle": AcceptedConceptSpec.get("title"),
+                "annualCompetitionConceptTitle": AcceptedConceptSpec.get("conceptTitle") or AcceptedConceptSpec.get("title"),
                 "annualCompetitionConceptFamily": AcceptedConceptSpec.get("conceptFamily"),
                 "annualCompetitionGeneratorFamily": AcceptedConceptSpec.get("generatorFamily"),
                 "annualCompetitionSectionKey": SectionKey,

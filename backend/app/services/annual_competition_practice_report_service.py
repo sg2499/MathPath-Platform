@@ -79,7 +79,10 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
 from app.models import CompetitionEventAttempt, CompetitionEventLevelPaper, CompetitionEventResult, Student
-from app.services.annual_competition_paper_registry import ANNUAL_COMPETITION_LEVEL_REGISTRY
+from app.services.annual_competition_paper_registry import (
+    ANNUAL_COMPETITION_LEVEL_REGISTRY,
+    ANNUAL_COMPETITION_RETIRED_SECTION_TITLES,
+)
 from app.services.annual_competition_studio_service import (
     DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE,
     VALID_COMPETITION_LEVEL_CODES,
@@ -170,11 +173,18 @@ def _SectionTitleLookup(CompetitionLevelCode: str) -> dict[int, str]:
     unknown level codes return an empty lookup (sectionTitle just stays None
     for every row) rather than raising -- title is decoration, never load-
     bearing for the numbers themselves."""
+    # 2026-10-07: a section the level's paper no longer has (IM-3's Squares)
+    # keeps its name here, so the reports of attempts taken before it was
+    # removed still show that section by name. A current section of the
+    # same number always wins.
     return {
-        SectionNumber: SectionTitle
-        for SectionNumber, SectionTitle, _Mode, _TimeLimitSeconds in DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE.get(
-            CompetitionLevelCode, []
-        )
+        **ANNUAL_COMPETITION_RETIRED_SECTION_TITLES.get(CompetitionLevelCode, {}),
+        **{
+            SectionNumber: SectionTitle
+            for SectionNumber, SectionTitle, _Mode, _TimeLimitSeconds in DEFAULT_SECTION_TIMERS_BY_LEVEL_CODE.get(
+                CompetitionLevelCode, []
+            )
+        },
     }
 
 
