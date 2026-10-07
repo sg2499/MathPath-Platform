@@ -368,3 +368,114 @@ def test_a_notification_failure_never_fails_the_assignment(monkeypatch):
     assert row.assigned_level_code == "PM-L1"
     # Not marked as told, so the next attempt still notifies.
     assert row.notified_level_code is None
+
+
+# ---------------------------------------------------------------------------
+# "Your result is out" (2026-10-07, Shailesh): sent when results are released,
+# to students only, with nothing about the result in it; the click opens the
+# student's own result page.
+# ---------------------------------------------------------------------------
+from app.models import CompetitionEventAttempt, CompetitionEventResult  # noqa: E402
+from app.services import annual_competition_scoring_service as scoring  # noqa: E402
+
+
+def _result(db, sid, level_code="PM-L1", *, score=18, attempt_type="OFFICIAL", is_voided=False):
+    attempt = CompetitionEventAttempt(
+        id=f"attempt-{sid}", event_id="event-1" if attempt_type == "OFFICIAL" else None, assignment_id=None,
+        level_paper_id=f"paper-{level_code}", student_id=sid, attempt_number=1, attempt_type=attempt_type,
+        status="FINALIZED", started_at=datetime.now(timezone.utc), submitted_at=datetime.now(timezone.utc),
+    )
+    db.add(attempt)
+    db.flush()
+    db.add(
+        CompetitionEventResult(
+            id=f"result-{sid}", attempt_id=attempt.id, event_id=attempt.event_id, student_id=sid, attempt_type=attempt_type,
+            competition_level_code=level_code, score=score, max_score=20, percentage=score * 5, accuracy_percentage=score * 5,
+            correct_count=score, wrong_count=20 - score, unanswered_count=0, time_taken_seconds=431, is_released=False,
+            is_voided=is_voided,
+        )
+    )
+    db.commit()
+    return attempt.id
+
+
+def test_releasing_results_tells_each_student_once_and_gives_nothing_away():
+    db = _session()
+    admin, _, _ = _setup(db, students=("s1", "s2"))
+    attempt_s1 = _result(db, "s1", score=19)
+    _result(db, "s2", score=7)
+
+    released = scoring.ReleaseCompetitionEventResults(db, EventId="event-1", CompetitionLevelCode=None, ReleasedBy=admin)
+    assert released["newlyReleasedCount"] == 2
+    assert released["studentsNotified"] == 2
+
+    notes = _notes(db, "s1")
+    assert len(notes) == 1
+    note = notes[0]
+    assert note.type == "ANNUAL_OFFICIAL_RESULT_RELEASED"
+    assert note.category == "ANNUAL_COMPETITION_OFFICIAL"
+    assert note.recipient_role == "STUDENT"
+    assert note.title == "Your Annual Competition Result Is Out"
+    assert note.message == "Results for Test Run have been published. Open yours to see how you did."
+    # Straight to the student's own result page.
+    assert note.target_route == f"/student/competition/annual/attempt/{attempt_s1}"
+    assert note.attempt_id == attempt_s1
+    # Nothing about the result itself anywhere a bell could show or forward it.
+    metadata = json.loads(note.metadata_json)
+    assert set(metadata) == {"event", "eventId", "eventName", "attemptId", "targetAction"}
+    everything = f"{note.title} {note.message} {note.metadata_json}".lower()
+    for giveaway in ("score", "rank", "accuracy", "percent", "19", "95", "431", "correct"):
+        assert giveaway not in everything
+    assert "--" not in note.title and "--" not in note.message
+
+    # Pressing Release again tells nobody again.
+    again = scoring.ReleaseCompetitionEventResults(db, EventId="event-1", CompetitionLevelCode=None, ReleasedBy=admin)
+    assert again["newlyReleasedCount"] == 0 and again["studentsNotified"] == 0
+    assert len(_notes(db, "s1")) == 1 and len(_notes(db, "s2")) == 1
+
+
+def test_releasing_one_level_only_tells_that_levels_students():
+    db = _session()
+    admin, _, _ = _setup(db, students=("s1", "s2"))
+    _result(db, "s1", level_code="PM-L1")
+    _result(db, "s2", level_code="IM-L1")
+
+    first = scoring.ReleaseCompetitionEventResults(db, EventId="event-1", CompetitionLevelCode="PM-L1", ReleasedBy=admin)
+    assert first["studentsNotified"] == 1
+    assert len(_notes(db, "s1")) == 1 and _notes(db, "s2") == []
+
+    rest = scoring.ReleaseCompetitionEventResults(db, EventId="event-1", CompetitionLevelCode=None, ReleasedBy=admin)
+    assert rest["studentsNotified"] == 1
+    assert len(_notes(db, "s1")) == 1 and len(_notes(db, "s2")) == 1
+
+
+def test_a_voided_result_and_a_practice_result_are_never_announced():
+    db = _session()
+    admin, _, _ = _setup(db, students=("s1", "s2"))
+    _result(db, "s1", is_voided=True)
+    _result(db, "s2", attempt_type="PRACTICE")
+
+    released = scoring.ReleaseCompetitionEventResults(db, EventId="event-1", CompetitionLevelCode=None, ReleasedBy=admin)
+    assert released["newlyReleasedCount"] == 0 and released["studentsNotified"] == 0
+    assert _notes(db, "s1") == [] and _notes(db, "s2") == []
+
+
+def test_nothing_is_announced_before_results_are_released():
+    db = _session()
+    _setup(db, students=("s1",))
+    _result(db, "s1")
+    assert _notes(db, "s1") == []
+
+
+def test_a_notification_failure_never_fails_the_release(monkeypatch):
+    db = _session()
+    admin, _, _ = _setup(db, students=("s1",))
+    _result(db, "s1")
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("notification store is down")
+
+    monkeypatch.setattr(official, "CreateNotification", _boom)
+    released = scoring.ReleaseCompetitionEventResults(db, EventId="event-1", CompetitionLevelCode=None, ReleasedBy=admin)
+    assert released["newlyReleasedCount"] == 1 and released["studentsNotified"] == 0
+    assert db.query(CompetitionEventResult).one().is_released is True

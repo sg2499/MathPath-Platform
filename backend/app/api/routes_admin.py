@@ -6531,9 +6531,15 @@ def admin_get_annual_competition_attempt_review(attempt_id: str, db: Session = D
 
 @router.get("/annual-competition/events/{event_id}/monitoring/live")
 def admin_get_annual_competition_live_monitoring(
-    event_id: str, slotId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+    event_id: str,
+    slotId: str | None = None,
+    levelCode: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
 ):
-    return GetAnnualCompetitionLiveMonitoring(db, EventId=event_id, StudentIdsFilter=None, SlotId=slotId)
+    return GetAnnualCompetitionLiveMonitoring(
+        db, EventId=event_id, StudentIdsFilter=None, SlotId=slotId, CompetitionLevelCode=levelCode or None
+    )
 
 
 from app.api.routes_teacher import _teacher_competition_row_payload, _competition_duration_text

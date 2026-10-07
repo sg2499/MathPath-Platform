@@ -29,6 +29,7 @@ import {
   type AnnualCompetitionAttemptReview,
   type AnnualCompetitionAttemptReviewQuestion,
 } from "@/lib/api/student";
+import { setPaperInProgress } from "@/lib/paperFocus";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Award, ClipboardCheck, Gauge, Layers3, ListChecks, ShieldAlert, Trophy } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -58,6 +59,15 @@ function AnnualCompetitionAttemptContent() {
   const [liveAttempt, setLiveAttempt] = useState<AnnualCompetitionAttempt | null>(null);
   const [sessionToken, setSessionToken] = useState<string | undefined>(undefined);
   const [sessionSuperseded, setSessionSuperseded] = useState(false);
+
+  // While this paper is IN_PROGRESS the notification bell stops its
+  // background refresh (see lib/paperFocus.ts); it catches up the moment the
+  // paper is over or the student leaves this page.
+  const paperIsRunning = liveAttempt?.status === "IN_PROGRESS";
+  useEffect(() => {
+    setPaperInProgress(Boolean(paperIsRunning));
+    return () => setPaperInProgress(false);
+  }, [paperIsRunning]);
   const [bootstrapError, setBootstrapError] = useState<unknown>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [localAnswers, setLocalAnswers] = useState<Record<string, string>>({});
@@ -425,7 +435,13 @@ function AnnualCompetitionAttemptContent() {
               <p className="math-subtitle max-w-none">
                 {isPractice
                   ? "This practice paper has been scored. Results below are yours alone — practice is never ranked and has no certificate."
-                  : "Your Annual Competition attempt has been scored. Your official rank and certificate will be released once every student at your level has completed their slot."}
+                  : // 2026-10-07: `result` is only ever set once the result is
+                    // RELEASED, so this line is read by a student who is
+                    // looking at their rank and certificate (and, from now
+                    // on, who arrived here from the "Your Annual Competition
+                    // Result Is Out" notification). It used to say the rank
+                    // and certificate "will be released" later.
+                    "Results are out. Here is how you did in the Annual Competition, with your rank and your certificate."}
               </p>
               {/* 2026-09-22 (Shailesh): "remove the accuracy parameter
                   completely from the student view ... also the metric

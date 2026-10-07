@@ -559,6 +559,21 @@ def test_annual_competition_admin_review_self_heals_an_abandoned_official_attemp
     attempt = db.get(CompetitionEventAttempt, attempt_id)
     assert attempt.status == "IN_PROGRESS"
 
+    # 2026-10-07 (event-day readiness, decided with Shailesh): while the
+    # event is still on (SCHEDULED / LIVE) a staff READ must not close an
+    # OFFICIAL paper -- a child whose connection dropped for a minute looks
+    # exactly like an abandoned paper, and is promised they can come back
+    # and carry on. See ReconcileOnReadIfAbandoned.
+    review = GetCompetitionEventAttemptReviewForAdmin(db, AttemptId=attempt_id)
+    assert review["status"] == "IN_PROGRESS"
+    db.refresh(attempt)
+    assert attempt.status == "IN_PROGRESS"
+
+    # Once the event is over nobody can return to the paper, so the very
+    # next read self-heals it, exactly as before.
+    event.status = "COMPLETED"
+    db.commit()
+
     review = GetCompetitionEventAttemptReviewForAdmin(db, AttemptId=attempt_id)
 
     assert review["status"] != "IN_PROGRESS"

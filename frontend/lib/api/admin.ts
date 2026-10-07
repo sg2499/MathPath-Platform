@@ -1923,7 +1923,7 @@ export async function rankAnnualCompetitionResults(eventId: string, competitionL
 // (ReleaseCompetitionEventResults) has never returned -- the real field is
 // `newlyReleasedCount`, alongside `levelsReleased`. That mismatch is why the
 // success message always rendered "Released undefined results".
-export async function releaseAnnualCompetitionResults(eventId: string, competitionLevelCode?: string | null): Promise<{ eventId: string; competitionLevelCode: string | null; levelsReleased: string[]; newlyReleasedCount: number }> {
+export async function releaseAnnualCompetitionResults(eventId: string, competitionLevelCode?: string | null): Promise<{ eventId: string; competitionLevelCode: string | null; levelsReleased: string[]; newlyReleasedCount: number; studentsNotified: number }> {
   const { data } = await api.post(`/admin/annual-competition/events/${eventId}/results/release`, { competitionLevelCode: competitionLevelCode || null });
   return data;
 }
@@ -2082,6 +2082,10 @@ export type AnnualCompetitionLiveMonitoring = {
   generatedAt: string;
   // How long a student's clock runs without a heartbeat before it pauses.
   heartbeatGraceSeconds: number;
+  // Every level this viewer has students in (the Level filter's options),
+  // and the level this reply was filtered to (null = all levels).
+  levelCodes: string[];
+  competitionLevelCode: string | null;
   summary: {
     totalCount: number;
     notStartedCount: number;
@@ -2093,9 +2097,16 @@ export type AnnualCompetitionLiveMonitoring = {
   rows: AnnualCompetitionLiveMonitoringRow[];
 };
 
-export async function getAnnualCompetitionLiveMonitoring(eventId: string, slotId?: string | null): Promise<AnnualCompetitionLiveMonitoring> {
+export async function getAnnualCompetitionLiveMonitoring(
+  eventId: string,
+  slotId?: string | null,
+  levelCode?: string | null
+): Promise<AnnualCompetitionLiveMonitoring> {
+  const params: Record<string, string> = {};
+  if (slotId) params.slotId = slotId;
+  if (levelCode) params.levelCode = levelCode;
   const { data } = await api.get<AnnualCompetitionLiveMonitoring>(`/admin/annual-competition/events/${eventId}/monitoring/live`, {
-    params: slotId ? { slotId } : undefined,
+    params: Object.keys(params).length > 0 ? params : undefined,
   });
   return data;
 }

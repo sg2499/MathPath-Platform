@@ -451,18 +451,6 @@ function PracticeLevelPanel({
 
       {!isOpen ? null : (
       <div className="px-6 pb-6">
-      {/* 2026-09-14 (Shailesh): "the text there again appears where it
-          goes to the next line while having ample space on the same" --
-          root cause was this max-w-2xl artificially narrowing the
-          paragraph well short of the card's real width; math-subtitle
-          elsewhere on this same page uses max-w-none for exactly this
-          reason, so this paragraph now matches that convention instead
-          of wrapping early. */}
-      <p className="mt-3 max-w-none text-sm font-bold text-slate-600 dark:text-slate-300">
-        Practice papers to help you prepare for the Annual Competition — not the Annual Competition itself, and not
-        tied to any specific event. Always freshly generated, no retakes once submitted, and results are visible to
-        you immediately.
-      </p>
 
       <div className="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
         <p className="math-block-header mb-3"><History size={14} /> Practice Papers</p>
@@ -692,9 +680,14 @@ function AnnualCompetitionContent() {
         <div className="math-card p-6">
           <div className="math-block-header mb-2"><Trophy size={14} /> MathPath Annual Competition</div>
           <h1 className="math-title">Annual Competition</h1>
+          {/* 2026-10-07 (Shailesh: "the description text [must be] top notch,
+              world class and clean"). One line per tab, each saying only what
+              that tab is: the day itself, or practice for it. The Practice
+              line used to be a paragraph repeated inside every level's panel. */}
           <p className="math-subtitle max-w-none">
-            MathPath's official, once-a-year competition — a single scored attempt at your assigned level, held at a
-            fixed date and time. It is scored and ranked independently of your regular Competition Mock practice.
+            {ActiveTab === "PRACTICE"
+              ? "Practice papers at your competition level. A fresh paper every time, one attempt each, and your result straight away."
+              : "One day. One paper. One attempt. Your slot is below; your instructions open 10 minutes before it."}
           </p>
         </div>
 
