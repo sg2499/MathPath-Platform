@@ -1689,3 +1689,37 @@ def ensure_mock_gamification_rewards_retroactive() -> None:
     except Exception as e:
         import logging
         logging.error(f"Failed in ensure_mock_gamification_rewards_retroactive: {e}")
+
+
+def ensure_payments_foundation() -> None:
+    """2026-10-08 (Payments Phase 1). The new payments tables themselves are
+    created by Base.metadata.create_all at startup; this adds the one column
+    on an existing table (students.centre_id) and creates the default
+    centres, business details and number sequences once.
+
+    IF NOT EXISTS (Postgres): both backend workers run this at boot. No
+    foreign key is added here, matching this file's convention (see
+    ensure_annual_competition_go_live_columns); the model declares it for
+    fresh databases."""
+    from app.database import SessionLocal
+
+    inspector = inspect(engine)
+    if "students" in inspector.get_table_names():
+        existing = {column["name"] for column in inspector.get_columns("students")}
+        if "centre_id" not in existing:
+            if_not_exists = "" if engine.dialect.name == "sqlite" else "IF NOT EXISTS "
+            with engine.begin() as connection:
+                connection.execute(text(f"ALTER TABLE students ADD COLUMN {if_not_exists}centre_id VARCHAR"))
+                if engine.dialect.name != "sqlite":
+                    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_students_centre_id ON students (centre_id)"))
+
+    from app.services.payments.setup_service import EnsurePaymentDefaults
+
+    db = SessionLocal()
+    try:
+        EnsurePaymentDefaults(db)
+        db.commit()
+    except Exception:  # noqa: BLE001 -- a second worker racing the first must never stop the boot
+        db.rollback()
+    finally:
+        db.close()

@@ -28,7 +28,7 @@ from app.core.security import hash_password
 from app.core.rate_limit import limiter
 from app.database import SessionLocal, get_db
 from app.dependencies import require_roles
-from app.models import User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog, CompetitionMockExam, CompetitionMockAssignment, CompetitionMockAttempt, CompetitionMockAttemptAnswer, CompetitionMockResultSummary
+from app.models import PaymentCentre, User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog, CompetitionMockExam, CompetitionMockAssignment, CompetitionMockAttempt, CompetitionMockAttemptAnswer, CompetitionMockResultSummary
 from app.services.assignment_service import create_assignment
 from app.services.attempt_service import ensure_active_or_auto_submit, result_payload
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, ClearedConceptAttempts, CurrentOperationalAttempts, NeedsReattemptAttempts
@@ -544,6 +544,8 @@ class StudentCreateRequest(BaseModel):
     schoolArea: str | None = None
     fatherOccupation: str | None = None
     motherOccupation: str | None = None
+    # 2026-10-08 (Payments): "" clears the centre; omitted leaves it as is.
+    centreId: str | None = None
 
 
 class StudentUpdateRequest(BaseModel):
@@ -579,6 +581,8 @@ class StudentUpdateRequest(BaseModel):
     schoolArea: str | None = None
     fatherOccupation: str | None = None
     motherOccupation: str | None = None
+    # 2026-10-08 (Payments): "" clears the centre; omitted leaves it as is.
+    centreId: str | None = None
 
 
 class StudentStatusRequest(BaseModel):
@@ -854,6 +858,12 @@ def find_or_create_teacher_for_student(db: Session, teacher_name: str | None, te
     return teacher
 
 
+def _student_centre_name(db: Session, student: Student) -> str | None:
+    centre_id = getattr(student, "centre_id", None)
+    centre = db.get(PaymentCentre, centre_id) if centre_id else None
+    return centre.name if centre else None
+
+
 def student_payload(db: Session, student: Student) -> dict:
     student_user = db.get(User, student.user_id)
     module = db.get(Module, student.current_module_id) if student.current_module_id else None
@@ -896,6 +906,9 @@ def student_payload(db: Session, student: Student) -> dict:
         "motherEmail": student.mother_email,
         "motherWhatsapp": student.mother_whatsapp,
         "studentCode": student.student_code,
+        # 2026-10-08 (Payments): the centre printed on the student's invoices.
+        "centreId": getattr(student, "centre_id", None),
+        "centreName": _student_centre_name(db, student),
         "currentModuleId": student.current_module_id,
         "currentModuleCode": module.module_code if module else None,
         "currentModuleName": module.module_name if module else None,
@@ -962,6 +975,15 @@ def apply_student_fields(student: Student, payload: StudentCreateRequest | Stude
     student.current_level_id = level.id
     if payload.status is not None:
         student.is_active = status_to_active(payload.status)
+    # 2026-10-08 (Payments): centre, validated against the active centres.
+    # Unchanged is left alone, so a student kept on a centre that was later
+    # switched off can still have the rest of their profile saved.
+    if db is not None and getattr(payload, "centreId", None) is not None:
+        requested = str(payload.centreId).strip() or None
+        if requested != getattr(student, "centre_id", None):
+            from app.services.payments.setup_service import ResolveCentreId
+
+            student.centre_id = ResolveCentreId(db, requested)
 
 
 def safe_filename(filename: str, prefix: str) -> str:

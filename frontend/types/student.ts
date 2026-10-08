@@ -44,6 +44,9 @@ export type AdminStudent = {
   // Last Seen: real login/session recency (User.last_active_at on the backend),
   // distinct from isActive/status above which is enrollment state.
   lastActiveAt: string | null;
+  // 2026-10-08 (Payments): the centre printed on the student's invoices.
+  centreId?: string | null;
+  centreName?: string | null;
 };
 
 export type StudentProfilePayload = {
@@ -80,6 +83,8 @@ export type StudentProfilePayload = {
   schoolArea?: string | null;
   fatherOccupation?: string | null;
   motherOccupation?: string | null;
+  // "" clears the centre.
+  centreId?: string | null;
 };
 
 export type BulkUploadResult = {

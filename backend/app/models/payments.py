@@ -1,0 +1,125 @@
+"""Payments -- Phase 1 foundations (2026-10-08, Shailesh).
+
+The fee setup, business details, centres, document numbering and the audit
+history every later payments phase builds on. Plan:
+`claude/mathpath-payments-build-plan.md` in the project.
+
+Ground rules that every table here follows:
+  * Money is stored in whole paise (Integer), never as a float.
+  * Nothing is deleted: rows are deactivated, and every change is written to
+    payment_audit_log (who, when, before/after, reason).
+"""
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.sql import func
+
+from app.database import Base
+from app.models.models import uuid_str
+
+
+class PaymentCentre(Base):
+    """A MathPath centre (Rajarhat, Laketown, Online). Printed on a student's
+    invoices and receipts under the business header."""
+
+    __tablename__ = "payment_centres"
+    id = Column(String, primary_key=True, default=uuid_str)
+    code = Column(String(40), unique=True, nullable=False)
+    name = Column(String(120), nullable=False)
+    address = Column(Text, nullable=True)
+    phone = Column(String(60), nullable=True)
+    display_order = Column(Integer, default=0, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class PaymentBusinessProfile(Base):
+    """The business details printed at the top of every invoice and receipt.
+    One row, id "default"."""
+
+    __tablename__ = "payment_business_profile"
+    id = Column(String, primary_key=True, default="default")
+    legal_name = Column(String(200), nullable=False)
+    brand_name = Column(String(200), nullable=True)
+    gstin = Column(String(15), nullable=True)
+    pan = Column(String(10), nullable=True)
+    registered_address = Column(Text, nullable=True)
+    email = Column(String(150), nullable=True)
+    phone = Column(String(80), nullable=True)
+    logo_url = Column(Text, nullable=True)
+    invoice_footer = Column(Text, nullable=True)
+    updated_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class FeeItem(Base):
+    """One thing a student can be invoiced for (Monthly Fee, Registration
+    Charges, IM-3 Content Charges, MathPath Bag ...). Replaces the old
+    platform's Groups + Components + Group Maps. Changing an amount never
+    changes an invoice already issued: invoices keep their own copy."""
+
+    __tablename__ = "fee_items"
+    id = Column(String, primary_key=True, default=uuid_str)
+    name = Column(String(150), nullable=False)
+    # Lower-cased, single-spaced name: two items can never share a name.
+    name_key = Column(String(150), unique=True, nullable=False)
+    description = Column(Text, nullable=True)
+    amount_paise = Column(Integer, nullable=False)
+    gst_included = Column(Boolean, default=True, nullable=False)
+    # Basis points: 1800 = 18%. Fixed at 18% today, stored so a later change
+    # never needs a schema change.
+    gst_rate_bps = Column(Integer, default=1800, nullable=False)
+    # MONTHLY (billed for a month and year) or ONE_TIME.
+    billing_type = Column(String(20), default="ONE_TIME", nullable=False)
+    display_order = Column(Integer, default=0, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    # JSON list of the old platform's group/component names this item stands
+    # for (filled by the migration in Phase 6).
+    legacy_names_json = Column(Text, nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class PaymentNumberSequence(Base):
+    """The counter behind invoice (MP-INV-000314) and receipt (MP-MRCPT-631)
+    numbers. A number is taken inside the caller's transaction with a row
+    lock, so two admins can never get the same one, and a number is never
+    reused. `is_configured` stays False until the starting number is set
+    (by the migration, or by hand) -- nothing can be numbered before that,
+    so new numbers can never collide with the old platform's."""
+
+    __tablename__ = "payment_number_sequences"
+    key = Column(String(20), primary_key=True)  # INVOICE | RECEIPT
+    prefix = Column(String(20), nullable=False)
+    pad_width = Column(Integer, default=0, nullable=False)
+    next_number = Column(Integer, default=1, nullable=False)
+    last_issued_number = Column(Integer, nullable=True)
+    is_configured = Column(Boolean, default=False, nullable=False)
+    updated_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class PaymentAuditLog(Base):
+    """Every create / edit / deactivate / cancel in the payments area."""
+
+    __tablename__ = "payment_audit_log"
+    id = Column(String, primary_key=True, default=uuid_str)
+    entity_type = Column(String(40), nullable=False, index=True)
+    entity_id = Column(String, nullable=False, index=True)
+    action = Column(String(40), nullable=False)
+    actor_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    actor_name = Column(String(150), nullable=True)
+    reason = Column(Text, nullable=True)
+    before_json = Column(Text, nullable=True)
+    after_json = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+__all__ = [
+    "PaymentCentre",
+    "PaymentBusinessProfile",
+    "FeeItem",
+    "PaymentNumberSequence",
+    "PaymentAuditLog",
+]

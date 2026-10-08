@@ -29,6 +29,7 @@ import {
   uploadStudentSignature,
 } from "@/lib/api/admin";
 import type { LevelItem, ModuleItem } from "@/types/curriculum";
+import { getPaymentSettings, type PaymentCentre } from "@/lib/api/payments";
 import type { AdminTeacher } from "@/types/teacher";
 import type {
   AdminStudent,
@@ -129,6 +130,7 @@ function emptyForm(): FormState {
     schoolArea: "",
     fatherOccupation: "",
     motherOccupation: "",
+    centreId: "",
   };
 }
 
@@ -161,6 +163,10 @@ export default function AdminStudentsPage() {
   const [search, setSearch] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "search"), "");
   const [teacherFilter, setTeacherFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "teacher-filter"), "");
   const [LevelFilter, SetLevelFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "level-filter"), "");
+  // 2026-10-08 (Payments): centre filter. "" / ALL = every centre, NONE = no centre yet.
+  const [CentreFilter, SetCentreFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "centre-filter"), "ALL");
+  const CentresQuery = useQuery({ queryKey: ["admin", "payments", "settings"], queryFn: getPaymentSettings, enabled: ready, staleTime: 60_000 });
+  const Centres = CentresQuery.data?.centres ?? [];
   const [page, setPage] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "page"), 1);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
@@ -399,8 +405,10 @@ export default function AdminStudentsPage() {
     const ScopeParts = [];
     if (teacherFilter && teacherFilter !== "ALL") ScopeParts.push(`Teacher: ${teacherFilter}`);
     if (LevelFilter && LevelFilter !== "ALL") ScopeParts.push(`Level: ${LevelFilter}`);
+    if (CentreFilter === "NONE") ScopeParts.push("No centre yet");
+    else if (CentreFilter && CentreFilter !== "ALL") ScopeParts.push(`Centre: ${Centres.find((Centre) => Centre.centreId === CentreFilter)?.name ?? "Unknown"}`);
     return ScopeParts.length ? ScopeParts.join(" · ") : "All Teachers · All Levels";
-  }, [teacherFilter, LevelFilter]);
+  }, [teacherFilter, LevelFilter, CentreFilter, Centres]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -412,6 +420,8 @@ export default function AdminStudentsPage() {
 
       const LevelName = String(s.currentLevelCode ?? s.currentLevelId ?? "").trim();
       const MatchesLevel = !LevelFilter || LevelFilter === "ALL" || LevelName === LevelFilter;
+      const MatchesCentre =
+        !CentreFilter || CentreFilter === "ALL" || (CentreFilter === "NONE" ? !s.centreId : s.centreId === CentreFilter);
 
       const matchesSearch =
         !q ||
@@ -426,6 +436,7 @@ export default function AdminStudentsPage() {
           s.fatherMobile,
           s.motherMobile,
           s.currentLevelCode,
+          s.centreName,
           s.status,
         ]
           .filter(Boolean)
@@ -433,9 +444,9 @@ export default function AdminStudentsPage() {
           .toLowerCase()
           .includes(q);
 
-      return matchesTeacher && MatchesLevel && matchesSearch;
+      return matchesTeacher && MatchesLevel && MatchesCentre && matchesSearch;
     });
-  }, [students, search, teacherFilter, LevelFilter]);
+  }, [students, search, teacherFilter, LevelFilter, CentreFilter]);
 
   const {
     sortKey,
@@ -538,6 +549,8 @@ export default function AdminStudentsPage() {
       schoolArea: optional(form.schoolArea),
       fatherOccupation: optional(form.fatherOccupation),
       motherOccupation: optional(form.motherOccupation),
+      // "" clears the centre (2026-10-08, Payments).
+      centreId: form.centreId ?? "",
     };
   }
 
@@ -590,6 +603,7 @@ export default function AdminStudentsPage() {
       schoolArea: student.schoolArea ?? "",
       fatherOccupation: student.fatherOccupation ?? "",
       motherOccupation: student.motherOccupation ?? "",
+      centreId: student.centreId ?? "",
     });
     setIsFormOpen(true);
   }
@@ -827,7 +841,7 @@ export default function AdminStudentsPage() {
 
       <section className="mt-6 space-y-5">
         <div className="math-card p-5 sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
             <div>
               <p className="math-block-header"><FileText size={14} />Student Records</p>
               <h2 className="text-2xl font-black text-slate-950 dark:text-white">
@@ -842,8 +856,8 @@ export default function AdminStudentsPage() {
               </p>
             </div>
 
-            <div className="grid w-full gap-3 lg:max-w-5xl lg:grid-cols-[1fr_200px_200px_220px]">
-              <div className="relative">
+            <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[minmax(0,1fr)_200px_170px_170px_auto] 2xl:max-w-6xl">
+              <div className="relative sm:col-span-2 lg:col-span-4 xl:col-span-1">
                 <Search
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                   size={18}
@@ -891,6 +905,24 @@ export default function AdminStudentsPage() {
                     {LevelName}
                   </option>
                 ))}
+              </select>
+
+              <select
+                className="math-select"
+                value={CentreFilter}
+                aria-label="Filter by centre"
+                onChange={(Event) => {
+                  SetCentreFilter(Event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="ALL">All Centres</option>
+                {Centres.map((Centre) => (
+                  <option key={Centre.centreId} value={Centre.centreId}>
+                    {Centre.name}
+                  </option>
+                ))}
+                <option value="NONE">No Centre Yet</option>
               </select>
 
               <SortByDropdown
@@ -958,7 +990,12 @@ export default function AdminStudentsPage() {
 
                       <td>{s.studentCode || "-"}</td>
                       <td>{s.teacher || "-"}</td>
-                      <td>{s.currentLevelCode || "-"}</td>
+                      <td>
+                        {s.currentLevelCode || "-"}
+                        {s.centreName ? (
+                          <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{s.centreName}</span>
+                        ) : null}
+                      </td>
                       <td>{s.fatherMobile || "-"}</td>
                       <td className="whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">
                         {s.lastActiveAt ? formatMathPathDateTimeCompact(s.lastActiveAt) : "Never"}
@@ -1090,6 +1127,7 @@ export default function AdminStudentsPage() {
           modules={modulesQuery.data ?? []}
           levels={levelsQuery.data ?? []}
           teachers={teachersQuery.data ?? []}
+          centres={Centres}
           levelsLoading={levelsQuery.isLoading}
           saving={createMutation.isPending || updateMutation.isPending}
           onClose={closeForm}
@@ -1128,6 +1166,7 @@ function StudentFormModal({
   modules,
   levels,
   teachers,
+  centres,
   levelsLoading,
   saving,
   onClose,
@@ -1144,6 +1183,7 @@ function StudentFormModal({
   modules: ModuleItem[];
   levels: LevelItem[];
   teachers: AdminTeacher[];
+  centres: PaymentCentre[];
   levelsLoading: boolean;
   saving: boolean;
   onClose: () => void;
@@ -1204,6 +1244,24 @@ function StudentFormModal({
                       </option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="math-label">Centre</label>
+                  <select
+                    className="math-select mt-2"
+                    value={form.centreId || ""}
+                    onChange={(event) => onFieldChange("centreId", event.target.value)}
+                  >
+                    <option value="">No centre yet</option>
+                    {centres
+                      .filter((centre) => centre.isActive || centre.centreId === form.centreId)
+                      .map((centre) => (
+                        <option key={centre.centreId} value={centre.centreId}>
+                          {centre.name}
+                        </option>
+                      ))}
+                  </select>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">Printed on this student&apos;s invoices and receipts.</p>
                 </div>
                 <Input
                   label="Admission Date"
@@ -1792,6 +1850,7 @@ function StudentProfileModal({
     ["School", student.schoolName],
     ["Class / Section", `${student.className || "-"} / ${student.section || "-"}`],
     ["Level", student.currentLevelCode],
+    ["Centre", student.centreName ?? "Not set"],
     ["Last Seen", student.lastActiveAt ? formatMathPathDateTime(student.lastActiveAt) : "Never"],
     ["Father", student.fatherName],
     ["Father Mobile", student.fatherMobile],
