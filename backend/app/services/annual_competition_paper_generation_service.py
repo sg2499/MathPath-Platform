@@ -91,6 +91,7 @@ from app.services.annual_competition_paper_registry import (
 )
 from app.services.annual_competition_question_rules import (
     GenerateAnnualRuleQuestion,
+    IsSelfCancellingSum,
     MixSchedule,
     StartsNegativeOrDipsBelowZero,
 )
@@ -121,7 +122,7 @@ ANNUAL_COMPETITION_SLOT_MAX_RETRIES = 50
 # (scripts/backfill_annual_competition_question_rules.py) tells an old paper
 # from a current one without re-checking every sum. Move it forward whenever
 # the rules a paper must follow change.
-ANNUAL_COMPETITION_QUESTION_RULES_VERSION = "2026-10-07"
+ANNUAL_COMPETITION_QUESTION_RULES_VERSION = "2026-10-08"
 # 2026-10-07: a section marked strictQuotas never lets one pattern borrow
 # another pattern's questions (see the collector below), so a slot's own
 # pattern gets a far deeper retry budget instead. The extra retries are
@@ -130,7 +131,7 @@ ANNUAL_COMPETITION_QUESTION_RULES_VERSION = "2026-10-07"
 ANNUAL_COMPETITION_STRICT_SLOT_MAX_RETRIES = 600
 # Registry keys that steer the Annual Competition collector itself and are
 # never handed to a module engine as generator configuration.
-_ANNUAL_COLLECTOR_ONLY_KEYS = {"quota", "mixKey", "conceptTitle", "annualNeverBelowZero"}
+_ANNUAL_COLLECTOR_ONLY_KEYS = {"quota", "mixKey", "conceptTitle", "annualNeverBelowZero", "annualNoSelfCancelling"}
 DEFAULT_ANNUAL_COMPETITION_DIFFICULTY_BAND = "ANNUAL_COMPETITION"
 
 
@@ -634,6 +635,13 @@ def _CollectAnnualCompetitionQuestions(LevelCode: str, Sections: list[dict[str, 
                     # sums". A draw that starts negative, or whose running
                     # total drops below zero at any step, is another retry.
                     if ConceptSpec.get("annualNeverBelowZero") and StartsNegativeOrDipsBelowZero(
+                        Candidate.get("operands"), Candidate.get("operators")
+                    ):
+                        continue
+                    # 2026-10-08: and no stacked sum that answers itself
+                    # (zero answer, a row undoing an earlier row, a total
+                    # coming back to where it already stood).
+                    if ConceptSpec.get("annualNoSelfCancelling") and IsSelfCancellingSum(
                         Candidate.get("operands"), Candidate.get("operators")
                     ):
                         continue

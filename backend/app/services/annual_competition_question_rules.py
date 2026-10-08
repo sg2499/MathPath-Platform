@@ -406,6 +406,28 @@ def StartsNegativeOrDipsBelowZero(Operands: Any, Operators: Any) -> bool:
     return False
 
 
+def IsSelfCancellingSum(Operands: Any, Operators: Any) -> bool:
+    """2026-10-08: a stacked sum that answers itself -- the answer is zero
+    ("75 - 25 - 50"), a row undoes an earlier row ("23 - 23 + 10"), or the
+    running total comes back to a value it already stood at ("80 + 14 - 14").
+    The sums this module builds never take these shapes; this lets the
+    collector refuse them from the module engines too. False for anything
+    that is not a stacked sum."""
+    Rows = SignedRowsOf(Operands, Operators)
+    if not Rows or len(Rows) < 2:
+        return False
+    Totals: list[Decimal] = []
+    Running = Decimal(0)
+    for Index, Row in enumerate(Rows):
+        if Index > 0 and -Row in Rows[:Index]:
+            return True
+        Running += Row
+        if Running in Totals:
+            return True
+        Totals.append(Running)
+    return Running == 0
+
+
 # ---------------------------------------------------------------------------
 # 3. MM-1's own decimal multiplication / decimal division / percentage
 # ---------------------------------------------------------------------------
@@ -531,11 +553,155 @@ def BuildPercentageQuestion(Spec: dict[str, Any], Seed: str) -> dict[str, Any] |
     )
 
 
+# ---------------------------------------------------------------------------
+# 4. 2026-10-08 (Shailesh, after a student's complaint on an MM-2 practice
+#    paper): "in abacus sections they get to use a tool which is abacus but
+#    in visual sections it is complete visualisation so the add/less
+#    (visual) sections need to be simpler and less complicated than the
+#    abacus sections and for the abacus sections also complication does not
+#    mean that it'll be immense and unattainable but within the rules and
+#    guidelines of the particular level paper".
+# ---------------------------------------------------------------------------
+def _WholeNumberStackQuestion(Rows: list[int], Seed: str, Rng: random.Random, Metadata: dict[str, Any]) -> dict[str, Any]:
+    CorrectAnswer = sum(Rows)
+    Distractors = GenerateMmDistractors(Decimal(CorrectAnswer), Rng, CorrectAnswer < 0, "ADD_SUBTRACT", [Decimal(Row) for Row in Rows])
+    return {
+        "question_number": 1,
+        "display_type": "VERTICAL",
+        "operands": Rows,
+        "operators": ["" if Index == 0 else ("+" if Row >= 0 else "-") for Index, Row in enumerate(Rows)],
+        "correct_answer": CorrectAnswer,
+        "options": build_mcq_options(CorrectAnswer, [int(Value) for Value in Distractors], Rng),
+        "seed": Seed,
+        "metadata": {"annual_validated": True, "row_count": len(Rows), **Metadata},
+    }
+
+
+def BuildFourDigitBorrowingQuestion(Spec: dict[str, Any], Seed: str) -> dict[str, Any] | None:
+    """"Add/Less 4D 3R (Abacus) - Borrowing, Positive/Negative Answers"
+    (IM-4, MM-1, MM-2), kept to its own name: three rows, every row exactly
+    four digits.
+
+    The Master Module engine's version of this section made the last row
+    big enough to force a negative answer, so 44% of its sums carried a
+    five-digit row (4625 + 6450 - 15875). Built here instead, three kinds,
+    each with its own share of the section (see the registry):
+      NEGATIVE  a + b - c, c larger than a + b, so the answer is negative
+                (rows in steps of 25, as the engine's own negative-answer
+                sums were: 2350 + 4125 - 7900 = -1425)
+      DIP       a - b + c, b larger than a, so the total goes below zero and
+                comes back: borrowing with a positive answer
+                (2361 - 6194 + 7480 = 3647)
+      PLAIN     a + b - c with a positive answer (5734 + 2816 - 3459 = 5091)
+    Every answer has at most four digits.
+    """
+    Rng = random.Random(Seed)
+    Kind = str(Spec["borrowingKind"])
+    for _Attempt in range(200):
+        if Kind == "NEGATIVE":
+            A = Rng.randrange(1000, 4476, 25)
+            B = Rng.randrange(1000, 4476, 25)
+            if A + B > 8900:
+                continue
+            C = Rng.randrange(A + B + 100, 9976, 25)
+            Rows = [A, B, -C]
+        elif Kind == "DIP":
+            A = Rng.randint(1000, 8000)
+            B = Rng.randint(A + 100, 9999)
+            C = Rng.randint(B - A + 100, min(9999, B - A + 9999))
+            Rows = [A, -B, C]
+        else:
+            A = Rng.randint(1000, 9999)
+            B = Rng.randint(1000, 9999)
+            C = Rng.randint(max(1000, A + B - 9999), min(9999, A + B - 100))
+            Rows = [A, B, -C]
+        if not all(1000 <= abs(Row) <= 9999 for Row in Rows):
+            continue
+        Answer = sum(Rows)
+        if Answer == 0 or abs(Answer) > 9999:
+            continue
+        if (Kind == "NEGATIVE") != (Answer < 0):
+            continue
+        if len({abs(Row) for Row in Rows}) < 3:
+            continue
+        return _WholeNumberStackQuestion(Rows, Seed, Rng, {
+            "concept_family": "ADD_LESS", "operation_focus": "ADD_LESS",
+            "generation_template": "ANNUAL_4D_3R_BORROWING", "borrowing_kind": Kind,
+            "borrowing_answer_mode": "NEGATIVE" if Answer < 0 else "POSITIVE",
+        })
+    return None
+
+
+def BuildLightDecimalVisualQuestion(Spec: dict[str, Any], Seed: str) -> dict[str, Any] | None:
+    """MM-1 / MM-2 "Decimal Add-Less (Visual)": lighter than the level's
+    abacus section on every count -- three rows (the abacus has three), every
+    number N.NN or NN.NN (at most four digits, like the abacus's four-digit
+    rows; still two decimals, per the 7 Oct note), the first number never
+    negative and the running total never below zero, so the answer is at
+    most NNN.NN. Before 8 Oct this section had 3 to 4 rows of NNN.NN and
+    answers up to six digits (746.19 + 45.49 + 938.64 - 52.97 = 1677.35).
+    """
+    Rng = random.Random(Seed)
+    RowCount = int(Spec.get("decimalVisualRows") or 3)
+    TwoDigitShare = float(Spec.get("twoDigitWholeShare") or 0.6)
+    for _Attempt in range(200):
+        Rows: list[Decimal] = []
+        Running = Decimal(0)
+        Failed = False
+        for Index in range(RowCount):
+            WholeDigits = 2 if Rng.random() < TwoDigitShare else 1
+            Low = 10 ** (WholeDigits - 1) * 100
+            High = (10 ** WholeDigits) * 100 - 1
+            Hundredths = Rng.randint(Low, High)
+            if Hundredths % 100 == 0:
+                Failed = True  # 47.00 is a whole number, not a decimal sum
+                break
+            Value = Decimal(Hundredths) / Decimal(100)
+            Subtract = Index > 0 and Rng.random() < 0.4 and Value < Running
+            Row = -Value if Subtract else Value
+            if any(abs(Earlier) == Value for Earlier in Rows):
+                Failed = True  # a row never repeats or undoes an earlier one
+                break
+            Rows.append(Row)
+            Running += Row
+            if Running <= 0:
+                Failed = True
+                break
+        if Failed or not any(Row < 0 for Row in Rows[1:]) and Rng.random() < 0.5:
+            continue
+        if not any(len(str(abs(Row)).split(".")[0]) == 2 for Row in Rows):
+            continue  # at least one NN.NN row in every sum
+        Answer = sum(Rows)
+        if Answer == Answer.to_integral_value():
+            continue  # a decimal sum whose answer is a whole number reads as a trick
+        return {
+            "question_number": 1,
+            "display_type": "VERTICAL",
+            "operands": [f"{Rows[0]:.2f}"] + [f"{abs(Row):.2f}" for Row in Rows[1:]],
+            "operators": [""] + ["+" if Row >= 0 else "-" for Row in Rows[1:]],
+            "correct_answer": _PlainDecimalText(Answer),
+            "options": build_mcq_options(
+                _PlainDecimalText(Answer),
+                [str(Value) for Value in GenerateMmDistractors(Answer, Rng, False, "ADD_SUBTRACT", list(Rows))],
+                Rng,
+            ),
+            "seed": Seed,
+            "metadata": {
+                "concept_family": "DECIMAL_ADD_LESS", "operation_focus": "ADD_LESS",
+                "generation_template": "ANNUAL_LIGHT_DECIMAL_VISUAL", "decimal_places": 2,
+                "row_count": RowCount, "annual_validated": True,
+            },
+        }
+    return None
+
+
 _ANNUAL_RULE_BUILDERS = {
     "BEAD_SUM": BuildBeadSumQuestion,
     "DECIMAL_MULTIPLICATION": BuildDecimalMultiplicationQuestion,
     "DECIMAL_DIVISION": BuildDecimalDivisionQuestion,
     "PERCENTAGE": BuildPercentageQuestion,
+    "FOUR_DIGIT_BORROWING": BuildFourDigitBorrowingQuestion,
+    "LIGHT_DECIMAL_VISUAL": BuildLightDecimalVisualQuestion,
 }
 
 

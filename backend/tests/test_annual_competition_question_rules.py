@@ -154,6 +154,11 @@ def check_two_decimals(F, qs, label):
             F.add(dp(o) == 2, f"{label}: operand not 2 decimals", q)
 
 
+def whole_digits(text):
+    whole = str(text).lstrip("-").split(".")[0].lstrip("0")
+    return len(whole) or 1
+
+
 def digit_pair(q):
     a, b = q["operands"]
     return (len(str(a).replace(".", "").replace("-", "")), len(str(b).replace(".", "").replace("-", "")))
@@ -176,6 +181,12 @@ def check_level(level, paper):
             faults = G.AnnualMultiplyDivideRuleFaults([(q["operands"], q["operators"]) for q in by_sec[s["number"]]])
             F.add(faults["faults"] == 0, f"section {s['number']} multiply/divide rule {faults}")
 
+    # 2026-10-08: no add/less sum anywhere answers itself (zero answer, a row
+    # undoing an earlier row, a total coming back to where it stood).
+    for s in cfg["sections"]:
+        if any(word in s["title"] for word in ("Add", "Direct", "Concepts")):
+            for q in by_sec[s["number"]]:
+                F.add(not Q.IsSelfCancellingSum(q["operands"], q["operators"]), f"{level} section {s['number']}: sum answers itself", q)
     S = by_sec
     title = lambda q: q["metadata"]["annualCompetitionConceptTitle"]
     if level in ("YLM-L0", "YLM-L1"):
@@ -204,6 +215,9 @@ def check_level(level, paper):
         F.add((2, 2) not in shapes, f"{level} visual has 2-digit 2-row sums")
         if level == "PM-L3":
             F.add(dict(shapes) == {(2, 2, 2): 20, (2, 2, 2, 2): 10, (3, 3): 10, (3, 3, 3): 10}, f"PM-3 visual shapes {dict(shapes)}")
+        if level == "PM-L4":
+            # 2026-10-08: no five-row visual sums (the abacus section never goes above four).
+            F.add(max(len(q["operands"]) for q in S[2]) <= 4, "PM-4 visual has five-row sums")
     if level == "IM-L1":
         check_never_below_zero(F, S[1], "IM-1 abacus")
         check_never_below_zero(F, S[2], "IM-1 visual")
@@ -219,6 +233,10 @@ def check_level(level, paper):
         F.add(collections.Counter(digit_pair(q) for q in S[3]) == {(3, 1): 50, (4, 1): 50}, f"IM-3 multiplication {collections.Counter(digit_pair(q) for q in S[3])}")
         F.add(not any("²" in str(q["operands"]) for q in paper), "IM-3 has squares")
         check_two_decimals(F, S[2], "IM-3 visual")
+        # 2026-10-08: half four rows of N.NN, half three rows of NN.NN, never below zero.
+        check_never_below_zero(F, S[2], "IM-3 visual")
+        shapes = collections.Counter((len(q["operands"]), tuple(sorted({whole_digits(o) for o in q["operands"]}))) for q in S[2])
+        F.add(dict(shapes) == {(4, (1,)): 25, (3, (2,)): 25}, f"IM-3 visual shapes {dict(shapes)}")
     if level == "IM-L4":
         F.add(collections.Counter(digit_pair(q) for q in S[3]) == {(2, 2): 100}, f"IM-4 multiplication {collections.Counter(digit_pair(q) for q in S[3])}")
         exp = {"4D / 2D Division": 17, "5D / 2D Division": 17, "3D / 2D Division": 17, "3D / 1D Division With Estimation": 17, "4D / 1D Division With Estimation": 16, "3D / 2D Division With Estimation": 16}
@@ -236,12 +254,41 @@ def check_level(level, paper):
             else:
                 F.add(ans * b == a and ans == ans.to_integral_value(), "IM-4 division not exact", q)
         check_two_decimals(F, S[2], "IM-4 visual")
+        # 2026-10-08: three rows (as many as the abacus section), never below zero.
+        check_never_below_zero(F, S[2], "IM-4 visual")
+        F.add({len(q["operands"]) for q in S[2]} == {3}, "IM-4 visual rows")
         F.add(len(S[5]) == 50, "IM-4 squares")
     if level in ("MM-L1", "MM-L2"):
         check_two_decimals(F, S[2], level + " decimal visual")
+        # 2026-10-08: three rows of N.NN / NN.NN, at least one NN.NN, never
+        # below zero, answer never a whole number.
+        check_never_below_zero(F, S[2], level + " decimal visual")
         for q in S[2]:
             rows = rows_of(q)
-            F.add(Decimal(str(q["correct_answer"])) == sum(rows), "MM visual answer", q)
+            answer = Decimal(str(q["correct_answer"]))
+            F.add(answer == sum(rows), "MM visual answer", q)
+            F.add(len(rows) == 3, "MM visual rows", q)
+            F.add(all(whole_digits(o) in (1, 2) for o in q["operands"]) and any(whole_digits(o) == 2 for o in q["operands"]), "MM visual number size", q)
+            F.add(0 < answer < 300 and answer != answer.to_integral_value(), "MM visual answer size", q)
+    if level in ("IM-L4", "MM-L1", "MM-L2"):
+        # 2026-10-08: "Add/Less 4D 3R (Abacus)": three rows, every row exactly
+        # four digits, answers at most four digits; 25 negative answers, 13
+        # that dip below zero and come back, 12 plain.
+        kinds = collections.Counter()
+        for q in S[1]:
+            rows = rows_of(q)
+            answer = Decimal(str(q["correct_answer"]))
+            F.add(len(rows) == 3 and all(1000 <= abs(r) <= 9999 for r in rows), "4D 3R row", q)
+            F.add(rows[0] > 0 and answer == sum(rows) and 0 < abs(answer) <= 9999, "4D 3R answer", q)
+            run, dipped = Decimal(0), False
+            for r in rows:
+                run += r
+                dipped = dipped or run < 0
+            kind = "NEGATIVE" if answer < 0 else ("DIP" if dipped else "PLAIN")
+            F.add(kind == q["metadata"].get("borrowing_kind"), "4D 3R kind", q)
+            kinds[kind] += 1
+        F.add(dict(kinds) == {"NEGATIVE": 25, "DIP": 13, "PLAIN": 12}, f"4D 3R kinds {dict(kinds)}")
+        F.add(max_run_of([q["metadata"].get("borrowing_kind") for q in S[1]]) <= 2, "4D 3R kinds not mixed")
     if level == "MM-L1":
         exp = {"3D x 2D Multiplication": 25, "2D x 2D Multiplication": 25, "Decimal Multiplication 4D x 1D": 25, "Decimal Multiplication 5D x 1D": 25}
         F.add(collections.Counter(title(q) for q in S[3]) == exp, f"MM-1 multiplication {collections.Counter(title(q) for q in S[3])}")
@@ -493,7 +540,9 @@ def test_the_never_below_zero_rule_is_on_exactly_the_sections_asked_for():
         for level, cfg in R.items() for key, pool in cfg["sectionConceptPools"].items()
         if any(entry.get("annualNeverBelowZero") for entry in pool)
     }
-    assert flagged == {("IM-L1", "SEC1"), ("IM-L1", "SEC2"), ("IM-L2", "SEC2")}
+    # IM-1 and IM-2 from 2026-10-07; IM-3 and IM-4 visual from 2026-10-08
+    # (MM-1 / MM-2 visual keep it inside their own builder).
+    assert flagged == {("IM-L1", "SEC1"), ("IM-L1", "SEC2"), ("IM-L2", "SEC2"), ("IM-L3", "SEC2"), ("IM-L4", "SEC2")}
     for level, key in flagged:
         assert all(entry.get("annualNeverBelowZero") for entry in R[level]["sectionConceptPools"][key])
 
@@ -609,3 +658,58 @@ def test_shailesh_own_percentage_and_decimal_examples_work_out_as_the_engine_wou
     assert half_up(Decimal("4.47") - Decimal("4.47") * 39 / 100) == Decimal("2.73")
     assert Decimal("24.16") * Decimal("0.04") == Decimal("0.9664")
     assert Decimal("231.15") * Decimal("0.08") == Decimal("18.492")
+
+
+# ---------------------------------------------------------------------------
+# 2026-10-08 (Shailesh): "the add/less (visual) sections need to be simpler
+# and less complicated than the abacus sections". For every level that has
+# both, over several papers: no visual number longer than the longest
+# abacus number, never more visual rows than abacus rows, and no visual sum
+# that starts negative or drops below zero.
+# ---------------------------------------------------------------------------
+def _number_digits(value):
+    text = str(value).lstrip("-")
+    whole, _, decimals = text.partition(".")
+    return len(whole.lstrip("0")) + len(decimals)
+
+
+@pytest.mark.parametrize("level", ["PM-L2", "PM-L3", "PM-L4", "IM-L1", "IM-L2", "IM-L3", "IM-L4", "MM-L1", "MM-L2"])
+def test_every_visual_add_less_section_is_lighter_than_its_abacus_section(level):
+    cfg = R[level]
+    abacus = next(s for s in cfg["sections"] if s["mode"] == "ABACUS" and s["number"] == 1)
+    visual = next(s for s in cfg["sections"] if s["mode"] == "VISUAL" and s["number"] == 2)
+    abacus_digits, abacus_rows, visual_digits, visual_rows = 0, 0, 0, 0
+    for index in range(4):
+        paper = G._CollectAnnualCompetitionQuestions(level, [abacus, visual], cfg["sectionConceptPools"], f"lighter-{index}")
+        for q in paper:
+            rows = Q.SignedRowsOf(q["operands"], q["operators"])
+            longest = max(_number_digits(r) for r in rows)
+            if q["_annual_section_number"] == abacus["number"]:
+                abacus_digits, abacus_rows = max(abacus_digits, longest), max(abacus_rows, len(rows))
+            else:
+                visual_digits, visual_rows = max(visual_digits, longest), max(visual_rows, len(rows))
+                assert not Q.StartsNegativeOrDipsBelowZero(q["operands"], q["operators"]), (level, q["operands"], q["operators"])
+    assert visual_digits <= abacus_digits, (level, visual_digits, abacus_digits)
+    assert visual_rows <= abacus_rows, (level, visual_rows, abacus_rows)
+
+
+@pytest.mark.parametrize("kind", ["NEGATIVE", "DIP", "PLAIN"])
+def test_four_digit_borrowing_sums_keep_to_their_name(kind):
+    for seed in range(400):
+        q = Q.BuildFourDigitBorrowingQuestion({"borrowingKind": kind}, f"b{seed}")
+        rows = q["operands"]
+        assert len(rows) == 3 and all(1000 <= abs(r) <= 9999 for r in rows)
+        assert q["correct_answer"] == sum(rows) and 0 < abs(q["correct_answer"]) <= 9999
+        assert (q["correct_answer"] < 0) == (kind == "NEGATIVE")
+        if kind == "DIP":
+            assert rows[0] + rows[1] < 0 < q["correct_answer"]
+
+
+def test_light_decimal_visual_sums():
+    for seed in range(400):
+        q = Q.BuildLightDecimalVisualQuestion({}, f"v{seed}")
+        assert len(q["operands"]) == 3
+        assert not Q.StartsNegativeOrDipsBelowZero(q["operands"], q["operators"])
+        assert all(whole_digits(o) in (1, 2) and len(str(o).split(".")[1]) == 2 for o in q["operands"])
+        answer = Decimal(q["correct_answer"])
+        assert answer == sum(Q.SignedRowsOf(q["operands"], q["operators"])) and 0 < answer < 300

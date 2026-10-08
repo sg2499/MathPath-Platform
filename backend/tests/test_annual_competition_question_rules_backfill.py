@@ -215,6 +215,24 @@ def _as_generated_questions(db, paper):
     return questions
 
 
+def _holds_value(payload, number):
+    """True if any value anywhere in a payload is exactly this number (as a
+    number or as a number's text)."""
+    if isinstance(payload, dict):
+        return any(_holds_value(value, number) for value in payload.values())
+    if isinstance(payload, (list, tuple)):
+        return any(_holds_value(value, number) for value in payload)
+    if isinstance(payload, bool) or payload is None:
+        return False
+    if isinstance(payload, (int, float)):
+        return float(payload) == float(number)
+    text = str(payload).strip()
+    try:
+        return float(text) == float(number)
+    except ValueError:
+        return False
+
+
 def _sit_whole_paper(db, student, level_code, correct_per_section, *, seconds_used_per_section=60):
     """A student starts the next practice paper of the level, answers the
     first N questions of each section correctly, and submits every section
@@ -261,7 +279,7 @@ def test_every_newly_generated_paper_carries_todays_rules_version():
     admin, student = _admin(db), _student(db, "MP-V-1")
     paper = _practice_papers(db, admin, student, "PM-L3", old=False)[0]
     exam = db.get(CompetitionMockExam, paper.mock_exam_id)
-    assert AnnualPaperQuestionRulesVersion(exam) == ANNUAL_COMPETITION_QUESTION_RULES_VERSION == "2026-10-07"
+    assert AnnualPaperQuestionRulesVersion(exam) == ANNUAL_COMPETITION_QUESTION_RULES_VERSION == "2026-10-08"  # moved forward for the lighter visual sections
     _forget_rules_version(db, paper)
     assert AnnualPaperQuestionRulesVersion(db.get(CompetitionMockExam, paper.mock_exam_id)) is None
     assert AnnualPaperQuestionRulesVersion(None) is None
@@ -520,14 +538,15 @@ def test_old_im3_result_is_recomputed_on_four_sections_everywhere(backfill, monk
     own = scoring.GetCompetitionEventResultForStudent(db, student, attempt_id)["result"]
     assert (own["score"], own["maxScore"]) == (53, 300)
     listed = attempt_engine.ListMyAnnualCompetitionPracticeAttempts(db, student, "IM-L3")
-    assert "350" not in json.dumps(listed)
+    assert not _holds_value(listed, 350)
 
     # The practice leaderboard for the level: everything out of 300.
     report = GetAnnualCompetitionPracticeReportForLevel(db, CompetitionLevelCode="IM-L3")
     row = next(r for r in report["perStudent"] if r["studentId"] == student.id)
     assert (row["highestScore"], row["highestMaxScore"], row["avgScore"], row["avgMaxScore"]) == (53, 300, 53, 300)
     assert [s["sectionNumber"] for s in report["perSection"]] == [1, 2, 3, 4]
-    assert "350" not in json.dumps(report) and "Squares" not in json.dumps(report)
+    # Checked value by value: an id can contain the characters "350".
+    assert not _holds_value(report, 350) and "Squares" not in json.dumps(report)
 
     # Running it again finds nothing left to do.
     again = backfill.run_results_phase(db, apply=True)
