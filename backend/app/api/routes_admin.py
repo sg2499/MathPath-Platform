@@ -117,6 +117,7 @@ from app.services.annual_competition_studio_service import (
     ListCompetitionEventLevelPapers,
     UpdateCompetitionEventSectionTimer,
     OverrideCompetitionEventAssignment,
+    SetCompetitionEventAssignmentSlot,
     BulkOverrideCompetitionEventAssignments,
     SuspendCompetitionEvent,
     LiftCompetitionEventSuspension,
@@ -235,6 +236,12 @@ class AnnualCompetitionSectionTimerUpdateRequest(BaseModel):
 class AnnualCompetitionOverrideRequest(BaseModel):
     studentId: str
     assignedLevelCode: str
+    slotId: str | None = None
+
+# 2026-10-08 (Shailesh, a slot per student): slotId null = back to the
+# automatic slot (the one slot that lists the student's level).
+class AnnualCompetitionAssignmentSlotRequest(BaseModel):
+    studentId: str
     slotId: str | None = None
 
 # 2026-09-28 (Shailesh, Universal Set Level): the multi-select counterpart
@@ -6206,6 +6213,19 @@ def admin_override_annual_competition_assignment(
         AssignedLevelCode=payload.assignedLevelCode,
         OverriddenBy=user,
         SlotId=payload.slotId,
+    )
+
+
+@router.post("/annual-competition/events/{event_id}/assignments/slot")
+def admin_set_annual_competition_assignment_slot(
+    event_id: str, payload: AnnualCompetitionAssignmentSlotRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)
+):
+    return SetCompetitionEventAssignmentSlot(
+        db,
+        EventId=event_id,
+        StudentId=payload.studentId,
+        SlotId=payload.slotId or None,
+        SetBy=user,
     )
 
 

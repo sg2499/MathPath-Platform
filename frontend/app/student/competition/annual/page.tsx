@@ -173,7 +173,10 @@ function AssignmentCard({
   const retryAvailable = assignment.hasActiveRetryGrant;
   const completed =
     !retryAvailable && (assignment.latestAttemptStatus === "SUBMITTED" || assignment.latestAttemptStatus === "FINALIZED");
-  const instructionsGated = (notStarted || retryAvailable) && InstructionsNotYetVisible(assignment, now);
+  // 2026-10-08 (a slot per student): waiting for an admin to choose this
+  // student's slot -- nothing to open until then.
+  const slotNotSet = Boolean(assignment.slotPending) && !assignment.slot && (notStarted || retryAvailable);
+  const instructionsGated = (notStarted || retryAvailable) && (slotNotSet || InstructionsNotYetVisible(assignment, now));
 
   return (
     <div className="math-card p-6">
@@ -193,6 +196,11 @@ function AssignmentCard({
                   Your Slot: {assignment.slot.slotLabel || InitCaps(assignment.slot.mode)} · {FormatDateTime(assignment.slot.scheduledStartAt)}
                 </span>
               </div>
+            ) : slotNotSet ? (
+              <div className="flex items-start gap-2 text-amber-700 dark:text-amber-300">
+                <Hourglass size={16} className="mt-0.5 shrink-0" />
+                <span className="min-w-0">Your slot hasn't been set yet. Please check back once your teacher has set it.</span>
+              </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2 text-slate-500 dark:text-slate-400">
                 <Hourglass size={16} className="shrink-0" />
@@ -210,7 +218,7 @@ function AssignmentCard({
             <button
               className="math-role-action-button h-10 px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               disabled={starting || instructionsGated}
-              title={instructionsGated && instructionsOpenAtMs != null ? `Instructions open ${FormatDateTime(new Date(instructionsOpenAtMs).toISOString())}` : undefined}
+              title={instructionsGated && !slotNotSet && instructionsOpenAtMs != null ? `Instructions open ${FormatDateTime(new Date(instructionsOpenAtMs).toISOString())}` : undefined}
               onClick={onStart}
             >
               <PlayCircle size={16} />
@@ -229,7 +237,7 @@ function AssignmentCard({
             <button
               className="math-role-action-button h-10 px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               disabled={starting || instructionsGated}
-              title={instructionsGated && instructionsOpenAtMs != null ? `Instructions open ${FormatDateTime(new Date(instructionsOpenAtMs).toISOString())}` : undefined}
+              title={instructionsGated && !slotNotSet && instructionsOpenAtMs != null ? `Instructions open ${FormatDateTime(new Date(instructionsOpenAtMs).toISOString())}` : undefined}
               onClick={onStart}
             >
               <PlayCircle size={16} />

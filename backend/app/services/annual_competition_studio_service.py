@@ -84,6 +84,14 @@ from app.services.annual_competition_paper_generation_service import (
     RebuildAnnualCompetitionPaperContent,
 )
 from app.services.annual_competition_paper_registry import ANNUAL_COMPETITION_LEVEL_REGISTRY
+from app.services.annual_competition_slot_links import (
+    ActiveSlotsForLevel,
+    ApplySlotRules,
+    AutomaticSlotIdForLevel,
+    RelinkEventAssignmentSlots,
+    SlotFitsAssignment,
+    SlotIsPendingForAssignment,
+)
 from app.services.annual_competition_official_notification_service import (
     NOTIFIABLE_EVENT_STATUSES,
     SendAnnualCompetitionOfficialAssignmentNotifications,
@@ -443,7 +451,8 @@ def CreateCompetitionEventSlot(
         is_active=True,
     )
     db.add(SlotRecord)
-    db.commit()
+    db.flush()
+    _RelinkSlotsAndNotify(db, EventId)
     db.refresh(SlotRecord)
     return _SlotPayload(SlotRecord)
 
@@ -480,9 +489,21 @@ def UpdateCompetitionEventSlot(
         SlotRecord.applicable_level_codes_json = json.dumps(list(ApplicableLevelCodes))
     if IsActive is not None:
         SlotRecord.is_active = IsActive
-    db.commit()
+    db.flush()
+    _RelinkSlotsAndNotify(db, SlotRecord.event_id)
     db.refresh(SlotRecord)
     return _SlotPayload(SlotRecord)
+
+
+def _RelinkSlotsAndNotify(db: Session, EventId: str) -> None:
+    """2026-10-08: a slot was created, edited or removed -- re-link the
+    event's students to slots straight away (see
+    annual_competition_slot_links.py), commit, then tell any student whose
+    slot was set or changed."""
+    ChangedStudentIds = RelinkEventAssignmentSlots(db, EventId)
+    db.commit()
+    if ChangedStudentIds:
+        SendAnnualCompetitionOfficialAssignmentNotifications(db, EventId=EventId, StudentIds=ChangedStudentIds)
 
 
 def ListCompetitionEventSlots(db: Session, EventId: str) -> list[dict[str, Any]]:
@@ -518,25 +539,14 @@ def _ResolveSlotIdForLevelCode(db: Session, EventId: str, AssignedLevelCode: str
     picking one, consistent with this project's "no silent guessing"
     convention; ListCompetitionEventSlots already surfaces every slot for an
     admin to fix the overlap by hand.
-    """
-    import json
 
-    Slots = (
-        db.query(CompetitionEventSlot)
-        .filter(CompetitionEventSlot.event_id == EventId, CompetitionEventSlot.is_active == True)
-        .all()
-    )
-    MatchingSlotIds = []
-    for SlotRecord in Slots:
-        try:
-            LevelCodes = json.loads(SlotRecord.applicable_level_codes_json or "[]")
-        except Exception:
-            LevelCodes = []
-        if AssignedLevelCode in LevelCodes:
-            MatchingSlotIds.append(SlotRecord.id)
-    if len(MatchingSlotIds) == 1:
-        return MatchingSlotIds[0]
-    return None
+    2026-10-08: the matching now lives in annual_competition_slot_links.py,
+    together with the per-student chosen slot that takes priority over it.
+    Two slots on one level is no longer a misconfiguration (online students
+    of one level sit on different days): the admin chooses a slot per
+    student, and until then that student cannot start.
+    """
+    return AutomaticSlotIdForLevel(db, EventId, AssignedLevelCode)
 
 
 def SlotsWithInsufficientDuration(db: Session, EventId: str) -> list[dict[str, Any]]:
@@ -939,20 +949,17 @@ def _ApplyCompetitionEventAssignmentOverride(
         SlotRecord = db.get(CompetitionEventSlot, SlotId)
         if not SlotRecord or SlotRecord.event_id != EventId:
             api_error(404, "COMPETITION_SLOT_NOT_FOUND", "The selected slot was not found for this event.")
-    else:
-        # No caller passes an explicit SlotId today (neither override form
-        # has a slot picker) -- auto-match by level code so this path isn't
-        # silently dead. See _ResolveSlotIdForLevelCode's own docstring.
-        SlotId = _ResolveSlotIdForLevelCode(db, EventId, AssignedLevelCode)
+        if not SlotFitsAssignment(db, SlotId, EventId, AssignedLevelCode):
+            api_error(422, "COMPETITION_SLOT_LEVEL_MISMATCH", "That slot is not open for this level. Choose a slot that lists the level.")
 
     AssignmentRecord = (
         db.query(CompetitionEventAssignment)
         .filter(CompetitionEventAssignment.event_id == EventId, CompetitionEventAssignment.student_id == StudentRecord.id)
         .first()
     )
+    LevelChanged = bool(AssignmentRecord and AssignmentRecord.assigned_level_code != AssignedLevelCode)
     if AssignmentRecord:
         AssignmentRecord.assigned_level_code = AssignedLevelCode
-        AssignmentRecord.slot_id = SlotId
         AssignmentRecord.assignment_source = "ADMIN_OVERRIDE"
         AssignmentRecord.overridden_by_user_id = OverriddenBy.id if OverriddenBy else None
         AssignmentRecord.computed_at = datetime.now(timezone.utc)
@@ -962,12 +969,21 @@ def _ApplyCompetitionEventAssignmentOverride(
             event_id=EventId,
             student_id=StudentRecord.id,
             assigned_level_code=AssignedLevelCode,
-            slot_id=SlotId,
+            slot_id=None,
             assignment_source="ADMIN_OVERRIDE",
             overridden_by_user_id=OverriddenBy.id if OverriddenBy else None,
             is_active=True,
         )
         db.add(AssignmentRecord)
+    # 2026-10-08 (a slot per student): an explicitly passed slot becomes the
+    # student's chosen slot. Otherwise a slot the admin chose earlier is
+    # kept while it still lists the new level, and is cleared (back to the
+    # automatic rule) when it does not. See annual_competition_slot_links.py.
+    if SlotId is not None:
+        AssignmentRecord.slot_id = SlotId
+        AssignmentRecord.slot_chosen_by_admin = True
+    else:
+        ApplySlotRules(db, AssignmentRecord, LevelChanged=LevelChanged)
     return AssignmentRecord
 
 
@@ -1011,8 +1027,78 @@ def OverrideCompetitionEventAssignment(
         "studentName": StudentRecord.user.full_name if StudentRecord.user else None,
         "assignedLevelCode": AssignmentRecord.assigned_level_code,
         "slotId": AssignmentRecord.slot_id,
+        "slotChosenByAdmin": bool(AssignmentRecord.slot_chosen_by_admin),
+        "slotPending": SlotIsPendingForAssignment(db, AssignmentRecord),
         "assignmentSource": AssignmentRecord.assignment_source,
         "overriddenByUserId": AssignmentRecord.overridden_by_user_id,
+        "studentsNotified": NotifiedCount,
+    }
+
+
+def SetCompetitionEventAssignmentSlot(
+    db: Session,
+    *,
+    EventId: str,
+    StudentId: str,
+    SlotId: str | None,
+    SetBy: User | None = None,
+) -> dict[str, Any]:
+    """2026-10-08 (Shailesh): "assign different slots to different students
+    for the same level". Chooses this student's slot (SlotId), or with
+    SlotId=None hands the student back to the automatic rule (the one slot
+    that lists their level). The chosen slot must be active, in this event,
+    and list the student's level. Notifies the student when their slot is
+    set or changed (event SCHEDULED or LIVE only)."""
+    _GetEventOr404(db, EventId)
+    StudentRecord = _ResolveStudentByIdOrCode(db, StudentId)
+    AssignmentRecord = (
+        db.query(CompetitionEventAssignment)
+        .filter(
+            CompetitionEventAssignment.event_id == EventId,
+            CompetitionEventAssignment.student_id == StudentRecord.id,
+            CompetitionEventAssignment.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    if not AssignmentRecord:
+        api_error(
+            422,
+            "COMPETITION_ASSIGNMENT_NOT_FOUND",
+            f"{StudentRecord.student_code or StudentRecord.id} has no level in this event yet. Set a level first, then choose a slot.",
+        )
+    if SlotId:
+        SlotRecord = db.get(CompetitionEventSlot, SlotId)
+        if not SlotRecord or SlotRecord.event_id != EventId or not SlotRecord.is_active:
+            api_error(404, "COMPETITION_SLOT_NOT_FOUND", "The selected slot was not found for this event.")
+        if not SlotFitsAssignment(db, SlotId, EventId, AssignmentRecord.assigned_level_code):
+            api_error(
+                422,
+                "COMPETITION_SLOT_LEVEL_MISMATCH",
+                f"That slot is not open for {AssignmentRecord.assigned_level_code}. Choose a slot that lists the student's level.",
+            )
+        AssignmentRecord.slot_id = SlotId
+        AssignmentRecord.slot_chosen_by_admin = True
+    else:
+        AssignmentRecord.slot_chosen_by_admin = False
+        ApplySlotRules(db, AssignmentRecord)
+    db.commit()
+    db.refresh(AssignmentRecord)
+    NotifiedCount = SendAnnualCompetitionOfficialAssignmentNotifications(
+        db,
+        EventId=EventId,
+        StudentIds=[AssignmentRecord.student_id],
+        ActorUserId=SetBy.id if SetBy else None,
+    )
+    db.refresh(AssignmentRecord)
+    return {
+        "eventId": EventId,
+        "studentId": AssignmentRecord.student_id,
+        "studentCode": StudentRecord.student_code,
+        "studentName": StudentRecord.user.full_name if StudentRecord.user else None,
+        "assignedLevelCode": AssignmentRecord.assigned_level_code,
+        "slotId": AssignmentRecord.slot_id,
+        "slotChosenByAdmin": bool(AssignmentRecord.slot_chosen_by_admin),
+        "slotPending": SlotIsPendingForAssignment(db, AssignmentRecord),
         "studentsNotified": NotifiedCount,
     }
 

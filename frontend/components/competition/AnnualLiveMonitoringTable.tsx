@@ -24,6 +24,8 @@ export type AnnualLiveMonitoringRow = {
   studentName: string | null;
   assignedLevelCode: string;
   slot: { slotLabel: string | null; mode: string } | null;
+  // 2026-10-08: waiting for an admin to choose this student's slot.
+  slotPending?: boolean;
   liveStatus: "NOT_STARTED" | "IN_PROGRESS" | "STUCK" | "SUBMITTED" | "FINALIZED";
   currentSectionNumber: number | null;
   totalSectionCount: number | null;
@@ -262,7 +264,15 @@ export function AnnualLiveMonitoringTable({
             <tr key={Row.assignmentId} className="border-t border-[color:var(--mp-role-border)]">
               <td className="whitespace-nowrap px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
               <td className="whitespace-nowrap px-2 py-2">{FormatCompetitionLevelLabel(Row.assignedLevelCode)}</td>
-              <td className="whitespace-nowrap px-2 py-2">{Row.slot?.slotLabel || Row.slot?.mode || "--"}</td>
+              <td className="whitespace-nowrap px-2 py-2">
+                {Row.slot ? (
+                  Row.slot.slotLabel || Row.slot.mode
+                ) : Row.slotPending && Row.liveStatus === "NOT_STARTED" ? (
+                  <span className="text-amber-600 dark:text-amber-300">Slot not set yet</span>
+                ) : (
+                  "--"
+                )}
+              </td>
               <td className="whitespace-nowrap px-2 py-2"><AnnualLiveStatusChip status={Row.liveStatus} /></td>
               <td className="whitespace-nowrap px-2 py-2 tabular-nums"><SectionCell Row={Row} /></td>
               <td className="whitespace-nowrap px-2 py-2 tabular-nums"><RemainingCell Row={Row} FetchedAtMs={FetchedAtMs} GraceSeconds={GraceSeconds} NowMs={NowMs} /></td>

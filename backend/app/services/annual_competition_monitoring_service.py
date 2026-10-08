@@ -83,6 +83,7 @@ from app.services.annual_competition_attempt_service import (
     _ReconcileSingleAttemptIfAbandoned,
 )
 from app.services.annual_competition_paper_registry import ANNUAL_COMPETITION_LEVEL_REGISTRY
+from app.services.annual_competition_slot_links import SlotLevelCodes
 from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals, RoundPercentageForDisplay
 
 LIVE_STATUS_NOT_STARTED = "NOT_STARTED"
@@ -244,6 +245,27 @@ def _LiveStatusRows(
         ):
             SectionStatesByAttemptId.setdefault(SectionState.attempt_id, []).append(SectionState)
 
+    # 2026-10-08 (a slot per student): how many active slots list each
+    # level, so a student waiting for a slot can be shown as such.
+    # One query for the whole board, so the query count stays flat however
+    # many students or levels there are.
+    SlotCountByEventLevel: dict[tuple[str, str], int] = {}
+    UnslottedEventIds = list({AssignmentRecord.event_id for AssignmentRecord in AssignmentRecords if not AssignmentRecord.slot_id})
+    if UnslottedEventIds:
+        for ActiveSlot in (
+            db.query(CompetitionEventSlot)
+            .filter(CompetitionEventSlot.event_id.in_(UnslottedEventIds), CompetitionEventSlot.is_active == True)  # noqa: E712
+            .all()
+        ):
+            for LevelCode in SlotLevelCodes(ActiveSlot):
+                Key = (ActiveSlot.event_id, LevelCode)
+                SlotCountByEventLevel[Key] = SlotCountByEventLevel.get(Key, 0) + 1
+
+    def _SlotPending(AssignmentRecord: CompetitionEventAssignment) -> bool:
+        if AssignmentRecord.slot_id:
+            return False
+        return SlotCountByEventLevel.get((AssignmentRecord.event_id, AssignmentRecord.assigned_level_code or ""), 0) >= 2
+
     Rows: list[dict[str, Any]] = []
     for AssignmentRecord in AssignmentRecords:
         StudentRecord = StudentById.get(AssignmentRecord.student_id)
@@ -316,6 +338,7 @@ def _LiveStatusRows(
                 "section": StudentRecord.section,
                 "assignedLevelCode": AssignmentRecord.assigned_level_code,
                 "slot": _SlotPayload(SlotRecord),
+                "slotPending": _SlotPending(AssignmentRecord),
                 "attemptId": AttemptRecord.id if AttemptRecord else None,
                 "attemptStatus": AttemptRecord.status if AttemptRecord else LIVE_STATUS_NOT_STARTED,
                 "liveStatus": LiveStatus,

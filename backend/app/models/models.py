@@ -595,6 +595,13 @@ class CompetitionEventAssignment(Base):
     # annual_competition_official_notification_service.py.
     notified_level_code = Column(String(50), nullable=True)
     notified_at = Column(DateTime(timezone=True), nullable=True)
+    # 2026-10-08 (Shailesh, a slot per student): True when an admin chose
+    # this student's slot by hand. NULL/False = worked out from the level.
+    # See annual_competition_slot_links.py for the rules.
+    slot_chosen_by_admin = Column(Boolean, nullable=True)
+    # The slot the student was last told about, so a slot set or changed
+    # later is notified once (same idea as notified_level_code).
+    notified_slot_id = Column(String, nullable=True)
 
     event = relationship("CompetitionEvent")
     student = relationship("Student")

@@ -145,6 +145,7 @@ from app.core import config as app_config
 from app.core.errors import api_error
 from app.services.answer_matching import answers_match
 from app.services.annual_competition_retired_sections import RetiredSectionNumbersForLevelPaper
+from app.services.annual_competition_slot_links import SlotIsPendingForAssignment
 from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals, RoundPercentageForDisplay
 from app.models import (
     CompetitionEvent,
@@ -280,6 +281,15 @@ def _CheckSlotGate(db: Session, AssignmentRecord: CompetitionEventAssignment, No
     StartCompetitionEventAttempt's docstring for why that's the common
     case today, not the exception."""
     if not AssignmentRecord.slot_id:
+        # 2026-10-08 (a slot per student): two or more slots list this
+        # level and the admin has not chosen one for this student yet.
+        # Before, this case had no slot and so no start-time lock at all.
+        if SlotIsPendingForAssignment(db, AssignmentRecord):
+            api_error(
+                403,
+                "COMPETITION_SLOT_NOT_SET",
+                "Your slot hasn't been set yet. Please check back once your teacher has set it.",
+            )
         return
     SlotRecord = db.get(CompetitionEventSlot, AssignmentRecord.slot_id)
     if not SlotRecord:
@@ -1394,6 +1404,9 @@ def _AssignmentWithAttemptPayload(db: Session, AssignmentRecord: CompetitionEven
         "competitionDate": EventRecord.competition_date.isoformat() if EventRecord.competition_date else None,
         "assignedLevelCode": AssignmentRecord.assigned_level_code,
         "slot": _SlotPayload(SlotRecord),
+        # 2026-10-08: True while the student waits for an admin to choose
+        # their slot (they cannot start until then).
+        "slotPending": SlotIsPendingForAssignment(db, AssignmentRecord),
         "latestAttemptId": LatestAttempt.id if LatestAttempt else None,
         # NOT_STARTED is synthesized (no attempt row exists yet) rather than
         # read off any stored field -- matches ListStudentCompetitionMockAssignmentsForAttempt's
@@ -1538,6 +1551,9 @@ def GetCompetitionEventInstructions(db: Session, StudentRecord: Student, EventId
         "competitionDate": EventRecord.competition_date.isoformat() if EventRecord.competition_date else None,
         "assignedLevelCode": AssignmentRecord.assigned_level_code,
         "slot": _SlotPayload(SlotRecord),
+        # 2026-10-08: True while the student waits for an admin to choose
+        # their slot (they cannot start until then).
+        "slotPending": SlotIsPendingForAssignment(db, AssignmentRecord),
         "totalDurationSeconds": sum(Timer.time_limit_seconds for Timer in SectionTimers),
         "sections": SectionsPayload,
         "isRetry": IsRetry,

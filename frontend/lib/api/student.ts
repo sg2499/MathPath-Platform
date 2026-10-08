@@ -534,6 +534,9 @@ export type AnnualCompetitionAssignmentForStudent = {
   competitionDate: string | null;
   assignedLevelCode: string;
   slot: AnnualCompetitionSlotInfo | null;
+  // 2026-10-08: true while the student waits for their slot to be chosen
+  // (two or more slots list their level). They cannot start until then.
+  slotPending?: boolean;
   latestAttemptId: string | null;
   // NOT_STARTED | IN_PROGRESS | SUBMITTED | FINALIZED
   latestAttemptStatus: string;
@@ -564,6 +567,7 @@ export type AnnualCompetitionInstructions = {
   competitionDate: string | null;
   assignedLevelCode: string;
   slot: AnnualCompetitionSlotInfo | null;
+  slotPending?: boolean;
   totalDurationSeconds: number;
   sections: AnnualCompetitionInstructionsSection[];
   isRetry: boolean;

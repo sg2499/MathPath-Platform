@@ -66,6 +66,7 @@ from app.services.notification_service import CreateNotification
 ANNUAL_COMPETITION_OFFICIAL_CATEGORY = "ANNUAL_COMPETITION_OFFICIAL"
 ANNUAL_OFFICIAL_ASSIGNED_TYPE = "ANNUAL_OFFICIAL_ASSIGNED"
 ANNUAL_OFFICIAL_LEVEL_CHANGED_TYPE = "ANNUAL_OFFICIAL_LEVEL_CHANGED"
+ANNUAL_OFFICIAL_SLOT_CHANGED_TYPE = "ANNUAL_OFFICIAL_SLOT_CHANGED"
 ANNUAL_OFFICIAL_RESULT_RELEASED_TYPE = "ANNUAL_OFFICIAL_RESULT_RELEASED"
 
 # The event statuses in which a student can both see the event and still sit
@@ -112,7 +113,9 @@ def NotifyAnnualCompetitionOfficialAssignment(
     """Notifies one student about their official assignment if (and only if)
     they have not already been told about this exact level for this event.
 
-    Returns "ASSIGNED", "LEVEL_CHANGED", or None when nothing was sent.
+    Returns "ASSIGNED", "LEVEL_CHANGED", "SLOT_CHANGED" (2026-10-08: same
+    level, but a slot was set or changed since they were told), or None
+    when nothing was sent.
     Flushes but never commits: the caller owns the transaction."""
     if not AssignmentRecord or not AssignmentRecord.is_active:
         return None
@@ -121,7 +124,15 @@ def NotifyAnnualCompetitionOfficialAssignment(
         return None
 
     AssignedLevelCode = AssignmentRecord.assigned_level_code
-    if not AssignedLevelCode or AssignmentRecord.notified_level_code == AssignedLevelCode:
+    if not AssignedLevelCode:
+        return None
+    # 2026-10-08 (a slot per student): with the level already told, a slot
+    # that was set or changed since is told once too. A slot that went away
+    # (the student now waits for one) is not announced: the page shows it,
+    # and they are told when the new slot is set.
+    LevelAlreadyTold = AssignmentRecord.notified_level_code == AssignedLevelCode
+    SlotIsNew = bool(AssignmentRecord.slot_id) and AssignmentRecord.slot_id != AssignmentRecord.notified_slot_id
+    if LevelAlreadyTold and not SlotIsNew:
         return None
 
     StudentRecord = db.get(Student, AssignmentRecord.student_id)
@@ -136,7 +147,16 @@ def NotifyAnnualCompetitionOfficialAssignment(
     SlotRecord = db.get(CompetitionEventSlot, AssignmentRecord.slot_id) if AssignmentRecord.slot_id else None
     SlotSentence = _SlotSentence(SlotRecord)
 
-    if IsLevelChange:
+    if LevelAlreadyTold:
+        Kind = "SLOT_CHANGED"
+        Type = ANNUAL_OFFICIAL_SLOT_CHANGED_TYPE
+        if AssignmentRecord.notified_slot_id:
+            Title = "Your Annual Competition Slot Has Changed"
+            Message = f"Your {LevelLabel} slot for {EventRecord.name} has changed. {SlotSentence}"
+        else:
+            Title = "Your Annual Competition Slot Is Set"
+            Message = f"Your {LevelLabel} slot for {EventRecord.name} is now set. {SlotSentence}"
+    elif IsLevelChange:
         Kind = "LEVEL_CHANGED"
         Type = ANNUAL_OFFICIAL_LEVEL_CHANGED_TYPE
         Title = "Your Annual Competition Level Has Changed"
@@ -154,6 +174,7 @@ def NotifyAnnualCompetitionOfficialAssignment(
         "assignedLevelCode": AssignedLevelCode,
         "previousLevelCode": AssignmentRecord.notified_level_code,
         "slotId": AssignmentRecord.slot_id,
+        "previousSlotId": AssignmentRecord.notified_slot_id,
         "targetAction": "open-official-competition",
     }
 
@@ -174,6 +195,8 @@ def NotifyAnnualCompetitionOfficialAssignment(
     )
 
     AssignmentRecord.notified_level_code = AssignedLevelCode
+    if AssignmentRecord.slot_id:
+        AssignmentRecord.notified_slot_id = AssignmentRecord.slot_id
     AssignmentRecord.notified_at = datetime.now(timezone.utc)
     db.flush()
     return Kind
