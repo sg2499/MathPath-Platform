@@ -274,17 +274,9 @@ def test_cancel_needs_a_reason_and_keeps_the_invoice():
     assert db.get(PaymentNumberSequence, "INVOICE").next_number == 1038
 
 
-def test_an_invoice_with_payments_cannot_be_cancelled():
-    db = _session()
-    admin, monthly, bag = _world(db)
-    inv.GenerateInvoices(db, Request=_req([bag], students=("s1",), month=None, year=None), IdempotencyKey="key-00000001", Actor=admin)
-    row = db.query(PaymentInvoice).one()
-    row.paid_paise = 100
-    row.status = "PART_PAID"
-    db.commit()
-    with pytest.raises(HTTPException) as excinfo:
-        inv.CancelInvoice(db, InvoiceId=row.id, Reason="x", Actor=admin)
-    assert _code(excinfo) == "INVOICE_HAS_PAYMENTS"
+# 2026-10-08 (Phase 3): an invoice with payments can now be cancelled; what
+# was paid on it moves to the student's advance. See
+# test_payments_phase3_receipts.py::test_cancelling_a_paid_invoice_moves_the_money_to_advance.
 
 
 # --- list and filters ----------------------------------------------------------

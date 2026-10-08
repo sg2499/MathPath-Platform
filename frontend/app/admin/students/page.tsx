@@ -63,9 +63,11 @@ import {
   UserPlus,
   UserRound,
   UsersRound,
+  Wallet,
   X,
   XCircle,
 } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
@@ -1029,6 +1031,16 @@ export default function AdminStudentsPage() {
                           >
                             <Pencil size={15} />
                           </button>
+
+                          {/* 2026-10-08 (Payments Phase 3): this student's account. */}
+                          <Link
+                            href={`/admin/payments/student-fees?studentId=${encodeURIComponent(s.studentId)}`}
+                            className="math-role-action-button math-role-icon-only"
+                            title="Fees"
+                            aria-label={`Fees for ${s.fullName}`}
+                          >
+                            <Wallet size={15} />
+                          </Link>
 
                           <button
                             className="math-role-action-button math-role-icon-only"

@@ -1713,6 +1713,15 @@ def ensure_payments_foundation() -> None:
                 if engine.dialect.name != "sqlite":
                     connection.execute(text("CREATE INDEX IF NOT EXISTS ix_students_centre_id ON students (centre_id)"))
 
+    # 2026-10-08 (Payments Phase 3): discount applied to an invoice by
+    # payments, kept beside paid_paise.
+    if "payment_invoices" in inspector.get_table_names():
+        existing = {column["name"] for column in inspector.get_columns("payment_invoices")}
+        if "discount_paise" not in existing:
+            if_not_exists = "" if engine.dialect.name == "sqlite" else "IF NOT EXISTS "
+            with engine.begin() as connection:
+                connection.execute(text(f"ALTER TABLE payment_invoices ADD COLUMN {if_not_exists}discount_paise INTEGER NOT NULL DEFAULT 0"))
+
     from app.services.payments.setup_service import EnsurePaymentDefaults
 
     db = SessionLocal()

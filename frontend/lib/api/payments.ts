@@ -185,9 +185,14 @@ export type InvoicePlanLine = {
   amountPaise: number;
   amountDisplay: string;
   reason?: string;
+  advancePaise?: number;
+  advanceDisplay?: string | null;
 };
 
 export type InvoicePreview = {
+  advanceAppliedPaise: number;
+  advanceAppliedDisplay: string;
+  advanceStudents: number;
   numberingReady: boolean;
   nextNumber: string | null;
   invoiceDate: string;
@@ -213,6 +218,8 @@ export type InvoiceBatchResult = {
   firstNumber: string | null;
   lastNumber: string | null;
   skipped: InvoicePlanLine[];
+  advanceAppliedPaise: number;
+  advanceAppliedDisplay: string;
 };
 
 export type Invoice = {
@@ -236,6 +243,8 @@ export type Invoice = {
   gstIncluded: boolean;
   paidPaise: number;
   paidDisplay: string;
+  discountPaise: number;
+  discountDisplay: string;
   balancePaise: number;
   balanceDisplay: string;
   status: InvoiceStatus;
@@ -268,7 +277,7 @@ export type InvoiceList = {
   page: number;
   pageSize: number;
   totalCount: number;
-  totals: { amountDisplay: string; paidDisplay: string; balanceDisplay: string };
+  totals: { amountDisplay: string; paidDisplay: string; discountDisplay: string; balanceDisplay: string };
   invoices: Invoice[];
 };
 
@@ -315,8 +324,8 @@ export async function getInvoice(invoiceId: string): Promise<Invoice & { snapsho
   return data;
 }
 
-export async function cancelInvoice(invoiceId: string, reason: string): Promise<Invoice> {
-  const { data } = await api.post<Invoice>(`/admin/payments/invoices/${invoiceId}/cancel`, { reason });
+export async function cancelInvoice(invoiceId: string, reason: string): Promise<Invoice & { movedToAdvancePaise: number; movedToAdvanceDisplay: string }> {
+  const { data } = await api.post(`/admin/payments/invoices/${invoiceId}/cancel`, { reason });
   return data;
 }
 
@@ -345,4 +354,209 @@ export function saveBlob(blob: Blob, fileName: string) {
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+
+// ---------------------------------------------------------------------------
+// 2026-10-08 (Payments Phase 3): payments received, receipts, advances and
+// each student's account.
+// ---------------------------------------------------------------------------
+
+export type PaymentMethodCode = "CASH" | "UPI" | "CHEQUE" | "NET_BANKING" | "CREDIT_CARD" | "DEBIT_CARD" | "RAZORPAY" | "OTHERS";
+
+export const COUNTER_METHODS: { value: PaymentMethodCode; label: string; needsReference: boolean }[] = [
+  { value: "CASH", label: "Cash", needsReference: false },
+  { value: "UPI", label: "UPI", needsReference: true },
+  { value: "CHEQUE", label: "Cheque", needsReference: true },
+  { value: "NET_BANKING", label: "Net Banking", needsReference: true },
+  { value: "CREDIT_CARD", label: "Credit Card", needsReference: false },
+  { value: "DEBIT_CARD", label: "Debit Card", needsReference: false },
+  { value: "OTHERS", label: "Others", needsReference: false },
+];
+
+export type PaymentAllocationView = {
+  allocationId: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  feeName: string;
+  periodLabel: string | null;
+  amountPaise: number;
+  amountDisplay: string;
+  discountPaise: number;
+  discountDisplay: string;
+  kind: "DIRECT" | "ADVANCE";
+  released: boolean;
+  releaseReason: string | null;
+  invoiceStatus: InvoiceStatus;
+  invoiceBalanceDisplay: string;
+};
+
+export type Payment = {
+  paymentId: string;
+  receiptNumber: string;
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  centreName: string | null;
+  paymentDate: string;
+  payBy: string | null;
+  receivedByUserId: string | null;
+  receivedByName: string | null;
+  amountPaise: number;
+  amountDisplay: string;
+  discountPaise: number;
+  discountDisplay: string;
+  discountReason: string | null;
+  advancePaise: number;
+  advanceDisplay: string;
+  note: string | null;
+  channel: "COUNTER" | "ONLINE";
+  status: "RECORDED" | "CANCELLED";
+  statusLabel: string;
+  methods: { method: PaymentMethodCode; methodLabel: string; amountPaise: number; amountDisplay: string; reference: string | null }[];
+  methodSummary: string;
+  invoiceNumbers: string[];
+  source: string;
+  createdAt: string | null;
+  createdByName: string | null;
+  editedAt: string | null;
+  editedByName: string | null;
+  cancelledAt: string | null;
+  cancelledByName: string | null;
+  cancelReason: string | null;
+  allocations?: PaymentAllocationView[];
+  replayed?: boolean;
+};
+
+export type PaymentInput = {
+  paymentDate?: string | null;
+  payBy?: string | null;
+  receivedByUserId?: string | null;
+  note?: string | null;
+  allocations: { invoiceId: string; amountPaise: number; discountPaise: number }[];
+  methods: { method: PaymentMethodCode; amountPaise: number; reference?: string | null }[];
+  discountReason?: string | null;
+  keepAdvance?: boolean;
+};
+
+export type StatementEntry = {
+  type: "INVOICE" | "PAYMENT";
+  id: string;
+  number: string;
+  date: string;
+  description: string;
+  chargePaise: number;
+  creditPaise: number;
+  chargeDisplay: string | null;
+  creditDisplay: string | null;
+  cancelled: boolean;
+  amountDisplay: string;
+  balancePaise: number;
+  balanceDisplay: string;
+};
+
+export type StudentAccount = {
+  student: {
+    studentId: string;
+    name: string;
+    studentCode: string;
+    customId: string | null;
+    levelCode: string | null;
+    centreName: string | null;
+    parentName: string | null;
+    mobile: string | null;
+    isActive: boolean;
+  };
+  totals: {
+    invoicedPaise: number; invoicedDisplay: string;
+    receivedPaise: number; receivedDisplay: string;
+    discountPaise: number; discountDisplay: string;
+    duePaise: number; dueDisplay: string;
+    overduePaise: number; overdueDisplay: string;
+    advancePaise: number; advanceDisplay: string;
+  };
+  receiptNumbering: { numberingReady: boolean; nextNumber: string | null };
+  unpaidInvoices: Invoice[];
+  invoices: Invoice[];
+  payments: Payment[];
+  statement: StatementEntry[];
+};
+
+export type PaymentFilters = {
+  status?: string;
+  method?: string;
+  receivedBy?: string;
+  centreId?: string;
+  studentId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+};
+
+export type PaymentList = {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totals: { receivedDisplay: string; discountDisplay: string; byMethod: { method: PaymentMethodCode; methodLabel: string; amountDisplay: string; amountPaise: number }[] };
+  payments: Payment[];
+};
+
+function CleanPaymentFilters(filters: PaymentFilters): PaymentFilters {
+  return Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined && value !== null && value !== "" && value !== "ALL")) as PaymentFilters;
+}
+
+export async function getStudentAccount(studentId: string): Promise<StudentAccount> {
+  const { data } = await api.get<StudentAccount>(`/admin/payments/students/${studentId}/account`);
+  return data;
+}
+
+export async function listPaymentStaff(): Promise<{ staff: { userId: string; name: string }[]; currentUserId: string }> {
+  const { data } = await api.get("/admin/payments/staff");
+  return data;
+}
+
+export async function recordPayment(payload: PaymentInput & { studentId: string; idempotencyKey: string }): Promise<Payment> {
+  const { data } = await api.post<Payment>("/admin/payments/receipts", payload);
+  return data;
+}
+
+export async function editPayment(paymentId: string, payload: PaymentInput & { reason: string }): Promise<Payment> {
+  const { data } = await api.put<Payment>(`/admin/payments/receipts/${paymentId}`, payload);
+  return data;
+}
+
+export async function cancelPayment(paymentId: string, reason: string): Promise<Payment> {
+  const { data } = await api.post<Payment>(`/admin/payments/receipts/${paymentId}/cancel`, { reason });
+  return data;
+}
+
+export async function getPayment(paymentId: string): Promise<Payment> {
+  const { data } = await api.get<Payment>(`/admin/payments/receipts/${paymentId}`);
+  return data;
+}
+
+export async function listPayments(filters: PaymentFilters, page = 1, pageSize = 50): Promise<PaymentList> {
+  const { data } = await api.get<PaymentList>("/admin/payments/receipts", { params: { ...CleanPaymentFilters(filters), page, pageSize } });
+  return data;
+}
+
+export async function applyStudentAdvance(studentId: string): Promise<{ appliedPaise: number; appliedDisplay: string }> {
+  const { data } = await api.post(`/admin/payments/students/${studentId}/apply-advance`);
+  return data;
+}
+
+export async function downloadReceiptPdf(paymentId: string): Promise<Blob> {
+  const { data } = await api.get(`/admin/payments/receipts/${paymentId}/pdf`, { responseType: "blob" });
+  return data;
+}
+
+export async function downloadReceiptsPdf(payload: { paymentIds?: string[]; filters?: PaymentFilters }): Promise<Blob> {
+  const body = { paymentIds: payload.paymentIds, filters: payload.filters ? CleanPaymentFilters(payload.filters) : undefined };
+  const { data } = await api.post("/admin/payments/receipts/pdf", body, { responseType: "blob" });
+  return data;
+}
+
+export async function downloadPaymentsExcel(filters: PaymentFilters): Promise<Blob> {
+  const { data } = await api.get("/admin/payments/receipts/export", { params: CleanPaymentFilters(filters), responseType: "blob" });
+  return data;
 }

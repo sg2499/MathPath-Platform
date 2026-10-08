@@ -163,8 +163,10 @@ class PaymentInvoice(Base):
     sgst_paise = Column(Integer, nullable=False, default=0)
     gst_rate_bps = Column(Integer, nullable=False, default=1800)
     gst_included = Column(Boolean, nullable=False, default=True)
-    # Filled by payments (Phase 3). Never more than amount_paise.
+    # Filled by payments (Phase 3): the sum of the live allocations' money and
+    # discount. paid_paise + discount_paise is never more than amount_paise.
     paid_paise = Column(Integer, nullable=False, default=0)
+    discount_paise = Column(Integer, nullable=False, default=0, server_default="0")
     # PENDING | PART_PAID | PAID | CANCELLED
     status = Column(String(20), nullable=False, default="PENDING", index=True)
     level_code = Column(String(40), nullable=True)
@@ -192,6 +194,80 @@ class PaymentInvoice(Base):
     )
 
 
+class PaymentReceipt(Base):
+    """A payment received from a student (Phase 3, 2026-10-08), with its
+    money receipt number (MP-MRCPT-631).
+
+    amount_paise is the money received (the sum of the method lines). Money
+    not applied to an invoice is the student's advance: it is the payment's
+    amount minus its live allocations, and is applied to later invoices.
+    Nothing is deleted: a cancelled payment stays, marked Cancelled."""
+
+    __tablename__ = "payment_receipts"
+    id = Column(String, primary_key=True, default=uuid_str)
+    receipt_number = Column(String(40), unique=True, nullable=False)
+    student_id = Column(String, ForeignKey("students.id"), nullable=False, index=True)
+    payment_date = Column(Date, nullable=False, index=True)
+    pay_by = Column(String(150), nullable=True)
+    received_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    received_by_name = Column(String(150), nullable=True)
+    amount_paise = Column(Integer, nullable=False)
+    discount_paise = Column(Integer, nullable=False, default=0)
+    discount_reason = Column(Text, nullable=True)
+    note = Column(Text, nullable=True)
+    # COUNTER (recorded by an admin) | ONLINE (Razorpay, Phase 5)
+    channel = Column(String(20), nullable=False, default="COUNTER")
+    # RECORDED | CANCELLED
+    status = Column(String(20), nullable=False, default="RECORDED", index=True)
+    centre_id = Column(String, nullable=True, index=True)
+    snapshot_json = Column(Text, nullable=False)
+    idempotency_key = Column(String(80), unique=True, nullable=True)
+    source = Column(String(20), nullable=False, default="ADMIN")
+    legacy_id = Column(String(80), nullable=True, index=True)
+    edited_at = Column(DateTime(timezone=True), nullable=True)
+    edited_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+    cancelled_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    cancel_reason = Column(Text, nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class PaymentAllocation(Base):
+    """How much of a payment (and of its discount) went to one invoice.
+
+    kind DIRECT: chosen when the payment was recorded or edited.
+    kind ADVANCE: the payment's advance applied to a later invoice.
+    A released allocation (payment edited or cancelled, invoice cancelled)
+    stays for the record and no longer counts."""
+
+    __tablename__ = "payment_allocations"
+    id = Column(String, primary_key=True, default=uuid_str)
+    payment_id = Column(String, ForeignKey("payment_receipts.id"), nullable=False, index=True)
+    invoice_id = Column(String, ForeignKey("payment_invoices.id"), nullable=False, index=True)
+    amount_paise = Column(Integer, nullable=False, default=0)
+    discount_paise = Column(Integer, nullable=False, default=0)
+    kind = Column(String(20), nullable=False, default="DIRECT")
+    released_at = Column(DateTime(timezone=True), nullable=True)
+    release_reason = Column(String(200), nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PaymentMethodLine(Base):
+    """One way the money came in (Cash ₹500 + UPI ₹600 ref 4312...)."""
+
+    __tablename__ = "payment_method_lines"
+    id = Column(String, primary_key=True, default=uuid_str)
+    payment_id = Column(String, ForeignKey("payment_receipts.id"), nullable=False, index=True)
+    # CASH | UPI | CHEQUE | NET_BANKING | CREDIT_CARD | DEBIT_CARD | RAZORPAY | OTHERS
+    method = Column(String(20), nullable=False)
+    amount_paise = Column(Integer, nullable=False)
+    reference = Column(String(120), nullable=True)
+    line_order = Column(Integer, nullable=False, default=0)
+
+
 __all__ = [
     "PaymentCentre",
     "PaymentBusinessProfile",
@@ -200,4 +276,7 @@ __all__ = [
     "PaymentAuditLog",
     "PaymentInvoiceBatch",
     "PaymentInvoice",
+    "PaymentReceipt",
+    "PaymentAllocation",
+    "PaymentMethodLine",
 ]

@@ -32,6 +32,7 @@ import {
   FilePlus2,
   FileSpreadsheet,
   FileText,
+  HandCoins,
   Loader2,
   Printer,
   Search,
@@ -158,7 +159,10 @@ export default function InvoicesPage() {
   const cancelMutation = useMutation({
     mutationFn: (invoice: Invoice) => cancelInvoice(invoice.invoiceId, cancelReason),
     onSuccess: (saved) => {
-      setNotice(`${saved.invoiceNumber} is cancelled. It stays on record, and its number is not reused.`);
+      setNotice(
+        `${saved.invoiceNumber} is cancelled. It stays on record, and its number is not reused.` +
+          (saved.movedToAdvancePaise ? ` ${saved.movedToAdvanceDisplay} paid on it is now the student's advance.` : "")
+      );
       setCancelling(false);
       setCancelReason("");
       queryClient.invalidateQueries({ queryKey: ["admin", "payments", "invoices"] });
@@ -332,7 +336,7 @@ export default function InvoicesPage() {
                           <div className="text-xs font-semibold text-slate-500">{FormatDate(invoice.invoiceDate)}</div>
                         </td>
                         <td className="max-w-[240px] px-2 py-3">
-                          <div className="truncate font-black text-slate-900 dark:text-white">{invoice.studentName}</div>
+                          <Link href={`/admin/payments/student-fees?studentId=${encodeURIComponent(invoice.studentId)}`} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{invoice.studentName}</Link>
                           <div className="truncate text-xs font-semibold text-slate-500">{[invoice.studentCode, invoice.levelCode, invoice.centreName].filter(Boolean).join(" · ")}</div>
                         </td>
                         <td className="max-w-[220px] px-2 py-3">
@@ -348,6 +352,9 @@ export default function InvoicesPage() {
                             <button type="button" className="math-role-action-button h-9 px-3 text-xs" disabled={pdfOne.isPending && pdfOne.variables?.invoiceId === invoice.invoiceId} onClick={() => pdfOne.mutate(invoice)} aria-label={`Download ${invoice.invoiceNumber} as PDF`}>
                               {pdfOne.isPending && pdfOne.variables?.invoiceId === invoice.invoiceId ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}PDF
                             </button>
+                            {invoice.balancePaise > 0 ? (
+                              <Link href={`/admin/payments/student-fees?studentId=${encodeURIComponent(invoice.studentId)}&pay=${encodeURIComponent(invoice.invoiceId)}`} className="math-role-action-button h-9 px-3 text-xs" aria-label={`Record a payment for ${invoice.invoiceNumber}`}><HandCoins size={13} />Pay</Link>
+                            ) : null}
                             <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => openInvoice(invoice)}><Eye size={13} />View</button>
                           </div>
                         </td>
@@ -389,8 +396,11 @@ export default function InvoicesPage() {
               </>
             ) : (
               <>
-                {opened.status !== "CANCELLED" && opened.paidPaise === 0 ? (
+                {opened.status !== "CANCELLED" ? (
                   <button type="button" className="math-button-secondary" onClick={() => { setCancelling(true); cancelMutation.reset(); }}><Ban size={17} />Cancel invoice</button>
+                ) : null}
+                {opened.balancePaise > 0 ? (
+                  <Link href={`/admin/payments/student-fees?studentId=${encodeURIComponent(opened.studentId)}&pay=${encodeURIComponent(opened.invoiceId)}`} className="math-button-secondary"><HandCoins size={17} />Record Payment</Link>
                 ) : null}
                 <button type="button" className="math-button-primary" disabled={pdfOne.isPending} onClick={() => pdfOne.mutate(opened)}>
                   {pdfOne.isPending ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}Download PDF
@@ -430,6 +440,7 @@ export default function InvoicesPage() {
                 <div className="col-span-2 my-0.5 border-t border-slate-200 dark:border-slate-700" aria-hidden="true" />
                 <dt className="font-black text-slate-900 dark:text-white">Total</dt><dd className="text-right font-black text-slate-900 dark:text-white">{opened.amountDisplay}</dd>
                 <dt className="font-semibold text-slate-600 dark:text-slate-300">Paid</dt><dd className="text-right font-bold">{opened.paidDisplay}</dd>
+                {opened.discountPaise ? (<><dt className="font-semibold text-slate-600 dark:text-slate-300">Discount</dt><dd className="text-right font-bold">{opened.discountDisplay}</dd></>) : null}
                 <dt className="font-black text-slate-900 dark:text-white">Balance due</dt><dd className="text-right font-black text-slate-900 dark:text-white">{opened.balanceDisplay}</dd>
               </dl>
             </div>
@@ -439,14 +450,15 @@ export default function InvoicesPage() {
                 {opened.cancelledByName ? ` by ${opened.cancelledByName}` : ""}. Reason: {opened.cancelReason}
               </p>
             ) : null}
-            {opened.status !== "CANCELLED" && opened.paidPaise > 0 ? (
-              <p className="text-xs font-semibold text-slate-500">This invoice has payments against it, so it cannot be cancelled.</p>
-            ) : null}
+
             {cancelling ? (
               <label className="block">
                 <FieldLabel hint="required, kept in the history">Why is it being cancelled?</FieldLabel>
                 <input className="math-input" value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} placeholder="e.g. invoiced for the wrong month" autoFocus />
-                <span className="mt-1.5 block text-xs font-semibold text-slate-500">The invoice stays on record marked Cancelled, and {opened.invoiceNumber} is never reused.</span>
+                <span className="mt-1.5 block text-xs font-semibold text-slate-500">
+                  The invoice stays on record marked Cancelled, and {opened.invoiceNumber} is never reused.
+                  {opened.paidPaise > 0 ? ` The ${opened.paidDisplay} paid on it becomes the student's advance, applied to their next invoices.` : ""}
+                </span>
               </label>
             ) : null}
             <InlineError error={cancelMutation.error || pdfOne.error} />
