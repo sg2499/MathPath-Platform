@@ -1583,6 +1583,12 @@ export type AnnualCompetitionAssignmentPreviewRow = {
   reason: string | null;
   existingAssignedLevelCode: string | null;
   existingAssignmentSource: string | null;
+  // 2026-10-08 (a slot per student): the student's current slot, whether an
+  // admin chose it by hand, and whether they are waiting for one (two or
+  // more slots list their level and none is chosen -- they cannot start).
+  existingSlotId?: string | null;
+  existingSlotChosenByAdmin?: boolean;
+  existingSlotPending?: boolean;
   wouldOverwriteAdminOverride: boolean;
   wouldChangeOnRun: boolean;
   requiresNewPaperRegistryEntry: boolean;
@@ -1599,6 +1605,7 @@ export type AnnualCompetitionAssignmentPreview = {
   // count line, so an admin never has to infer it from the engine counters.
   studentsWithLevelCount: number;
   studentsWithoutLevelCount: number;
+  studentsWaitingForSlotCount?: number;
   rows: AnnualCompetitionAssignmentPreviewRow[];
 };
 
@@ -1788,6 +1795,28 @@ export async function overrideAnnualCompetitionAssignment(
   payload: { studentId: string; assignedLevelCode: string; slotId?: string | null }
 ): Promise<{ assignmentId: string; eventId: string; studentId: string; studentCode: string | null; studentName: string | null; assignedLevelCode: string; slotId: string | null; assignmentSource: string; overriddenByUserId: string | null; studentsNotified: number }> {
   const { data } = await api.post(`/admin/annual-competition/events/${eventId}/assignments/override`, payload);
+  return data;
+}
+
+// 2026-10-08 (Shailesh, a slot per student): choose one student's slot, or
+// pass slotId null to hand them back to the automatic slot.
+export type AnnualCompetitionAssignmentSlotResult = {
+  eventId: string;
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  assignedLevelCode: string;
+  slotId: string | null;
+  slotChosenByAdmin: boolean;
+  slotPending: boolean;
+  studentsNotified: number;
+};
+
+export async function setAnnualCompetitionAssignmentSlot(
+  eventId: string,
+  payload: { studentId: string; slotId: string | null }
+): Promise<AnnualCompetitionAssignmentSlotResult> {
+  const { data } = await api.post(`/admin/annual-competition/events/${eventId}/assignments/slot`, payload);
   return data;
 }
 
@@ -2058,6 +2087,8 @@ export type AnnualCompetitionLiveMonitoringRow = {
   section: string | null;
   assignedLevelCode: string;
   slot: { slotId: string; mode: string; slotLabel: string | null; scheduledStartAt: string | null; scheduledEndAt: string | null } | null;
+  // 2026-10-08: waiting for an admin to choose this student's slot.
+  slotPending?: boolean;
   attemptId: string | null;
   attemptStatus: string;
   liveStatus: "NOT_STARTED" | "IN_PROGRESS" | "STUCK" | "SUBMITTED" | "FINALIZED";

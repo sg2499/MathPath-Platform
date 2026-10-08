@@ -25,6 +25,7 @@ import {
   listAnnualCompetitionResults,
   listStudentsForAnnualCompetitionPracticeBank,
   overrideAnnualCompetitionAssignment,
+  setAnnualCompetitionAssignmentSlot,
   previewAnnualCompetitionAssignments,
   rankAnnualCompetitionResults,
   recomputeAnnualCompetitionResults,
@@ -253,6 +254,60 @@ function FormatSecondsAsMinSec(Value: number | null): string {
   return `${Minutes}:${String(Seconds).padStart(2, "0")}`;
 }
 
+// 2026-10-08 (Shailesh, a slot per student): the slot picker on each
+// Assignments row. Lists only the active slots that include the student's
+// level. "Automatic" means "the one slot that lists the level"; when two or
+// more do and none is chosen, the student cannot start, so the row says so.
+function AssignmentSlotCell({
+  Row,
+  Slots,
+  Saving,
+  OnChoose,
+}: {
+  Row: AnnualCompetitionAssignmentPreviewRow;
+  Slots: AnnualCompetitionSlot[];
+  Saving: boolean;
+  OnChoose: (SlotId: string | null) => void;
+}) {
+  const LevelCode = Row.existingAssignedLevelCode;
+  if (!LevelCode) return <span className="text-xs text-slate-400">Set a level first</span>;
+  const LevelSlots = Slots.filter((SlotItem) => SlotItem.isActive !== false && SlotItem.applicableLevelCodes.includes(LevelCode));
+  if (LevelSlots.length === 0) return <span className="text-xs text-slate-400">No slot lists this level</span>;
+  const SlotName = (SlotItem: AnnualCompetitionSlot) => SlotItem.slotLabel || FormatDateTime(SlotItem.scheduledStartAt);
+  const CurrentSlot = LevelSlots.find((SlotItem) => SlotItem.slotId === Row.existingSlotId);
+  const AutomaticSlot = !Row.existingSlotChosenByAdmin ? CurrentSlot : undefined;
+  const Value = Row.existingSlotChosenByAdmin && Row.existingSlotId ? Row.existingSlotId : "";
+  const Pending = Boolean(Row.existingSlotPending);
+  return (
+    <div className="flex flex-col gap-1">
+      <select
+        value={Value}
+        disabled={Saving}
+        onChange={(EventValue) => OnChoose(EventValue.target.value || null)}
+        className={`math-input !py-1 !text-xs w-[220px] ${Pending ? "!border-amber-400" : ""}`}
+        aria-label={`Slot for ${Row.studentName || Row.studentCode || Row.studentId}`}
+      >
+        <option value="">
+          {Pending ? "Choose a slot" : AutomaticSlot ? `Automatic (${SlotName(AutomaticSlot)})` : "Automatic"}
+        </option>
+        {LevelSlots.map((SlotItem) => (
+          <option key={SlotItem.slotId} value={SlotItem.slotId}>{SlotName(SlotItem)}</option>
+        ))}
+      </select>
+      {Saving ? (
+        <span className="text-[11px] font-semibold text-slate-400">Saving...</span>
+      ) : Pending ? (
+        <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-300">Cannot start until a slot is chosen</span>
+      ) : CurrentSlot ? (
+        <span className="text-[11px] font-semibold text-slate-400">
+          Starts {FormatDateTime(CurrentSlot.scheduledStartAt)}
+          {Row.existingSlotChosenByAdmin ? " · set by admin" : ""}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export default function AdminAnnualCompetitionEventDetailPage() {
   const Ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const Params = useParams<{ eventId: string }>();
@@ -450,6 +505,9 @@ export default function AdminAnnualCompetitionEventDetailPage() {
       SetSlotEnd("");
       SetSlotLevelCodes([]);
       InvalidateOverview();
+      // 2026-10-08: a slot change re-links students straight away.
+      InvalidatePreview();
+      InvalidateLiveMonitoring();
     },
   });
 
@@ -477,21 +535,23 @@ export default function AdminAnnualCompetitionEventDetailPage() {
       SetLastMessage("Slot updated.");
       SetEditingSlotId(null);
       InvalidateOverview();
+      InvalidatePreview();
+      InvalidateLiveMonitoring();
     },
   });
 
   // Soft delete (isActive: false), matching the Assignment "Archive" pattern
-  // used elsewhere in this admin panel -- a slot already referenced by an
-  // assignment (slot_id) keeps working for that assignment (the attempt-gate
-  // check reads the slot by id regardless of isActive), it just stops
-  // showing up here and can no longer be picked for new assignments/slots
-  // lists. Confirmed before deleting, same as this page's other
+  // used elsewhere in this admin panel. 2026-10-08: its students are re-linked
+  // straight away -- to the one other slot that lists their level, or (two or
+  // more) they wait until a slot is chosen for them on the Assignments tab. Confirmed before deleting, same as this page's other
   // consequential actions (Release Results, Reconciliation Sweep).
   const DeleteSlotMutation = useMutation({
     mutationFn: (SlotId: string) => updateAnnualCompetitionSlot(SlotId, { isActive: false }),
     onSuccess: () => {
       SetLastMessage("Slot deleted.");
       InvalidateOverview();
+      InvalidatePreview();
+      InvalidateLiveMonitoring();
     },
   });
 
@@ -613,6 +673,26 @@ export default function AdminAnnualCompetitionEventDetailPage() {
         return Next;
       });
       InvalidatePreview();
+    },
+  });
+
+  // 2026-10-08 (Shailesh, a slot per student): saves as soon as a slot is
+  // picked. An empty value hands the student back to the automatic slot.
+  const RowSlotMutation = useMutation({
+    mutationFn: (Vars: { StudentId: string; SlotId: string | null }) =>
+      setAnnualCompetitionAssignmentSlot(EventId, { studentId: Vars.StudentId, slotId: Vars.SlotId }),
+    onSuccess: (Result) => {
+      const Who = Result.studentName || Result.studentCode || "Student";
+      const SlotItem = (Overview?.slots || []).find((Item) => Item.slotId === Result.slotId);
+      SetLastMessage(
+        Result.slotPending
+          ? `${Who} is waiting for a slot: choose one so they can start.`
+          : SlotItem
+            ? `${Who} will sit in ${SlotItem.slotLabel || FormatDateTime(SlotItem.scheduledStartAt)}.${Result.studentsNotified > 0 ? " They were notified about their slot." : ""}`
+            : `${Who} has no slot for this level, so they can start any time.`
+      );
+      InvalidatePreview();
+      InvalidateLiveMonitoring();
     },
   });
 
@@ -738,6 +818,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     UpdateTimerMutation.error ||
     RunEngineMutation.error ||
     BulkOverrideMutation.error ||
+    RowSlotMutation.error ||
     (ActiveTab === "ROSTER" ? RosterQuery.error || AllStudentsQuery.error : null) ||
     AddToRosterMutation.error ||
     RemoveFromRosterMutation.error ||
@@ -1134,7 +1215,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                               aria-label="Delete slot"
                               disabled={DeleteSlotMutation.isPending}
                               onClick={() => {
-                                if (window.confirm(`Delete the slot "${SlotItem.slotLabel || SlotItem.mode}"? Students not yet assigned through it will no longer see it. This can't be undone from here.`)) {
+                                if (window.confirm(`Delete the slot "${SlotItem.slotLabel || SlotItem.mode}"? Its students move to the other slot for their level, or wait for you to choose one on the Assignments tab. This can't be undone from here.`)) {
                                   DeleteSlotMutation.mutate(SlotItem.slotId);
                                 }
                               }}
@@ -1641,6 +1722,9 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   {/* Amber only when somebody really has no level, so a warning colour always means "something to do". */}
                   <span className={PreviewQuery.data.studentsWithoutLevelCount > 0 ? "text-amber-600 dark:text-amber-300" : "text-slate-500"}>{PreviewQuery.data.studentsWithoutLevelCount} without a level</span>
                   <span className="text-slate-500">a run would change {PreviewQuery.data.wouldAssignCount}</span>
+                  {(PreviewQuery.data.studentsWaitingForSlotCount || 0) > 0 && (
+                    <span className="text-amber-600 dark:text-amber-300">{PreviewQuery.data.studentsWaitingForSlotCount} waiting for a slot</span>
+                  )}
                   {SelectedStudentIdsForRun.size > 0 && (
                     <span className="text-[color:var(--mp-role-primary)]">{SelectedStudentIdsForRun.size} selected for next run</span>
                   )}
@@ -1715,7 +1799,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 <div className="mt-4"><LoadingState label="Computing preview..." /></div>
               ) : PreviewQuery.data && FilteredAssignmentRows.length > 0 ? (
                 <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[980px] text-left text-sm font-bold">
+                  <table className="w-full min-w-[1180px] text-left text-sm font-bold">
                     <thead>
                       <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                         <th className="px-2 py-1.5">
@@ -1733,6 +1817,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                         <th className="whitespace-nowrap px-2 py-1.5">Assigned Level</th>
                         <th className="px-2 py-1.5">Status</th>
                         <th className="px-2 py-1.5">Set Level</th>
+                        <th className="px-2 py-1.5">Slot</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1829,6 +1914,14 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                   {RowIsSaving ? "..." : "Apply"}
                                 </button>
                               </div>
+                            </td>
+                            <td className="px-2 py-2" onClick={(EventValue) => EventValue.stopPropagation()}>
+                              <AssignmentSlotCell
+                                Row={Row}
+                                Slots={Overview?.slots || []}
+                                Saving={RowSlotMutation.isPending && RowSlotMutation.variables?.StudentId === Row.studentId}
+                                OnChoose={(SlotId) => RowSlotMutation.mutate({ StudentId: Row.studentId, SlotId })}
+                              />
                             </td>
                           </tr>
                         );

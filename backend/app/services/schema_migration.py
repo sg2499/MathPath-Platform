@@ -1408,6 +1408,29 @@ def ensure_annual_competition_practice_bank_columns() -> None:
             if "notified_at" not in existing:
                 connection.execute(text("ALTER TABLE competition_event_assignments ADD COLUMN notified_at TIMESTAMP"))
 
+    # 2026-10-08 (a slot per student): whether an admin chose the student's
+    # slot, and which slot the student was last told about. When
+    # notified_slot_id is first added it is filled from the current slot for
+    # everyone already notified, so nobody is re-notified about a slot they
+    # were already told. IF NOT EXISTS (Postgres): both backend workers run
+    # this at boot; the backfill only fills NULLs, so running it twice is
+    # harmless.
+    if "competition_event_assignments" in tables:
+        if_not_exists_slot = "" if is_sqlite else "IF NOT EXISTS "
+        existing = {column["name"] for column in inspect(engine).get_columns("competition_event_assignments")}
+        if "slot_chosen_by_admin" not in existing:
+            with engine.begin() as connection:
+                connection.execute(text(f"ALTER TABLE competition_event_assignments ADD COLUMN {if_not_exists_slot}slot_chosen_by_admin BOOLEAN"))
+        if "notified_slot_id" not in existing:
+            with engine.begin() as connection:
+                connection.execute(text(f"ALTER TABLE competition_event_assignments ADD COLUMN {if_not_exists_slot}notified_slot_id VARCHAR"))
+                connection.execute(
+                    text(
+                        "UPDATE competition_event_assignments SET notified_slot_id = slot_id "
+                        "WHERE notified_level_code IS NOT NULL AND notified_slot_id IS NULL"
+                    )
+                )
+
     # 2026-10-07 (section screens): the two flags behind the screen shown
     # before each section. Nullable, no default, no backfill: an existing
     # row reads as "no screen", which is exactly how it behaved before.

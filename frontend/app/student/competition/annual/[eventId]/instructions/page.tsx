@@ -83,6 +83,9 @@ function AnnualCompetitionInstructionsContent() {
 
   const SlotStartAt = Query.data?.slot?.scheduledStartAt ? new Date(Query.data.slot.scheduledStartAt) : null;
   const SlotTimeNotYetReached = Boolean(SlotStartAt && !Number.isNaN(SlotStartAt.getTime()) && NowMs < SlotStartAt.getTime());
+  // 2026-10-08 (a slot per student): two or more slots list this level and
+  // the student's slot has not been chosen yet -- they cannot start.
+  const SlotNotSet = Boolean(Query.data?.slotPending) || SlotGateDetail?.code === "COMPETITION_SLOT_NOT_SET";
 
   return (
     <AppShell title="Annual Competition">
@@ -183,6 +186,14 @@ function AnnualCompetitionInstructionsContent() {
                       </div>
                       <span className="text-right text-sm font-black text-slate-900 dark:text-white">{FormatDateTime(Query.data.slot.scheduledStartAt)}</span>
                     </div>
+                  ) : SlotNotSet ? (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+                        <Hourglass size={18} className="text-amber-500" />
+                        <span className="font-semibold text-sm">Your Slot</span>
+                      </div>
+                      <span className="text-right text-sm font-black text-amber-700 dark:text-amber-300">Not set yet</span>
+                    </div>
                   ) : null}
                 </div>
 
@@ -192,14 +203,18 @@ function AnnualCompetitionInstructionsContent() {
                   </p>
                   <button
                     className="math-button-primary w-full shadow-lg shadow-orange-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={Mutation.isPending || !EventId || SlotTimeNotYetReached}
+                    disabled={Mutation.isPending || !EventId || SlotTimeNotYetReached || SlotNotSet}
                     title={SlotTimeNotYetReached && SlotStartAt ? `Opens ${FormatDateTime(Query.data?.slot?.scheduledStartAt)}` : undefined}
                     onClick={() => Mutation.mutate()}
                   >
                     <PlayCircle size={18} />
-                    {SlotTimeNotYetReached ? "Not Open Yet" : Mutation.isPending ? "Starting..." : "Start Competition"}
+                    {SlotTimeNotYetReached || SlotNotSet ? "Not Open Yet" : Mutation.isPending ? "Starting..." : "Start Competition"}
                   </button>
-                  {SlotTimeNotYetReached && SlotStartAt ? (
+                  {SlotNotSet ? (
+                    <div className="mt-4 rounded-2xl border border-dashed border-amber-300 bg-amber-50/80 p-3 text-xs font-bold text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/20 dark:text-amber-200">
+                      Your slot hasn't been set yet. Please check back once your teacher has set it.
+                    </div>
+                  ) : SlotTimeNotYetReached && SlotStartAt ? (
                     <div className="mt-4 rounded-2xl border border-dashed border-amber-300 bg-amber-50/80 p-3 text-xs font-bold text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/20 dark:text-amber-200">
                       Your slot opens at {FormatDateTime(Query.data?.slot?.scheduledStartAt)}. This button unlocks automatically at that time.
                     </div>

@@ -123,6 +123,7 @@ from app.services.annual_competition_official_notification_service import (
     SendAnnualCompetitionOfficialAssignmentNotifications,
 )
 from app.services.annual_competition_studio_service import _ResolveSlotIdForLevelCode
+from app.services.annual_competition_slot_links import ApplySlotRules, SlotIsPendingForAssignment
 from app.services.lesson_progress_service import (
     ComputeLessonProgressForStudents,
     IsLessonFullyClearedForStudent,
@@ -665,6 +666,12 @@ def PreviewAnnualCompetitionAssignments(
                 "noRuleMatched": Computation.no_rule_matched,
                 "reason": Computation.reason,
                 "existingAssignedLevelCode": Existing.assigned_level_code if Existing else None,
+                # 2026-10-08 (a slot per student): the student's current slot,
+                # whether an admin chose it, and whether they are waiting for
+                # one (two or more slots list their level, none chosen).
+                "existingSlotId": Existing.slot_id if Existing and Existing.is_active else None,
+                "existingSlotChosenByAdmin": bool(Existing and Existing.is_active and Existing.slot_chosen_by_admin),
+                "existingSlotPending": bool(Existing and Existing.is_active and SlotIsPendingForAssignment(db, Existing)),
                 "existingAssignmentSource": Existing.assignment_source if Existing else None,
                 "wouldOverwriteAdminOverride": bool(Existing and Existing.assignment_source == "ADMIN_OVERRIDE"),
                 "wouldChangeOnRun": WouldChange and not (Existing and Existing.assignment_source == "ADMIN_OVERRIDE"),
@@ -683,6 +690,7 @@ def PreviewAnnualCompetitionAssignments(
         "studentsWithLevelCount": sum(1 for Row in Rows if Row["existingAssignedLevelCode"]),
         "studentsWithoutLevelCount": sum(1 for Row in Rows if not Row["existingAssignedLevelCode"]),
         "noRuleMatchedCount": sum(1 for Row in Rows if Row["noRuleMatched"]),
+        "studentsWaitingForSlotCount": sum(1 for Row in Rows if Row["existingSlotPending"]),
         "adminOverridePreservedCount": sum(1 for Row in Rows if Row["wouldOverwriteAdminOverride"]),
         "rows": Rows,
     }
@@ -741,7 +749,9 @@ def RunAnnualCompetitionAssignmentEngine(
                 # the right one. See _ResolveSlotIdForLevelCode's docstring
                 # for why this auto-match exists at all (found 2026-09-08:
                 # slot_id was never written anywhere before this fix).
-                Existing.slot_id = _ResolveSlotIdForLevelCode(db, EventId, Computation.assigned_level_code)
+                # 2026-10-08: through the shared slot rules, so a slot an
+                # admin chose is kept while it still lists the new level.
+                ApplySlotRules(db, Existing, LevelChanged=True)
                 UpdatedCount += 1
             continue
         NewRow = CompetitionEventAssignment(
