@@ -373,6 +373,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const [AssignmentSearchText, SetAssignmentSearchText] = useState("");
   const [AssignmentModuleFilter, SetAssignmentModuleFilter] = useState<string>("ALL");
   const [AssignmentLevelFilter, SetAssignmentLevelFilter] = useState<string>("ALL");
+  const [AssignmentSlotFilter, SetAssignmentSlotFilter] = useState<string>("ALL");
   const [SelectedStudentIdsForRun, SetSelectedStudentIdsForRun] = useState<Set<string>>(new Set());
 
   // 2026-09-29 (Shailesh, Event Roster): "the search should be platform
@@ -847,13 +848,32 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   const AssignmentModuleOptions = Array.from(
     new Set(AssignmentRows.map((Row) => Row.currentModuleCode).filter((Value): Value is string => Boolean(Value)))
   ).sort();
-  const AssignmentLevelOptions = Array.from(
-    new Set(AssignmentRows.map((Row) => Row.currentLevelCode).filter((Value): Value is string => Boolean(Value)))
-  ).sort();
+  // 2026-10-08 (Shailesh): the level filter is the ASSIGNED level -- the
+  // paper the student sits in this event -- not their current curriculum
+  // level, in competition order, plus "No level yet". The module filter
+  // stays on the curriculum and is labelled "Current Module" to say so.
+  const AssignedLevelCodesPresent = new Set(
+    AssignmentRows.map((Row) => Row.existingAssignedLevelCode).filter((Value): Value is string => Boolean(Value))
+  );
+  const AssignmentLevelOptions = [
+    ...ANNUAL_COMPETITION_LEVEL_CODES.filter((LevelCode) => AssignedLevelCodesPresent.has(LevelCode)),
+    ...Array.from(AssignedLevelCodesPresent).filter((LevelCode) => !(ANNUAL_COMPETITION_LEVEL_CODES as readonly string[]).includes(LevelCode)).sort(),
+  ];
+  const AssignmentHasRowsWithoutLevel = AssignmentRows.some((Row) => !Row.existingAssignedLevelCode);
+  // 2026-10-08 (a slot per student): filter by the student's slot, or by
+  // "waiting for a slot" / "no slot".
+  const AssignmentSlotOptions = (Overview?.slots || []).filter((SlotItem) => SlotItem.isActive !== false);
   const AssignmentSearchLower = AssignmentSearchText.trim().toLowerCase();
   const FilteredAssignmentRows = AssignmentRows.filter((Row) => {
     if (AssignmentModuleFilter !== "ALL" && Row.currentModuleCode !== AssignmentModuleFilter) return false;
-    if (AssignmentLevelFilter !== "ALL" && Row.currentLevelCode !== AssignmentLevelFilter) return false;
+    if (AssignmentLevelFilter === "NONE") {
+      if (Row.existingAssignedLevelCode) return false;
+    } else if (AssignmentLevelFilter !== "ALL" && Row.existingAssignedLevelCode !== AssignmentLevelFilter) return false;
+    if (AssignmentSlotFilter === "WAITING") {
+      if (!Row.existingSlotPending) return false;
+    } else if (AssignmentSlotFilter === "NONE") {
+      if (!Row.existingAssignedLevelCode || Row.existingSlotId || Row.existingSlotPending) return false;
+    } else if (AssignmentSlotFilter !== "ALL" && Row.existingSlotId !== AssignmentSlotFilter) return false;
     if (AssignmentSearchLower) {
       const Haystack = `${Row.studentName || ""} ${Row.studentCode || ""}`.toLowerCase();
       if (!Haystack.includes(AssignmentSearchLower)) return false;
@@ -1741,7 +1761,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 // annual-studio/page.tsx) -- see that file's comment for
                 // the full "why". This row used the identical cramped
                 // text-xs/fixed-width pattern, copy-pasted from there.
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_200px_200px_auto]">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_230px_230px_250px]">
                   <div className="relative sm:col-span-2 lg:col-span-1">
                     <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
@@ -1755,9 +1775,10 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                     value={AssignmentModuleFilter}
                     onChange={(EventValue) => SetAssignmentModuleFilter(EventValue.target.value)}
                     className="math-select"
-                    aria-label="Filter by module"
+                    aria-label="Filter by current module"
+                    title="The student's current module in the curriculum, not the paper they sit"
                   >
-                    <option value="ALL">All Modules</option>
+                    <option value="ALL">All Current Modules</option>
                     {AssignmentModuleOptions.map((ModuleCode) => (
                       <option key={ModuleCode} value={ModuleCode}>{ModuleCode}</option>
                     ))}
@@ -1766,21 +1787,38 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                     value={AssignmentLevelFilter}
                     onChange={(EventValue) => SetAssignmentLevelFilter(EventValue.target.value)}
                     className="math-select"
-                    aria-label="Filter by level"
+                    aria-label="Filter by assigned level"
                   >
-                    <option value="ALL">All Levels</option>
+                    <option value="ALL">All Assigned Levels</option>
                     {AssignmentLevelOptions.map((LevelCode) => (
-                      <option key={LevelCode} value={LevelCode}>{LevelCode}</option>
+                      <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
                     ))}
+                    {AssignmentHasRowsWithoutLevel && <option value="NONE">No level yet</option>}
                   </select>
-                  <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-1 lg:justify-self-end">
-                    {(AssignmentSearchText || AssignmentModuleFilter !== "ALL" || AssignmentLevelFilter !== "ALL") && (
+                  <select
+                    value={AssignmentSlotFilter}
+                    onChange={(EventValue) => SetAssignmentSlotFilter(EventValue.target.value)}
+                    className="math-select"
+                    aria-label="Filter by slot"
+                  >
+                    <option value="ALL">All Slots</option>
+                    {AssignmentSlotOptions.map((SlotItem) => (
+                      <option key={SlotItem.slotId} value={SlotItem.slotId}>
+                        {SlotItem.slotLabel || FormatDateTime(SlotItem.scheduledStartAt)}
+                      </option>
+                    ))}
+                    <option value="WAITING">Waiting for a slot</option>
+                    <option value="NONE">No slot</option>
+                  </select>
+                  <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-4 lg:justify-self-end">
+                    {(AssignmentSearchText || AssignmentModuleFilter !== "ALL" || AssignmentLevelFilter !== "ALL" || AssignmentSlotFilter !== "ALL") && (
                       <button
                         type="button"
                         onClick={() => {
                           SetAssignmentSearchText("");
                           SetAssignmentModuleFilter("ALL");
                           SetAssignmentLevelFilter("ALL");
+                          SetAssignmentSlotFilter("ALL");
                         }}
                         className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-4 py-2 text-sm font-bold text-slate-500 transition hover:-translate-y-px dark:bg-slate-950/60 dark:text-slate-300"
                       >
@@ -1811,7 +1849,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                             className="h-3.5 w-3.5"
                           />
                         </th>
-                        <th className="px-2 py-1.5">Student</th>
+                        <th className="whitespace-nowrap px-2 py-1.5">Student</th>
                         <th className="px-2 py-1.5">Current Level</th>
                         <th className="whitespace-nowrap px-2 py-1.5">Engine Suggestion</th>
                         <th className="whitespace-nowrap px-2 py-1.5">Assigned Level</th>
