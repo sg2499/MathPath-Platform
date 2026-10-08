@@ -207,11 +207,26 @@ def _InvoiceNumbering(db: Session) -> dict[str, Any]:
 
 
 def PreviewInvoices(db: Session, *, Request: dict[str, Any]) -> dict[str, Any]:
+    from app.services.payments.receipts_service import AdvanceBalances
+
     Checked = _CheckedRequest(db, Request)
     Plan = _Plan(db, Checked)
     Total = sum(Line["amountPaise"] for Line in Plan["creates"])
+    # An advance a student already holds is applied to their new invoices.
+    Advances = AdvanceBalances(db, sorted({Line["studentId"] for Line in Plan["creates"]}))
+    AdvanceApplied = 0
+    for Line in Plan["creates"]:
+        Take = min(Advances.get(Line["studentId"], 0), Line["amountPaise"])
+        Line["advancePaise"] = Take
+        Line["advanceDisplay"] = FormatIndianRupees(Take) if Take else None
+        if Take:
+            Advances[Line["studentId"]] -= Take
+            AdvanceApplied += Take
     return {
         **_InvoiceNumbering(db),
+        "advanceAppliedPaise": AdvanceApplied,
+        "advanceAppliedDisplay": FormatIndianRupees(AdvanceApplied),
+        "advanceStudents": len({Line["studentId"] for Line in Plan["creates"] if Line.get("advancePaise")}),
         "invoiceDate": Checked["invoiceDate"].isoformat(),
         "dueDate": Checked["dueDate"].isoformat(),
         "periodLabel": PeriodLabel(Checked["month"], Checked["year"]),
@@ -319,7 +334,22 @@ def _BatchResult(db: Session, BatchRow: PaymentInvoiceBatch, Skips: list[dict[st
         "firstNumber": Invoices[0].invoice_number if Invoices else None,
         "lastNumber": Invoices[-1].invoice_number if Invoices else None,
         "skipped": [_Public(Line) for Line in (Skips or [])],
+        "advanceAppliedPaise": _AdvanceOnBatch(db, [Row.id for Row in Invoices]),
+        "advanceAppliedDisplay": FormatIndianRupees(_AdvanceOnBatch(db, [Row.id for Row in Invoices])),
     }
+
+
+def _AdvanceOnBatch(db: Session, InvoiceIds: list[str]) -> int:
+    from app.models import PaymentAllocation
+
+    if not InvoiceIds:
+        return 0
+    Total = (
+        db.query(func.coalesce(func.sum(PaymentAllocation.amount_paise), 0))
+        .filter(PaymentAllocation.invoice_id.in_(InvoiceIds), PaymentAllocation.kind == "ADVANCE", PaymentAllocation.released_at.is_(None))
+        .scalar()
+    )
+    return int(Total or 0)
 
 
 def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: str, Actor: User | None) -> dict[str, Any]:
@@ -376,6 +406,7 @@ def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: st
     Skips = list(Plan["skips"])
     Created = 0
     Total = 0
+    CreatedByStudent: dict[str, list[str]] = {}
     for Line in Plan["creates"]:
         StudentRow, UserRow, Item = Line["_student"], Line["_user"], Line["_item"]
         LevelRow = Levels.get(StudentRow.current_level_id)
@@ -425,6 +456,7 @@ def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: st
         WritePaymentAudit(db, EntityType="INVOICE", EntityId=Invoice.id, Action="CREATE", Actor=Actor, After=_InvoiceAuditShape(Invoice))
         Created += 1
         Total += Item.amount_paise
+        CreatedByStudent.setdefault(StudentRow.id, []).append(Invoice.id)
 
     if Created == 0:
         db.rollback()
@@ -432,6 +464,14 @@ def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: st
     BatchRow.invoice_count = Created
     BatchRow.skipped_count = len(Skips)
     BatchRow.total_paise = Total
+    # 2026-10-08 (Phase 3): an advance the student holds is applied to the
+    # new invoices straight away (oldest payment first). Students are locked
+    # in id order, the same order everywhere, so this cannot deadlock.
+    from app.services.payments.receipts_service import AdvanceBalances, ApplyAdvance
+
+    WithAdvance = AdvanceBalances(db, sorted(CreatedByStudent))
+    for StudentId in sorted(WithAdvance):
+        ApplyAdvance(db, StudentId=StudentId, Actor=Actor, InvoiceIds=CreatedByStudent[StudentId])
     db.commit()
     return _BatchResult(db, BatchRow, Skips)
 
@@ -447,7 +487,7 @@ def _IsOverdue(Invoice: PaymentInvoice, Today: date) -> bool:
 def InvoicePayload(Invoice: PaymentInvoice, *, Today: date | None = None, CreatedByName: str | None = None, CancelledByName: str | None = None) -> dict[str, Any]:
     Today = Today or TodayInIndia()
     Snapshot = json.loads(Invoice.snapshot_json)
-    Balance = max(0, Invoice.amount_paise - Invoice.paid_paise) if Invoice.status != "CANCELLED" else 0
+    Balance = max(0, Invoice.amount_paise - Invoice.paid_paise - (Invoice.discount_paise or 0)) if Invoice.status != "CANCELLED" else 0
     return {
         "invoiceId": Invoice.id,
         "invoiceNumber": Invoice.invoice_number,
@@ -472,6 +512,8 @@ def InvoicePayload(Invoice: PaymentInvoice, *, Today: date | None = None, Create
         "gstIncluded": bool(Invoice.gst_included),
         "paidPaise": Invoice.paid_paise,
         "paidDisplay": FormatIndianRupees(Invoice.paid_paise),
+        "discountPaise": Invoice.discount_paise or 0,
+        "discountDisplay": FormatIndianRupees(Invoice.discount_paise or 0),
         "balancePaise": Balance,
         "balanceDisplay": FormatIndianRupees(Balance),
         "status": Invoice.status,
@@ -546,6 +588,7 @@ def ListInvoices(db: Session, *, Filters: dict[str, Any], Page: int = 1, PageSiz
         Query.with_entities(
             func.coalesce(func.sum(PaymentInvoice.amount_paise), 0),
             func.coalesce(func.sum(PaymentInvoice.paid_paise), 0),
+            func.coalesce(func.sum(PaymentInvoice.discount_paise), 0),
         )
         .filter(PaymentInvoice.status != "CANCELLED")
         .one()
@@ -558,7 +601,7 @@ def ListInvoices(db: Session, *, Filters: dict[str, Any], Page: int = 1, PageSiz
     )
     Today = TodayInIndia()
     Names = _UserNames(db, {Row.created_by_user_id for Row in Rows} | {Row.cancelled_by_user_id for Row in Rows})
-    Amount, Paid = int(Totals[0] or 0), int(Totals[1] or 0)
+    Amount, Paid, Discount = int(Totals[0] or 0), int(Totals[1] or 0), int(Totals[2] or 0)
     return {
         "page": Page,
         "pageSize": PageSize,
@@ -566,7 +609,8 @@ def ListInvoices(db: Session, *, Filters: dict[str, Any], Page: int = 1, PageSiz
         "totals": {
             "amountDisplay": FormatIndianRupees(Amount),
             "paidDisplay": FormatIndianRupees(Paid),
-            "balanceDisplay": FormatIndianRupees(max(0, Amount - Paid)),
+            "discountDisplay": FormatIndianRupees(Discount),
+            "balanceDisplay": FormatIndianRupees(max(0, Amount - Paid - Discount)),
         },
         "invoices": [
             InvoicePayload(Row, Today=Today, CreatedByName=Names.get(Row.created_by_user_id), CancelledByName=Names.get(Row.cancelled_by_user_id))
@@ -589,22 +633,36 @@ def CancelInvoice(db: Session, *, InvoiceId: str, Reason: Any, Actor: User | Non
     CleanReason = re.sub(r"\s+", " ", str(Reason or "")).strip()
     if not CleanReason:
         api_error(422, "REASON_REQUIRED", "Please give a reason for cancelling this invoice.")
-    Invoice = db.query(PaymentInvoice).filter(PaymentInvoice.id == InvoiceId).with_for_update().first()
-    if not Invoice:
+    from app.services.payments.receipts_service import RecomputeInvoice, ReleaseInvoiceAllocations, _LockStudent
+
+    Found = db.get(PaymentInvoice, InvoiceId)
+    if not Found:
         api_error(404, "INVOICE_NOT_FOUND", "That invoice was not found.")
+    # Student first, then the invoice: the same order as payments use.
+    _LockStudent(db, Found.student_id)
+    Invoice = db.query(PaymentInvoice).filter(PaymentInvoice.id == InvoiceId).with_for_update().one()
+    db.refresh(Invoice)
     if Invoice.status == "CANCELLED":
         api_error(409, "INVOICE_ALREADY_CANCELLED", f"{Invoice.invoice_number} is already cancelled.")
-    if Invoice.paid_paise > 0:
-        api_error(409, "INVOICE_HAS_PAYMENTS", f"{Invoice.invoice_number} has payments against it. Cancel those payments first.")
     Before = _InvoiceAuditShape(Invoice)
+    # Anything already paid on it becomes the student's advance (2026-10-08,
+    # Phase 3); a discount on it simply falls away.
+    Moved = ReleaseInvoiceAllocations(db, Invoice)
     Invoice.status = "CANCELLED"
     Invoice.cancel_reason = CleanReason[:500]
     Invoice.cancelled_at = datetime.now(timezone.utc)
     Invoice.cancelled_by_user_id = Actor.id if Actor else None
     db.flush()
-    WritePaymentAudit(db, EntityType="INVOICE", EntityId=Invoice.id, Action="CANCEL", Actor=Actor, Before=Before, After=_InvoiceAuditShape(Invoice), Reason=CleanReason)
+    RecomputeInvoice(db, Invoice)
+    After = _InvoiceAuditShape(Invoice)
+    if Moved:
+        After["movedToAdvance"] = PaiseToRupeesString(Moved)
+    WritePaymentAudit(db, EntityType="INVOICE", EntityId=Invoice.id, Action="CANCEL", Actor=Actor, Before=Before, After=After, Reason=CleanReason)
     db.commit()
-    return GetInvoice(db, Invoice.id)
+    Result = GetInvoice(db, Invoice.id)
+    Result["movedToAdvancePaise"] = Moved
+    Result["movedToAdvanceDisplay"] = FormatIndianRupees(Moved)
+    return Result
 
 
 def InvoicesForPdf(db: Session, *, InvoiceIds: list[str] | None = None, Filters: dict[str, Any] | None = None) -> list[PaymentInvoice]:

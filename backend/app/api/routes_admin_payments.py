@@ -1,6 +1,8 @@
 """Admin > Payments API (Phase 1, 2026-10-08): fee setup, business details,
 centres, document numbering, student centres and the audit history.
 Phase 2 (2026-10-08): invoices -- preview, generate, list, PDF, Excel, cancel.
+Phase 3 (2026-10-08): payments -- record, edit, cancel, receipts, advances
+and each student's account.
 
 Admin only (SUPER_ADMIN / ADMIN). Students and teachers get 403 on every
 route here."""
@@ -16,8 +18,21 @@ from app.database import get_db
 from app.dependencies import require_roles
 from app.models import User
 from app.services.payments.audit import ListPaymentAudit
-from app.services.payments.invoice_export import BuildInvoicesWorkbook
-from app.services.payments.invoice_pdf import RenderInvoicesPdf, SafeFileName
+from app.services.payments.invoice_export import BuildInvoicesWorkbook, BuildPaymentsWorkbook
+from app.services.payments.invoice_pdf import RenderInvoicesPdf, RenderReceiptsPdf, SafeFileName
+from app.services.payments.receipts_service import (
+    ApplyAdvanceNow,
+    CancelPayment,
+    EditPayment,
+    GetPayment,
+    ListPayments,
+    ListStaff,
+    PaymentPayload,
+    PaymentsForExport,
+    PaymentsForPdf,
+    RecordPayment,
+    StudentAccount,
+)
 from app.services.payments.invoices_service import (
     CancelInvoice,
     GenerateInvoices,
@@ -145,6 +160,58 @@ class InvoiceFilters(BaseModel):
 class InvoicePdfRequest(BaseModel):
     invoiceIds: list[str] | None = None
     filters: InvoiceFilters | None = None
+
+
+class PaymentAllocationLine(BaseModel):
+    invoiceId: str
+    amountPaise: int = 0
+    discountPaise: int = 0
+
+
+class PaymentMethodInput(BaseModel):
+    method: str
+    amountPaise: int
+    reference: str | None = None
+
+
+class PaymentInput(BaseModel):
+    paymentDate: str | None = None
+    payBy: str | None = None
+    receivedByUserId: str | None = None
+    note: str | None = None
+    allocations: list[PaymentAllocationLine] = Field(default_factory=list)
+    methods: list[PaymentMethodInput] = Field(default_factory=list)
+    discountReason: str | None = None
+    keepAdvance: bool = False
+
+
+class PaymentRecordRequest(PaymentInput):
+    studentId: str
+    idempotencyKey: str
+
+
+class PaymentEditRequest(PaymentInput):
+    reason: str | None = None
+
+
+class PaymentCancelRequest(BaseModel):
+    reason: str | None = None
+
+
+class PaymentFilters(BaseModel):
+    status: str | None = None
+    method: str | None = None
+    receivedBy: str | None = None
+    centreId: str | None = None
+    studentId: str | None = None
+    dateFrom: str | None = None
+    dateTo: str | None = None
+    search: str | None = None
+
+
+class PaymentPdfRequest(BaseModel):
+    paymentIds: list[str] | None = None
+    filters: PaymentFilters | None = None
 
 
 def _SentFields(Payload: BaseModel) -> dict[str, Any]:
@@ -350,3 +417,114 @@ def admin_invoice_pdf(invoice_id: str, db: Session = Depends(get_db), user: User
 @router.post("/invoices/{invoice_id}/cancel")
 def admin_cancel_invoice(invoice_id: str, payload: InvoiceCancelRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return CancelInvoice(db, InvoiceId=invoice_id, Reason=payload.reason, Actor=user)
+
+
+# --- Payments and receipts (Phase 3) -----------------------------------------
+# Fixed paths are declared before /receipts/{payment_id}.
+
+def _PaymentFilterDict(status, method, receivedBy, centreId, studentId, dateFrom, dateTo, search) -> dict[str, Any]:
+    return {
+        "status": status, "method": method, "receivedBy": receivedBy, "centreId": centreId,
+        "studentId": studentId, "dateFrom": dateFrom, "dateTo": dateTo, "search": search,
+    }
+
+
+def _ReceiptsPdf(db: Session, Rows) -> bytes:
+    import json as _json
+
+    return RenderReceiptsPdf([(_json.loads(Row.snapshot_json), PaymentPayload(db, Row, Names={})) for Row in Rows])
+
+
+@router.get("/staff")
+def admin_payment_staff(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return {"staff": ListStaff(db), "currentUserId": user.id}
+
+
+@router.get("/students/{student_id}/account")
+def admin_student_account(student_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return StudentAccount(db, student_id)
+
+
+@router.post("/students/{student_id}/apply-advance")
+def admin_apply_advance(student_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return ApplyAdvanceNow(db, StudentId=student_id, Actor=user)
+
+
+@router.post("/receipts")
+def admin_record_payment(payload: PaymentRecordRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Request = payload.model_dump()
+    StudentId = Request.pop("studentId")
+    Key = Request.pop("idempotencyKey")
+    return RecordPayment(db, StudentId=StudentId, Request=Request, IdempotencyKey=Key, Actor=user)
+
+
+@router.get("/receipts")
+def admin_list_payments(
+    status: str | None = None,
+    method: str | None = None,
+    receivedBy: str | None = None,
+    centreId: str | None = None,
+    studentId: str | None = None,
+    dateFrom: str | None = None,
+    dateTo: str | None = None,
+    search: str | None = None,
+    page: int = 1,
+    pageSize: int = 50,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    Filters = _PaymentFilterDict(status, method, receivedBy, centreId, studentId, dateFrom, dateTo, search)
+    return ListPayments(db, Filters=Filters, Page=page, PageSize=pageSize)
+
+
+@router.get("/receipts/export")
+def admin_export_payments(
+    status: str | None = None,
+    method: str | None = None,
+    receivedBy: str | None = None,
+    centreId: str | None = None,
+    studentId: str | None = None,
+    dateFrom: str | None = None,
+    dateTo: str | None = None,
+    search: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    Filters = _PaymentFilterDict(status, method, receivedBy, centreId, studentId, dateFrom, dateTo, search)
+    Content = BuildPaymentsWorkbook(PaymentsForExport(db, Filters=Filters))
+    FileName = f"MathPath-Payments-{TodayInIndia().isoformat()}.xlsx"
+    return Response(
+        content=Content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{FileName}"', "Cache-Control": "no-store"},
+    )
+
+
+@router.post("/receipts/pdf")
+def admin_receipts_bulk_pdf(payload: PaymentPdfRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Rows = PaymentsForPdf(db, PaymentIds=payload.paymentIds, Filters=payload.filters.model_dump() if payload.filters else None)
+    Name = f"{Rows[0].receipt_number}.pdf" if len(Rows) == 1 else f"MathPath-Receipts-{TodayInIndia().isoformat()}-{len(Rows)}.pdf"
+    return _PdfResponse(_ReceiptsPdf(db, Rows), Name)
+
+
+@router.get("/receipts/{payment_id}")
+def admin_get_payment(payment_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return GetPayment(db, payment_id)
+
+
+@router.put("/receipts/{payment_id}")
+def admin_edit_payment(payment_id: str, payload: PaymentEditRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Request = payload.model_dump()
+    Reason = Request.pop("reason")
+    return EditPayment(db, PaymentId=payment_id, Request=Request, Reason=Reason, Actor=user)
+
+
+@router.post("/receipts/{payment_id}/cancel")
+def admin_cancel_payment(payment_id: str, payload: PaymentCancelRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return CancelPayment(db, PaymentId=payment_id, Reason=payload.reason, Actor=user)
+
+
+@router.get("/receipts/{payment_id}/pdf")
+def admin_receipt_pdf(payment_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Rows = PaymentsForPdf(db, PaymentIds=[payment_id])
+    return _PdfResponse(_ReceiptsPdf(db, Rows), f"{Rows[0].receipt_number}.pdf")

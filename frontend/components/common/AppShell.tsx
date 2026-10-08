@@ -71,6 +71,7 @@ import {
   Building2,
   FilePlus2,
   FileText,
+  HandCoins,
 } from "lucide-react";
 import type { ChangeEvent, ComponentType, CSSProperties, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -429,10 +430,25 @@ export function AppShell({
     {
       // 2026-10-08 (Payments): fees, invoices and payments. Items are added
       // here phase by phase, so the menu never shows a page that is not built.
+      // Order (Shailesh, 8 Oct): Payment Settings, Fee Setup, Generate
+      // Invoices, Invoices, then each new page below in the order it ships.
       label: "Payments",
       icon: Wallet,
       tooltip: "Fees, invoices and payments",
       children: [
+        {
+          label: "Payment Settings",
+          shortLabel: "Settings",
+          href: "/admin/payments/settings",
+          icon: Building2,
+          tooltip: "Business details, centres and document numbering",
+        },
+        {
+          label: "Fee Setup",
+          href: "/admin/payments/fee-setup",
+          icon: ReceiptText,
+          tooltip: "The fees students can be invoiced for",
+        },
         {
           label: "Generate Invoices",
           shortLabel: "Generate",
@@ -447,17 +463,16 @@ export function AppShell({
           tooltip: "Every invoice: search, filter, download and cancel",
         },
         {
-          label: "Fee Setup",
-          href: "/admin/payments/fee-setup",
-          icon: ReceiptText,
-          tooltip: "The fees students can be invoiced for",
+          label: "Student Fees",
+          href: "/admin/payments/student-fees",
+          icon: UserRound,
+          tooltip: "One student's account: dues, advance, history and Record Payment",
         },
         {
-          label: "Payment Settings",
-          shortLabel: "Settings",
-          href: "/admin/payments/settings",
-          icon: Building2,
-          tooltip: "Business details, centres and document numbering",
+          label: "Payments",
+          href: "/admin/payments/receipts",
+          icon: HandCoins,
+          tooltip: "Every payment received, with money receipts",
         },
       ],
     },

@@ -252,6 +252,7 @@ export default function GenerateInvoicesPage() {
                 {result.firstNumber === result.lastNumber ? result.firstNumber : `${result.firstNumber} to ${result.lastNumber}`} · total {result.totalDisplay}
                 {result.skippedCount ? ` · ${result.skippedCount} skipped` : ""}
                 {result.replayed ? " · these were already created by this same confirm" : ""}
+                {result.advanceAppliedPaise ? ` · ${result.advanceAppliedDisplay} of advance applied` : ""}
               </p>
             </div>
           </div>
@@ -472,6 +473,11 @@ export default function GenerateInvoicesPage() {
               {preview.periodLabel ? ` · monthly fee for ${preview.periodLabel}` : ""}
               {preview.nextNumber && preview.invoiceCount ? ` · numbers from ${preview.nextNumber}` : ""}.
             </p>
+            {preview.advanceAppliedPaise ? (
+              <p className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-900 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100">
+                {preview.advanceAppliedDisplay} of advance held by {preview.advanceStudents} {preview.advanceStudents === 1 ? "student" : "students"} will be applied to these invoices straight away.
+              </p>
+            ) : null}
             {preview.skipped.length ? (
               <div>
                 <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Skipped ({preview.skipped.length})</h3>
@@ -492,7 +498,10 @@ export default function GenerateInvoicesPage() {
                         <span className="font-black text-slate-900 dark:text-white">{line.studentName}</span>
                         <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{line.feeName}{line.periodLabel ? ` · ${line.periodLabel}` : ""}</span>
                       </span>
-                      <span className="shrink-0 font-black tabular-nums text-slate-900 dark:text-white">{line.amountDisplay}</span>
+                      <span className="shrink-0 text-right font-black tabular-nums text-slate-900 dark:text-white">
+                        {line.amountDisplay}
+                        {line.advanceDisplay ? <span className="block text-xs font-semibold text-violet-700 dark:text-violet-300">{line.advanceDisplay} from advance</span> : null}
+                      </span>
                     </li>
                   ))}
                 </ul>

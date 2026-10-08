@@ -131,6 +131,7 @@ const ACTION_LABELS: Record<string, string> = {
   SET_NEXT_NUMBER: "Next number set",
   SET_CENTRE: "Centre changed",
   CANCEL: "Cancelled",
+  ADVANCE_APPLIED: "Advance applied",
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -160,21 +161,38 @@ const FIELD_LABELS: Record<string, string> = {
   invoiceDate: "Invoice date",
   dueDate: "Due date",
   status: "Status",
+  receiptNumber: "Receipt",
+  paymentDate: "Date",
+  discount: "Discount",
+  discountReason: "Discount reason",
+  methods: "Paid by method",
+  appliedTo: "Applied to",
+  advance: "Advance",
+  advanceLeft: "Advance left",
+  movedToAdvance: "Moved to advance",
+  payBy: "Paid by",
+  receivedBy: "Received by",
+  note: "Note",
 };
 
 function ShowValue(value: unknown, key?: string): string {
   if (value === null || value === undefined || value === "") return "—";
-  if (key === "amount" && typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value)) {
+  if (["amount", "discount", "advance", "advanceLeft", "movedToAdvance"].includes(key ?? "") && typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value)) {
     return `₹${Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
   if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (Array.isArray(value)) return value.join(", ");
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (item && typeof item === "object" && "invoiceNumber" in item ? `${(item as { invoiceNumber: string }).invoiceNumber} ₹${Number((item as { amount: string }).amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : String(item)))
+      .join(", ");
+  }
   if (value === "MONTHLY") return "Monthly";
   if (value === "ONE_TIME") return "One-time";
   if (value === "PENDING") return "Pending";
   if (value === "PART_PAID") return "Part-paid";
   if (value === "PAID") return "Paid";
   if (value === "CANCELLED") return "Cancelled";
+  if (value === "RECORDED") return "Received";
   return String(value);
 }
 
