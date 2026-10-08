@@ -158,3 +158,191 @@ export async function listPaymentAudit(params: { entityType?: string; entityId?:
   const { data } = await api.get<{ entries: PaymentAuditEntry[] }>("/admin/payments/audit", { params });
   return data.entries;
 }
+
+// ---------------------------------------------------------------------------
+// 2026-10-08 (Payments Phase 2): invoices.
+// ---------------------------------------------------------------------------
+
+export type InvoiceStatus = "PENDING" | "PART_PAID" | "PAID" | "CANCELLED";
+
+export type InvoiceRunRequest = {
+  feeItemIds: string[];
+  studentIds: string[];
+  billingMonth?: number | null;
+  billingYear?: number | null;
+  invoiceDate?: string | null;
+  dueDate?: string | null;
+  allowRepeatOneTime?: boolean;
+};
+
+export type InvoicePlanLine = {
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  feeItemId: string;
+  feeName: string;
+  periodLabel: string | null;
+  amountPaise: number;
+  amountDisplay: string;
+  reason?: string;
+};
+
+export type InvoicePreview = {
+  numberingReady: boolean;
+  nextNumber: string | null;
+  invoiceDate: string;
+  dueDate: string;
+  periodLabel: string | null;
+  studentsSelected: number;
+  studentsInvoiced: number;
+  invoiceCount: number;
+  skippedCount: number;
+  totalPaise: number;
+  totalDisplay: string;
+  invoices: InvoicePlanLine[];
+  skipped: InvoicePlanLine[];
+};
+
+export type InvoiceBatchResult = {
+  batchId: string;
+  replayed: boolean;
+  invoiceCount: number;
+  skippedCount: number;
+  totalPaise: number;
+  totalDisplay: string;
+  firstNumber: string | null;
+  lastNumber: string | null;
+  skipped: InvoicePlanLine[];
+};
+
+export type Invoice = {
+  invoiceId: string;
+  invoiceNumber: string;
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  feeItemId: string | null;
+  feeName: string;
+  billingType: BillingType;
+  periodLabel: string | null;
+  description: string;
+  invoiceDate: string;
+  dueDate: string | null;
+  amountPaise: number;
+  amountDisplay: string;
+  taxableDisplay: string;
+  cgstDisplay: string;
+  sgstDisplay: string;
+  gstIncluded: boolean;
+  paidPaise: number;
+  paidDisplay: string;
+  balancePaise: number;
+  balanceDisplay: string;
+  status: InvoiceStatus;
+  statusLabel: string;
+  isOverdue: boolean;
+  levelCode: string | null;
+  centreName: string | null;
+  source: string;
+  batchId: string | null;
+  createdAt: string | null;
+  createdByName: string | null;
+  cancelledAt: string | null;
+  cancelledByName: string | null;
+  cancelReason: string | null;
+};
+
+export type InvoiceFilters = {
+  status?: string;
+  feeItemId?: string;
+  period?: string;
+  centreId?: string;
+  studentId?: string;
+  batchId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+};
+
+export type InvoiceList = {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totals: { amountDisplay: string; paidDisplay: string; balanceDisplay: string };
+  invoices: Invoice[];
+};
+
+export type InvoiceStudentOption = {
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  customId: string | null;
+  levelCode: string | null;
+  moduleCode: string | null;
+  teacherName: string | null;
+  centreId: string | null;
+  centreName: string | null;
+  batches: { batchId: string; batchName: string }[];
+  isActive: boolean;
+};
+
+function CleanFilters(filters: InvoiceFilters): InvoiceFilters {
+  return Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined && value !== null && value !== "" && value !== "ALL")) as InvoiceFilters;
+}
+
+export async function listInvoiceStudentOptions(): Promise<InvoiceStudentOption[]> {
+  const { data } = await api.get<{ students: InvoiceStudentOption[] }>("/admin/payments/invoices/student-options");
+  return data.students;
+}
+
+export async function previewInvoices(payload: InvoiceRunRequest): Promise<InvoicePreview> {
+  const { data } = await api.post<InvoicePreview>("/admin/payments/invoices/preview", payload);
+  return data;
+}
+
+export async function generateInvoices(payload: InvoiceRunRequest & { idempotencyKey: string }): Promise<InvoiceBatchResult> {
+  const { data } = await api.post<InvoiceBatchResult>("/admin/payments/invoices/generate", payload);
+  return data;
+}
+
+export async function listInvoices(filters: InvoiceFilters, page = 1, pageSize = 50): Promise<InvoiceList> {
+  const { data } = await api.get<InvoiceList>("/admin/payments/invoices", { params: { ...CleanFilters(filters), page, pageSize } });
+  return data;
+}
+
+export async function getInvoice(invoiceId: string): Promise<Invoice & { snapshot: Record<string, unknown> }> {
+  const { data } = await api.get(`/admin/payments/invoices/${invoiceId}`);
+  return data;
+}
+
+export async function cancelInvoice(invoiceId: string, reason: string): Promise<Invoice> {
+  const { data } = await api.post<Invoice>(`/admin/payments/invoices/${invoiceId}/cancel`, { reason });
+  return data;
+}
+
+export async function downloadInvoicePdf(invoiceId: string): Promise<Blob> {
+  const { data } = await api.get(`/admin/payments/invoices/${invoiceId}/pdf`, { responseType: "blob" });
+  return data;
+}
+
+export async function downloadInvoicesPdf(payload: { invoiceIds?: string[]; filters?: InvoiceFilters }): Promise<Blob> {
+  const body = { invoiceIds: payload.invoiceIds, filters: payload.filters ? CleanFilters(payload.filters) : undefined };
+  const { data } = await api.post("/admin/payments/invoices/pdf", body, { responseType: "blob" });
+  return data;
+}
+
+export async function downloadInvoicesExcel(filters: InvoiceFilters): Promise<Blob> {
+  const { data } = await api.get("/admin/payments/invoices/export", { params: CleanFilters(filters), responseType: "blob" });
+  return data;
+}
+
+export function saveBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+}

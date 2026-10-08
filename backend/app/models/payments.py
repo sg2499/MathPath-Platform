@@ -9,7 +9,7 @@ Ground rules that every table here follows:
   * Nothing is deleted: rows are deactivated, and every change is written to
     payment_audit_log (who, when, before/after, reason).
 """
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -116,10 +116,88 @@ class PaymentAuditLog(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
+class PaymentInvoiceBatch(Base):
+    """One press of "Generate Invoices". The idempotency key makes a double
+    click or a retried request return the same batch instead of a second set
+    of invoices."""
+
+    __tablename__ = "payment_invoice_batches"
+    id = Column(String, primary_key=True, default=uuid_str)
+    idempotency_key = Column(String(80), unique=True, nullable=False)
+    params_json = Column(Text, nullable=True)
+    invoice_count = Column(Integer, default=0, nullable=False)
+    skipped_count = Column(Integer, default=0, nullable=False)
+    total_paise = Column(Integer, default=0, nullable=False)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PaymentInvoice(Base):
+    """A tax invoice for one student and one fee item (Phase 2, 2026-10-08).
+
+    Everything printed is copied onto the invoice when it is issued (student
+    and parent details, level, centre, business details, price and GST
+    split), so a later edit to a price, a student or the business details
+    never changes an invoice already issued."""
+
+    __tablename__ = "payment_invoices"
+    id = Column(String, primary_key=True, default=uuid_str)
+    invoice_number = Column(String(40), unique=True, nullable=False)
+    student_id = Column(String, ForeignKey("students.id"), nullable=False, index=True)
+    fee_item_id = Column(String, ForeignKey("fee_items.id"), nullable=True, index=True)
+    batch_id = Column(String, ForeignKey("payment_invoice_batches.id"), nullable=True, index=True)
+    fee_name = Column(String(150), nullable=False)
+    billing_type = Column(String(20), nullable=False, default="ONE_TIME")
+    billing_month = Column(Integer, nullable=True)
+    billing_year = Column(Integer, nullable=True)
+    # "2026-11" for a monthly fee, NULL for a one-time item. Together with the
+    # partial unique index below, a student can never hold two live invoices
+    # for the same monthly fee and month.
+    period_key = Column(String(7), nullable=True)
+    description = Column(Text, nullable=False)
+    invoice_date = Column(Date, nullable=False, index=True)
+    due_date = Column(Date, nullable=True, index=True)
+    amount_paise = Column(Integer, nullable=False)
+    taxable_paise = Column(Integer, nullable=False)
+    cgst_paise = Column(Integer, nullable=False, default=0)
+    sgst_paise = Column(Integer, nullable=False, default=0)
+    gst_rate_bps = Column(Integer, nullable=False, default=1800)
+    gst_included = Column(Boolean, nullable=False, default=True)
+    # Filled by payments (Phase 3). Never more than amount_paise.
+    paid_paise = Column(Integer, nullable=False, default=0)
+    # PENDING | PART_PAID | PAID | CANCELLED
+    status = Column(String(20), nullable=False, default="PENDING", index=True)
+    level_code = Column(String(40), nullable=True)
+    centre_id = Column(String, nullable=True, index=True)
+    snapshot_json = Column(Text, nullable=False)
+    source = Column(String(20), nullable=False, default="ADMIN")
+    legacy_id = Column(String(80), nullable=True, index=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+    cancelled_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    cancel_reason = Column(Text, nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index(
+            "uq_payment_invoices_live_monthly",
+            "student_id",
+            "fee_item_id",
+            "period_key",
+            unique=True,
+            postgresql_where=text("status <> 'CANCELLED' AND period_key IS NOT NULL"),
+            sqlite_where=text("status <> 'CANCELLED' AND period_key IS NOT NULL"),
+        ),
+    )
+
+
 __all__ = [
     "PaymentCentre",
     "PaymentBusinessProfile",
     "FeeItem",
     "PaymentNumberSequence",
     "PaymentAuditLog",
+    "PaymentInvoiceBatch",
+    "PaymentInvoice",
 ]

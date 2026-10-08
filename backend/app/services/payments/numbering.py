@@ -61,6 +61,13 @@ def _LockedSequence(db: Session, Key: str) -> PaymentNumberSequence:
     return Sequence
 
 
+def LockSequence(db: Session, Key: str) -> PaymentNumberSequence:
+    """Holds the sequence row lock until the caller's transaction ends. Used
+    to run a whole check-then-create step one at a time (e.g. two admins
+    pressing Generate Invoices together), not only the numbering."""
+    return _LockedSequence(db, Key)
+
+
 def SequencePayload(Sequence: PaymentNumberSequence) -> dict[str, Any]:
     Label = SEQUENCE_DEFAULTS.get(Sequence.key, {}).get("label", Sequence.key)
     return {

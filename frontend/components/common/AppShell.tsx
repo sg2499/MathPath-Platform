@@ -69,6 +69,8 @@ import {
   Wallet,
   ReceiptText,
   Building2,
+  FilePlus2,
+  FileText,
 } from "lucide-react";
 import type { ChangeEvent, ComponentType, CSSProperties, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -431,6 +433,19 @@ export function AppShell({
       icon: Wallet,
       tooltip: "Fees, invoices and payments",
       children: [
+        {
+          label: "Generate Invoices",
+          shortLabel: "Generate",
+          href: "/admin/payments/generate-invoices",
+          icon: FilePlus2,
+          tooltip: "Invoice students for a fee, one month or one item at a time",
+        },
+        {
+          label: "Invoices",
+          href: "/admin/payments/invoices",
+          icon: FileText,
+          tooltip: "Every invoice: search, filter, download and cancel",
+        },
         {
           label: "Fee Setup",
           href: "/admin/payments/fee-setup",
