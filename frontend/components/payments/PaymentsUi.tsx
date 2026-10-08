@@ -130,6 +130,7 @@ const ACTION_LABELS: Record<string, string> = {
   REORDER: "Order changed",
   SET_NEXT_NUMBER: "Next number set",
   SET_CENTRE: "Centre changed",
+  CANCEL: "Cancelled",
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -153,6 +154,12 @@ const FIELD_LABELS: Record<string, string> = {
   centre: "Centre",
   nextFormatted: "Next number",
   order: "Order",
+  invoiceNumber: "Invoice",
+  feeName: "Fee",
+  period: "Period",
+  invoiceDate: "Invoice date",
+  dueDate: "Due date",
+  status: "Status",
 };
 
 function ShowValue(value: unknown, key?: string): string {
@@ -164,6 +171,10 @@ function ShowValue(value: unknown, key?: string): string {
   if (Array.isArray(value)) return value.join(", ");
   if (value === "MONTHLY") return "Monthly";
   if (value === "ONE_TIME") return "One-time";
+  if (value === "PENDING") return "Pending";
+  if (value === "PART_PAID") return "Part-paid";
+  if (value === "PAID") return "Paid";
+  if (value === "CANCELLED") return "Cancelled";
   return String(value);
 }
 

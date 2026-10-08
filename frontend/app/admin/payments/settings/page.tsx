@@ -3,6 +3,8 @@
 // 2026-10-08 (Payments Phase 1): Payment Settings -- the business details
 // printed on invoices and receipts, the centres (and which students attend
 // each), document numbering, and the history of every change.
+// 2026-10-08 (Phase 2): the four parts are sub-tabs (remembered in the URL as
+// ?tab=business|centres|numbering|history) instead of one long page.
 import { AppShell } from "@/components/common/AppShell";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -16,6 +18,7 @@ import {
   StatusPill,
 } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
+import { useUrlTabState } from "@/hooks/useUrlTabState";
 import {
   assignStudentsToCentre,
   createCentre,
@@ -44,7 +47,10 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
+
+const SETTINGS_TABS = ["business", "centres", "numbering", "history"] as const;
+type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 const PAN_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
@@ -89,7 +95,16 @@ function SectionHeading({ icon, kicker, title, description }: { icon: ReactNode;
 }
 
 export default function PaymentSettingsPage() {
+  return (
+    <Suspense fallback={<LoadingState label="Loading payment settings..." />}>
+      <PaymentSettingsContent />
+    </Suspense>
+  );
+}
+
+function PaymentSettingsContent() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
+  const [tab, setTab] = useUrlTabState<SettingsTab>("tab", SETTINGS_TABS, "business");
   const queryClient = useQueryClient();
   const settingsQuery = useQuery({ queryKey: ["admin", "payments", "settings"], queryFn: getPaymentSettings, enabled: ready });
   const settings = settingsQuery.data;
@@ -133,13 +148,49 @@ export default function PaymentSettingsPage() {
         <div className="mt-6"><ErrorState message="Payment settings could not be loaded. Refresh the page to try again." /></div>
       ) : (
         <>
-          <BusinessSection business={settings.business} onSaved={refresh} />
-          <CentresSection centres={settings.centres} withoutCentre={settings.activeStudentsWithoutCentre} onSaved={refresh} />
-          <NumberingSection sequences={settings.numbering} onSaved={refresh} />
-          <section className="mt-6 math-card p-5 sm:p-6">
-            <SectionHeading icon={<History size={14} />} kicker="History" title="Recent changes" description="Every change in Payments: who made it, when, and what changed." />
-            <div className="mt-5"><PaymentsHistoryList limit={30} /></div>
-          </section>
+          <nav className="mt-6 math-card p-2" aria-label="Payment settings sections">
+            <div role="tablist" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              {SETTINGS_TABS.map((key) => {
+                const numberingMissing = settings.numbering.some((sequence) => !sequence.isConfigured);
+                const tabInfo: Record<SettingsTab, { label: string; short: string; icon: ReactNode; flag?: boolean }> = {
+                  business: { label: "Business Details", short: "Business", icon: <Building2 size={16} />, flag: !settings.business.registeredAddress },
+                  centres: { label: "Centres", short: "Centres", icon: <MapPin size={16} />, flag: settings.activeStudentsWithoutCentre > 0 },
+                  numbering: { label: "Document Numbering", short: "Numbering", icon: <FileDigit size={16} />, flag: numberingMissing },
+                  history: { label: "History", short: "History", icon: <History size={16} /> },
+                };
+                const info = tabInfo[key];
+                const selected = tab === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    id={`payment-settings-tab-${key}`}
+                    aria-selected={selected}
+                    aria-controls={`payment-settings-panel-${key}`}
+                    onClick={() => setTab(key)}
+                    className={`math-role-tab-button math-admin-tab-force inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-black transition sm:justify-start ${selected ? "is-active math-admin-tab-force-selected" : ""}`}
+                  >
+                    {info.icon}
+                    <span className="truncate sm:hidden">{info.short}</span>
+                    <span className="hidden truncate sm:inline">{info.label}</span>
+                    {info.flag ? <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-label="needs attention" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+          <div role="tabpanel" id={`payment-settings-panel-${tab}`} aria-labelledby={`payment-settings-tab-${tab}`}>
+            {tab === "business" ? <BusinessSection business={settings.business} onSaved={refresh} /> : null}
+            {tab === "centres" ? <CentresSection centres={settings.centres} withoutCentre={settings.activeStudentsWithoutCentre} onSaved={refresh} /> : null}
+            {tab === "numbering" ? <NumberingSection sequences={settings.numbering} onSaved={refresh} /> : null}
+            {tab === "history" ? (
+              <section className="mt-6 math-card p-5 sm:p-6">
+                <SectionHeading icon={<History size={14} />} kicker="History" title="Recent changes" description="Every change in Payments: who made it, when, and what changed." />
+                <div className="mt-5"><PaymentsHistoryList limit={50} /></div>
+              </section>
+            ) : null}
+          </div>
         </>
       )}
     </AppShell>

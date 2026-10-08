@@ -419,7 +419,7 @@ def test_every_payments_admin_route_refuses_students_and_teachers(role):
     try:
         checked = 0
         for route in router.routes:
-            path = route.path.replace("{fee_item_id}", "x").replace("{centre_id}", "x").replace("{sequence_key}", "INVOICE")
+            path = route.path.replace("{fee_item_id}", "x").replace("{invoice_id}", "x").replace("{centre_id}", "x").replace("{sequence_key}", "INVOICE")
             for method in route.methods:
                 response = client.request(method, path, json={})
                 assert response.status_code == 403, (method, path, response.status_code)
