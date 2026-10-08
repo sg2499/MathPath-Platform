@@ -560,3 +560,227 @@ export async function downloadPaymentsExcel(filters: PaymentFilters): Promise<Bl
   const { data } = await api.get("/admin/payments/receipts/export", { params: CleanPaymentFilters(filters), responseType: "blob" });
   return data;
 }
+
+// ---------------------------------------------------------------------------
+// 2026-10-08 (Payments Phase 4): reports and expenses.
+// ---------------------------------------------------------------------------
+
+export type MoneyValue = { paise: number; display: string };
+export type MethodTotal = MoneyValue & { method: PaymentMethodCode; methodLabel: string };
+export type DuesBucketKey = "NOT_DUE" | "D0_30" | "D31_60" | "D61_90" | "D90_PLUS";
+
+export type PaymentsOverview = {
+  today: string;
+  todayCollected: MoneyValue;
+  todayPaymentCount: number;
+  todayByMethod: MethodTotal[];
+  thisMonthLabel: string;
+  thisMonthCollected: MoneyValue;
+  lastMonthLabel: string;
+  lastMonthCollected: MoneyValue;
+  thisMonthSpent: MoneyValue;
+  thisMonthNet: MoneyValue;
+  due: MoneyValue;
+  overdue: MoneyValue;
+  studentsWithDues: number;
+  unpaidInvoices: number;
+  buckets: (MoneyValue & { bucket: DuesBucketKey; label: string })[];
+  advanceHeld: MoneyValue;
+  series: { month: string; label: string; collected: MoneyValue; spent: MoneyValue }[];
+  recentPayments: Payment[];
+};
+
+export type CollectionFilters = { dateFrom?: string; dateTo?: string; method?: string; receivedBy?: string; centreId?: string };
+
+export type CollectionsReport = {
+  dateFrom: string;
+  dateTo: string;
+  total: MoneyValue;
+  discount: MoneyValue;
+  paymentCount: number;
+  byMethod: MethodTotal[];
+  byStaff: (MoneyValue & { userId: string | null; name: string; paymentCount: number; byMethod: MethodTotal[] })[];
+  byDay: (MoneyValue & { date: string; paymentCount: number; byMethod: MethodTotal[] })[];
+  payments: (Payment & { inFilterPaise: number; inFilterDisplay: string })[];
+  paymentsTruncated: boolean;
+};
+
+export type DuesFilters = { centreId?: string; levelCode?: string; feeItemId?: string; bucket?: string; search?: string; activeOnly?: string; sort?: string };
+
+export type DuesStudent = {
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  customId: string | null;
+  parentName: string | null;
+  mobile: string | null;
+  centreName: string | null;
+  levelCode: string | null;
+  isActive: boolean;
+  invoices: {
+    invoiceId: string;
+    invoiceNumber: string;
+    feeName: string;
+    periodLabel: string | null;
+    invoiceDate: string;
+    dueDate: string | null;
+    daysOverdue: number;
+    bucket: DuesBucketKey;
+    bucketLabel: string;
+    balancePaise: number;
+    balanceDisplay: string;
+    amountDisplay: string;
+  }[];
+  duePaise: number;
+  dueDisplay: string;
+  overduePaise: number;
+  overdueDisplay: string;
+  maxDaysOverdue: number;
+  oldestDueDate: string | null;
+  bucket: DuesBucketKey;
+  bucketLabel: string;
+  advancePaise: number;
+  advanceDisplay: string;
+};
+
+export type DuesReport = {
+  asOf: string;
+  studentCount: number;
+  invoiceCount: number;
+  total: MoneyValue;
+  overdue: MoneyValue;
+  buckets: (MoneyValue & { bucket: DuesBucketKey; label: string })[];
+  students: DuesStudent[];
+};
+
+export type ExpenseCategory = { categoryId: string; name: string; displayOrder: number; isActive: boolean; expenseCount: number };
+
+export type Expense = {
+  expenseId: string;
+  expenseNumber: string;
+  expenseDate: string;
+  categoryId: string | null;
+  categoryName: string;
+  item: string;
+  vendor: string | null;
+  billNumber: string | null;
+  details: string | null;
+  note: string | null;
+  centreId: string | null;
+  centreName: string | null;
+  amountPaise: number;
+  amountDisplay: string;
+  methods: { method: PaymentMethodCode; methodLabel: string; amountPaise: number; amountDisplay: string; reference: string | null }[];
+  methodSummary: string;
+  status: "RECORDED" | "CANCELLED";
+  statusLabel: string;
+  createdAt: string | null;
+  createdByName: string | null;
+  editedAt: string | null;
+  editedByName: string | null;
+  cancelledAt: string | null;
+  cancelledByName: string | null;
+  cancelReason: string | null;
+  replayed?: boolean;
+};
+
+export type ExpenseInput = {
+  expenseDate?: string | null;
+  categoryId: string;
+  item: string;
+  vendor?: string | null;
+  billNumber?: string | null;
+  details?: string | null;
+  note?: string | null;
+  centreId?: string | null;
+  methods: { method: PaymentMethodCode; amountPaise: number; reference?: string | null }[];
+};
+
+export type ExpenseFilters = { status?: string; month?: string; dateFrom?: string; dateTo?: string; categoryId?: string; centreId?: string; method?: string; search?: string };
+
+export type ExpenseList = {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totals: {
+    totalPaise: number;
+    totalDisplay: string;
+    byCategory: { categoryName: string; amountPaise: number; amountDisplay: string; count: number }[];
+    byMethod: { method: PaymentMethodCode; methodLabel: string; amountPaise: number; amountDisplay: string }[];
+  };
+  expenses: Expense[];
+};
+
+function CleanParams<T extends Record<string, string | undefined>>(filters: T): Partial<T> {
+  return Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined && value !== null && value !== "" && value !== "ALL")) as Partial<T>;
+}
+
+export async function getPaymentsOverview(): Promise<PaymentsOverview> {
+  const { data } = await api.get<PaymentsOverview>("/admin/payments/reports/overview");
+  return data;
+}
+
+export async function getCollectionsReport(filters: CollectionFilters): Promise<CollectionsReport> {
+  const { data } = await api.get<CollectionsReport>("/admin/payments/reports/collections", { params: CleanParams(filters) });
+  return data;
+}
+
+export async function downloadCollectionsExcel(filters: CollectionFilters): Promise<Blob> {
+  const { data } = await api.get("/admin/payments/reports/collections/export", { params: CleanParams(filters), responseType: "blob" });
+  return data;
+}
+
+export async function downloadCollectionsPdf(filters: CollectionFilters): Promise<Blob> {
+  const { data } = await api.get("/admin/payments/reports/collections/pdf", { params: CleanParams(filters), responseType: "blob" });
+  return data;
+}
+
+export async function getDuesReport(filters: DuesFilters): Promise<DuesReport> {
+  const { data } = await api.get<DuesReport>("/admin/payments/reports/dues", { params: CleanParams(filters) });
+  return data;
+}
+
+export async function downloadDuesExcel(filters: DuesFilters): Promise<Blob> {
+  const { data } = await api.get("/admin/payments/reports/dues/export", { params: CleanParams(filters), responseType: "blob" });
+  return data;
+}
+
+export async function listExpenseCategories(): Promise<ExpenseCategory[]> {
+  const { data } = await api.get<{ categories: ExpenseCategory[] }>("/admin/payments/expense-categories");
+  return data.categories;
+}
+
+export async function createExpenseCategory(name: string): Promise<ExpenseCategory> {
+  const { data } = await api.post<ExpenseCategory>("/admin/payments/expense-categories", { name });
+  return data;
+}
+
+export async function updateExpenseCategory(categoryId: string, payload: { name?: string; isActive?: boolean; reason?: string | null }): Promise<ExpenseCategory> {
+  const { data } = await api.patch<ExpenseCategory>(`/admin/payments/expense-categories/${categoryId}`, payload);
+  return data;
+}
+
+export async function listExpenses(filters: ExpenseFilters, page = 1, pageSize = 50): Promise<ExpenseList> {
+  const { data } = await api.get<ExpenseList>("/admin/payments/expenses", { params: { ...CleanParams(filters), page, pageSize } });
+  return data;
+}
+
+export async function createExpense(payload: ExpenseInput & { idempotencyKey: string }): Promise<Expense> {
+  const { data } = await api.post<Expense>("/admin/payments/expenses", payload);
+  return data;
+}
+
+export async function editExpense(expenseId: string, payload: ExpenseInput & { reason: string }): Promise<Expense> {
+  const { data } = await api.put<Expense>(`/admin/payments/expenses/${expenseId}`, payload);
+  return data;
+}
+
+export async function cancelExpense(expenseId: string, reason: string): Promise<Expense> {
+  const { data } = await api.post<Expense>(`/admin/payments/expenses/${expenseId}/cancel`, { reason });
+  return data;
+}
+
+export async function downloadExpensesExcel(filters: ExpenseFilters): Promise<Blob> {
+  const { data } = await api.get("/admin/payments/expenses/export", { params: CleanParams(filters), responseType: "blob" });
+  return data;
+}

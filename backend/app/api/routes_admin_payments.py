@@ -3,6 +3,7 @@ centres, document numbering, student centres and the audit history.
 Phase 2 (2026-10-08): invoices -- preview, generate, list, PDF, Excel, cancel.
 Phase 3 (2026-10-08): payments -- record, edit, cancel, receipts, advances
 and each student's account.
+Phase 4 (2026-10-08): reports (overview, collections, dues) and expenses.
 
 Admin only (SUPER_ADMIN / ADMIN). Students and teachers get 403 on every
 route here."""
@@ -18,8 +19,26 @@ from app.database import get_db
 from app.dependencies import require_roles
 from app.models import User
 from app.services.payments.audit import ListPaymentAudit
-from app.services.payments.invoice_export import BuildInvoicesWorkbook, BuildPaymentsWorkbook
-from app.services.payments.invoice_pdf import RenderInvoicesPdf, RenderReceiptsPdf, SafeFileName
+from app.services.payments.expenses_service import (
+    CancelExpense,
+    CreateCategory,
+    CreateExpense,
+    EditExpense,
+    ExpensesForExport,
+    GetExpense,
+    ListCategories,
+    ListExpenses,
+    UpdateCategory,
+)
+from app.services.payments.invoice_export import (
+    BuildCollectionsWorkbook,
+    BuildDuesWorkbook,
+    BuildExpensesWorkbook,
+    BuildInvoicesWorkbook,
+    BuildPaymentsWorkbook,
+)
+from app.services.payments.invoice_pdf import RenderCollectionSummaryPdf, RenderInvoicesPdf, RenderReceiptsPdf, SafeFileName
+from app.services.payments.reports_service import CollectionLinesForExport, CollectionsReport, DuesReport, Overview
 from app.services.payments.receipts_service import (
     ApplyAdvanceNow,
     CancelPayment,
@@ -212,6 +231,46 @@ class PaymentFilters(BaseModel):
 class PaymentPdfRequest(BaseModel):
     paymentIds: list[str] | None = None
     filters: PaymentFilters | None = None
+
+
+class ExpenseMethodInput(BaseModel):
+    method: str
+    amountPaise: int
+    reference: str | None = None
+
+
+class ExpenseInput(BaseModel):
+    expenseDate: str | None = None
+    categoryId: str | None = None
+    item: str | None = None
+    vendor: str | None = None
+    billNumber: str | None = None
+    details: str | None = None
+    note: str | None = None
+    centreId: str | None = None
+    methods: list[ExpenseMethodInput] = Field(default_factory=list)
+
+
+class ExpenseCreateRequest(ExpenseInput):
+    idempotencyKey: str
+
+
+class ExpenseEditRequest(ExpenseInput):
+    reason: str | None = None
+
+
+class ExpenseCancelRequest(BaseModel):
+    reason: str | None = None
+
+
+class CategoryCreateRequest(BaseModel):
+    name: str
+
+
+class CategoryUpdateRequest(BaseModel):
+    name: str | None = None
+    isActive: bool | None = None
+    reason: str | None = None
 
 
 def _SentFields(Payload: BaseModel) -> dict[str, Any]:
@@ -528,3 +587,129 @@ def admin_cancel_payment(payment_id: str, payload: PaymentCancelRequest, db: Ses
 def admin_receipt_pdf(payment_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     Rows = PaymentsForPdf(db, PaymentIds=[payment_id])
     return _PdfResponse(_ReceiptsPdf(db, Rows), f"{Rows[0].receipt_number}.pdf")
+
+
+# --- Reports (Phase 4) ---------------------------------------------------------
+
+def _Excel(Content: bytes, FileName: str) -> Response:
+    return Response(
+        content=Content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{SafeFileName(FileName)}"', "Cache-Control": "no-store"},
+    )
+
+
+@router.get("/reports/overview")
+def admin_payments_overview(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return Overview(db)
+
+
+@router.get("/reports/collections")
+def admin_collections_report(dateFrom: str | None = None, dateTo: str | None = None, method: str | None = None, receivedBy: str | None = None, centreId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return CollectionsReport(db, Filters={"dateFrom": dateFrom, "dateTo": dateTo, "method": method, "receivedBy": receivedBy, "centreId": centreId})
+
+
+@router.get("/reports/collections/export")
+def admin_collections_export(dateFrom: str | None = None, dateTo: str | None = None, method: str | None = None, receivedBy: str | None = None, centreId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Report, Lines = CollectionLinesForExport(db, Filters={"dateFrom": dateFrom, "dateTo": dateTo, "method": method, "receivedBy": receivedBy, "centreId": centreId})
+    Name = f"MathPath-Collections-{Report['dateFrom']}" + (f"-to-{Report['dateTo']}" if Report["dateTo"] != Report["dateFrom"] else "") + ".xlsx"
+    return _Excel(BuildCollectionsWorkbook(Report, Lines), Name)
+
+
+@router.get("/reports/collections/pdf")
+def admin_collections_pdf(dateFrom: str | None = None, dateTo: str | None = None, method: str | None = None, receivedBy: str | None = None, centreId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.models import PaymentCentre
+    from app.services.payments.invoices_service import _BusinessSnapshot
+    from app.services.payments.receipts_service import METHOD_LABELS
+
+    Filters = {"dateFrom": dateFrom, "dateTo": dateTo, "method": method, "receivedBy": receivedBy, "centreId": centreId}
+    Report = CollectionsReport(db, Filters=Filters)
+    Parts = []
+    if method and method.upper() in METHOD_LABELS:
+        Parts.append(METHOD_LABELS[method.upper()] + " only")
+    if receivedBy:
+        Receiver = db.get(User, receivedBy)
+        Parts.append(f"Received by {Receiver.full_name if Receiver else 'unknown'}")
+    if centreId:
+        Centre = db.get(PaymentCentre, centreId) if centreId != "NONE" else None
+        Parts.append(f"Centre: {Centre.name if Centre else 'not set'}")
+    Name = f"MathPath-Collections-{Report['dateFrom']}" + (f"-to-{Report['dateTo']}" if Report["dateTo"] != Report["dateFrom"] else "") + ".pdf"
+    return _PdfResponse(RenderCollectionSummaryPdf(_BusinessSnapshot(db), Report, FilterText=" · ".join(Parts)), Name)
+
+
+@router.get("/reports/dues")
+def admin_dues_report(centreId: str | None = None, levelCode: str | None = None, feeItemId: str | None = None, bucket: str | None = None, search: str | None = None, activeOnly: str | None = None, sort: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return DuesReport(db, Filters={"centreId": centreId, "levelCode": levelCode, "feeItemId": feeItemId, "bucket": bucket, "search": search, "activeOnly": activeOnly, "sort": sort})
+
+
+@router.get("/reports/dues/export")
+def admin_dues_export(centreId: str | None = None, levelCode: str | None = None, feeItemId: str | None = None, bucket: str | None = None, search: str | None = None, activeOnly: str | None = None, sort: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Report = DuesReport(db, Filters={"centreId": centreId, "levelCode": levelCode, "feeItemId": feeItemId, "bucket": bucket, "search": search, "activeOnly": activeOnly, "sort": sort})
+    return _Excel(BuildDuesWorkbook(Report), f"MathPath-Dues-{Report['asOf']}.xlsx")
+
+
+# --- Expenses (Phase 4) --------------------------------------------------------
+# Fixed paths are declared before /expenses/{expense_id}.
+
+@router.get("/expense-categories")
+def admin_list_expense_categories(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Result = ListCategories(db)
+    db.commit()
+    return {"categories": Result}
+
+
+@router.post("/expense-categories")
+def admin_create_expense_category(payload: CategoryCreateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return CreateCategory(db, Name=payload.name, Actor=user)
+
+
+@router.patch("/expense-categories/{category_id}")
+def admin_update_expense_category(category_id: str, payload: CategoryUpdateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return UpdateCategory(db, CategoryId=category_id, Name=payload.name, IsActive=payload.isActive, Reason=payload.reason, Actor=user)
+
+
+def _ExpenseFilterDict(status, month, dateFrom, dateTo, categoryId, centreId, method, search) -> dict[str, Any]:
+    return {"status": status, "month": month, "dateFrom": dateFrom, "dateTo": dateTo, "categoryId": categoryId, "centreId": centreId, "method": method, "search": search}
+
+
+@router.get("/expenses")
+def admin_list_expenses(
+    status: str | None = None, month: str | None = None, dateFrom: str | None = None, dateTo: str | None = None,
+    categoryId: str | None = None, centreId: str | None = None, method: str | None = None, search: str | None = None,
+    page: int = 1, pageSize: int = 50, db: Session = Depends(get_db), user: User = Depends(admin_dep),
+):
+    return ListExpenses(db, Filters=_ExpenseFilterDict(status, month, dateFrom, dateTo, categoryId, centreId, method, search), Page=page, PageSize=pageSize)
+
+
+@router.post("/expenses")
+def admin_create_expense(payload: ExpenseCreateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Request = payload.model_dump()
+    Key = Request.pop("idempotencyKey")
+    return CreateExpense(db, Request=Request, IdempotencyKey=Key, Actor=user)
+
+
+@router.get("/expenses/export")
+def admin_export_expenses(
+    status: str | None = None, month: str | None = None, dateFrom: str | None = None, dateTo: str | None = None,
+    categoryId: str | None = None, centreId: str | None = None, method: str | None = None, search: str | None = None,
+    db: Session = Depends(get_db), user: User = Depends(admin_dep),
+):
+    Rows = ExpensesForExport(db, Filters=_ExpenseFilterDict(status, month, dateFrom, dateTo, categoryId, centreId, method, search))
+    return _Excel(BuildExpensesWorkbook(Rows), f"MathPath-Expenses-{month or TodayInIndia().isoformat()}.xlsx")
+
+
+@router.get("/expenses/{expense_id}")
+def admin_get_expense(expense_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return GetExpense(db, expense_id)
+
+
+@router.put("/expenses/{expense_id}")
+def admin_edit_expense(expense_id: str, payload: ExpenseEditRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Request = payload.model_dump()
+    Reason = Request.pop("reason")
+    return EditExpense(db, ExpenseId=expense_id, Request=Request, Reason=Reason, Actor=user)
+
+
+@router.post("/expenses/{expense_id}/cancel")
+def admin_cancel_expense(expense_id: str, payload: ExpenseCancelRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return CancelExpense(db, ExpenseId=expense_id, Reason=payload.reason, Actor=user)

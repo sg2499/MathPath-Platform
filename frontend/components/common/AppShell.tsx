@@ -69,7 +69,6 @@ import {
   Wallet,
   ReceiptText,
   Building2,
-  FilePlus2,
   FileText,
   HandCoins,
 } from "lucide-react";
@@ -430,8 +429,10 @@ export function AppShell({
     {
       // 2026-10-08 (Payments): fees, invoices and payments. Items are added
       // here phase by phase, so the menu never shows a page that is not built.
-      // Order (Shailesh, 8 Oct): Payment Settings, Fee Setup, Generate
-      // Invoices, Invoices, then each new page below in the order it ships.
+      // Order (Shailesh, 8 Oct): Payment Settings, Invoices, Collections,
+      // Reports, Expenses. Each is a section with its own sub-tabs (Phase 4);
+      // new features become a sub-tab of the right section, so this list
+      // stays short.
       label: "Payments",
       icon: Wallet,
       tooltip: "Fees, invoices and payments",
@@ -441,38 +442,31 @@ export function AppShell({
           shortLabel: "Settings",
           href: "/admin/payments/settings",
           icon: Building2,
-          tooltip: "Business details, centres and document numbering",
-        },
-        {
-          label: "Fee Setup",
-          href: "/admin/payments/fee-setup",
-          icon: ReceiptText,
-          tooltip: "The fees students can be invoiced for",
-        },
-        {
-          label: "Generate Invoices",
-          shortLabel: "Generate",
-          href: "/admin/payments/generate-invoices",
-          icon: FilePlus2,
-          tooltip: "Invoice students for a fee, one month or one item at a time",
+          tooltip: "Business details, centres, document numbering, fee setup and history",
         },
         {
           label: "Invoices",
           href: "/admin/payments/invoices",
           icon: FileText,
-          tooltip: "Every invoice: search, filter, download and cancel",
+          tooltip: "Every invoice, and Generate Invoices",
         },
         {
-          label: "Student Fees",
-          href: "/admin/payments/student-fees",
-          icon: UserRound,
-          tooltip: "One student's account: dues, advance, history and Record Payment",
-        },
-        {
-          label: "Payments",
-          href: "/admin/payments/receipts",
+          label: "Collections",
+          href: "/admin/payments/collections",
           icon: HandCoins,
-          tooltip: "Every payment received, with money receipts",
+          tooltip: "Student Fees (Record Payment) and every payment received",
+        },
+        {
+          label: "Reports",
+          href: "/admin/payments/reports",
+          icon: BarChart3,
+          tooltip: "Overview, Collections and Dues",
+        },
+        {
+          label: "Expenses",
+          href: "/admin/payments/expenses",
+          icon: ReceiptText,
+          tooltip: "Money spent, by category",
         },
       ],
     },

@@ -86,7 +86,7 @@ export function PaymentsMetric({ label, value, icon, tone = "slate" }: { label: 
         {icon}
         {label}
       </div>
-      <div className="mt-1 text-2xl font-black tabular-nums text-slate-950 dark:text-white">{value}</div>
+      <div className="mt-1 whitespace-nowrap text-2xl font-black tabular-nums text-slate-950 dark:text-white">{value}</div>
     </div>
   );
 }
@@ -173,9 +173,18 @@ const FIELD_LABELS: Record<string, string> = {
   payBy: "Paid by",
   receivedBy: "Received by",
   note: "Note",
+  expenseNumber: "Expense",
+  expenseDate: "Date",
+  category: "Category",
+  item: "Item",
+  vendor: "Vendor",
+  billNumber: "Bill number",
+  details: "Details",
 };
 
-function ShowValue(value: unknown, key?: string): string {
+const DATE_KEYS = new Set(["expenseDate", "paymentDate", "invoiceDate", "dueDate"]);
+
+function ShowValue(value: unknown, key?: string, entityType?: string): string {
   if (value === null || value === undefined || value === "") return "—";
   if (["amount", "discount", "advance", "advanceLeft", "movedToAdvance"].includes(key ?? "") && typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value)) {
     return `₹${Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -192,7 +201,11 @@ function ShowValue(value: unknown, key?: string): string {
   if (value === "PART_PAID") return "Part-paid";
   if (value === "PAID") return "Paid";
   if (value === "CANCELLED") return "Cancelled";
-  if (value === "RECORDED") return "Received";
+  if (value === "RECORDED") return entityType === "PAYMENT" ? "Received" : "Recorded";
+  if (key && DATE_KEYS.has(key) && typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+  }
   return String(value);
 }
 
@@ -221,10 +234,10 @@ function Changes({ entry }: { entry: PaymentAuditEntry }) {
           <span className="font-black text-slate-800 dark:text-slate-100">{FIELD_LABELS[key]}:</span>{" "}
           {entry.before ? (
             <>
-              <span className="line-through decoration-slate-400">{ShowValue(before[key], key)}</span> → {ShowValue(after[key], key)}
+              <span className="line-through decoration-slate-400">{ShowValue(before[key], key, entry.entityType)}</span> → {ShowValue(after[key], key, entry.entityType)}
             </>
           ) : (
-            ShowValue(after[key], key)
+            ShowValue(after[key], key, entry.entityType)
           )}
         </li>
       ))}

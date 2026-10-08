@@ -268,6 +268,63 @@ class PaymentMethodLine(Base):
     line_order = Column(Integer, nullable=False, default=0)
 
 
+class ExpenseCategory(Base):
+    """What an expense was for (Rent, Salaries, Electricity ...). Phase 4,
+    2026-10-08. Switched off, never deleted."""
+
+    __tablename__ = "expense_categories"
+    id = Column(String, primary_key=True, default=uuid_str)
+    name = Column(String(80), nullable=False)
+    name_key = Column(String(80), unique=True, nullable=False)
+    display_order = Column(Integer, default=0, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class Expense(Base):
+    """Money spent (Phase 4, 2026-10-08), numbered MP-EXP-0001. The category
+    name is copied onto the expense, so renaming a category later never
+    changes a past expense. Cancelled with a reason, never deleted."""
+
+    __tablename__ = "expenses"
+    id = Column(String, primary_key=True, default=uuid_str)
+    expense_number = Column(String(40), unique=True, nullable=False)
+    expense_date = Column(Date, nullable=False, index=True)
+    category_id = Column(String, ForeignKey("expense_categories.id"), nullable=True, index=True)
+    category_name = Column(String(80), nullable=False)
+    item = Column(String(200), nullable=False)
+    vendor = Column(String(150), nullable=True)
+    bill_number = Column(String(80), nullable=True)
+    details = Column(Text, nullable=True)
+    amount_paise = Column(Integer, nullable=False)
+    centre_id = Column(String, nullable=True, index=True)
+    note = Column(Text, nullable=True)
+    # RECORDED | CANCELLED
+    status = Column(String(20), nullable=False, default="RECORDED", index=True)
+    idempotency_key = Column(String(80), unique=True, nullable=True)
+    edited_at = Column(DateTime(timezone=True), nullable=True)
+    edited_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+    cancelled_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    cancel_reason = Column(Text, nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class ExpenseMethodLine(Base):
+    """How an expense was paid (Cash ₹500 + UPI ₹700 ...)."""
+
+    __tablename__ = "expense_method_lines"
+    id = Column(String, primary_key=True, default=uuid_str)
+    expense_id = Column(String, ForeignKey("expenses.id"), nullable=False, index=True)
+    method = Column(String(20), nullable=False)
+    amount_paise = Column(Integer, nullable=False)
+    reference = Column(String(120), nullable=True)
+    line_order = Column(Integer, nullable=False, default=0)
+
+
 __all__ = [
     "PaymentCentre",
     "PaymentBusinessProfile",
@@ -279,4 +336,7 @@ __all__ = [
     "PaymentReceipt",
     "PaymentAllocation",
     "PaymentMethodLine",
+    "ExpenseCategory",
+    "Expense",
+    "ExpenseMethodLine",
 ]

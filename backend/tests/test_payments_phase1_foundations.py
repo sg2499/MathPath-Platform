@@ -183,8 +183,10 @@ def test_defaults_are_created_once_and_never_overwrite_edits():
     assert [c["name"] for c in settings["centres"]] == ["Rajarhat", "Laketown", "Online"]
     assert settings["business"]["legalName"] == "BGM Enterprise"
     assert settings["business"]["gstin"] == "19AALPG9427A1ZQ"
-    assert [s["key"] for s in settings["numbering"]] == ["INVOICE", "RECEIPT"]
-    assert all(not s["isConfigured"] for s in settings["numbering"])
+    assert [s["key"] for s in settings["numbering"]] == ["INVOICE", "RECEIPT", "EXPENSE"]  # EXPENSE added in Phase 4
+    # Invoice and receipt numbers wait for the old platform's last numbers;
+    # expenses are new, so MP-EXP-0001 is ready from the start.
+    assert {s["key"]: s["isConfigured"] for s in settings["numbering"]} == {"INVOICE": False, "RECEIPT": False, "EXPENSE": True}
 
     setup.UpdateBusinessProfile(db, Fields={"legalName": "BGM Enterprise Pvt"}, Actor=admin)
     setup.EnsurePaymentDefaults(db)
@@ -192,7 +194,7 @@ def test_defaults_are_created_once_and_never_overwrite_edits():
     db.commit()
     assert db.query(PaymentCentre).count() == 3
     assert db.get(PaymentBusinessProfile, "default").legal_name == "BGM Enterprise Pvt"
-    assert db.query(PaymentNumberSequence).count() == 2
+    assert db.query(PaymentNumberSequence).count() == 3
 
 
 # --- fee items -------------------------------------------------------------------
@@ -419,7 +421,7 @@ def test_every_payments_admin_route_refuses_students_and_teachers(role):
     try:
         checked = 0
         for route in router.routes:
-            path = route.path.replace("{fee_item_id}", "x").replace("{invoice_id}", "x").replace("{payment_id}", "x").replace("{student_id}", "x").replace("{centre_id}", "x").replace("{sequence_key}", "INVOICE")
+            path = route.path.replace("{fee_item_id}", "x").replace("{invoice_id}", "x").replace("{payment_id}", "x").replace("{student_id}", "x").replace("{expense_id}", "x").replace("{category_id}", "x").replace("{centre_id}", "x").replace("{sequence_key}", "INVOICE")
             for method in route.methods:
                 response = client.request(method, path, json={})
                 assert response.status_code == 403, (method, path, response.status_code)

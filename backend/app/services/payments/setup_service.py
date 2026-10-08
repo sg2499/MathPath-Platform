@@ -132,6 +132,10 @@ def EnsurePaymentDefaults(db: Session) -> None:
         except IntegrityError:
             pass
     EnsureNumberSequences(db)
+    # 2026-10-08 (Phase 4): the starting list of expense categories.
+    from app.services.payments.expenses_service import EnsureExpenseCategories
+
+    EnsureExpenseCategories(db)
     db.flush()
 
 

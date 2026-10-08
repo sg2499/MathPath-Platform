@@ -26,6 +26,9 @@ from app.services.payments.audit import WritePaymentAudit
 SEQUENCE_DEFAULTS: dict[str, dict[str, Any]] = {
     "INVOICE": {"prefix": "MP-INV-", "pad_width": 6, "label": "Invoice"},
     "RECEIPT": {"prefix": "MP-MRCPT-", "pad_width": 0, "label": "Money receipt"},
+    # 2026-10-08 (Phase 4): expenses are new (the old platform had none), so
+    # this one is ready from the start at MP-EXP-0001.
+    "EXPENSE": {"prefix": "MP-EXP-", "pad_width": 4, "label": "Expense", "configured": True},
 }
 MAX_SEQUENCE_NUMBER = 99_999_999
 
@@ -42,7 +45,7 @@ def EnsureNumberSequences(db: Session) -> None:
             continue
         try:
             with db.begin_nested():
-                db.add(PaymentNumberSequence(key=Key, prefix=Defaults["prefix"], pad_width=Defaults["pad_width"], next_number=1, is_configured=False))
+                db.add(PaymentNumberSequence(key=Key, prefix=Defaults["prefix"], pad_width=Defaults["pad_width"], next_number=1, is_configured=bool(Defaults.get("configured", False))))
         except IntegrityError:
             pass
     db.flush()

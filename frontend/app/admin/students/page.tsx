@@ -1034,7 +1034,7 @@ export default function AdminStudentsPage() {
 
                           {/* 2026-10-08 (Payments Phase 3): this student's account. */}
                           <Link
-                            href={`/admin/payments/student-fees?studentId=${encodeURIComponent(s.studentId)}`}
+                            href={`/admin/payments/collections?tab=student-fees&studentId=${encodeURIComponent(s.studentId)}`}
                             className="math-role-action-button math-role-icon-only"
                             title="Fees"
                             aria-label={`Fees for ${s.fullName}`}
