@@ -9,6 +9,7 @@ from app.models import *  # noqa
 from app.api.routes_health import router as health_router
 from app.api.routes_auth import router as auth_router
 from app.api.routes_admin import router as admin_router
+from app.api.routes_admin_payments import router as admin_payments_router
 from app.api.routes_student import router as student_router
 from app.api.routes_teacher import router as teacher_router
 from app.api.routes_teacher_reports import router as teacher_reports_router
@@ -185,6 +186,10 @@ def on_startup():
     ensure_annual_competition_answer_text_column()
     ensure_annual_competition_practice_bank_columns()
     ensure_annual_competition_practice_event_decoupling()
+    # 2026-10-08 (Payments Phase 1): students.centre_id, plus the default
+    # centres, business details and number sequences (created once).
+    from app.services.schema_migration import ensure_payments_foundation
+    ensure_payments_foundation()
 
     # Seed gamification badges safely
     from app.services.achievements import AchievementEngine
@@ -306,6 +311,7 @@ def on_startup():
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(admin_payments_router)
 app.include_router(student_router)
 app.include_router(teacher_router)
 app.include_router(teacher_reports_router)

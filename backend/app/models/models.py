@@ -87,6 +87,10 @@ class Student(Base):
 
     # Kept for backward compatibility with earlier Phase 2A builds
     parent_contact = Column(String(20), nullable=True)
+    # 2026-10-08 (Payments): the centre the student attends (Rajarhat,
+    # Laketown, Online), printed on their invoices and receipts. Nullable:
+    # a student with no centre gets both addresses on their documents.
+    centre_id = Column(String, ForeignKey("payment_centres.id", ondelete="SET NULL"), nullable=True, index=True)
 
     user = relationship("User")
     assigned_teacher = relationship("Teacher", foreign_keys=[teacher_id])

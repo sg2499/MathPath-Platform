@@ -66,6 +66,9 @@ import {
   UsersRound,
   X,
   Database,
+  Wallet,
+  ReceiptText,
+  Building2,
 } from "lucide-react";
 import type { ChangeEvent, ComponentType, CSSProperties, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -418,6 +421,28 @@ export function AppShell({
           href: "/admin/competition/annual-studio",
           icon: Trophy,
           tooltip: "Set up and run the real, scheduled Annual Competition event",
+        },
+      ],
+    },
+    {
+      // 2026-10-08 (Payments): fees, invoices and payments. Items are added
+      // here phase by phase, so the menu never shows a page that is not built.
+      label: "Payments",
+      icon: Wallet,
+      tooltip: "Fees, invoices and payments",
+      children: [
+        {
+          label: "Fee Setup",
+          href: "/admin/payments/fee-setup",
+          icon: ReceiptText,
+          tooltip: "The fees students can be invoiced for",
+        },
+        {
+          label: "Payment Settings",
+          shortLabel: "Settings",
+          href: "/admin/payments/settings",
+          icon: Building2,
+          tooltip: "Business details, centres and document numbering",
         },
       ],
     },
