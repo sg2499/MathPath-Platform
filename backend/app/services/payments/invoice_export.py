@@ -172,3 +172,98 @@ def BuildPaymentsWorkbook(Rows: list[dict[str, Any]]) -> bytes:
     Buffer = BytesIO()
     Book.save(Buffer)
     return Buffer.getvalue()
+
+
+# ----------------------------------------------------------------------------
+# 2026-10-08 (Phase 4): reports and expenses.
+# ----------------------------------------------------------------------------
+
+def _Sheet(Book: Workbook, Title: str, Headers: list[tuple[str, int]], Rows: list[list[Any]], MoneyColumns: set[int], TotalRow: list[Any] | None = None, First: bool = False):
+    Sheet = Book.active if First else Book.create_sheet(Title)
+    Sheet.title = Title
+    Sheet.append([Name for Name, _ in Headers])
+    for Index, (_, Width) in enumerate(Headers, start=1):
+        Cell = Sheet.cell(row=1, column=Index)
+        Cell.font = Font(bold=True)
+        Cell.fill = PatternFill("solid", fgColor="E8EAF6")
+        Sheet.column_dimensions[get_column_letter(Index)].width = Width
+    Sheet.freeze_panes = "A2"
+    for Row in Rows:
+        Sheet.append(Row)
+    if TotalRow is not None and Rows:
+        Sheet.append([])
+        Sheet.append(TotalRow)
+        for Index in range(1, len(Headers) + 1):
+            Sheet.cell(row=Sheet.max_row, column=Index).font = Font(bold=True)
+    for Index in MoneyColumns:
+        for RowIndex in range(2, Sheet.max_row + 1):
+            Sheet.cell(row=RowIndex, column=Index).number_format = "#,##0.00"
+    return Sheet
+
+
+def _Rs(Paise: int) -> float:
+    return round(int(Paise or 0) / 100, 2)
+
+
+def BuildCollectionsWorkbook(Report: dict[str, Any], Lines: list[dict[str, Any]]) -> bytes:
+    Book = Workbook()
+    Methods = [Row["methodLabel"] for Row in Report["byMethod"]]
+    Summary = [[Row["methodLabel"], _Rs(Row["paise"])] for Row in Report["byMethod"]]
+    _Sheet(Book, "Summary", [("Method", 18), ("Amount (Rs)", 16)], Summary, {2}, ["Total", _Rs(Report["total"]["paise"])], First=True)
+    Staff = [[Row["name"], Row["paymentCount"]] + [_Rs(next((M["paise"] for M in Row["byMethod"] if M["methodLabel"] == Method), 0)) for Method in Methods] + [_Rs(Row["paise"])] for Row in Report["byStaff"]]
+    _Sheet(Book, "By Staff", [("Received By", 24), ("Payments", 10)] + [(Method, 14) for Method in Methods] + [("Total (Rs)", 14)], Staff, set(range(3, 4 + len(Methods))))
+    Days = [[Row["date"], Row["paymentCount"]] + [_Rs(next((M["paise"] for M in Row["byMethod"] if M["methodLabel"] == Method), 0)) for Method in Methods] + [_Rs(Row["paise"])] for Row in Report["byDay"]]
+    _Sheet(Book, "Daily", [("Date", 12), ("Payments", 10)] + [(Method, 14) for Method in Methods] + [("Total (Rs)", 14)], Days, set(range(3, 4 + len(Methods))),
+           ["Total", Report["paymentCount"]] + [_Rs(Row["paise"]) for Row in Report["byMethod"]] + [_Rs(Report["total"]["paise"])])
+    Detail = [[Line["date"], Line["receiptNumber"], Line["studentName"], Line["studentCode"], Line["centreName"] or "", Line["method"], Line["reference"] or "", _Rs(Line["amountPaise"]), Line["receivedBy"] or "", Line["payBy"] or ""] for Line in Lines]
+    _Sheet(Book, "Payments", [("Date", 12), ("Receipt No.", 16), ("Student", 26), ("Student ID", 13), ("Centre", 14), ("Method", 13), ("Reference", 22), ("Amount (Rs)", 13), ("Received By", 20), ("Paid By", 20)], Detail, {8},
+           ["Total", "", "", "", "", "", "", _Rs(sum(Line["amountPaise"] for Line in Lines)), "", ""])
+    Buffer = BytesIO()
+    Book.save(Buffer)
+    return Buffer.getvalue()
+
+
+def BuildDuesWorkbook(Report: dict[str, Any]) -> bytes:
+    Book = Workbook()
+    Students = [
+        [Row["studentName"], Row["studentCode"], Row["customId"] or "", Row["parentName"] or "", Row["mobile"] or "", Row["centreName"] or "", Row["levelCode"] or "",
+         len(Row["invoices"]), Row["oldestDueDate"] or "", Row["maxDaysOverdue"], Row["bucketLabel"], _Rs(Row["overduePaise"]), _Rs(Row["duePaise"]), _Rs(Row["advancePaise"]),
+         "Yes" if Row["isActive"] else "No"]
+        for Row in Report["students"]
+    ]
+    _Sheet(Book, "Students", [("Student", 26), ("Student ID", 13), ("Old ID", 10), ("Parent", 22), ("Mobile", 14), ("Centre", 14), ("Level", 9), ("Invoices", 9),
+                              ("Oldest Due", 12), ("Days Overdue", 12), ("Age", 20), ("Overdue (Rs)", 13), ("Total Due (Rs)", 14), ("Advance (Rs)", 13), ("Active", 8)],
+           Students, {12, 13, 14}, ["Total", "", "", "", "", "", "", Report["invoiceCount"], "", "", "", _Rs(Report["overdue"]["paise"]), _Rs(Report["total"]["paise"]), "", ""], First=True)
+    Invoices = [
+        [Row["studentName"], Row["studentCode"], Invoice["invoiceNumber"], Invoice["feeName"], Invoice["periodLabel"] or "", Invoice["invoiceDate"], Invoice["dueDate"] or "",
+         Invoice["daysOverdue"], Invoice["bucketLabel"], _Rs(Invoice["balancePaise"])]
+        for Row in Report["students"] for Invoice in Row["invoices"]
+    ]
+    _Sheet(Book, "Invoices", [("Student", 26), ("Student ID", 13), ("Invoice No.", 16), ("Fee", 24), ("Period", 15), ("Invoice Date", 12), ("Due Date", 12), ("Days Overdue", 12), ("Age", 20), ("Due (Rs)", 13)],
+           Invoices, {10}, ["Total", "", "", "", "", "", "", "", "", _Rs(Report["total"]["paise"])])
+    _Sheet(Book, "By Age", [("Age", 22), ("Due (Rs)", 14)], [[Row["label"], _Rs(Row["paise"])] for Row in Report["buckets"]], {2}, ["Total", _Rs(Report["total"]["paise"])])
+    Buffer = BytesIO()
+    Book.save(Buffer)
+    return Buffer.getvalue()
+
+
+def BuildExpensesWorkbook(Rows: list[dict[str, Any]]) -> bytes:
+    Book = Workbook()
+    Live = [Row for Row in Rows if Row["status"] == "RECORDED"]
+    Data = [
+        [Row["expenseNumber"], Row["expenseDate"], Row["categoryName"], Row["item"], Row["vendor"] or "", Row["billNumber"] or "", Row["centreName"] or "",
+         Row["methodSummary"], ", ".join(Line["reference"] for Line in Row["methods"] if Line.get("reference")), _Rs(Row["amountPaise"]), Row["details"] or "", Row["note"] or "",
+         Row["statusLabel"], Row["cancelReason"] or "", Row["createdByName"] or ""]
+        for Row in Rows
+    ]
+    _Sheet(Book, "Expenses", [("Expense No.", 14), ("Date", 12), ("Category", 18), ("Item", 28), ("Vendor", 20), ("Bill No.", 12), ("Centre", 14), ("Paid With", 28), ("References", 20),
+                              ("Amount (Rs)", 13), ("Details", 30), ("Note", 24), ("Status", 11), ("Cancel Reason", 22), ("Recorded By", 18)],
+           Data, {10}, ["Total (excluding cancelled)", "", "", "", "", "", "", "", "", _Rs(sum(Row["amountPaise"] for Row in Live)), "", "", "", "", ""], First=True)
+    ByCategory: dict[str, int] = {}
+    for Row in Live:
+        ByCategory[Row["categoryName"]] = ByCategory.get(Row["categoryName"], 0) + Row["amountPaise"]
+    _Sheet(Book, "By Category", [("Category", 22), ("Amount (Rs)", 14)], [[Name, _Rs(Paise)] for Name, Paise in sorted(ByCategory.items(), key=lambda Item: -Item[1])], {2},
+           ["Total", _Rs(sum(ByCategory.values()))])
+    Buffer = BytesIO()
+    Book.save(Buffer)
+    return Buffer.getvalue()

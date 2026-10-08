@@ -578,3 +578,89 @@ def RenderReceiptsPdf(Items: Iterable[tuple[dict[str, Any], dict[str, Any]]], *,
         Story += _ReceiptStory(Snapshot, Payload, S, Doc.width)
     Doc.build(Story)
     return Buffer.getvalue()
+
+
+# ----------------------------------------------------------------------------
+# Collection summary / day close (Payments Phase 4, 2026-10-08)
+# ----------------------------------------------------------------------------
+
+def RenderCollectionSummaryPdf(Business: dict[str, Any], Report: dict[str, Any], *, FilterText: str = "") -> bytes:
+    """One summary for a date range (a single day = the day-close sheet):
+    totals by method, by staff, and every payment, with sign-off lines for
+    counting the cash drawer."""
+    from datetime import date as _date
+
+    Buffer = BytesIO()
+    Doc = BaseDocTemplate(Buffer, pagesize=A4, leftMargin=16 * mm, rightMargin=16 * mm, topMargin=14 * mm, bottomMargin=16 * mm, title="Collection Summary", author="MathPath", creator="MathPath")
+    Body = Frame(Doc.leftMargin, Doc.bottomMargin, Doc.width, Doc.height, id="body", leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
+    Doc.addPageTemplates([PageTemplate(id="summary", frames=[Body], onPageEnd=_OnPageEnd)])
+    S = _Styles()
+    W = Doc.width
+    From = _date.fromisoformat(Report["dateFrom"])
+    To = _date.fromisoformat(Report["dateTo"])
+    Period = _FormatDate(From) if From == To else f"{_FormatDate(From)} to {_FormatDate(To)}"
+    Title = "DAY CLOSE" if From == To else "COLLECTIONS"
+    Story: list = [_StatusMark("SUMMARY", f"Collection summary · {Period}")]
+    Story += _BusinessHeader(Business, [
+        Paragraph(Title, S["title"]),
+        Spacer(1, 2 * mm),
+        Paragraph(f"<b>{_T(Period)}</b>", S["rightBold"]),
+        Paragraph(_T(FilterText or "All methods, staff and centres"), S["right"]),
+    ], S, W)
+
+    Grid = [
+        ("BACKGROUND", (0, 0), (-1, 0), WASH),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.6, RULE),
+        ("LINEABOVE", (0, -1), (-1, -1), 0.6, RULE),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]
+    Methods = [Row["methodLabel"] for Row in Report["byMethod"]]
+
+    # By method.
+    Rows = [[Paragraph("METHOD", S["cellHead"]), Paragraph("AMOUNT", S["cellHeadRight"])]]
+    for Row in Report["byMethod"]:
+        Rows.append([Paragraph(_T(Row["methodLabel"]), S["cell"]), Paragraph(Money(Row["paise"]), S["cellRight"])])
+    Rows.append([Paragraph(f"<b>Total</b> ({Report['paymentCount']} payments)", S["cell"]), Paragraph(f"<b>{Money(Report['total']['paise'])}</b>", S["cellRight"])])
+    Table1 = Table(Rows, colWidths=[W * 0.35, W * 0.2])
+    Table1.setStyle(TableStyle(Grid))
+    Table1.hAlign = "LEFT"
+    Story += [Paragraph("BY METHOD", S["label"]), Spacer(1, 1.5 * mm), Table1, Spacer(1, 5 * mm)]
+
+    # By staff (staff x method).
+    if Report["byStaff"]:
+        Head = [Paragraph("RECEIVED BY", S["cellHead"])] + [Paragraph(_T(Method.upper()), S["cellHeadRight"]) for Method in Methods] + [Paragraph("TOTAL", S["cellHeadRight"])]
+        Rows = [Head]
+        for Row in Report["byStaff"]:
+            Values = {M["methodLabel"]: M["paise"] for M in Row["byMethod"]}
+            Rows.append([Paragraph(_T(Row["name"]), S["cell"])] + [Paragraph(Money(Values.get(Method, 0)) if Values.get(Method) else "-", S["cellRight"]) for Method in Methods] + [Paragraph(f"<b>{Money(Row['paise'])}</b>", S["cellRight"])])
+        Width = (W * 0.7) / (len(Methods) + 1)
+        Table2 = Table(Rows, colWidths=[W * 0.3] + [Width] * (len(Methods) + 1), repeatRows=1)
+        Table2.setStyle(TableStyle(Grid[:-1] + [("LINEBELOW", (0, -1), (-1, -1), 0.6, RULE)]))
+        Story += [Paragraph("BY STAFF", S["label"]), Spacer(1, 1.5 * mm), Table2, Spacer(1, 5 * mm)]
+
+    # Every payment.
+    Rows = [[Paragraph(Text, S["cellHead"] if Index < 4 else S["cellHeadRight"]) for Index, Text in enumerate(["DATE", "RECEIPT", "STUDENT", "PAID WITH", "AMOUNT"])]]
+    for Row in sorted(Report.get("payments", []), key=lambda Item: (Item["paymentDate"], Item["receiptNumber"])):
+        Rows.append([
+            Paragraph(_FormatDate(_date.fromisoformat(Row["paymentDate"])), S["cell"]),
+            Paragraph(_T(Row["receiptNumber"]), S["cell"]),
+            Paragraph(_T(f"{Row['studentName']} ({Row['studentCode']})"), S["cell"]),
+            Paragraph(_T(Row["methodSummary"]), S["cell"]),
+            Paragraph(Money(Row["inFilterPaise"]), S["cellRight"]),
+        ])
+    if len(Rows) > 1:
+        Table3 = Table(Rows, colWidths=[W * 0.14, W * 0.16, W * 0.3, W * 0.25, W * 0.15], repeatRows=1)
+        Table3.setStyle(TableStyle(Grid[:-1] + [("LINEBELOW", (0, -1), (-1, -1), 0.6, RULE)]))
+        Story += [Paragraph("PAYMENTS", S["label"]), Spacer(1, 1.5 * mm), Table3]
+    else:
+        Story += [Paragraph("No payments in this period.", S["body"])]
+
+    Sign = Table(
+        [[Paragraph("Cash counted by: ____________________", S["body"]), Paragraph("Verified by: ____________________", S["right"])]],
+        colWidths=[W * 0.5, W * 0.5],
+    )
+    Sign.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+    Story += [Spacer(1, 14 * mm), KeepTogether([Sign])]
+    Doc.build(Story)
+    return Buffer.getvalue()
