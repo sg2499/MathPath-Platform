@@ -860,3 +860,112 @@ def admin_day_close_pdf(day: str, db: Session = Depends(get_db), user: User = De
     Summary = DaySummary(db, day)
     Report = CollectionsReport(db, Filters={"dateFrom": Summary["date"], "dateTo": Summary["date"]})
     return _PdfResponse(RenderCollectionSummaryPdf(_BusinessSnapshot(db), Report, DayClose=Summary), f"MathPath-Day-Close-{Summary['date']}.pdf")
+
+
+
+# --- Monthly billing (revamp R3) ---------------------------------------------------
+
+class BillingSettingsRequest(BaseModel):
+    indiaFeeItemId: str | None = None
+    internationalFeeItemId: str | None = None
+    autoDraftsEnabled: bool | None = None
+
+
+class BillingModesRequest(BaseModel):
+    studentIds: list[str] = Field(max_length=2000)
+    mode: str
+
+
+class BillingDraftsRequest(BaseModel):
+    studentIds: list[str] | None = Field(default=None, max_length=2000)
+
+
+class BillingReleaseRequest(BaseModel):
+    draftIds: list[str] = Field(max_length=1000)
+    idempotencyKey: str = Field(max_length=80)
+
+
+class BillingDropRequest(BaseModel):
+    reason: str = Field(max_length=300)
+
+
+@router.get("/billing/settings")
+def admin_billing_settings(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.billing_service import BillingSettings
+
+    Result = BillingSettings(db)
+    db.commit()
+    return Result
+
+
+@router.put("/billing/settings")
+def admin_update_billing_settings(payload: BillingSettingsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.billing_service import UpdateBillingSettings
+
+    return UpdateBillingSettings(db, Request=payload.model_dump(exclude_unset=True), Actor=user)
+
+
+@router.get("/billing/students")
+def admin_billing_students(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.billing_service import ListStudentModes
+
+    Result = ListStudentModes(db)
+    db.commit()
+    return {"students": Result}
+
+
+@router.post("/billing/students/mode")
+def admin_billing_set_modes(payload: BillingModesRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.billing_service import SetStudentModes
+
+    return SetStudentModes(db, StudentIds=payload.studentIds, Mode=payload.mode, Actor=user)
+
+
+@router.get("/billing/students/{student_id}")
+def admin_billing_student(student_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.billing_service import StudentBilling
+
+    Result = StudentBilling(db, student_id)
+    db.commit()
+    return Result
+
+
+@router.get("/billing/month")
+def admin_billing_month(period: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.billing_service import EnsureMonthlyDrafts, MonthBilling
+
+    try:
+        EnsureMonthlyDrafts(db)
+    except Exception:
+        db.rollback()
+    Result = MonthBilling(db, period)
+    db.commit()
+    return Result
+
+
+@router.post("/billing/month/{period}/drafts")
+def admin_billing_create_drafts(period: str, payload: BillingDraftsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.billing_service import CreateDrafts
+
+    return CreateDrafts(db, PeriodValue=period, StudentIds=payload.studentIds, Actor=user)
+
+
+@router.post("/billing/month/{period}/release")
+def admin_billing_release(period: str, payload: BillingReleaseRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.billing_service import ReleaseDrafts
+
+    return ReleaseDrafts(db, PeriodValue=period, DraftIds=payload.draftIds, IdempotencyKey=payload.idempotencyKey, Actor=user)
+
+
+@router.post("/billing/drafts/{draft_id}/drop")
+def admin_billing_drop(draft_id: str, payload: BillingDropRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.billing_service import DropDraft
+
+    return DropDraft(db, DraftId=draft_id, Reason=payload.reason, Actor=user)
+
+
+@router.post("/billing/drafts/{draft_id}/restore")
+def admin_billing_restore(draft_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.billing_service import RestoreDraft
+
+    return RestoreDraft(db, DraftId=draft_id, Actor=user)

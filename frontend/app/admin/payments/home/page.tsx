@@ -79,7 +79,12 @@ function HomeBody({ data }: { data: PaymentsHome }) {
   const quickPay = useQuickPay();
   const close = data.dayClose;
   const pendingDays = close.pendingDays;
-  const attentionCount = data.attention.online.length + data.attention.setup.length + (data.attention.failedToday ? 1 : 0) + pendingDays.length;
+  const billing = data.billing;
+  const billingItems: { key: string; text: string }[] = [];
+  if (!billing.feesReady) billingItems.push({ key: "fees", text: "Choose the monthly fee for India and International students before the next billing month." });
+  if (billing.waiting) billingItems.push({ key: "waiting", text: `${billing.periodLabel}: ${billing.waiting} fee draft${billing.waiting === 1 ? "" : "s"} waiting to be released.` });
+  if (billing.notBilled) billingItems.push({ key: "not-billed", text: `${billing.periodLabel} not billed for ${billing.notBilled} active student${billing.notBilled === 1 ? "" : "s"}.` });
+  const attentionCount = data.attention.online.length + data.attention.setup.length + (data.attention.failedToday ? 1 : 0) + pendingDays.length + billingItems.length;
   const monthUp = data.lastMonthCollected.paise > 0 ? Math.round(((data.thisMonthCollected.paise - data.lastMonthCollected.paise) / data.lastMonthCollected.paise) * 100) : null;
   const todayClosed = close.todayState === "CLOSED" && !close.todayChangedAfterClose;
   const dayLine = close.todayState === "CLOSED"
@@ -102,7 +107,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
             ) : (
               <Link href="/admin/payments/collections?tab=student-fees" className="math-button-primary whitespace-nowrap"><HandCoins size={17} />Record Payment</Link>
             )}
-            <Link href="/admin/payments/invoices?tab=generate" className="math-button-secondary whitespace-nowrap"><FilePlus2 size={17} />Generate Invoices</Link>
+            <Link href="/admin/payments/invoices?tab=monthly" className="math-button-secondary whitespace-nowrap"><FilePlus2 size={17} />{billing.waiting ? `Bill ${billing.periodLabel.split(" ")[0]} (${billing.waiting})` : "Monthly Billing"}</Link>
             <Link href="/admin/payments/collections?tab=day-close" className="math-button-secondary whitespace-nowrap">
               {todayClosed ? <CheckCircle2 size={17} className="text-emerald-600 dark:text-emerald-400" /> : <CalendarCheck size={17} />}{todayClosed ? "Day closed" : "Close the day"}
             </Link>
@@ -152,9 +157,16 @@ function HomeBody({ data }: { data: PaymentsHome }) {
             icon={attentionCount ? <AlertTriangle size={18} className="text-amber-600" /> : <CheckCircle2 size={18} className="text-emerald-600" />}
           >
             {attentionCount === 0 ? (
-              <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">All clear: earlier days are closed, no online payments are waiting, and nothing needs setting up.</p>
+              <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">All clear: billing is up to date, earlier days are closed, no online payments are waiting, and nothing needs setting up.</p>
             ) : (
               <ul className="grid gap-2">
+                {billingItems.map((item) => (
+                  <li key={item.key}>
+                    <Link href={item.key === "fees" ? "/admin/payments/settings?tab=billing" : "/admin/payments/invoices?tab=monthly"} className="flex items-center gap-3 rounded-2xl border border-cyan-200 bg-cyan-50/80 px-4 py-3 text-sm font-bold text-cyan-900 transition hover:border-cyan-300 dark:border-cyan-900/60 dark:bg-cyan-950/30 dark:text-cyan-100">
+                      <FilePlus2 size={16} className="shrink-0" /><span className="min-w-0 flex-1">{item.text}</span><ArrowRight size={15} className="shrink-0" />
+                    </Link>
+                  </li>
+                ))}
                 {pendingDays.map((day) => (
                   <li key={day.date}>
                     <Link href={`/admin/payments/collections?tab=day-close&date=${day.date}`} className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm font-bold text-amber-900 transition hover:border-amber-300 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">

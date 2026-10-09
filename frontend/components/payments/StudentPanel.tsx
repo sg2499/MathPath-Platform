@@ -15,7 +15,7 @@ import { createPortal } from "react-dom";
 import { InlineError } from "@/components/payments/PaymentsUi";
 import { PayLinkCard } from "@/components/payments/PayLinkCard";
 import { useQuickPay } from "@/components/payments/QuickPay";
-import { getStudentAccount } from "@/lib/api/payments";
+import { getStudentAccount, getStudentBilling } from "@/lib/api/payments";
 import "./payments-r1.css";
 import { FormatDate } from "@/lib/paymentsDates";
 
@@ -81,6 +81,7 @@ function StudentPanel({ studentId, onClose }: { studentId: string | null; onClos
   const returnFocus = useRef<HTMLElement | null>(null);
   useEffect(() => setMounted(true), []);
   const query = useQuery({ queryKey: ["admin", "payments", "account", studentId], queryFn: () => getStudentAccount(studentId!), enabled: Boolean(studentId) });
+  const billing = useQuery({ queryKey: ["admin", "payments", "billing", "student", studentId], queryFn: () => getStudentBilling(studentId!), enabled: Boolean(studentId) });
 
   useEffect(() => {
     if (!studentId) return;
@@ -125,6 +126,20 @@ function StudentPanel({ studentId, onClose }: { studentId: string | null; onClos
               <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                 {account.student.parentName ? <span>{account.student.parentName}</span> : null}
                 {account.student.mobile ? <span className="inline-flex items-center gap-1 tabular-nums"><Phone size={12} />{account.student.mobile}</span> : null}
+              </p>
+            ) : null}
+            {billing.data ? (
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700 dark:bg-slate-800 dark:text-slate-200">{billing.data.billingModeLabel} fee</span>
+                <Link href={`/admin/payments/invoices?tab=monthly&period=${billing.data.period}`} onClick={onClose} className={`hover:underline ${billing.data.state === "INVOICED" ? "text-emerald-700 dark:text-emerald-300" : billing.data.state === "DROPPED" ? "text-slate-500 dark:text-slate-400" : "text-amber-700 dark:text-amber-300"}`}>
+                  {billing.data.state === "INVOICED"
+                    ? `${billing.data.periodLabel} invoiced (${billing.data.invoiceNumber})`
+                    : billing.data.state === "DRAFT"
+                      ? `${billing.data.periodLabel} draft waiting to be released`
+                      : billing.data.state === "DROPPED"
+                        ? `Not billed for ${billing.data.periodLabel}${billing.data.dropReason ? `: ${billing.data.dropReason}` : ""}`
+                        : `${billing.data.periodLabel} not billed yet`}
+                </Link>
               </p>
             ) : null}
           </div>

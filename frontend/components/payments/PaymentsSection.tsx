@@ -15,7 +15,7 @@
 // ?tab=), so filters from one tab never leak into another.
 import { AppShell } from "@/components/common/AppShell";
 import { LoadingState } from "@/components/common/LoadingState";
-import { getOnlineSettings, getPaymentSettings } from "@/lib/api/payments";
+import { getBillingSettings, getOnlineSettings, getPaymentSettings } from "@/lib/api/payments";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
@@ -157,7 +157,14 @@ export function useSettingsFlags() {
     business: Boolean(settings && !settings.business.registeredAddress),
     centres: Boolean(settings && settings.activeStudentsWithoutCentre > 0),
     numbering: Boolean(settings && settings.numbering.some((sequence) => !sequence.isConfigured)),
+    billing: useBillingFlag(),
   };
+}
+
+/** Revamp R3: monthly billing needs attention (a fee not chosen for a mode). */
+export function useBillingFlag(): boolean {
+  const query = useQuery({ queryKey: ["admin", "payments", "billing", "settings"], queryFn: getBillingSettings, staleTime: 30_000 });
+  return Boolean(query.data && query.data.problems.length > 0);
 }
 
 /** For the old addresses: send to the new section tab, keeping the rest of the address. */
