@@ -131,6 +131,34 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
     return JSONResponse(status_code=500, content={"error": {"code": "INTERNAL_SERVER_ERROR", "message": "Something went wrong. Please try again.", "details": {}}})
 
+def _StartMonthlyDraftsCheck() -> None:
+    import os
+    import threading
+    import time
+
+    if os.getenv("PAYMENTS_MONTHLY_DRAFTS_CHECK", "1") == "0":
+        return
+
+    def _Loop() -> None:
+        time.sleep(60)
+        while True:
+            Session_ = SessionLocal()
+            try:
+                from app.services.payments.billing_service import EnsureMonthlyDrafts
+
+                Made = EnsureMonthlyDrafts(Session_)
+                if Made:
+                    logger.info("Monthly billing: %s draft invoices made", Made)
+            except Exception:
+                Session_.rollback()
+                logger.exception("Monthly billing drafts check failed")
+            finally:
+                Session_.close()
+            time.sleep(30 * 60)
+
+    threading.Thread(target=_Loop, name="monthly-billing-drafts", daemon=True).start()
+
+
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
@@ -192,6 +220,10 @@ def on_startup():
     # centres, business details and number sequences (created once).
     from app.services.schema_migration import ensure_payments_foundation
     ensure_payments_foundation()
+    # 2026-10-09 (Payments revamp R3): the monthly-fee drafts on the 1st.
+    # A light check every 30 minutes (and once shortly after start), safe to
+    # run from every worker: the month is drafted once, under a row lock.
+    _StartMonthlyDraftsCheck()
 
     # Seed gamification badges safely
     from app.services.achievements import AchievementEngine

@@ -92,9 +92,19 @@ def PaymentsHome(db: Session) -> dict[str, Any]:
     from app.services.payments.dayclose_service import HomeDayClose
 
     DayClose = HomeDayClose(db)
+    from app.services.payments.billing_service import EnsureMonthlyDrafts, HomeBilling
+
+    # The automatic monthly drafts also run here, in case the background
+    # check has not yet (for example, right after a restart on the 1st).
+    try:
+        EnsureMonthlyDrafts(db)
+    except Exception:  # never let Home fail because of it
+        db.rollback()
+    Billing = HomeBilling(db)
     return {
         "today": Base["today"],
         "dayClose": DayClose,
+        "billing": Billing,
         "todayCollected": Base["todayCollected"],
         "todayPaymentCount": Base["todayPaymentCount"],
         "todayByMethod": Base["todayByMethod"],

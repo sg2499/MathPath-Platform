@@ -904,6 +904,7 @@ export async function revokePayLink(linkId: string): Promise<{ link: PayLink }> 
 export type PaymentsHome = {
   today: string;
   dayClose: HomeDayClose;
+  billing: HomeBilling;
   todayCollected: MoneyValue;
   todayPaymentCount: number;
   todayByMethod: MethodTotal[];
@@ -1041,5 +1042,138 @@ export async function reopenDay(date: string, reason: string): Promise<DaySummar
 
 export async function downloadDayClosePdf(date: string): Promise<Blob> {
   const { data } = await api.get(`/admin/payments/day-close/${encodeURIComponent(date)}/pdf`, { responseType: "blob" });
+  return data;
+}
+
+
+// ---------------------------------------------------------------------------
+// 2026-10-09 (Payments revamp R3): monthly billing.
+// ---------------------------------------------------------------------------
+
+export type BillingMode = "INDIA" | "INTERNATIONAL";
+export const BILLING_MODE_LABELS: Record<BillingMode, string> = { INDIA: "India", INTERNATIONAL: "International" };
+
+export type BillingFee = MoneyValue & { feeItemId: string; name: string; isActive: boolean };
+
+export type BillingSettings = {
+  indiaFee: BillingFee | null;
+  internationalFee: BillingFee | null;
+  autoDraftsEnabled: boolean;
+  autoFromPeriod: string | null;
+  autoFromLabel: string | null;
+  nextAutoLabel: string | null;
+  lastAutoPeriod: string | null;
+  lastAutoLabel: string | null;
+  lastAutoAt: string | null;
+  monthlyFeeItems: BillingFee[];
+  counts: Record<BillingMode, number>;
+  problems: string[];
+};
+
+export type BillingStudent = {
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  levelCode: string | null;
+  centreName: string | null;
+  isActive: boolean;
+  billingMode: BillingMode;
+};
+
+export type BillingMonthStudent = Omit<BillingStudent, "billingMode"> & { billingMode: BillingMode; billingModeLabel: string; fee: BillingFee | null };
+
+export type BillingDraft = BillingMonthStudent & {
+  draftId: string;
+  status: "DRAFT" | "RELEASED" | "DROPPED";
+  source: "AUTO" | "ADMIN";
+  issue: string | null;
+  advanceToApply: MoneyValue;
+  dueAfterAdvance: MoneyValue;
+  releasedInvoiceId: string | null;
+  releasedInvoiceNumber: string | null;
+  releasedAt: string | null;
+  releasedByName: string | null;
+  dropReason: string | null;
+  droppedAt: string | null;
+  droppedByName: string | null;
+  createdAt: string | null;
+};
+
+export type BillingMonth = {
+  period: string;
+  periodLabel: string;
+  isCurrent: boolean;
+  previousPeriod: string;
+  nextPeriod: string | null;
+  invoiceDate: string;
+  dueDate: string;
+  settings: { indiaFee: BillingFee | null; internationalFee: BillingFee | null; autoDraftsEnabled: boolean; autoFromLabel: string | null };
+  problems: string[];
+  counts: { waiting: number; ready: number; withIssue: number; released: number; dropped: number; invoiced: number; notBilled: number; activeStudents: number };
+  readyTotal: MoneyValue;
+  readyAdvance: MoneyValue;
+  drafts: BillingDraft[];
+  notBilled: BillingMonthStudent[];
+};
+
+export type BillingReleaseResult = {
+  released: number;
+  notReleased: { studentName: string; reason: string }[];
+  replayed: boolean;
+  batch: InvoiceBatchResult | null;
+  month: BillingMonth;
+};
+
+export type HomeBilling = { period: string; periodLabel: string; waiting: number; notBilled: number; feesReady: boolean; autoDraftsEnabled: boolean; autoFromLabel: string | null };
+
+export type StudentBillingState = { billingMode: BillingMode; billingModeLabel: string; period: string; periodLabel: string; state: "INVOICED" | "DRAFT" | "DROPPED" | "NOT_BILLED"; invoiceNumber: string | null; dropReason: string | null };
+
+export async function getBillingSettings(): Promise<BillingSettings> {
+  const { data } = await api.get<BillingSettings>("/admin/payments/billing/settings");
+  return data;
+}
+
+export async function updateBillingSettings(payload: { indiaFeeItemId?: string | null; internationalFeeItemId?: string | null; autoDraftsEnabled?: boolean }): Promise<BillingSettings> {
+  const { data } = await api.put<BillingSettings>("/admin/payments/billing/settings", payload);
+  return data;
+}
+
+export async function listBillingStudents(): Promise<BillingStudent[]> {
+  const { data } = await api.get<{ students: BillingStudent[] }>("/admin/payments/billing/students");
+  return data.students;
+}
+
+export async function setBillingModes(payload: { studentIds: string[]; mode: BillingMode }): Promise<{ studentsSelected: number; studentsChanged: number; mode: BillingMode; modeLabel: string }> {
+  const { data } = await api.post("/admin/payments/billing/students/mode", payload);
+  return data;
+}
+
+export async function getStudentBilling(studentId: string): Promise<StudentBillingState> {
+  const { data } = await api.get<StudentBillingState>(`/admin/payments/billing/students/${encodeURIComponent(studentId)}`);
+  return data;
+}
+
+export async function getBillingMonth(period?: string): Promise<BillingMonth> {
+  const { data } = await api.get<BillingMonth>("/admin/payments/billing/month", { params: period ? { period } : {} });
+  return data;
+}
+
+export async function createBillingDrafts(period: string, studentIds?: string[]): Promise<{ draftsCreated: number; month: BillingMonth }> {
+  const { data } = await api.post(`/admin/payments/billing/month/${encodeURIComponent(period)}/drafts`, studentIds ? { studentIds } : {});
+  return data;
+}
+
+export async function releaseBillingDrafts(period: string, payload: { draftIds: string[]; idempotencyKey: string }): Promise<BillingReleaseResult> {
+  const { data } = await api.post<BillingReleaseResult>(`/admin/payments/billing/month/${encodeURIComponent(period)}/release`, payload);
+  return data;
+}
+
+export async function dropBillingDraft(draftId: string, reason: string): Promise<BillingMonth> {
+  const { data } = await api.post<BillingMonth>(`/admin/payments/billing/drafts/${encodeURIComponent(draftId)}/drop`, { reason });
+  return data;
+}
+
+export async function restoreBillingDraft(draftId: string): Promise<BillingMonth> {
+  const { data } = await api.post<BillingMonth>(`/admin/payments/billing/drafts/${encodeURIComponent(draftId)}/restore`);
   return data;
 }

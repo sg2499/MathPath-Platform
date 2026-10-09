@@ -417,6 +417,74 @@ class OnlinePaymentEvent(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
+
+class PaymentBillingSettings(Base):
+    """Monthly billing (revamp R3, 2026-10-09). One row, id "default".
+
+    Which monthly fee item each billing mode is charged (India ₹1,100,
+    International ₹2,200, as set in Fee Setup), whether the platform drafts
+    the month's invoices by itself on the 1st, and the first month it may do
+    that for (the month after automatic drafts were switched on, so an
+    already-billed month is never drafted again)."""
+
+    __tablename__ = "payment_billing_settings"
+    id = Column(String, primary_key=True, default="default")
+    india_fee_item_id = Column(String, ForeignKey("fee_items.id"), nullable=True)
+    international_fee_item_id = Column(String, ForeignKey("fee_items.id"), nullable=True)
+    auto_drafts_enabled = Column(Boolean, default=False, nullable=False)
+    # "YYYY-MM": the first month automatic drafts may be made for.
+    auto_from_period = Column(String(7), nullable=True)
+    # "YYYY-MM": the last month automatic drafts were made for.
+    last_auto_period = Column(String(7), nullable=True)
+    last_auto_at = Column(DateTime(timezone=True), nullable=True)
+    modes_prefilled = Column(Boolean, default=False, nullable=False)
+    updated_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class PaymentStudentBilling(Base):
+    """A student's billing mode (revamp R3): INDIA or INTERNATIONAL. A
+    student with no row is billed as INDIA."""
+
+    __tablename__ = "payment_student_billing"
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), primary_key=True)
+    billing_mode = Column(String(20), nullable=False, default="INDIA")
+    updated_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class PaymentInvoiceDraft(Base):
+    """A monthly-fee invoice waiting to be released (revamp R3).
+
+    No number, not shown to the student, no notification. The fee is not
+    stored: it follows the student's billing mode and the fee item's price
+    at the moment of release. Release turns it into a real invoice (status
+    RELEASED, released_invoice_id); Drop keeps it with a reason (DROPPED)
+    and Restore puts it back. One draft per student per month."""
+
+    __tablename__ = "payment_invoice_drafts"
+    __table_args__ = (Index("ux_payment_invoice_drafts_student_period", "student_id", "period_key", unique=True),)
+    id = Column(String, primary_key=True, default=uuid_str)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    billing_month = Column(Integer, nullable=False)
+    billing_year = Column(Integer, nullable=False)
+    period_key = Column(String(7), nullable=False, index=True)
+    # DRAFT | RELEASED | DROPPED
+    status = Column(String(20), nullable=False, default="DRAFT", index=True)
+    # AUTO (made on the 1st) | ADMIN (Create drafts on the billing screen)
+    source = Column(String(20), nullable=False, default="AUTO")
+    released_invoice_id = Column(String, ForeignKey("payment_invoices.id"), nullable=True)
+    released_at = Column(DateTime(timezone=True), nullable=True)
+    released_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    drop_reason = Column(Text, nullable=True)
+    dropped_at = Column(DateTime(timezone=True), nullable=True)
+    dropped_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 __all__ = [
     "PaymentOnlineSettings",
     "PaymentLink",
@@ -436,6 +504,9 @@ __all__ = [
     "Expense",
     "ExpenseMethodLine",
     "PaymentDayClose",
+    "PaymentBillingSettings",
+    "PaymentStudentBilling",
+    "PaymentInvoiceDraft",
 ]
 
 

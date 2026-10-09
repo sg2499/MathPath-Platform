@@ -124,6 +124,16 @@ def _CheckedRequest(db: Session, Request: dict[str, Any]) -> dict[str, Any]:
     if len(StudentIds) > MAX_STUDENTS_PER_RUN:
         api_error(422, "TOO_MANY_STUDENTS", f"Choose at most {MAX_STUDENTS_PER_RUN:,} students at a time.")
 
+    # 2026-10-09 (revamp R3, monthly billing): optionally, which one of the
+    # chosen fee items each student gets (India / International fee).
+    StudentFeeItems: dict[str, str] | None = None
+    if Request.get("studentFeeItems") is not None:
+        Raw = Request.get("studentFeeItems") or {}
+        ItemIdSet = {Item.id for Item in Items}
+        StudentFeeItems = {str(Key): str(Value) for Key, Value in dict(Raw).items()}
+        if set(StudentFeeItems) != set(StudentIds) or not set(StudentFeeItems.values()) <= ItemIdSet:
+            api_error(422, "FEE_ITEM_MAP_INVALID", "Each student must have one of the chosen fee items. Refresh and try again.")
+
     return {
         "items": Items,
         "month": Month,
@@ -132,6 +142,7 @@ def _CheckedRequest(db: Session, Request: dict[str, Any]) -> dict[str, Any]:
         "dueDate": DueDate,
         "studentIds": StudentIds,
         "allowRepeatOneTime": bool(Request.get("allowRepeatOneTime")),
+        "studentFeeItems": StudentFeeItems,
     }
 
 
@@ -166,6 +177,17 @@ def _Plan(db: Session, Checked: dict[str, Any]) -> dict[str, Any]:
         .all()
     )
     MonthlyTaken = {(S, F, P): N for S, F, P, N in Existing if P}
+    # With a per-student fee (monthly billing), any live monthly invoice for
+    # the month counts, whichever monthly fee item it was raised on.
+    AnyMonthlyTaken: dict[tuple[str, str], tuple[str, str]] = {}
+    if Checked.get("studentFeeItems") is not None and Checked["month"] and Checked["year"]:
+        Period = f"{Checked['year']:04d}-{Checked['month']:02d}"
+        for S, Name, N in (
+            db.query(PaymentInvoice.student_id, PaymentInvoice.fee_name, PaymentInvoice.invoice_number)
+            .filter(PaymentInvoice.student_id.in_(Checked["studentIds"]), PaymentInvoice.billing_type == "MONTHLY", PaymentInvoice.period_key == Period, PaymentInvoice.status != "CANCELLED")
+            .all()
+        ):
+            AnyMonthlyTaken.setdefault((S, Period), (Name, N))
     OneTimeTaken: dict[tuple[str, str], str] = {}
     for S, F, P, N in Existing:
         if not P:
@@ -177,11 +199,16 @@ def _Plan(db: Session, Checked: dict[str, Any]) -> dict[str, Any]:
     for StudentRow, UserRow in Ordered:
         Base = {"studentId": StudentRow.id, "studentName": UserRow.full_name, "studentCode": StudentRow.student_code}
         for Item in Checked["items"]:
+            if Checked.get("studentFeeItems") is not None and Checked["studentFeeItems"].get(StudentRow.id) != Item.id:
+                continue
             PeriodKey = _PeriodKey(Item, Checked["month"], Checked["year"])
             Label = PeriodLabel(Checked["month"], Checked["year"]) if PeriodKey else None
             Line = {**Base, "feeItemId": Item.id, "feeName": Item.name, "periodLabel": Label, "amountPaise": Item.amount_paise}
             if not (StudentRow.is_active and UserRow.is_active):
                 Skips.append({**Line, "reason": "Student is inactive"})
+            elif PeriodKey and (StudentRow.id, PeriodKey) in AnyMonthlyTaken:
+                Name, Number = AnyMonthlyTaken[(StudentRow.id, PeriodKey)]
+                Skips.append({**Line, "reason": f"Already has {Name} for {Label} ({Number})"})
             elif PeriodKey and (StudentRow.id, Item.id, PeriodKey) in MonthlyTaken:
                 Skips.append({**Line, "reason": f"Already has {Item.name} for {Label} ({MonthlyTaken[(StudentRow.id, Item.id, PeriodKey)]})"})
             elif not PeriodKey and (StudentRow.id, Item.id) in OneTimeTaken and not Checked["allowRepeatOneTime"]:
@@ -352,7 +379,9 @@ def _AdvanceOnBatch(db: Session, InvoiceIds: list[str]) -> int:
     return int(Total or 0)
 
 
-def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: str, Actor: User | None) -> dict[str, Any]:
+def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: str, Actor: User | None, BeforeCommit=None) -> dict[str, Any]:
+    """BeforeCommit (revamp R3): called as BeforeCommit(CreatedByStudent,
+    Skips) inside the same transaction, just before it is committed."""
     Key = (IdempotencyKey or "").strip()
     if not re.fullmatch(r"[A-Za-z0-9_-]{8,80}", Key):
         api_error(422, "IDEMPOTENCY_KEY_INVALID", "Refresh the page and try again.")
@@ -477,6 +506,8 @@ def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: st
     from app.services.payments.online_service import NotifyInvoicesRaised
 
     NotifyInvoicesRaised(db, CreatedByStudent)
+    if BeforeCommit is not None:
+        BeforeCommit(CreatedByStudent, Skips)
     db.commit()
     return _BatchResult(db, BatchRow, Skips)
 
