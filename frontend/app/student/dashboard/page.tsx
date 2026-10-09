@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { StudentFeesCard } from "@/components/fees/StudentFeesCard";
 import { ErrorState } from "@/components/common/ErrorState";
 import { StudentWallet } from "@/components/gamification/StudentWallet";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -744,6 +745,7 @@ export default function StudentDashboardPage() {
               <h1 className="se-hero-title">
                 My Learning Workspace
               </h1>
+              <StudentFeesCard />
             </div>
 
             {/* RIGHT SIDE: Gamification Wallet */}

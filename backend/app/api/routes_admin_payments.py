@@ -4,6 +4,8 @@ Phase 2 (2026-10-08): invoices -- preview, generate, list, PDF, Excel, cancel.
 Phase 3 (2026-10-08): payments -- record, edit, cancel, receipts, advances
 and each student's account.
 Phase 4 (2026-10-08): reports (overview, collections, dues) and expenses.
+Phase 5 (2026-10-09): online payments -- the switches, the Online Payments
+log with "Check with Razorpay", and parent pay links.
 
 Admin only (SUPER_ADMIN / ADMIN). Students and teachers get 403 on every
 route here."""
@@ -64,6 +66,16 @@ from app.services.payments.invoices_service import (
     TodayInIndia,
 )
 from app.services.payments.numbering import SetStartingNumber
+from app.services.payments.online_service import (
+    CheckOrderWithRazorpay,
+    CreatePayLink,
+    GetOnlineOrder,
+    ListOnlineOrders,
+    OnlineSettingsPayload,
+    RevokePayLink,
+    StudentPayLink,
+    UpdateOnlineSettings,
+)
 from app.services.payments.setup_service import (
     AssignStudentsToCentre,
     CreateCentre,
@@ -713,3 +725,66 @@ def admin_edit_expense(expense_id: str, payload: ExpenseEditRequest, db: Session
 @router.post("/expenses/{expense_id}/cancel")
 def admin_cancel_expense(expense_id: str, payload: ExpenseCancelRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return CancelExpense(db, ExpenseId=expense_id, Reason=payload.reason, Actor=user)
+
+
+# --- Online payments (Phase 5) -------------------------------------------------
+
+class OnlineSettingsRequest(BaseModel):
+    studentFeesEnabled: bool | None = None
+    onlinePaymentsEnabled: bool | None = None
+
+
+@router.get("/online/settings")
+def admin_online_settings(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Payload = OnlineSettingsPayload(db)
+    db.commit()
+    return Payload
+
+
+@router.put("/online/settings")
+def admin_update_online_settings(payload: OnlineSettingsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return UpdateOnlineSettings(db, Fields=_SentFields(payload), Actor=user)
+
+
+@router.get("/online/orders")
+def admin_list_online_orders(
+    status: str | None = None,
+    source: str | None = None,
+    studentId: str | None = None,
+    dateFrom: str | None = None,
+    dateTo: str | None = None,
+    search: str | None = None,
+    page: int = 1,
+    pageSize: int = 50,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    Filters = {"status": status, "source": source, "studentId": studentId, "dateFrom": dateFrom, "dateTo": dateTo, "search": search}
+    Result = ListOnlineOrders(db, Filters=Filters, Page=page, PageSize=pageSize)
+    db.commit()
+    return Result
+
+
+@router.get("/online/orders/{order_ref}")
+def admin_get_online_order(order_ref: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return GetOnlineOrder(db, order_ref)
+
+
+@router.post("/online/orders/{order_ref}/check")
+def admin_check_online_order(order_ref: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return CheckOrderWithRazorpay(db, OrderRef=order_ref, Actor=user)
+
+
+@router.get("/students/{student_id}/pay-link")
+def admin_student_pay_link(student_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return StudentPayLink(db, student_id)
+
+
+@router.post("/students/{student_id}/pay-link")
+def admin_create_pay_link(student_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return CreatePayLink(db, StudentId=student_id, Actor=user)
+
+
+@router.post("/pay-links/{link_id}/revoke")
+def admin_revoke_pay_link(link_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return RevokePayLink(db, LinkId=link_id, Actor=user)

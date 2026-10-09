@@ -10,6 +10,8 @@ from app.api.routes_health import router as health_router
 from app.api.routes_auth import router as auth_router
 from app.api.routes_admin import router as admin_router
 from app.api.routes_admin_payments import router as admin_payments_router
+from app.api.routes_public_payments import router as public_payments_router
+from app.api.routes_student_fees import router as student_fees_router
 from app.api.routes_student import router as student_router
 from app.api.routes_teacher import router as teacher_router
 from app.api.routes_teacher_reports import router as teacher_reports_router
@@ -313,6 +315,8 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(admin_payments_router)
 app.include_router(student_router)
+app.include_router(student_fees_router)
+app.include_router(public_payments_router)
 app.include_router(teacher_router)
 app.include_router(teacher_reports_router)
 app.include_router(notifications_router)

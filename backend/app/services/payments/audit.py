@@ -22,13 +22,16 @@ def WritePaymentAudit(
     Before: dict[str, Any] | None = None,
     After: dict[str, Any] | None = None,
     Reason: str | None = None,
+    ActorName: str | None = None,
 ) -> PaymentAuditLog:
     Entry = PaymentAuditLog(
         entity_type=EntityType,
         entity_id=EntityId,
         action=Action,
         actor_user_id=Actor.id if Actor else None,
-        actor_name=(Actor.full_name if Actor else None),
+        # ActorName names a system actor (for example "Razorpay") when no
+        # person made the change.
+        actor_name=(Actor.full_name if Actor else ActorName),
         reason=(Reason or "").strip() or None,
         before_json=json.dumps(Before, sort_keys=True, default=str) if Before is not None else None,
         after_json=json.dumps(After, sort_keys=True, default=str) if After is not None else None,

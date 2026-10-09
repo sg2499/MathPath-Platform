@@ -24,6 +24,7 @@ import {
   Sparkles,
   Target,
   TriangleAlert,
+  Wallet,
   Trophy,
   X,
 } from "lucide-react";
@@ -93,6 +94,9 @@ function IconFor(Notification: NotificationRecord) {
   const Type = String(Notification.type || "").toUpperCase();
 
   if (Category === "ASSESSMENT_FEEDBACK") return <MessageSquareText size={16} />;
+  // 2026-10-09 (Payments Phase 5): invoices raised, payments received, an
+  // online payment that did not go through.
+  if (Category === "FEES") return Type.includes("FAILED") ? <TriangleAlert size={16} /> : <Wallet size={16} />;
   if (Category === "FAILURE") return <TriangleAlert size={16} />;
   if (Category === "LEADERBOARD") return <Trophy size={16} />;
   if (Category === "RESULT") return <CheckCircle2 size={16} />;
@@ -555,6 +559,9 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   }
 
   if (Role === "student") {
+    if (String(Notification.category || "").toUpperCase() === "FEES") {
+      return { Route: "/student/fees", TargetTab: "", TargetSubTab: "" };
+    }
     if (IsAnnualCompetitionOfficialNotification(Notification)) {
       // Always the Official tab, where the student's paper card (level, slot,
       // Instructions button) is. Fixed here rather than read from the stored

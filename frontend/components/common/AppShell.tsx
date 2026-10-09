@@ -5,6 +5,8 @@ import { useAuthenticatedImage } from "@/lib/hooks/useAuthenticatedImage";
 import { NotificationsBell } from "@/components/common/NotificationsBell";
 import { BuildInfoBadge } from "@/components/common/BuildInfoBadge";
 import { apiErrorMessage } from "@/lib/api";
+import { getStudentFeesSummary } from "@/lib/api/fees";
+import { useQuery } from "@tanstack/react-query";
 import {
   changePassword,
   disableTwoFactor,
@@ -100,7 +102,23 @@ type NavGroup = {
   tooltip: string;
   href?: string;
   children?: NavChild[];
+  // A small count after the label (Fees: unpaid invoices).
+  badge?: number;
+  badgeTone?: "alert" | "info";
 };
+
+function NavBadge({ count, tone = "info" }: { count: number; tone?: "alert" | "info" }) {
+  return (
+    <span
+      className={`ml-1 inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 text-[11px] font-black leading-none tabular-nums text-white shadow-sm ${
+        tone === "alert" ? "bg-rose-600" : "bg-orange-600"
+      }`}
+      aria-label={`${count} unpaid`}
+    >
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
 
 const PLATFORM_TAGLINE =
   "Visual Abacus Mastery for Speed, Accuracy, and School-Ready Confidence.";
@@ -288,6 +306,15 @@ export function AppShell({
   const IsTeacher = MountedUser?.role === "TEACHER";
   const IsAdmin =
     MountedUser?.role === "ADMIN" || MountedUser?.role === "SUPER_ADMIN";
+  // 2026-10-09 (Payments Phase 5): the student's Fees item shows only while
+  // fees are switched on for students, with the unpaid invoice count.
+  const FeesSummary = useQuery({
+    queryKey: ["student-fees-summary"],
+    queryFn: getStudentFeesSummary,
+    enabled: IsStudent,
+    staleTime: 60_000,
+    retry: false,
+  });
 
   if (!AuthReady && expectedRoleFromPath(pathname)) {
     return (
@@ -442,7 +469,7 @@ export function AppShell({
           shortLabel: "Settings",
           href: "/admin/payments/settings",
           icon: Building2,
-          tooltip: "Business details, centres, document numbering, fee setup and history",
+          tooltip: "Business details, centres, document numbering, fee setup, online payments and history",
         },
         {
           label: "Invoices",
@@ -454,7 +481,7 @@ export function AppShell({
           label: "Collections",
           href: "/admin/payments/collections",
           icon: HandCoins,
-          tooltip: "Student Fees (Record Payment) and every payment received",
+          tooltip: "Student Fees (Record Payment), every payment received, and online payments",
         },
         {
           label: "Reports",
@@ -729,6 +756,18 @@ export function AppShell({
       ],
     },
   ];
+
+  const Fees = FeesSummary.data;
+  if (Fees?.enabled) {
+    studentNav.push({
+      label: "Fees",
+      icon: Wallet,
+      href: "/student/fees",
+      tooltip: Fees.unpaidCount ? `Fees: ${Fees.dueDisplay} to pay` : "Fees, invoices and receipts",
+      badge: Fees.unpaidCount || undefined,
+      badgeTone: Fees.overdueCount ? "alert" : "info",
+    });
+  }
 
   const navGroups = IsStudent
     ? studentNav
@@ -1156,6 +1195,7 @@ export function AppShell({
                           >
                             {group.shortLabel || group.label}
                           </span>
+                          {group.badge ? <NavBadge count={group.badge} tone={group.badgeTone} /> : null}
                         </button>
                       );
                     }
@@ -1487,7 +1527,8 @@ export function AppShell({
                         }`}
                       >
                         <Icon size={17} />
-                        {group.label}
+                        <span className="flex-1">{group.label}</span>
+                        {group.badge ? <NavBadge count={group.badge} tone={group.badgeTone} /> : null}
                       </button>
                     );
                   }

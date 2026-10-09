@@ -12,6 +12,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { PaymentDetailDialog, PaymentStatusChip } from "@/components/payments/PaymentDetail";
 import { PaymentForm } from "@/components/payments/PaymentForm";
+import { PayLinkCard } from "@/components/payments/PayLinkCard";
 import { InlineError, PaymentsMetric } from "@/components/payments/PaymentsUi";
 import { ReplaceAddressKeepingTab } from "@/components/payments/PaymentsSection";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
@@ -244,6 +245,8 @@ export function StudentFeesPanel() {
               <PaymentsMetric label="Received" value={<span className="text-lg sm:text-xl">{totals.receivedDisplay}</span>} icon={<HandCoins size={14} />} tone="emerald" />
               <PaymentsMetric label="Invoiced" value={<span className="text-lg sm:text-xl">{totals.invoicedDisplay}</span>} icon={<FilePlus2 size={14} />} />
             </div>
+
+            <PayLinkCard studentId={account.student.studentId} studentName={account.student.name} />
 
             {saved ? (
               <div role="status" className="mt-5 flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200 sm:flex-row sm:items-center sm:justify-between">

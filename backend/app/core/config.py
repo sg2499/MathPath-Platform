@@ -98,3 +98,12 @@ ANNUAL_SECTION_BRIEFING_ENABLED = os.getenv("ANNUAL_SECTION_BRIEFING_ENABLED", "
 # How long the screen counts down before it starts the section by itself.
 # Sent to the paper page with every attempt payload.
 ANNUAL_SECTION_BRIEFING_SECONDS = 15
+
+# Payments Phase 5 (2026-10-09): Razorpay, the same account as the old
+# platform. Set in backend/.env on the server by Shailesh; never committed.
+# Test keys start rzp_test_, live keys rzp_live_. The webhook secret is the
+# one typed when adding this site's own webhook in the Razorpay dashboard
+# (Settings > Webhooks), separate from the old platform's webhook.
+RAZORPAY_KEY_ID = _env_first("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = _env_first("RAZORPAY_KEY_SECRET")
+RAZORPAY_WEBHOOK_SECRET = _env_first("RAZORPAY_WEBHOOK_SECRET")

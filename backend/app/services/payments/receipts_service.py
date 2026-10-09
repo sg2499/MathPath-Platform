@@ -565,6 +565,9 @@ def RecordPayment(db: Session, *, StudentId: str, Request: dict[str, Any], Idemp
     for InvoiceId in _WriteDetails(db, Payment, Checked, Actor):
         RecomputeInvoice(db, Checked["invoices"][InvoiceId])
     WritePaymentAudit(db, EntityType="PAYMENT", EntityId=Payment.id, Action="CREATE", Actor=Actor, After=_AuditShape(db, Payment))
+    from app.services.payments.online_service import NotifyPaymentReceived
+
+    NotifyPaymentReceived(db, Payment)
     db.commit()
     return {**PaymentPayload(db, Payment), "replayed": False}
 
@@ -589,6 +592,9 @@ def EditPayment(db: Session, *, PaymentId: str, Request: dict[str, Any], Reason:
     StudentRow = db.get(Student, Payment.student_id)
     Before = _AuditShape(db, Payment)
     Checked = _CheckedPayment(db, StudentRow, Request, Editing=Payment)
+    if Payment.channel == "ONLINE" and Checked["total"] != Payment.amount_paise:
+        # Razorpay holds the real amount; only where it is applied can change.
+        api_error(422, "ONLINE_AMOUNT_FIXED", f"{Payment.receipt_number} was paid online: the amount received stays {FormatIndianRupees(Payment.amount_paise)}. To return money, refund it in Razorpay and cancel this payment.")
     Touched: dict[str, PaymentInvoice] = dict(Checked["invoices"])
     Now = datetime.now(timezone.utc)
     for Allocation in db.query(PaymentAllocation).filter(PaymentAllocation.payment_id == Payment.id, PaymentAllocation.released_at.is_(None), PaymentAllocation.kind == "DIRECT").all():
