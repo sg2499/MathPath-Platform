@@ -182,7 +182,7 @@ function AnnualCompetitionInstructionsContent() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
                         <Hourglass size={18} className="text-emerald-500" />
-                        <span className="font-semibold text-sm">Your Slot</span>
+                        <span className="font-semibold text-sm">Paper starts</span>
                       </div>
                       <span className="text-right text-sm font-black text-slate-900 dark:text-white">{FormatDateTime(Query.data.slot.scheduledStartAt)}</span>
                     </div>

@@ -19,11 +19,33 @@ import {
   type AnnualCompetitionPracticeScope,
 } from "@/lib/api/student";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarClock, ChevronDown, ChevronRight, Eye, History, Hourglass, MapPin, PlayCircle, Repeat, Trophy } from "lucide-react";
+import { CalendarClock, ChevronDown, Clock3, ChevronRight, Eye, History, Hourglass, MapPin, PlayCircle, Repeat, Trophy } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUrlTabState } from "@/hooks/useUrlTabState";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { InitCaps } from "@/lib/initCaps";
+
+// 2026-10-09: "Friday, 9 October 2026" and "9:10 pm" for the paper card.
+function FormatLongDay(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  const Part = (options: Intl.DateTimeFormatOptions) => date.toLocaleDateString("en-IN", options);
+  return `${Part({ weekday: "long" })}, ${Part({ day: "numeric" })} ${Part({ month: "long" })} ${Part({ year: "numeric" })}`;
+}
+
+function FormatClock(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+}
+
+const SLOT_MODE_LABELS: Record<string, string> = {
+  OFFLINE: "At your centre",
+  ONLINE_INDIA: "Online",
+  ONLINE_INTL: "Online (international)",
+};
 
 function FormatDateTime(value?: string | null) {
   if (!value) return "—";
@@ -185,18 +207,37 @@ function AssignmentCard({
           <div className="math-block-header mb-2"><Trophy size={14} /> Annual Competition</div>
           <h2 className="text-xl font-black text-slate-950 dark:text-white">{assignment.eventName}</h2>
           <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
-            <div className="flex items-start gap-2">
-              <CalendarClock size={16} className="mt-0.5 shrink-0 text-orange-600 dark:text-orange-300" />
-              <span className="min-w-0 sm:whitespace-nowrap">Competition Date: {FormatDateTime(assignment.competitionDate)}</span>
-            </div>
-            {assignment.slot ? (
+            {assignment.slot?.scheduledStartAt && !Number.isNaN(new Date(assignment.slot.scheduledStartAt).getTime()) ? (
+              // 2026-10-09 (Shailesh): one fact per line, nothing said twice.
+              // The day, then the times, worked out from the student's own
+              // slot (in their own time zone). The slot's admin label and the
+              // event's own date/time are not repeated here.
+              <>
+                <div className="flex items-start gap-2">
+                  <CalendarClock size={16} className="mt-0.5 shrink-0 text-orange-600 dark:text-orange-300" />
+                  <span className="min-w-0">{FormatLongDay(assignment.slot.scheduledStartAt)}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Clock3 size={16} className="mt-0.5 shrink-0 text-orange-600 dark:text-orange-300" />
+                  <span className="min-w-0">
+                    Paper starts at {FormatClock(assignment.slot.scheduledStartAt)}
+                    <span className="text-slate-500 dark:text-slate-400"> · instructions open at {FormatClock(new Date(new Date(assignment.slot.scheduledStartAt).getTime() - INSTRUCTIONS_VISIBLE_MINUTES_BEFORE_SLOT * 60 * 1000).toISOString())}</span>
+                  </span>
+                </div>
+                {SLOT_MODE_LABELS[assignment.slot.mode] ? (
+                  <div className="flex items-start gap-2">
+                    <MapPin size={16} className="mt-0.5 shrink-0 text-orange-600 dark:text-orange-300" />
+                    <span className="min-w-0">{SLOT_MODE_LABELS[assignment.slot.mode]}</span>
+                  </div>
+                ) : null}
+              </>
+            ) : (
               <div className="flex items-start gap-2">
-                <MapPin size={16} className="mt-0.5 shrink-0 text-orange-600 dark:text-orange-300" />
-                <span className="min-w-0 sm:whitespace-nowrap">
-                  Your Slot: {assignment.slot.slotLabel || InitCaps(assignment.slot.mode)} · {FormatDateTime(assignment.slot.scheduledStartAt)}
-                </span>
+                <CalendarClock size={16} className="mt-0.5 shrink-0 text-orange-600 dark:text-orange-300" />
+                <span className="min-w-0">{FormatLongDay(assignment.competitionDate)}</span>
               </div>
-            ) : slotNotSet ? (
+            )}
+            {assignment.slot ? null : slotNotSet ? (
               <div className="flex items-start gap-2 text-amber-700 dark:text-amber-300">
                 <Hourglass size={16} className="mt-0.5 shrink-0" />
                 <span className="min-w-0">Your slot hasn't been set yet. Please check back once your teacher has set it.</span>
