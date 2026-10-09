@@ -14,6 +14,7 @@ import {
   FilePlus2,
   HandCoins,
   Link2,
+  PhoneCall,
   ReceiptText,
   TrendingUp,
   Wallet,
@@ -84,7 +85,11 @@ function HomeBody({ data }: { data: PaymentsHome }) {
   if (!billing.feesReady) billingItems.push({ key: "fees", text: "Choose the monthly fee for India and International students before the next billing month." });
   if (billing.waiting) billingItems.push({ key: "waiting", text: `${billing.periodLabel}: ${billing.waiting} fee draft${billing.waiting === 1 ? "" : "s"} waiting to be released.` });
   if (billing.notBilled) billingItems.push({ key: "not-billed", text: `${billing.periodLabel} not billed for ${billing.notBilled} active student${billing.notBilled === 1 ? "" : "s"}.` });
-  const attentionCount = data.attention.online.length + data.attention.setup.length + (data.attention.failedToday ? 1 : 0) + pendingDays.length + billingItems.length;
+  const follow = data.followUps;
+  const followItems: { key: string; text: string; view: string }[] = [];
+  if (follow.promisedToday) followItems.push({ key: "today", view: "today", text: `${follow.promisedToday} promised payment${follow.promisedToday === 1 ? "" : "s"} due today (${follow.promisedTodayAmount.display}).` });
+  if (follow.promiseMissed) followItems.push({ key: "missed", view: "missed", text: `${follow.promiseMissed} promise${follow.promiseMissed === 1 ? "" : "s"} to pay missed.` });
+  const attentionCount = followItems.length + data.attention.online.length + data.attention.setup.length + (data.attention.failedToday ? 1 : 0) + pendingDays.length + billingItems.length;
   const monthUp = data.lastMonthCollected.paise > 0 ? Math.round(((data.thisMonthCollected.paise - data.lastMonthCollected.paise) / data.lastMonthCollected.paise) * 100) : null;
   const todayClosed = close.todayState === "CLOSED" && !close.todayChangedAfterClose;
   const dayLine = close.todayState === "CLOSED"
@@ -157,9 +162,16 @@ function HomeBody({ data }: { data: PaymentsHome }) {
             icon={attentionCount ? <AlertTriangle size={18} className="text-amber-600" /> : <CheckCircle2 size={18} className="text-emerald-600" />}
           >
             {attentionCount === 0 ? (
-              <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">All clear: billing is up to date, earlier days are closed, no online payments are waiting, and nothing needs setting up.</p>
+              <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">All clear: no promises due or missed, billing is up to date, earlier days are closed, no online payments are waiting, and nothing needs setting up.</p>
             ) : (
               <ul className="grid gap-2">
+                {followItems.map((item) => (
+                  <li key={item.key}>
+                    <Link href={`/admin/payments/collections?tab=follow-ups&view=${item.view}`} className="flex items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50/80 px-4 py-3 text-sm font-bold text-violet-900 transition hover:border-violet-300 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100">
+                      <PhoneCall size={16} className="shrink-0" /><span className="min-w-0 flex-1">{item.text}</span><ArrowRight size={15} className="shrink-0" />
+                    </Link>
+                  </li>
+                ))}
                 {billingItems.map((item) => (
                   <li key={item.key}>
                     <Link href={item.key === "fees" ? "/admin/payments/settings?tab=billing" : "/admin/payments/invoices?tab=monthly"} className="flex items-center gap-3 rounded-2xl border border-cyan-200 bg-cyan-50/80 px-4 py-3 text-sm font-bold text-cyan-900 transition hover:border-cyan-300 dark:border-cyan-900/60 dark:bg-cyan-950/30 dark:text-cyan-100">

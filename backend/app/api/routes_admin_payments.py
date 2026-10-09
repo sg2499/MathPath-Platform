@@ -969,3 +969,94 @@ def admin_billing_restore(draft_id: str, db: Session = Depends(get_db), user: Us
     from app.services.payments.billing_service import RestoreDraft
 
     return RestoreDraft(db, DraftId=draft_id, Actor=user)
+
+
+
+# --- Follow-ups (revamp R4) --------------------------------------------------------
+
+class FollowUpContactRequest(BaseModel):
+    studentIds: list[str] = Field(max_length=500)
+    channel: str
+    note: str | None = Field(default=None, max_length=500)
+    promiseDate: str | None = None
+
+
+class FollowUpRemindRequest(BaseModel):
+    studentIds: list[str] = Field(max_length=500)
+    template: str
+    origin: str | None = Field(default=None, max_length=200)
+
+
+class FollowUpNoteRequest(BaseModel):
+    note: str = Field(max_length=1000)
+
+
+class ReminderTemplateRequest(BaseModel):
+    body: str = Field(max_length=1500)
+
+
+@router.get("/followups")
+def admin_followups(view: str | None = None, search: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.followups_service import FollowUps
+
+    return FollowUps(db, View=view, Search=search)
+
+
+@router.get("/followups/students/{student_id}")
+def admin_followup_student(student_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.followups_service import StudentFollowUp
+
+    return StudentFollowUp(db, student_id)
+
+
+@router.get("/followups/students/{student_id}/reminder")
+def admin_followup_reminder(student_id: str, template: str = "GENTLE", origin: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.followups_service import ReminderPreview
+
+    Result = ReminderPreview(db, StudentId=student_id, TemplateKey=template, Origin=origin)
+    db.commit()
+    return Result
+
+
+@router.post("/followups/students/{student_id}/notes")
+def admin_followup_note(student_id: str, payload: FollowUpNoteRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.followups_service import AddNote
+
+    return AddNote(db, StudentId=student_id, Note=payload.note, Actor=user)
+
+
+@router.post("/followups/contacts")
+def admin_followup_contacts(payload: FollowUpContactRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.followups_service import LogContact
+
+    return LogContact(db, StudentIds=payload.studentIds, Channel=payload.channel, Note=payload.note, PromiseDate=payload.promiseDate, Actor=user)
+
+
+@router.post("/followups/remind")
+def admin_followup_remind(payload: FollowUpRemindRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.followups_service import RemindInApp
+
+    return RemindInApp(db, StudentIds=payload.studentIds, TemplateKey=payload.template, Origin=payload.origin, Actor=user)
+
+
+@router.get("/followups/templates")
+def admin_reminder_templates(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.followups_service import ListTemplates
+
+    Result = ListTemplates(db)
+    db.commit()
+    return Result
+
+
+@router.put("/followups/templates/{key}")
+def admin_update_reminder_template(key: str, payload: ReminderTemplateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.followups_service import UpdateTemplate
+
+    return UpdateTemplate(db, Key=key, Body=payload.body, Actor=user)
+
+
+@router.post("/followups/templates/{key}/reset")
+def admin_reset_reminder_template(key: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.followups_service import ResetTemplate
+
+    return ResetTemplate(db, Key=key, Actor=user)

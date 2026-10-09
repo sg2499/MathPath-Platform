@@ -905,6 +905,7 @@ export type PaymentsHome = {
   today: string;
   dayClose: HomeDayClose;
   billing: HomeBilling;
+  followUps: HomeFollowUps;
   todayCollected: MoneyValue;
   todayPaymentCount: number;
   todayByMethod: MethodTotal[];
@@ -1175,5 +1176,129 @@ export async function dropBillingDraft(draftId: string, reason: string): Promise
 
 export async function restoreBillingDraft(draftId: string): Promise<BillingMonth> {
   const { data } = await api.post<BillingMonth>(`/admin/payments/billing/drafts/${encodeURIComponent(draftId)}/restore`);
+  return data;
+}
+
+
+// ---------------------------------------------------------------------------
+// 2026-10-09 (Payments revamp R4): follow-ups.
+// ---------------------------------------------------------------------------
+
+export type ContactChannel = "CALL" | "IN_PERSON" | "MESSAGE" | "OTHER";
+export const CONTACT_CHANNELS: { value: ContactChannel; label: string }[] = [
+  { value: "CALL", label: "Call" },
+  { value: "IN_PERSON", label: "In person" },
+  { value: "MESSAGE", label: "Message" },
+  { value: "OTHER", label: "Other" },
+];
+export type ReminderTemplateKey = "GENTLE" | "FIRM" | "FINAL";
+export const REMINDER_TEMPLATES: { value: ReminderTemplateKey; label: string }[] = [
+  { value: "GENTLE", label: "Gentle" },
+  { value: "FIRM", label: "Firm" },
+  { value: "FINAL", label: "Final" },
+];
+
+export type FollowUpEntry = {
+  id: string;
+  kind: "CONTACT" | "REMINDER" | "NOTE";
+  channel: ContactChannel | "IN_APP" | null;
+  channelLabel: string | null;
+  note: string | null;
+  promiseDate: string | null;
+  templateKey: ReminderTemplateKey | null;
+  templateTitle: string | null;
+  byName: string | null;
+  at: string | null;
+};
+
+export type PromiseState = { date: string; state: "UPCOMING" | "TODAY" | "MISSED" | "KEPT"; madeAt: string | null; byName: string | null };
+
+export type FollowUpState = {
+  lastContact: FollowUpEntry | null;
+  daysSinceContact: number | null;
+  lastInAppAt: string | null;
+  remindedRecently: boolean;
+  promise: PromiseState | null;
+  entryCount: number;
+};
+
+export type FollowUpStudent = DuesStudent & { followUp: FollowUpState; suggestedTemplate: ReminderTemplateKey; priority: number };
+
+export type FollowUpList = {
+  asOf: string;
+  view: string;
+  views: { key: string; label: string; count: number }[];
+  inAppAvailable: boolean;
+  total: MoneyValue;
+  overdue: MoneyValue;
+  students: FollowUpStudent[];
+};
+
+export type StudentFollowUp = FollowUpState & {
+  studentId: string;
+  suggestedTemplate: ReminderTemplateKey;
+  due: MoneyValue;
+  overdue: MoneyValue;
+  mobile: string | null;
+  inAppAvailable: boolean;
+  entries: FollowUpEntry[];
+};
+
+export type HomeFollowUps = { promisedToday: number; promisedTodayAmount: MoneyValue; promiseMissed: number; neverContactedOverdue: number };
+
+export type ReminderTemplates = {
+  templates: { key: ReminderTemplateKey; title: string; body: string; isDefault: boolean; updatedAt: string | null }[];
+  placeholders: { key: string; label: string }[];
+  suggestion: string;
+};
+
+export type RemindResult = { sent: number; skipped: { studentId: string; studentName: string; reason: string }[]; templateTitle: string; students: { studentId: string; studentName: string }[] };
+
+function SiteOrigin(): string | undefined {
+  return typeof window !== "undefined" ? window.location.origin : undefined;
+}
+
+export async function getFollowUps(params: { view?: string; search?: string }): Promise<FollowUpList> {
+  const { data } = await api.get<FollowUpList>("/admin/payments/followups", { params: Object.fromEntries(Object.entries(params).filter(([, v]) => v)) });
+  return data;
+}
+
+export async function getStudentFollowUp(studentId: string): Promise<StudentFollowUp> {
+  const { data } = await api.get<StudentFollowUp>(`/admin/payments/followups/students/${encodeURIComponent(studentId)}`);
+  return data;
+}
+
+export async function getReminderText(studentId: string, template: ReminderTemplateKey): Promise<{ text: string; templateKey: ReminderTemplateKey; suggestedTemplate: ReminderTemplateKey }> {
+  const { data } = await api.get(`/admin/payments/followups/students/${encodeURIComponent(studentId)}/reminder`, { params: { template, origin: SiteOrigin() } });
+  return data;
+}
+
+export async function addFollowUpNote(studentId: string, note: string): Promise<StudentFollowUp> {
+  const { data } = await api.post<StudentFollowUp>(`/admin/payments/followups/students/${encodeURIComponent(studentId)}/notes`, { note });
+  return data;
+}
+
+export async function logFollowUpContact(payload: { studentIds: string[]; channel: ContactChannel; note?: string | null; promiseDate?: string | null }): Promise<{ logged: number; channelLabel: string; promiseDate: string | null }> {
+  const { data } = await api.post("/admin/payments/followups/contacts", payload);
+  return data;
+}
+
+export async function remindInApp(payload: { studentIds: string[]; template: ReminderTemplateKey }): Promise<RemindResult> {
+  const { data } = await api.post<RemindResult>("/admin/payments/followups/remind", { ...payload, origin: SiteOrigin() });
+  return data;
+}
+
+export async function getReminderTemplates(): Promise<ReminderTemplates> {
+  const { data } = await api.get<ReminderTemplates>("/admin/payments/followups/templates");
+  return data;
+}
+
+export async function updateReminderTemplate(key: ReminderTemplateKey, body: string): Promise<ReminderTemplates> {
+  const { data } = await api.put<ReminderTemplates>(`/admin/payments/followups/templates/${key}`, { body });
+  return data;
+}
+
+export async function resetReminderTemplate(key: ReminderTemplateKey): Promise<ReminderTemplates> {
+  const { data } = await api.post<ReminderTemplates>(`/admin/payments/followups/templates/${key}/reset`);
   return data;
 }

@@ -5,6 +5,7 @@
 // 61-90 / 90+ days), a ready-to-paste reminder message, Record Payment, and
 // Excel. Opened with ?bucket=D31_60 from the Overview, it starts filtered.
 import { HeroSearch } from "@/components/payments/CommandPalette";
+import { useFollowUp } from "@/components/payments/FollowUp";
 import { useQuickPay } from "@/components/payments/QuickPay";
 import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -84,6 +85,7 @@ function AgeChip({ days, label, bucket }: { days: number; label: string; bucket:
 export function DuesPanel() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const quickPay = useQuickPay();
+  const followUp = useFollowUp();
   const [bucket, setBucket] = useState("");
   const [search, setSearch] = useState("");
   const [centreId, setCentreId] = useState("");
@@ -233,9 +235,15 @@ export function DuesPanel() {
                         <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => toggle(row.studentId)} aria-expanded={expanded}>
                           {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}Invoices
                         </button>
-                        <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => copy(row)}>
-                          {copied === row.studentId ? <Check size={13} /> : <Copy size={13} />}{copied === row.studentId ? "Copied" : "Copy reminder"}
-                        </button>
+                        {followUp ? (
+                          <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => followUp.reminder({ studentId: row.studentId, studentName: row.studentName, suggestedTemplate: row.maxDaysOverdue > 60 ? "FINAL" : row.maxDaysOverdue > 30 ? "FIRM" : "GENTLE" })}>
+                            <Copy size={13} />Reminder
+                          </button>
+                        ) : (
+                          <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => copy(row)}>
+                            {copied === row.studentId ? <Check size={13} /> : <Copy size={13} />}{copied === row.studentId ? "Copied" : "Copy reminder"}
+                          </button>
+                        )}
                         {quickPay ? (
                           <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => quickPay.open(row.studentId)}>
                             <HandCoins size={13} />Record Payment

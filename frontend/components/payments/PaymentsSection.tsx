@@ -21,6 +21,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { CommandPalette, PaymentsSearchContext, useCommandPaletteShortcut } from "@/components/payments/CommandPalette";
+import { FollowUpProvider } from "@/components/payments/FollowUp";
 import { QuickPayProvider } from "@/components/payments/QuickPay";
 import { StudentPanelProvider } from "@/components/payments/StudentPanel";
 
@@ -121,12 +122,14 @@ export function PaymentsChrome({ children }: { children: ReactNode }) {
   useCommandPaletteShortcut(show);
   return (
     <QuickPayProvider>
+      <FollowUpProvider>
       <StudentPanelProvider>
         <PaymentsSearchContext.Provider value={show}>
           {children}
           <CommandPalette open={open} onClose={() => setOpen(false)} />
         </PaymentsSearchContext.Provider>
       </StudentPanelProvider>
+      </FollowUpProvider>
     </QuickPayProvider>
   );
 }

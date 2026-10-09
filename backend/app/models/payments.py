@@ -485,6 +485,40 @@ class PaymentInvoiceDraft(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+
+class PaymentFollowUp(Base):
+    """One follow-up entry for a student who owes money (revamp R4,
+    2026-10-09): a contact (call, in person, message, other), an in-app
+    reminder, or a note. Optionally a promise-to-pay date. Never edited or
+    deleted: the follow-up history of a student is these rows in order."""
+
+    __tablename__ = "payment_follow_ups"
+    id = Column(String, primary_key=True, default=uuid_str)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    # CONTACT | REMINDER | NOTE
+    kind = Column(String(20), nullable=False)
+    # CALL | IN_PERSON | MESSAGE | OTHER | IN_APP (reminders)
+    channel = Column(String(20), nullable=True)
+    note = Column(Text, nullable=True)
+    promise_date = Column(Date, nullable=True)
+    # GENTLE | FIRM | FINAL (reminders)
+    template_key = Column(String(20), nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_by_name = Column(String(150), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class PaymentReminderTemplate(Base):
+    """The three reminder messages (revamp R4): GENTLE, FIRM, FINAL. The
+    admin edits the wording; {placeholders} are filled per student."""
+
+    __tablename__ = "payment_reminder_templates"
+    key = Column(String(20), primary_key=True)
+    body = Column(Text, nullable=False)
+    updated_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 __all__ = [
     "PaymentOnlineSettings",
     "PaymentLink",
@@ -507,6 +541,8 @@ __all__ = [
     "PaymentBillingSettings",
     "PaymentStudentBilling",
     "PaymentInvoiceDraft",
+    "PaymentFollowUp",
+    "PaymentReminderTemplate",
 ]
 
 
