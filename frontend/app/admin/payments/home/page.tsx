@@ -4,18 +4,16 @@
 // Today's money, what is due, what needs someone to look, quick actions and
 // the latest payments. Student names open the side panel; ⌘K searches.
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowRight,
   CalendarCheck,
   CheckCircle2,
   CreditCard,
-  Download,
   FilePlus2,
   HandCoins,
   Link2,
-  Loader2,
   ReceiptText,
   TrendingUp,
   Wallet,
@@ -29,11 +27,11 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { PaymentStatusChip } from "@/components/payments/PaymentDetail";
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { PaymentsChrome } from "@/components/payments/PaymentsSection";
-import { InlineError } from "@/components/payments/PaymentsUi";
+import { useQuickPay } from "@/components/payments/QuickPay";
 import { OnlineStatusChip } from "@/components/payments/panels/OnlinePaymentsPanel";
 import { StudentLink } from "@/components/payments/StudentPanel";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
-import { downloadCollectionsPdf, getPaymentsHome, saveBlob, type PaymentsHome } from "@/lib/api/payments";
+import { getPaymentsHome, type PaymentsHome } from "@/lib/api/payments";
 import { FormatDate } from "@/lib/paymentsDates";
 
 function Greeting(): string {
@@ -78,12 +76,15 @@ function Card({ title, action, children, icon }: { title: string; action?: React
 }
 
 function HomeBody({ data }: { data: PaymentsHome }) {
-  const dayClose = useMutation({
-    mutationFn: () => downloadCollectionsPdf({ dateFrom: data.today, dateTo: data.today }),
-    onSuccess: (blob) => saveBlob(blob, `MathPath-Day-Close-${data.today}.pdf`),
-  });
-  const attentionCount = data.attention.online.length + data.attention.setup.length + (data.attention.failedToday ? 1 : 0);
+  const quickPay = useQuickPay();
+  const close = data.dayClose;
+  const pendingDays = close.pendingDays;
+  const attentionCount = data.attention.online.length + data.attention.setup.length + (data.attention.failedToday ? 1 : 0) + pendingDays.length;
   const monthUp = data.lastMonthCollected.paise > 0 ? Math.round(((data.thisMonthCollected.paise - data.lastMonthCollected.paise) / data.lastMonthCollected.paise) * 100) : null;
+  const todayClosed = close.todayState === "CLOSED" && !close.todayChangedAfterClose;
+  const dayLine = close.todayState === "CLOSED"
+    ? close.todayChangedAfterClose ? "Today was closed, then payments changed." : "Today is closed."
+    : `${close.expectedCash.display} cash expected in hand.`;
 
   return (
     <>
@@ -92,18 +93,21 @@ function HomeBody({ data }: { data: PaymentsHome }) {
           <div className="min-w-0">
             <p className="math-block-header"><Wallet size={14} />Payments</p>
             <h1 className="math-title">{Greeting()}</h1>
-            <p className="math-subtitle">{LongDate(data.today)}. {data.todayPaymentCount ? `${data.todayPaymentCount} payment${data.todayPaymentCount === 1 ? "" : "s"} so far today.` : "No payments yet today."}</p>
+            <p className="math-subtitle">{LongDate(data.today)}. {data.todayPaymentCount ? `${data.todayPaymentCount} payment${data.todayPaymentCount === 1 ? "" : "s"} so far today.` : "No payments yet today."} {dayLine}</p>
             <HeroSearch />
           </div>
           <div className="flex flex-wrap gap-2 lg:justify-end">
-            <Link href="/admin/payments/collections?tab=student-fees" className="math-button-primary whitespace-nowrap"><HandCoins size={17} />Record Payment</Link>
+            {quickPay ? (
+              <button type="button" onClick={() => quickPay.open()} className="math-button-primary whitespace-nowrap"><HandCoins size={17} />Record Payment</button>
+            ) : (
+              <Link href="/admin/payments/collections?tab=student-fees" className="math-button-primary whitespace-nowrap"><HandCoins size={17} />Record Payment</Link>
+            )}
             <Link href="/admin/payments/invoices?tab=generate" className="math-button-secondary whitespace-nowrap"><FilePlus2 size={17} />Generate Invoices</Link>
-            <button type="button" className="math-button-secondary whitespace-nowrap" disabled={dayClose.isPending} onClick={() => dayClose.mutate()}>
-              {dayClose.isPending ? <Loader2 size={17} className="animate-spin" /> : <CalendarCheck size={17} />}Day Close PDF
-            </button>
+            <Link href="/admin/payments/collections?tab=day-close" className="math-button-secondary whitespace-nowrap">
+              {todayClosed ? <CheckCircle2 size={17} className="text-emerald-600 dark:text-emerald-400" /> : <CalendarCheck size={17} />}{todayClosed ? "Day closed" : "Close the day"}
+            </Link>
           </div>
         </div>
-        {dayClose.error ? <div className="relative z-10 mt-4"><InlineError error={dayClose.error} /></div> : null}
       </section>
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
@@ -148,9 +152,18 @@ function HomeBody({ data }: { data: PaymentsHome }) {
             icon={attentionCount ? <AlertTriangle size={18} className="text-amber-600" /> : <CheckCircle2 size={18} className="text-emerald-600" />}
           >
             {attentionCount === 0 ? (
-              <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">All clear: no online payments waiting and nothing to set up.</p>
+              <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">All clear: earlier days are closed, no online payments are waiting, and nothing needs setting up.</p>
             ) : (
               <ul className="grid gap-2">
+                {pendingDays.map((day) => (
+                  <li key={day.date}>
+                    <Link href={`/admin/payments/collections?tab=day-close&date=${day.date}`} className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm font-bold text-amber-900 transition hover:border-amber-300 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+                      <CalendarCheck size={16} className="shrink-0" />
+                      <span className="min-w-0 flex-1">{FormatDate(day.date)} {day.changedAfterClose ? "changed after it was closed. Check and close it again." : `was not closed (${day.total.display} taken).`}</span>
+                      <ArrowRight size={15} className="shrink-0" />
+                    </Link>
+                  </li>
+                ))}
                 {data.attention.setup.map((item) => (
                   <li key={item.key}>
                     <Link href={item.href} className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm font-bold text-amber-900 transition hover:border-amber-300 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">

@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 
 import { InlineError } from "@/components/payments/PaymentsUi";
 import { PayLinkCard } from "@/components/payments/PayLinkCard";
+import { useQuickPay } from "@/components/payments/QuickPay";
 import { getStudentAccount } from "@/lib/api/payments";
 import "./payments-r1.css";
 import { FormatDate } from "@/lib/paymentsDates";
@@ -74,6 +75,7 @@ function Money({ label, value, tone, icon }: { label: string; value: string; ton
 }
 
 function StudentPanel({ studentId, onClose }: { studentId: string | null; onClose: () => void }) {
+  const quickPay = useQuickPay();
   const [mounted, setMounted] = useState(false);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -202,7 +204,11 @@ function StudentPanel({ studentId, onClose }: { studentId: string | null; onClos
 
         {account ? (
           <footer className="mp-panel-head flex flex-wrap gap-2 border-t border-slate-200 px-5 py-4 dark:border-slate-800">
-            <Link href={AccountHref(account.student.studentId, "new")} onClick={onClose} className="math-button-primary flex-1 justify-center whitespace-nowrap"><HandCoins size={17} />Record Payment</Link>
+            {quickPay ? (
+              <button type="button" onClick={() => { onClose(); quickPay.open(account.student.studentId); }} className="math-button-primary flex-1 justify-center whitespace-nowrap"><HandCoins size={17} />Record Payment</button>
+            ) : (
+              <Link href={AccountHref(account.student.studentId, "new")} onClick={onClose} className="math-button-primary flex-1 justify-center whitespace-nowrap"><HandCoins size={17} />Record Payment</Link>
+            )}
             <Link href={AccountHref(account.student.studentId)} onClick={onClose} className="math-button-secondary flex-1 justify-center whitespace-nowrap">Full account<ArrowRight size={16} /></Link>
           </footer>
         ) : null}

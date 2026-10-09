@@ -6,6 +6,7 @@
 // filters, totals by method, money receipt PDFs, Excel, and a detail view
 // where a payment can be edited or cancelled.
 import { HeroSearch } from "@/components/payments/CommandPalette";
+import { RecordPaymentButton } from "@/components/payments/QuickPay";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -149,7 +150,7 @@ export function PaymentsPanel() {
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/admin/payments/collections?tab=student-fees" className="math-button-primary whitespace-nowrap"><HandCoins size={17} />Record Payment</Link>
+            <RecordPaymentButton className="math-button-primary whitespace-nowrap" />
             <button type="button" className="math-button-secondary whitespace-nowrap" disabled={!data?.totalCount || excel.isPending} onClick={() => excel.mutate()}>
               {excel.isPending ? <Loader2 size={17} className="animate-spin" /> : <FileSpreadsheet size={17} />}Excel
             </button>

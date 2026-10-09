@@ -584,7 +584,7 @@ def RenderReceiptsPdf(Items: Iterable[tuple[dict[str, Any], dict[str, Any]]], *,
 # Collection summary / day close (Payments Phase 4, 2026-10-08)
 # ----------------------------------------------------------------------------
 
-def RenderCollectionSummaryPdf(Business: dict[str, Any], Report: dict[str, Any], *, FilterText: str = "") -> bytes:
+def RenderCollectionSummaryPdf(Business: dict[str, Any], Report: dict[str, Any], *, FilterText: str = "", DayClose: dict[str, Any] | None = None) -> bytes:
     """One summary for a date range (a single day = the day-close sheet):
     totals by method, by staff, and every payment, with sign-off lines for
     counting the cash drawer."""
@@ -627,6 +627,36 @@ def RenderCollectionSummaryPdf(Business: dict[str, Any], Report: dict[str, Any],
     Table1.hAlign = "LEFT"
     Story += [Paragraph("BY METHOD", S["label"]), Spacer(1, 1.5 * mm), Table1, Spacer(1, 5 * mm)]
 
+    # Revamp R2 (2026-10-09): the cash count. DayClose carries the live
+    # figures ("figures") and, once closed, the close record ("close").
+    if DayClose is not None:
+        Figures = DayClose["figures"]
+        Close = DayClose.get("close") if DayClose.get("state") == "CLOSED" else None
+        Count = [
+            [Paragraph("CASH", S["cellHead"]), Paragraph("AMOUNT", S["cellHeadRight"])],
+            [Paragraph("Cash received", S["cell"]), Paragraph(Money(Figures["cashReceived"]["paise"]), S["cellRight"])],
+            [Paragraph(f"Less cash paid for expenses ({Figures['expenseCount']})", S["cell"]), Paragraph(Money(Figures["cashSpent"]["paise"]), S["cellRight"])],
+            [Paragraph("<b>Expected cash in hand</b>", S["cell"]), Paragraph(f"<b>{Money((Close or {}).get('expectedCash', Figures['expectedCash'])['paise'])}</b>", S["cellRight"])],
+        ]
+        if Close:
+            Diff = Close["difference"]["paise"]
+            DiffText = "Matches" if not Diff else (f"{Money(abs(Diff))} more" if Diff > 0 else f"{Money(abs(Diff))} short")
+            Count += [
+                [Paragraph("<b>Cash counted</b>", S["cell"]), Paragraph(f"<b>{Money(Close['countedCash']['paise'])}</b>", S["cellRight"])],
+                [Paragraph("Difference", S["cell"]), Paragraph(_T(DiffText), S["cellRight"])],
+            ]
+        Table4 = Table(Count, colWidths=[W * 0.42, W * 0.2])
+        Table4.setStyle(TableStyle(Grid[:-1] + [("LINEBELOW", (0, -1), (-1, -1), 0.6, RULE)]))
+        Table4.hAlign = "LEFT"
+        Story += [Paragraph("CASH COUNT", S["label"]), Spacer(1, 1.5 * mm), Table4]
+        if Close and Close.get("note"):
+            Story += [Spacer(1, 1.5 * mm), Paragraph(f"Note: {_T(Close['note'])}", S["body"])]
+        if Close and Close.get("changedAfterClose"):
+            Story += [Spacer(1, 1.5 * mm), Paragraph("<b>Changed after closing:</b> payments or expenses for this day changed after it was closed. The figures above the cash count are the current ones.", S["body"])]
+        if not Close:
+            Story += [Spacer(1, 1.5 * mm), Paragraph("This day has not been closed yet." if DayClose.get("state") == "OPEN" else "This day was reopened and has not been closed again.", S["body"])]
+        Story += [Spacer(1, 5 * mm)]
+
     # By staff (staff x method).
     if Report["byStaff"]:
         Head = [Paragraph("RECEIVED BY", S["cellHead"])] + [Paragraph(_T(Method.upper()), S["cellHeadRight"]) for Method in Methods] + [Paragraph("TOTAL", S["cellHeadRight"])]
@@ -656,8 +686,17 @@ def RenderCollectionSummaryPdf(Business: dict[str, Any], Report: dict[str, Any],
     else:
         Story += [Paragraph("No payments in this period.", S["body"])]
 
+    Closed = (DayClose or {}).get("close") if (DayClose or {}).get("state") == "CLOSED" else None
+    if Closed:
+        from datetime import datetime as _dt
+        from zoneinfo import ZoneInfo as _Zone
+
+        When = _dt.fromisoformat(Closed["closedAt"]).astimezone(_Zone("Asia/Kolkata")).strftime("%d %b %Y, %I:%M %p").replace(" 0", " ") if Closed.get("closedAt") else ""
+        CountedBy = f"Closed by: <b>{_T(Closed.get('closedByName') or 'Not recorded')}</b>" + (f", {_T(When)}" if When else "")
+    else:
+        CountedBy = "Cash counted by: ____________________"
     Sign = Table(
-        [[Paragraph("Cash counted by: ____________________", S["body"]), Paragraph("Verified by: ____________________", S["right"])]],
+        [[Paragraph(CountedBy, S["body"]), Paragraph("Verified by: ____________________", S["right"])]],
         colWidths=[W * 0.5, W * 0.5],
     )
     Sign.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))

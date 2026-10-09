@@ -903,6 +903,7 @@ export async function revokePayLink(linkId: string): Promise<{ link: PayLink }> 
 
 export type PaymentsHome = {
   today: string;
+  dayClose: HomeDayClose;
   todayCollected: MoneyValue;
   todayPaymentCount: number;
   todayByMethod: MethodTotal[];
@@ -941,5 +942,104 @@ export async function getPaymentsHome(): Promise<PaymentsHome> {
 
 export async function searchPayments(q: string): Promise<PaymentsSearchResult> {
   const { data } = await api.get<PaymentsSearchResult>("/admin/payments/search", { params: { q } });
+  return data;
+}
+
+
+// ---------------------------------------------------------------------------
+// 2026-10-09 (Payments revamp R2): Quick Pay and Day Close.
+// ---------------------------------------------------------------------------
+
+export type DayCloseState = "OPEN" | "CLOSED" | "REOPENED";
+
+export type DayFigures = {
+  date: string;
+  paymentCount: number;
+  total: MoneyValue;
+  byMethod: MethodTotal[];
+  cashReceived: MoneyValue;
+  cashSpent: MoneyValue;
+  expenseCount: number;
+  expectedCash: MoneyValue;
+  byStaff: (MoneyValue & { name: string; paymentCount: number; cash: MoneyValue })[];
+  byCentre: (MoneyValue & { name: string; paymentCount: number; cash: MoneyValue })[];
+};
+
+export type DayCloseRecord = {
+  closeId: string;
+  status: "CLOSED" | "REOPENED";
+  expected: DayFigures;
+  expectedCash: MoneyValue;
+  countedCash: MoneyValue;
+  difference: MoneyValue;
+  note: string | null;
+  closeCount: number;
+  closedByName: string | null;
+  closedAt: string | null;
+  reopenedByName: string | null;
+  reopenedAt: string | null;
+  reopenReason: string | null;
+  changedAfterClose: boolean;
+  changes: { totalAtClose: MoneyValue; totalNow: MoneyValue; cashAtClose: MoneyValue; cashNow: MoneyValue } | null;
+};
+
+export type DaySummary = {
+  date: string;
+  isToday: boolean;
+  figures: DayFigures;
+  close: DayCloseRecord | null;
+  state: DayCloseState;
+  history: PaymentAuditEntry[];
+};
+
+export type RecentDay = {
+  date: string;
+  isToday: boolean;
+  paymentCount: number;
+  total: MoneyValue;
+  expectedCash: MoneyValue;
+  state: DayCloseState;
+  countedCash: MoneyValue | null;
+  difference: MoneyValue | null;
+  closedByName: string | null;
+  closedAt: string | null;
+  changedAfterClose: boolean;
+};
+
+export type HomeDayClose = {
+  today: string;
+  todayState: DayCloseState;
+  todayChangedAfterClose: boolean;
+  expectedCash: MoneyValue;
+  pendingDays: { date: string; state: DayCloseState; changedAfterClose: boolean; total: MoneyValue }[];
+};
+
+export async function getQuickPayDefaults(): Promise<{ lastMethod: PaymentMethodCode | null }> {
+  const { data } = await api.get("/admin/payments/quick-pay/defaults");
+  return data;
+}
+
+export async function getDaySummary(date?: string): Promise<DaySummary> {
+  const { data } = await api.get<DaySummary>("/admin/payments/day-close", { params: date ? { date } : {} });
+  return data;
+}
+
+export async function getRecentDays(): Promise<{ today: string; days: RecentDay[] }> {
+  const { data } = await api.get("/admin/payments/day-close/recent");
+  return data;
+}
+
+export async function closeDay(payload: { date: string; countedCashPaise: number; note?: string | null }): Promise<DaySummary> {
+  const { data } = await api.post<DaySummary>("/admin/payments/day-close", payload);
+  return data;
+}
+
+export async function reopenDay(date: string, reason: string): Promise<DaySummary> {
+  const { data } = await api.post<DaySummary>(`/admin/payments/day-close/${encodeURIComponent(date)}/reopen`, { reason });
+  return data;
+}
+
+export async function downloadDayClosePdf(date: string): Promise<Blob> {
+  const { data } = await api.get(`/admin/payments/day-close/${encodeURIComponent(date)}/pdf`, { responseType: "blob" });
   return data;
 }
