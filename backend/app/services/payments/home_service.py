@@ -89,8 +89,12 @@ def PaymentsHome(db: Session) -> dict[str, Any]:
     if WithoutCentre:
         Setup.append({"key": "centres", "text": f"{WithoutCentre} active student{'s' if WithoutCentre != 1 else ''} have no centre, so their invoices print every centre's address.", "href": "/admin/payments/settings?tab=centres"})
 
+    from app.services.payments.dayclose_service import HomeDayClose
+
+    DayClose = HomeDayClose(db)
     return {
         "today": Base["today"],
+        "dayClose": DayClose,
         "todayCollected": Base["todayCollected"],
         "todayPaymentCount": Base["todayPaymentCount"],
         "todayByMethod": Base["todayByMethod"],

@@ -4,6 +4,7 @@
 // this month, money spent, what is due and how old it is, advance held,
 // six months of collections against spending, and the latest payments.
 import { HeroSearch } from "@/components/payments/CommandPalette";
+import { RecordPaymentButton } from "@/components/payments/QuickPay";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { PaymentStatusChip } from "@/components/payments/PaymentDetail";
@@ -95,7 +96,7 @@ export function OverviewPanel() {
       ) : (
         <>
           <div className="mt-6 flex flex-wrap gap-2">
-            <Link href="/admin/payments/collections?tab=student-fees" className="math-button-primary"><HandCoins size={17} />Record Payment</Link>
+            <RecordPaymentButton className="math-button-primary" />
             <Link href="/admin/payments/invoices?tab=generate" className="math-button-secondary"><FilePlus2 size={17} />Generate Invoices</Link>
             <Link href="/admin/payments/reports?tab=dues" className="math-button-secondary"><AlertTriangle size={17} />Dues</Link>
             <Link href="/admin/payments/expenses?tab=expenses&add=1" className="math-button-secondary"><ReceiptText size={17} />Add Expense</Link>

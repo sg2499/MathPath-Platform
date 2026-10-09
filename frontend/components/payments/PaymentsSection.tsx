@@ -21,6 +21,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { CommandPalette, PaymentsSearchContext, useCommandPaletteShortcut } from "@/components/payments/CommandPalette";
+import { QuickPayProvider } from "@/components/payments/QuickPay";
 import { StudentPanelProvider } from "@/components/payments/StudentPanel";
 
 export type SectionTab<T extends string> = {
@@ -119,12 +120,14 @@ export function PaymentsChrome({ children }: { children: ReactNode }) {
   const show = useCallback(() => setOpen(true), []);
   useCommandPaletteShortcut(show);
   return (
-    <StudentPanelProvider>
-      <PaymentsSearchContext.Provider value={show}>
-        {children}
-        <CommandPalette open={open} onClose={() => setOpen(false)} />
-      </PaymentsSearchContext.Provider>
-    </StudentPanelProvider>
+    <QuickPayProvider>
+      <StudentPanelProvider>
+        <PaymentsSearchContext.Provider value={show}>
+          {children}
+          <CommandPalette open={open} onClose={() => setOpen(false)} />
+        </PaymentsSearchContext.Provider>
+      </StudentPanelProvider>
+    </QuickPayProvider>
   );
 }
 

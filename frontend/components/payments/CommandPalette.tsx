@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { useQuickPay } from "@/components/payments/QuickPay";
 import { AccountHref, useStudentPanel } from "@/components/payments/StudentPanel";
 import { searchPayments } from "@/lib/api/payments";
 
@@ -41,10 +42,11 @@ type Item = {
   run: () => void;
 };
 
-const SHORTCUTS: { title: string; detail: string; href: string; icon: LucideIcon; words: string }[] = [
-  { title: "Record a payment", detail: "Collections › Student Fees", href: "/admin/payments/collections?tab=student-fees", icon: HandCoins, words: "record payment receive collect cash upi counter" },
+const SHORTCUTS: { title: string; detail: string; href: string; icon: LucideIcon; words: string; quickPay?: boolean }[] = [
+  { title: "Record a payment", detail: "Quick Pay", href: "/admin/payments/collections?tab=student-fees", icon: HandCoins, words: "record payment receive collect cash upi counter quick pay", quickPay: true },
+  { title: "Close the day", detail: "Collections › Day Close", href: "/admin/payments/collections?tab=day-close", icon: CalendarCheck, words: "day close cash count drawer end of day today" },
   { title: "Generate invoices", detail: "Invoices › Generate", href: "/admin/payments/invoices?tab=generate", icon: FilePlus2, words: "generate invoices bill monthly fee raise" },
-  { title: "Today's collection (day close)", detail: "Reports › Collections", href: "/admin/payments/reports?tab=collections", icon: CalendarCheck, words: "today day close collection cash count report" },
+  { title: "Collections report", detail: "Reports › Collections", href: "/admin/payments/reports?tab=collections", icon: BarChart3, words: "today collection report method staff" },
   { title: "Dues", detail: "Reports › Dues", href: "/admin/payments/reports?tab=dues", icon: Wallet, words: "dues pending unpaid overdue outstanding" },
   { title: "Online payments", detail: "Collections › Online Payments", href: "/admin/payments/collections?tab=online", icon: CreditCard, words: "online razorpay failed attention pay link" },
   { title: "All invoices", detail: "Invoices", href: "/admin/payments/invoices?tab=all", icon: FileText, words: "invoices list all" },
@@ -97,6 +99,7 @@ export function useCommandPaletteShortcut(open: () => void) {
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
   const panel = useStudentPanel();
+  const quickPay = useQuickPay();
   const [mounted, setMounted] = useState(false);
   const [text, setText] = useState("");
   const [active, setActive] = useState(0);
@@ -149,6 +152,23 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         },
       });
     }
+    // 2026-10-09 (revamp R2): "Record payment for <top student>".
+    const top = data?.students?.[0];
+    if (top && quickPay) {
+      list.push({
+        key: `qp-${top.studentId}`,
+        group: "Actions",
+        icon: HandCoins,
+        title: `Record payment for ${top.name}`,
+        detail: "Quick Pay",
+        side: top.due.paise > 0 ? `${top.due.display} due` : undefined,
+        sideTone: "amber",
+        run: () => {
+          onClose();
+          quickPay.open(top.studentId);
+        },
+      });
+    }
     for (const invoice of data?.invoices ?? []) {
       list.push({
         key: `i-${invoice.invoiceId}`,
@@ -186,10 +206,18 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       });
     }
     for (const item of shortcuts) {
-      list.push({ key: `a-${item.href}`, group: "Go to", icon: item.icon, title: item.title, detail: item.detail, run: () => go(item.href) });
+      list.push({
+        key: `a-${item.href}`, group: "Go to", icon: item.icon, title: item.title, detail: item.detail,
+        run: () => {
+          if (item.quickPay && quickPay) {
+            onClose();
+            quickPay.open();
+          } else go(item.href);
+        },
+      });
     }
     return list;
-  }, [text, query, results.data, panel, onClose, go]);
+  }, [text, query, results.data, panel, quickPay, onClose, go]);
 
   useEffect(() => setActive(0), [items.length, query]);
   useEffect(() => {

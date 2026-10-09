@@ -5,6 +5,7 @@
 // 61-90 / 90+ days), a ready-to-paste reminder message, Record Payment, and
 // Excel. Opened with ?bucket=D31_60 from the Overview, it starts filtered.
 import { HeroSearch } from "@/components/payments/CommandPalette";
+import { useQuickPay } from "@/components/payments/QuickPay";
 import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { BUCKET_COLOURS } from "@/components/payments/panels/OverviewPanel";
@@ -82,6 +83,7 @@ function AgeChip({ days, label, bucket }: { days: number; label: string; bucket:
 
 export function DuesPanel() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
+  const quickPay = useQuickPay();
   const [bucket, setBucket] = useState("");
   const [search, setSearch] = useState("");
   const [centreId, setCentreId] = useState("");
@@ -234,9 +236,15 @@ export function DuesPanel() {
                         <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => copy(row)}>
                           {copied === row.studentId ? <Check size={13} /> : <Copy size={13} />}{copied === row.studentId ? "Copied" : "Copy reminder"}
                         </button>
-                        <Link href={`/admin/payments/collections?tab=student-fees&studentId=${encodeURIComponent(row.studentId)}${row.invoices.length === 1 ? `&pay=${encodeURIComponent(row.invoices[0].invoiceId)}` : ""}`} className="math-role-action-button h-9 px-3 text-xs">
-                          <HandCoins size={13} />Record Payment
-                        </Link>
+                        {quickPay ? (
+                          <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => quickPay.open(row.studentId)}>
+                            <HandCoins size={13} />Record Payment
+                          </button>
+                        ) : (
+                          <Link href={`/admin/payments/collections?tab=student-fees&studentId=${encodeURIComponent(row.studentId)}${row.invoices.length === 1 ? `&pay=${encodeURIComponent(row.invoices[0].invoiceId)}` : ""}`} className="math-role-action-button h-9 px-3 text-xs">
+                            <HandCoins size={13} />Record Payment
+                          </Link>
+                        )}
                       </div>
                     </div>
                     {copyFailed === row.studentId ? (

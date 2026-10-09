@@ -803,3 +803,60 @@ def admin_payments_home(db: Session = Depends(get_db), user: User = Depends(admi
 @router.get("/search")
 def admin_payments_search(q: str = "", db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return PaymentsSearch(db, q)
+
+
+# --- Quick Pay and Day Close (revamp R2) -------------------------------------------
+
+class DayCloseRequest(BaseModel):
+    date: str | None = None
+    countedCashPaise: int = Field(ge=0)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class DayReopenRequest(BaseModel):
+    reason: str = Field(max_length=300)
+
+
+@router.get("/quick-pay/defaults")
+def admin_quick_pay_defaults(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.dayclose_service import LastUsedMethod
+
+    return {"lastMethod": LastUsedMethod(db, user)}
+
+
+@router.get("/day-close/recent")
+def admin_day_close_recent(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.dayclose_service import RecentDays
+
+    return RecentDays(db)
+
+
+@router.get("/day-close")
+def admin_day_close(date: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.dayclose_service import DaySummary
+
+    return DaySummary(db, date)
+
+
+@router.post("/day-close")
+def admin_close_day(payload: DayCloseRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.dayclose_service import CloseDay
+
+    return CloseDay(db, DayValue=payload.date, CountedPaise=payload.countedCashPaise, Note=payload.note, Actor=user)
+
+
+@router.post("/day-close/{day}/reopen")
+def admin_reopen_day(day: str, payload: DayReopenRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.dayclose_service import ReopenDay
+
+    return ReopenDay(db, DayValue=day, Reason=payload.reason, Actor=user)
+
+
+@router.get("/day-close/{day}/pdf")
+def admin_day_close_pdf(day: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.dayclose_service import DaySummary
+    from app.services.payments.invoices_service import _BusinessSnapshot
+
+    Summary = DaySummary(db, day)
+    Report = CollectionsReport(db, Filters={"dateFrom": Summary["date"], "dateTo": Summary["date"]})
+    return _PdfResponse(RenderCollectionSummaryPdf(_BusinessSnapshot(db), Report, DayClose=Summary), f"MathPath-Day-Close-{Summary['date']}.pdf")

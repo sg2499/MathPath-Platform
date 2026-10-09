@@ -435,4 +435,39 @@ __all__ = [
     "ExpenseCategory",
     "Expense",
     "ExpenseMethodLine",
+    "PaymentDayClose",
 ]
+
+
+class PaymentDayClose(Base):
+    """The end-of-day cash count (revamp R2, 2026-10-09). One row per day.
+
+    Closing records what the platform expected (every method, plus cash
+    received minus cash spent), the cash actually counted, the difference
+    and a note, and who closed it. Reopening keeps the row (status REOPENED,
+    with the reason); closing again overwrites the figures. Every close and
+    reopen is also in payment_audit_log, so the full history is kept.
+    `fingerprint` is a hash of the day's payments and expenses at close
+    time; if it no longer matches, the day changed after it was closed."""
+
+    __tablename__ = "payment_day_closes"
+    id = Column(String, primary_key=True, default=uuid_str)
+    close_date = Column(Date, unique=True, nullable=False, index=True)
+    # CLOSED | REOPENED
+    status = Column(String(20), nullable=False, default="CLOSED")
+    expected_json = Column(Text, nullable=False)
+    expected_cash_paise = Column(Integer, nullable=False, default=0)
+    counted_cash_paise = Column(Integer, nullable=False, default=0)
+    difference_paise = Column(Integer, nullable=False, default=0)
+    note = Column(Text, nullable=True)
+    fingerprint = Column(String(64), nullable=False)
+    close_count = Column(Integer, nullable=False, default=1)
+    closed_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    closed_by_name = Column(String(150), nullable=True)
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+    reopened_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    reopened_by_name = Column(String(150), nullable=True)
+    reopened_at = Column(DateTime(timezone=True), nullable=True)
+    reopen_reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

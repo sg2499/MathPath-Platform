@@ -75,7 +75,9 @@ import {
   HandCoins,
 } from "lucide-react";
 import type { ChangeEvent, ComponentType, CSSProperties, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+
+const useLayoutEffectSafe = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 type ThemeMode = "light" | "dark";
 type StoredUser = ReturnType<typeof getStoredUser>;
@@ -306,12 +308,56 @@ export function AppShell({
   const IsTeacher = MountedUser?.role === "TEACHER";
   const IsAdmin =
     MountedUser?.role === "ADMIN" || MountedUser?.role === "SUPER_ADMIN";
-  // 2026-10-09 (revamp R1): the admin menu has eight groups since Payments
-  // was added, and below about 2100px wide they ran under the icons on the
-  // right. Tighter items there, no dropdown arrows, and the groups may shrink.
-  const AdminNavCompact = IsAdmin
-    ? "!min-w-0 max-w-full !gap-1.5 lg:!px-1.5 lg:!text-[12px] min-[1600px]:!px-2 min-[1600px]:!text-[12.5px] min-[2100px]:!gap-2 min-[2100px]:!px-3 min-[2100px]:!text-sm"
-    : "";
+  // 2026-10-09 (revamp R1, reworked in R2 after Shailesh: "it was perfect
+  // before"): the admin menu has eight groups and on most laptops it is a
+  // little wider than the space between the logo and the buttons on the
+  // right. It keeps its normal look when it fits, and otherwise takes only
+  // the steps it needs, measured live:
+  //   1 Dashboard shows as its icon (as before R1)
+  //   2 a little less padding per item
+  //   3 no dropdown arrows
+  //   4 smaller text (small laptops only)
+  //   5 icons only, names on hover (tablet widths)
+  const NavRef = useRef<HTMLElement | null>(null);
+  const NavPillRef = useRef<HTMLDivElement | null>(null);
+  const NavNeedAt = useRef<number[]>([]);
+  const [NavLevel, setNavLevel] = useState(0);
+  useLayoutEffectSafe(() => {
+    if (!IsAdmin) return;
+    const Nav = NavRef.current;
+    const Pill = NavPillRef.current;
+    if (!Nav || !Pill) return;
+    // What an item needs: its width plus whatever its labels had to cut off.
+    const Need = (Button: HTMLElement) =>
+      Button.scrollWidth + Array.from(Button.querySelectorAll<HTMLElement>("span:not(.sr-only)")).reduce((Sum, Span) => Sum + Math.max(0, Span.scrollWidth - Span.clientWidth), 0);
+    const Measure = () => {
+      const Buttons = Array.from(Pill.querySelectorAll<HTMLElement>(".premium-nav-item"));
+      const Style = getComputedStyle(Pill);
+      const Needed = Buttons.reduce((Sum, Button) => Sum + Need(Button), 0)
+        + (parseFloat(Style.columnGap || "0") || 0) * Math.max(0, Buttons.length - 1)
+        + (parseFloat(Style.paddingLeft) || 0) + (parseFloat(Style.paddingRight) || 0);
+      const Cut = Buttons.some((Button) => Need(Button) > Button.clientWidth + 1);
+      const Spills = Pill.getBoundingClientRect().right > Nav.getBoundingClientRect().right + 1 || Pill.scrollWidth > Pill.clientWidth + 1;
+      if ((Cut || Spills || Needed > Nav.clientWidth + 1) && NavLevel < 5) {
+        NavNeedAt.current[NavLevel] = Needed;
+        setNavLevel(NavLevel + 1);
+      } else if (NavLevel > 0 && Nav.clientWidth >= (NavNeedAt.current[NavLevel - 1] ?? Infinity) + 24) {
+        setNavLevel(NavLevel - 1);
+      }
+    };
+    Measure();
+    const Observer = new ResizeObserver(Measure);
+    Observer.observe(Nav);
+    return () => Observer.disconnect();
+  }, [IsAdmin, NavLevel]);
+  const NavIconDashboard = IsAdmin && NavLevel >= 1;
+  const NavNoArrows = IsAdmin && NavLevel >= 3;
+  const NavIconsOnly = IsAdmin && NavLevel >= 5;
+  const AdminNavCompact = !IsAdmin || NavLevel < 2
+    ? ""
+    : NavLevel === 2 || NavLevel === 3
+      ? "xl:!px-2"
+      : "!min-w-0 max-w-full !gap-1.5 lg:!px-1.5 lg:!text-[12px] min-[1600px]:!px-2 min-[1600px]:!text-[12.5px]";
   // 2026-10-09 (Payments Phase 5): the student's Fees item shows only while
   // fees are switched on for students, with the unpaid invoice count.
   const FeesSummary = useQuery({
@@ -495,7 +541,7 @@ export function AppShell({
           label: "Collections",
           href: "/admin/payments/collections",
           icon: HandCoins,
-          tooltip: "Student Fees (Record Payment), every payment received, and online payments",
+          tooltip: "Student Fees (Record Payment), every payment received, online payments, and Day Close",
         },
         {
           label: "Reports",
@@ -1127,10 +1173,11 @@ export function AppShell({
               </a>
 
               <nav
+                ref={NavRef}
                 className="hidden min-w-0 flex-1 lg:justify-start xl:justify-center lg:flex"
                 aria-label="Primary navigation"
               >
-                <div className="premium-nav math-nav-spotlight relative z-[120] w-fit max-w-full overflow-visible px-1 lg:gap-0 xl:gap-1">
+                <div ref={NavPillRef} className="premium-nav math-nav-spotlight relative z-[120] w-fit max-w-full overflow-visible px-1 lg:gap-0 xl:gap-1">
                   {navGroups.map((group) => {
                     const Icon = group.icon;
                     const active = isGroupActive(group);
@@ -1205,7 +1252,7 @@ export function AppShell({
                             }
                             className={`truncate whitespace-nowrap min-w-0 ${
                               RoleNavHighlighted ? "!text-white opacity-100" : ""
-                            } ${IsAdmin && group.href === "/admin/dashboard" ? "sr-only min-[2100px]:not-sr-only" : ""}`}
+                            } ${NavIconsOnly || (NavIconDashboard && group.href === "/admin/dashboard") ? "sr-only" : ""}`}
                           >
                             {group.shortLabel || group.label}
                           </span>
@@ -1217,7 +1264,7 @@ export function AppShell({
                     return (
                       <div
                         key={group.label}
-                        className={`relative ${IsAdmin ? "min-w-0 shrink" : ""}`}
+                        className={`relative ${IsAdmin && NavLevel >= 4 ? "min-w-0 shrink" : ""}`}
                         onMouseEnter={() => {
                           setOpenGroup(group.label);
                           setHoveredNavGroup(group.label);
@@ -1277,7 +1324,7 @@ export function AppShell({
                             }
                             className={`truncate whitespace-nowrap min-w-0 ${
                               RoleNavHighlighted ? "!text-white opacity-100" : ""
-                            }`}
+                            } ${NavIconsOnly ? "sr-only" : ""}`}
                           >
                             {group.shortLabel || group.label}
                           </span>
@@ -1291,7 +1338,7 @@ export function AppShell({
                                 ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
                                 : undefined)
                             }
-                            className={`math-teacher-main-nav-chevron math-student-main-nav-chevron shrink-0 transition-colors ${IsAdmin ? "hidden min-[2100px]:inline" : ""} ${
+                            className={`math-teacher-main-nav-chevron math-student-main-nav-chevron shrink-0 transition-colors ${NavNoArrows ? "hidden" : ""} ${
                               dropdownOpen ? "rotate-180" : ""
                             } ${
                               TeacherNavHighlighted
