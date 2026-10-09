@@ -784,3 +784,114 @@ export async function downloadExpensesExcel(filters: ExpenseFilters): Promise<Bl
   const { data } = await api.get("/admin/payments/expenses/export", { params: CleanParams(filters), responseType: "blob" });
   return data;
 }
+
+
+// ---------------------------------------------------------------------------
+// 2026-10-09 (Payments Phase 5): online payments -- the switches, the Online
+// Payments log and parent pay links.
+// ---------------------------------------------------------------------------
+
+export type OnlineSettings = {
+  studentFeesEnabled: boolean;
+  onlinePaymentsEnabled: boolean;
+  onlinePaymentsLive: boolean;
+  keyMode: "TEST" | "LIVE" | null;
+  keyIdMasked: string | null;
+  keysReady: boolean;
+  webhookSecretSet: boolean;
+  receiptNumberingReady: boolean;
+  problems: string[];
+  webhookPath: string;
+  webhookEvents: string[];
+  updatedAt: string | null;
+};
+
+export type OnlineOrderStatus = "CREATED" | "ABANDONED" | "FAILED" | "PAID" | "ATTENTION";
+
+export type OnlineOrder = {
+  orderRef: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string | null;
+  studentId: string;
+  studentName: string;
+  studentCode: string | null;
+  amountPaise: number;
+  amountDisplay: string;
+  invoices: { invoiceId: string; invoiceNumber: string; amountPaise: number; amountDisplay: string }[];
+  source: "STUDENT" | "PAY_LINK";
+  sourceLabel: string;
+  keyMode: "TEST" | "LIVE";
+  status: OnlineOrderStatus;
+  statusLabel: string;
+  methodDetail: string | null;
+  lastError: string | null;
+  paymentId: string | null;
+  receiptNumber: string | null;
+  receiptStatus: string | null;
+  createdAt: string | null;
+  paidAt: string | null;
+  events?: { eventId: string; source: string; type: string; label: string; detail: string | null; razorpayPaymentId: string | null; createdAt: string | null }[];
+};
+
+export type OnlineOrderFilters = { status?: string; source?: string; studentId?: string; dateFrom?: string; dateTo?: string; search?: string };
+
+export type OnlineOrderList = {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  counts: Record<OnlineOrderStatus, number>;
+  paidDisplay: string;
+  orders: OnlineOrder[];
+  settings: OnlineSettings;
+};
+
+export type PayLink = {
+  linkId: string;
+  token: string;
+  path: string;
+  status: "ACTIVE" | "REVOKED" | "EXPIRED";
+  expiresAt: string | null;
+  openCount: number;
+  lastOpenedAt: string | null;
+  createdAt: string | null;
+};
+
+export async function getOnlineSettings(): Promise<OnlineSettings> {
+  const { data } = await api.get<OnlineSettings>("/admin/payments/online/settings");
+  return data;
+}
+
+export async function updateOnlineSettings(payload: { studentFeesEnabled?: boolean; onlinePaymentsEnabled?: boolean }): Promise<OnlineSettings> {
+  const { data } = await api.put<OnlineSettings>("/admin/payments/online/settings", payload);
+  return data;
+}
+
+export async function listOnlineOrders(filters: OnlineOrderFilters, page = 1, pageSize = 50): Promise<OnlineOrderList> {
+  const { data } = await api.get<OnlineOrderList>("/admin/payments/online/orders", { params: { ...filters, page, pageSize } });
+  return data;
+}
+
+export async function getOnlineOrder(orderRef: string): Promise<OnlineOrder> {
+  const { data } = await api.get<OnlineOrder>(`/admin/payments/online/orders/${encodeURIComponent(orderRef)}`);
+  return data;
+}
+
+export async function checkOnlineOrder(orderRef: string): Promise<OnlineOrder> {
+  const { data } = await api.post<OnlineOrder>(`/admin/payments/online/orders/${encodeURIComponent(orderRef)}/check`);
+  return data;
+}
+
+export async function getStudentPayLink(studentId: string): Promise<{ link: PayLink | null; onlinePaymentsLive: boolean }> {
+  const { data } = await api.get(`/admin/payments/students/${encodeURIComponent(studentId)}/pay-link`);
+  return data;
+}
+
+export async function createStudentPayLink(studentId: string): Promise<{ link: PayLink; onlinePaymentsLive: boolean }> {
+  const { data } = await api.post(`/admin/payments/students/${encodeURIComponent(studentId)}/pay-link`);
+  return data;
+}
+
+export async function revokePayLink(linkId: string): Promise<{ link: PayLink }> {
+  const { data } = await api.post(`/admin/payments/pay-links/${encodeURIComponent(linkId)}/revoke`);
+  return data;
+}

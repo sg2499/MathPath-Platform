@@ -132,6 +132,7 @@ const ACTION_LABELS: Record<string, string> = {
   SET_CENTRE: "Centre changed",
   CANCEL: "Cancelled",
   ADVANCE_APPLIED: "Advance applied",
+  REVOKE: "Pay link switched off",
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -180,12 +181,18 @@ const FIELD_LABELS: Record<string, string> = {
   vendor: "Vendor",
   billNumber: "Bill number",
   details: "Details",
+  studentFeesEnabled: "Fees shown to students",
+  onlinePaymentsEnabled: "Online payments",
+  expiresAt: "Pay link works until",
+  channel: "Channel",
+  razorpayPaymentId: "Razorpay payment",
 };
 
-const DATE_KEYS = new Set(["expenseDate", "paymentDate", "invoiceDate", "dueDate"]);
+const DATE_KEYS = new Set(["expenseDate", "paymentDate", "invoiceDate", "dueDate", "expiresAt"]);
 
 function ShowValue(value: unknown, key?: string, entityType?: string): string {
   if (value === null || value === undefined || value === "") return "—";
+  if (key === "expiresAt" && typeof value === "string") value = value.slice(0, 10);
   if (["amount", "discount", "advance", "advanceLeft", "movedToAdvance"].includes(key ?? "") && typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value)) {
     return `₹${Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
@@ -201,6 +208,9 @@ function ShowValue(value: unknown, key?: string, entityType?: string): string {
   if (value === "PART_PAID") return "Part-paid";
   if (value === "PAID") return "Paid";
   if (value === "CANCELLED") return "Cancelled";
+  if (value === "ONLINE") return "Online (Razorpay)";
+  if (value === "ACTIVE") return "On";
+  if (value === "REVOKED") return "Switched off";
   if (value === "RECORDED") return entityType === "PAYMENT" ? "Received" : "Recorded";
   if (key && DATE_KEYS.has(key) && typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
     const [year, month, day] = value.split("-").map(Number);

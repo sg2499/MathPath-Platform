@@ -1,0 +1,72 @@
+/* 2026-10-09 (Payments Phase 5): the paying parts shared by the student
+   Fees page and the parent pay link page. The warm orange matches the
+   student login's own accent (student-elevate.css --se-primary), so paying
+   looks the same from a student's login and from a parent's link. */
+
+:root {
+  --fees-accent: #c2410c;
+  --fees-accent-soft: #fff4ec;
+  --fees-accent-line: rgba(234, 88, 12, 0.38);
+  --fees-action: linear-gradient(135deg, #9a3412 0%, #ea580c 55%, #e11d48 100%);
+  --fees-action-hover: linear-gradient(135deg, #a83d17 0%, #f26a1b 55%, #ec2c56 100%);
+  --fees-ring: 0 0 0 3px rgba(234, 88, 12, 0.35);
+}
+
+html.dark {
+  --fees-accent: #fdba74;
+  --fees-accent-soft: rgba(249, 115, 22, 0.12);
+  --fees-accent-line: rgba(251, 146, 60, 0.45);
+  --fees-ring: 0 0 0 3px rgba(251, 146, 60, 0.45);
+}
+
+.fees-accent-text { color: var(--fees-accent); }
+
+.fees-choice { transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease; }
+.fees-choice-on { border-color: var(--fees-accent-line) !important; background: var(--fees-accent-soft) !important; }
+.fees-choice:focus-within { box-shadow: var(--fees-ring); }
+.fees-check { accent-color: #ea580c; }
+
+.fees-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  border-radius: 0.875rem;
+  padding: 0 1.15rem;
+  font-weight: 900;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+  transition: transform 140ms ease, filter 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+.fees-btn:focus-visible { outline: none; box-shadow: var(--fees-ring); }
+.fees-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+.fees-btn:active:not(:disabled) { transform: translateY(1px); }
+
+.fees-btn-primary { background: var(--fees-action); color: #fff; box-shadow: 0 14px 28px -14px rgba(234, 88, 12, 0.6); }
+.fees-btn-primary:hover:not(:disabled) { background: var(--fees-action-hover); }
+
+.fees-btn-quiet { border: 1px solid rgb(226 232 240); background: #fff; color: rgb(30 41 59); }
+.fees-btn-quiet:hover:not(:disabled) { background: rgb(248 250 252); }
+html.dark .fees-btn-quiet { border-color: rgb(51 65 85); background: rgb(15 23 42); color: rgb(226 232 240); }
+html.dark .fees-btn-quiet:hover:not(:disabled) { background: rgb(30 41 59); }
+
+.fees-btn-small { min-height: 2.25rem; padding: 0 0.85rem; font-size: 0.8125rem; border-radius: 0.75rem; }
+
+.fees-pay-bar { background: linear-gradient(135deg, #1c0a0f 0%, #3b0d19 100%); color: #fff; }
+html.dark .fees-pay-bar { background: linear-gradient(135deg, #1e1b2e 0%, #2a1520 100%); box-shadow: inset 0 0 0 1px rgba(251, 146, 60, 0.25); }
+
+.fees-tab { border-radius: 9999px; padding: 0.5rem 1rem; font-weight: 900; font-size: 0.875rem; color: rgb(71 85 105); transition: background-color 140ms ease, color 140ms ease; }
+.fees-tab:hover { background: rgb(241 245 249); }
+.fees-tab[aria-selected="true"] { background: var(--fees-action); color: #fff; }
+.fees-tab:focus-visible { outline: none; box-shadow: var(--fees-ring); }
+html.dark .fees-tab { color: rgb(203 213 225); }
+html.dark .fees-tab:hover { background: rgb(30 41 59); }
+html.dark .fees-tab[aria-selected="true"] { color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fees-btn, .fees-choice, .fees-tab { transition: none; }
+}
+
+.fees-badge { border: 1px solid #a7f3d0; background: #ffffff; color: #047857; }
+html.dark .fees-badge { border-color: #065f46; background: #0f172a; color: #6ee7b7; }

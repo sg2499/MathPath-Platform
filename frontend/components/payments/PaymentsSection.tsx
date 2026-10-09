@@ -4,9 +4,9 @@
 // with sub tabs"): the Payments menu has five sections, each with its own
 // sub-tabs, drawn here above the active tab's own content.
 //
-//   Payment Settings  Business Details · Centres · Document Numbering · Fee Setup · History
+//   Payment Settings  Business Details · Centres · Document Numbering · Fee Setup · Online Payments · History
 //   Invoices          All Invoices · Generate Invoices
-//   Collections       Student Fees · Payments
+//   Collections       Student Fees · Payments · Online Payments
 //   Reports           Overview · Collections · Dues
 //   Expenses          Expenses · Categories
 //
@@ -15,7 +15,7 @@
 // ?tab=), so filters from one tab never leak into another.
 import { AppShell } from "@/components/common/AppShell";
 import { LoadingState } from "@/components/common/LoadingState";
-import { getPaymentSettings } from "@/lib/api/payments";
+import { getOnlineSettings, getPaymentSettings } from "@/lib/api/payments";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, type ReactNode } from "react";
@@ -123,7 +123,10 @@ export function PaymentsSection<T extends string>(props: {
 export function useSettingsFlags() {
   const query = useQuery({ queryKey: ["admin", "payments", "settings"], queryFn: getPaymentSettings, staleTime: 30_000 });
   const settings = query.data;
+  const online = useQuery({ queryKey: ["admin", "payments", "online-settings"], queryFn: getOnlineSettings, staleTime: 30_000 });
   return {
+    // Switched on but not working (keys removed, numbering not set).
+    online: Boolean(online.data && online.data.onlinePaymentsEnabled && !online.data.onlinePaymentsLive),
     business: Boolean(settings && !settings.business.registeredAddress),
     centres: Boolean(settings && settings.activeStudentsWithoutCentre > 0),
     numbering: Boolean(settings && settings.numbering.some((sequence) => !sequence.isConfigured)),

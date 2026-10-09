@@ -110,6 +110,9 @@ export function PaymentForm({
 
   const [rows, setRows] = useState<Record<string, Row>>({});
   const [methods, setMethods] = useState<MethodRow[]>([{ method: "CASH", amount: "", reference: "" }]);
+  // 2026-10-09 (Phase 5): a payment made online keeps its Razorpay line:
+  // Razorpay holds the amount, so only where it is applied can change.
+  const isOnline = editing?.channel === "ONLINE";
   const [methodTouched, setMethodTouched] = useState(false);
   const [showDiscount, setShowDiscount] = useState(false);
   const [discountReason, setDiscountReason] = useState("");
@@ -168,8 +171,8 @@ export function PaymentForm({
   }, [open, editing?.paymentId]);
 
   useEffect(() => {
-    if (!receivedBy && staffQuery.data?.currentUserId) setReceivedBy(staffQuery.data.currentUserId);
-  }, [staffQuery.data, receivedBy]);
+    if (!receivedBy && !isOnline && staffQuery.data?.currentUserId) setReceivedBy(staffQuery.data.currentUserId);
+  }, [staffQuery.data, receivedBy, isOnline]);
 
   const lines = choices.map(({ invoice, open: due }) => {
     const row = rows[invoice.invoiceId] ?? { checked: false, pay: "", discount: "" };
@@ -228,7 +231,7 @@ export function PaymentForm({
       const payload = {
         paymentDate,
         payBy: payBy.trim() || null,
-        receivedByUserId: receivedBy || null,
+        receivedByUserId: isOnline ? null : receivedBy || null,
         note: note.trim() || null,
         allocations: lines.filter((line) => line.row.checked && line.pay + line.discount > 0).map((line) => ({ invoiceId: line.invoice.invoiceId, amountPaise: line.pay, discountPaise: line.discount })),
         methods: methods.map((line, index) => ({ method: line.method, amountPaise: methodValues[index] ?? 0, reference: line.reference.trim() || null })),
@@ -357,13 +360,19 @@ export function PaymentForm({
         <section>
           <div className="flex items-baseline justify-between gap-2">
             <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">How it was paid</h3>
-            {methods.length < 6 ? (
+            {methods.length < 6 && !isOnline ? (
               <button type="button" className="inline-flex items-center gap-1 text-xs font-black text-cyan-700 underline dark:text-cyan-300" onClick={() => { setMethodTouched(true); setMethods([...methods, { method: "UPI", amount: "", reference: "" }]); }}>
                 <Plus size={13} />Split across methods
               </button>
             ) : null}
           </div>
-          <ul className="mt-2 grid gap-2">
+          {isOnline ? (
+            <p className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+              {methods.map((line, index) => `Razorpay ${FormatRupees(methodValues[index] ?? 0)}${line.reference ? ` · ${line.reference}` : ""}`).join(", ")}
+              <span className="mt-0.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">Paid online, so the amount stays as Razorpay received it. To return money, refund it in Razorpay and cancel this payment.</span>
+            </p>
+          ) : null}
+          <ul className={`mt-2 grid gap-2 ${isOnline ? "hidden" : ""}`}>
             {methods.map((line, index) => {
               const info = COUNTER_METHODS.find((item) => item.value === line.method);
               return (
@@ -413,7 +422,8 @@ export function PaymentForm({
           </label>
           <label className="block">
             <FieldLabel>Received by</FieldLabel>
-            <select className="math-input" value={receivedBy} onChange={(event) => setReceivedBy(event.target.value)}>
+            {isOnline ? <p className="math-input flex items-center text-slate-600 dark:text-slate-300">{editing?.receivedByName ?? "Online (Razorpay)"}</p> : null}
+            <select className={`math-input ${isOnline ? "hidden" : ""}`} value={receivedBy} onChange={(event) => setReceivedBy(event.target.value)}>
               {(staffQuery.data?.staff ?? []).map((person) => <option key={person.userId} value={person.userId}>{person.name}</option>)}
               {editing && editing.receivedByUserId && !(staffQuery.data?.staff ?? []).some((person) => person.userId === editing.receivedByUserId) ? (
                 <option value={editing.receivedByUserId}>{editing.receivedByName}</option>

@@ -472,6 +472,11 @@ def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: st
     WithAdvance = AdvanceBalances(db, sorted(CreatedByStudent))
     for StudentId in sorted(WithAdvance):
         ApplyAdvance(db, StudentId=StudentId, Actor=Actor, InvoiceIds=CreatedByStudent[StudentId])
+    # 2026-10-09 (Phase 5): each student is told about their new invoices,
+    # only while the student Fees tab is switched on.
+    from app.services.payments.online_service import NotifyInvoicesRaised
+
+    NotifyInvoicesRaised(db, CreatedByStudent)
     db.commit()
     return _BatchResult(db, BatchRow, Skips)
 

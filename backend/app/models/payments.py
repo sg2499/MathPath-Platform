@@ -325,7 +325,103 @@ class ExpenseMethodLine(Base):
     line_order = Column(Integer, nullable=False, default=0)
 
 
+class PaymentOnlineSettings(Base):
+    """The two switches for Phase 5 (2026-10-09). One row, id "default".
+
+    student_fees_enabled: students see a Fees tab with their invoices,
+    payments and PDFs (and get fee notifications).
+    online_payments_enabled: Pay Now on that tab, and parent pay links,
+    take money through Razorpay. It only works when the Razorpay keys are
+    set on the server and receipt numbering is configured."""
+
+    __tablename__ = "payment_online_settings"
+    id = Column(String, primary_key=True, default="default")
+    student_fees_enabled = Column(Boolean, default=False, nullable=False)
+    online_payments_enabled = Column(Boolean, default=False, nullable=False)
+    updated_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class PaymentLink(Base):
+    """A pay link an admin shares with a parent (Phase 5): anyone holding
+    the link sees that student's unpaid invoices and can pay them online.
+    One live link per student; it can be revoked, and it expires."""
+
+    __tablename__ = "payment_links"
+    id = Column(String, primary_key=True, default=uuid_str)
+    token = Column(String(64), unique=True, nullable=False)
+    student_id = Column(String, ForeignKey("students.id"), nullable=False, index=True)
+    # ACTIVE | REVOKED (an expired link stays ACTIVE with expires_at passed)
+    status = Column(String(20), nullable=False, default="ACTIVE", index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    open_count = Column(Integer, nullable=False, default=0)
+    last_opened_at = Column(DateTime(timezone=True), nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+
+
+class OnlinePaymentOrder(Base):
+    """One Razorpay order made by this site (Phase 5). The amount is worked
+    out on the server from whole unpaid invoices; the browser never sends
+    it. Razorpay events for orders not in this table (the old platform's)
+    are ignored.
+
+    status: CREATED (waiting for payment) | FAILED (the last try failed; it
+    can still be paid) | PAID (money received and the receipt recorded) |
+    ATTENTION (money received but it could not be recorded; "Check with
+    Razorpay" in the Online Payments tab tries again)."""
+
+    __tablename__ = "online_payment_orders"
+    id = Column(String, primary_key=True, default=uuid_str)
+    razorpay_order_id = Column(String(40), unique=True, nullable=False)
+    student_id = Column(String, ForeignKey("students.id"), nullable=False, index=True)
+    amount_paise = Column(Integer, nullable=False)
+    currency = Column(String(3), nullable=False, default="INR")
+    # [{"invoiceId", "invoiceNumber", "amountPaise"}], oldest first.
+    invoices_json = Column(Text, nullable=False)
+    # STUDENT (the student's Fees tab) | PAY_LINK
+    source = Column(String(20), nullable=False, default="STUDENT")
+    pay_link_id = Column(String, ForeignKey("payment_links.id"), nullable=True, index=True)
+    key_mode = Column(String(10), nullable=False, default="TEST")  # TEST | LIVE
+    status = Column(String(20), nullable=False, default="CREATED", index=True)
+    razorpay_payment_id = Column(String(40), unique=True, nullable=True)
+    payment_receipt_id = Column(String, ForeignKey("payment_receipts.id"), nullable=True, index=True)
+    method_detail = Column(String(120), nullable=True)
+    last_error = Column(Text, nullable=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class OnlinePaymentEvent(Base):
+    """Everything that happened to an online payment: the checkout pop-up
+    closed or failed, the payment verified, each Razorpay webhook, each
+    "Check with Razorpay". Kept for "money cut but not showing" questions.
+    A webhook's event id is unique, so a webhook sent twice is handled once."""
+
+    __tablename__ = "online_payment_events"
+    id = Column(String, primary_key=True, default=uuid_str)
+    order_id = Column(String, ForeignKey("online_payment_orders.id"), nullable=True, index=True)
+    razorpay_order_id = Column(String(40), nullable=True, index=True)
+    razorpay_payment_id = Column(String(40), nullable=True, index=True)
+    razorpay_event_id = Column(String(80), unique=True, nullable=True)
+    # CHECKOUT | WEBHOOK | VERIFY | ADMIN_CHECK
+    source = Column(String(20), nullable=False)
+    event_type = Column(String(60), nullable=False)
+    detail = Column(Text, nullable=True)
+    payload_json = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
 __all__ = [
+    "PaymentOnlineSettings",
+    "PaymentLink",
+    "OnlinePaymentOrder",
+    "OnlinePaymentEvent",
     "PaymentCentre",
     "PaymentBusinessProfile",
     "FeeItem",
