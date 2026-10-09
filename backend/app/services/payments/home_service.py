@@ -101,10 +101,14 @@ def PaymentsHome(db: Session) -> dict[str, Any]:
     except Exception:  # never let Home fail because of it
         db.rollback()
     Billing = HomeBilling(db)
+    from app.services.payments.followups_service import HomeFollowUps
+
+    FollowUpsSummary = HomeFollowUps(db)
     return {
         "today": Base["today"],
         "dayClose": DayClose,
         "billing": Billing,
+        "followUps": FollowUpsSummary,
         "todayCollected": Base["todayCollected"],
         "todayPaymentCount": Base["todayPaymentCount"],
         "todayByMethod": Base["todayByMethod"],

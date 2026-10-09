@@ -48,6 +48,7 @@ const SHORTCUTS: { title: string; detail: string; href: string; icon: LucideIcon
   { title: "Bill this month", detail: "Invoices › Monthly Billing", href: "/admin/payments/invoices?tab=monthly", icon: CalendarCheck, words: "bill month monthly fee drafts release billing january february march april may june july august september october november december" },
   { title: "Generate invoices", detail: "Invoices › Generate (one-time items)", href: "/admin/payments/invoices?tab=generate", icon: FilePlus2, words: "generate invoices bill one time registration book bag raise" },
   { title: "Collections report", detail: "Reports › Collections", href: "/admin/payments/reports?tab=collections", icon: BarChart3, words: "today collection report method staff" },
+  { title: "Follow-ups", detail: "Collections › Follow-ups", href: "/admin/payments/collections?tab=follow-ups", icon: Wallet, words: "follow up followups chase remind reminder call promise dues pending overdue" },
   { title: "Dues", detail: "Reports › Dues", href: "/admin/payments/reports?tab=dues", icon: Wallet, words: "dues pending unpaid overdue outstanding" },
   { title: "Online payments", detail: "Collections › Online Payments", href: "/admin/payments/collections?tab=online", icon: CreditCard, words: "online razorpay failed attention pay link" },
   { title: "All invoices", detail: "Invoices", href: "/admin/payments/invoices?tab=all", icon: FileText, words: "invoices list all" },
