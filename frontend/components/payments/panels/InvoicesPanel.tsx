@@ -5,6 +5,7 @@
 // 2026-10-08 (Payments Phase 2): Invoices -- every invoice, with filters,
 // totals, Excel export, a bulk PDF for printing, and a detail view where an
 // invoice can be downloaded or cancelled (with a reason; it stays on record).
+import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -42,6 +43,8 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { StudentLink } from "@/components/payments/StudentPanel";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 const PAGE_SIZE = 50;
@@ -105,12 +108,18 @@ export function InvoicesPanel() {
   const [notice, setNotice] = useState<string | null>(null);
   const debouncedSearch = useDebounced(search);
 
-  // Links from Generate Invoices (?batchId=) or a student (?studentId=).
+  // Links from Generate Invoices (?batchId=), a student (?studentId=), or
+  // the ⌘K search (?search=<number>&open=<invoice id>). Watched, so a search
+  // while this tab is open still lands.
+  const searchParams = useSearchParams();
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setBatchId(params.get("batchId") ?? "");
-    setStudentId(params.get("studentId") ?? "");
-  }, []);
+    setBatchId(searchParams.get("batchId") ?? "");
+    setStudentId(searchParams.get("studentId") ?? "");
+    const wanted = searchParams.get("search");
+    if (wanted) setSearch(wanted);
+    const open = searchParams.get("open");
+    if (open) setOpenId(open);
+  }, [searchParams]);
 
   const filters: InvoiceFilters = useMemo(
     () => ({ status, feeItemId, period, centreId, dateFrom, dateTo, search: debouncedSearch.trim(), batchId, studentId }),
@@ -188,13 +197,14 @@ export function InvoicesPanel() {
   return (
     <>
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <p className="math-block-header"><Wallet size={14} />Payments</p>
+            <p className="math-block-header"><Wallet size={14} />Invoices</p>
             <h1 className="math-title">Invoices</h1>
             <p className="math-subtitle">Every invoice issued. Totals below follow your filters and leave out cancelled invoices.</p>
+            <HeroSearch />
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:shrink-0">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:shrink-0">
             <PaymentsMetric label="Invoices" value={data ? data.totalCount.toLocaleString("en-IN") : "—"} icon={<FileText size={14} />} tone="cyan" />
             <PaymentsMetric label="Billed" value={<span className="text-lg sm:text-xl">{data?.totals.amountDisplay ?? "—"}</span>} icon={<Wallet size={14} />} />
             <PaymentsMetric label="Received" value={<span className="text-lg sm:text-xl">{data?.totals.paidDisplay ?? "—"}</span>} icon={<Wallet size={14} />} tone="emerald" />
@@ -338,7 +348,7 @@ export function InvoicesPanel() {
                           <div className="text-xs font-semibold text-slate-500">{FormatDate(invoice.invoiceDate)}</div>
                         </td>
                         <td className="max-w-[240px] px-2 py-3">
-                          <Link href={`/admin/payments/collections?tab=student-fees&studentId=${encodeURIComponent(invoice.studentId)}`} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{invoice.studentName}</Link>
+                          <StudentLink studentId={invoice.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{invoice.studentName}</StudentLink>
                           <div className="truncate text-xs font-semibold text-slate-500">{[invoice.studentCode, invoice.levelCode, invoice.centreName].filter(Boolean).join(" · ")}</div>
                         </td>
                         <td className="max-w-[220px] px-2 py-3">

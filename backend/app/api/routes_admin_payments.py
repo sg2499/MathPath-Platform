@@ -65,6 +65,7 @@ from app.services.payments.invoices_service import (
     PreviewInvoices,
     TodayInIndia,
 )
+from app.services.payments.home_service import PaymentsHome, Search as PaymentsSearch
 from app.services.payments.numbering import SetStartingNumber
 from app.services.payments.online_service import (
     CheckOrderWithRazorpay,
@@ -788,3 +789,17 @@ def admin_create_pay_link(student_id: str, db: Session = Depends(get_db), user: 
 @router.post("/pay-links/{link_id}/revoke")
 def admin_revoke_pay_link(link_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return RevokePayLink(db, LinkId=link_id, Actor=user)
+
+
+# --- Home and search (revamp R1) -------------------------------------------------
+
+@router.get("/home")
+def admin_payments_home(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    Result = PaymentsHome(db)
+    db.commit()
+    return Result
+
+
+@router.get("/search")
+def admin_payments_search(q: str = "", db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return PaymentsSearch(db, q)

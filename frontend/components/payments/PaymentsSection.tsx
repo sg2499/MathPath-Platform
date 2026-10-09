@@ -18,7 +18,10 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { getOnlineSettings, getPaymentSettings } from "@/lib/api/payments";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, type ReactNode } from "react";
+import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+
+import { CommandPalette, PaymentsSearchContext, useCommandPaletteShortcut } from "@/components/payments/CommandPalette";
+import { StudentPanelProvider } from "@/components/payments/StudentPanel";
 
 export type SectionTab<T extends string> = {
   key: T;
@@ -66,8 +69,9 @@ function SectionInner<T extends string>({
 
   return (
     <AppShell title={title}>
+      <PaymentsChrome>
       <nav className="mb-6" aria-label={label}>
-        <div role="tablist" aria-label={label} className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
+        <div role="tablist" aria-label={label} className="-mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
           {tabs.map((item) => {
             const selected = item.key === tab;
             return (
@@ -101,9 +105,29 @@ function SectionInner<T extends string>({
       <div role="tabpanel" id="payments-tab-panel" aria-labelledby={`payments-tab-${tab}`} key={tab}>
         {render(tab)}
       </div>
+      </PaymentsChrome>
     </AppShell>
   );
 }
+
+// 2026-10-09 (revamp R1): every Payments page gets the student side panel
+// and ⌘K search. The search bar sits inside each page's hero, under the
+// title (Shailesh, 9 Oct: the page starts with its hero, search left-aligned).
+
+export function PaymentsChrome({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const show = useCallback(() => setOpen(true), []);
+  useCommandPaletteShortcut(show);
+  return (
+    <StudentPanelProvider>
+      <PaymentsSearchContext.Provider value={show}>
+        {children}
+        <CommandPalette open={open} onClose={() => setOpen(false)} />
+      </PaymentsSearchContext.Provider>
+    </StudentPanelProvider>
+  );
+}
+
 
 export function PaymentsSection<T extends string>(props: {
   title: string;

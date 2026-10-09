@@ -306,6 +306,12 @@ export function AppShell({
   const IsTeacher = MountedUser?.role === "TEACHER";
   const IsAdmin =
     MountedUser?.role === "ADMIN" || MountedUser?.role === "SUPER_ADMIN";
+  // 2026-10-09 (revamp R1): the admin menu has eight groups since Payments
+  // was added, and below about 2100px wide they ran under the icons on the
+  // right. Tighter items there, no dropdown arrows, and the groups may shrink.
+  const AdminNavCompact = IsAdmin
+    ? "!min-w-0 max-w-full !gap-1.5 lg:!px-1.5 lg:!text-[12px] min-[1600px]:!px-2 min-[1600px]:!text-[12.5px] min-[2100px]:!gap-2 min-[2100px]:!px-3 min-[2100px]:!text-sm"
+    : "";
   // 2026-10-09 (Payments Phase 5): the student's Fees item shows only while
   // fees are switched on for students, with the unpaid invoice count.
   const FeesSummary = useQuery({
@@ -464,6 +470,14 @@ export function AppShell({
       icon: Wallet,
       tooltip: "Fees, invoices and payments",
       children: [
+        {
+          // 2026-10-09 (revamp R1): the daily desk, first because it is
+          // where Payments opens.
+          label: "Home",
+          href: "/admin/payments/home",
+          icon: LayoutDashboard,
+          tooltip: "Today's money, dues, what needs attention, and quick actions",
+        },
         {
           label: "Payment Settings",
           shortLabel: "Settings",
@@ -1151,7 +1165,7 @@ export function AppShell({
                           onMouseLeave={() => setHoveredNavGroup(null)}
                           onFocus={() => setHoveredNavGroup(group.label)}
                           onBlur={() => setHoveredNavGroup(null)}
-                          className={`premium-nav-item group shrink min-w-[2rem] lg:px-1.5 xl:px-3 text-xs lg:text-[12px] xl:text-sm ${
+                          className={`premium-nav-item group shrink min-w-[2rem] lg:px-1.5 xl:px-3 text-xs lg:text-[12px] xl:text-sm ${AdminNavCompact} ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
@@ -1191,7 +1205,7 @@ export function AppShell({
                             }
                             className={`truncate whitespace-nowrap min-w-0 ${
                               RoleNavHighlighted ? "!text-white opacity-100" : ""
-                            }`}
+                            } ${IsAdmin && group.href === "/admin/dashboard" ? "sr-only min-[2100px]:not-sr-only" : ""}`}
                           >
                             {group.shortLabel || group.label}
                           </span>
@@ -1203,7 +1217,7 @@ export function AppShell({
                     return (
                       <div
                         key={group.label}
-                        className="relative"
+                        className={`relative ${IsAdmin ? "min-w-0 shrink" : ""}`}
                         onMouseEnter={() => {
                           setOpenGroup(group.label);
                           setHoveredNavGroup(group.label);
@@ -1222,7 +1236,7 @@ export function AppShell({
                           }
                           onFocus={() => setHoveredNavGroup(group.label)}
                           onBlur={() => setHoveredNavGroup(null)}
-                          className={`premium-nav-item group shrink min-w-[2rem] lg:px-1.5 xl:px-3 text-xs lg:text-[12px] xl:text-sm ${
+                          className={`premium-nav-item group shrink min-w-[2rem] lg:px-1.5 xl:px-3 text-xs lg:text-[12px] xl:text-sm ${AdminNavCompact} ${
                             active ? "premium-nav-item-active" : ""
                           } ${dropdownOpen ? "premium-nav-item-open" : ""}`}
                           title={group.tooltip}
@@ -1277,7 +1291,7 @@ export function AppShell({
                                 ? { color: "#ffffff", stroke: "#ffffff", opacity: 1 }
                                 : undefined)
                             }
-                            className={`math-teacher-main-nav-chevron math-student-main-nav-chevron shrink-0 transition-colors ${
+                            className={`math-teacher-main-nav-chevron math-student-main-nav-chevron shrink-0 transition-colors ${IsAdmin ? "hidden min-[2100px]:inline" : ""} ${
                               dropdownOpen ? "rotate-180" : ""
                             } ${
                               TeacherNavHighlighted

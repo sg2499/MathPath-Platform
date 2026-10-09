@@ -4,6 +4,7 @@
 // money, with each unpaid invoice, how overdue it is (aged 1-30 / 31-60 /
 // 61-90 / 90+ days), a ready-to-paste reminder message, Record Payment, and
 // Excel. Opened with ?bucket=D31_60 from the Overview, it starts filtered.
+import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { BUCKET_COLOURS } from "@/components/payments/panels/OverviewPanel";
@@ -23,6 +24,7 @@ import { FormatDate } from "@/lib/paymentsDates";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { AlertTriangle, BarChart3, Check, ChevronDown, ChevronUp, Copy, FileSpreadsheet, FileText, HandCoins, Loader2, Search, UsersRound, Wallet } from "lucide-react";
 import Link from "next/link";
+import { StudentLink } from "@/components/payments/StudentPanel";
 import { useEffect, useMemo, useState } from "react";
 
 function useDebounced<T>(value: T, delay = 300): T {
@@ -128,14 +130,15 @@ export function DuesPanel() {
   return (
     <>
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="math-block-header"><BarChart3 size={14} />Reports</p>
             <h1 className="math-title">Dues</h1>
             <p className="math-subtitle">Every student who owes money, and how overdue it is{data ? `, as of ${FormatDate(data.asOf)}` : ""}.</p>
+            <HeroSearch />
           </div>
           {data ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:shrink-0">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:shrink-0">
               <PaymentsMetric label="Due" value={<span className="text-lg sm:text-xl">{data.total.display}</span>} icon={<Wallet size={14} />} tone="amber" />
               <PaymentsMetric label="Overdue" value={<span className="text-lg sm:text-xl">{data.overdue.display}</span>} icon={<AlertTriangle size={14} />} tone="amber" />
               <PaymentsMetric label="Students" value={data.studentCount} icon={<UsersRound size={14} />} tone="cyan" />
@@ -146,21 +149,23 @@ export function DuesPanel() {
       </section>
 
       <section className="mt-6 math-card p-5 sm:p-6">
-        <div role="tablist" aria-label="Age" className="flex gap-2 overflow-x-auto pb-1">
+        <div role="tablist" aria-label="Age" className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
           {[{ bucket: "", label: "All", display: data && !bucket ? data.total.display : "" }, ...(data?.buckets ?? [])].map((row) => {
             const selected = bucket === row.bucket;
             return (
-              <button key={row.bucket || "ALL"} type="button" role="tab" aria-selected={selected} onClick={() => setBucket(row.bucket)} className={`math-role-tab-button math-admin-tab-force inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl px-4 py-2 text-sm font-black transition ${selected ? "is-active math-admin-tab-force-selected" : ""}`}>
-                {row.bucket ? <span className="h-2 w-2 rounded-full" style={{ background: BUCKET_COLOURS[row.bucket as keyof typeof BUCKET_COLOURS] }} aria-hidden="true" /> : null}
-                {row.label}
-                {row.bucket && !bucket ? <span className="tabular-nums opacity-80">{row.display}</span> : null}
+              <button key={row.bucket || "ALL"} type="button" role="tab" aria-selected={selected} onClick={() => setBucket(row.bucket)} className={`math-role-tab-button math-admin-tab-force flex min-h-[3.25rem] min-w-0 flex-col items-start justify-center rounded-2xl px-3 py-2 text-left text-[13px] font-black leading-tight transition sm:px-4 sm:text-sm ${selected ? "is-active math-admin-tab-force-selected" : ""}`}>
+                <span className="flex min-w-0 items-center gap-2">
+                  {row.bucket ? <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: BUCKET_COLOURS[row.bucket as keyof typeof BUCKET_COLOURS] }} aria-hidden="true" /> : null}
+                  <span className="min-w-0">{row.label}</span>
+                </span>
+                {row.bucket && !bucket ? <span className={`mt-0.5 text-xs tabular-nums opacity-80 ${row.bucket ? "pl-4" : ""}`}>{row.display}</span> : null}
               </button>
             );
           })}
         </div>
 
-        <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="relative sm:col-span-2 lg:col-span-1">
+        <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <div className="relative sm:col-span-2">
             <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Student, parent or mobile" aria-label="Search dues" />
           </div>
@@ -207,11 +212,11 @@ export function DuesPanel() {
                 const expanded = open.has(row.studentId);
                 return (
                   <li key={row.studentId} className="rounded-3xl border border-slate-200 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                       <div className="min-w-0">
-                        <Link href={`/admin/payments/collections?tab=student-fees&studentId=${encodeURIComponent(row.studentId)}`} className="font-black text-slate-900 hover:underline dark:text-white">
+                        <StudentLink studentId={row.studentId} className="font-black text-slate-900 hover:underline dark:text-white">
                           {row.studentName}{row.isActive ? "" : " (inactive)"}
-                        </Link>
+                        </StudentLink>
                         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                           {[row.studentCode, row.levelCode, row.centreName ?? "No centre", row.parentName, row.mobile].filter(Boolean).join(" · ")}
                         </p>
@@ -221,7 +226,7 @@ export function DuesPanel() {
                           {row.advancePaise ? <span className="text-xs font-bold text-violet-700 dark:text-violet-300">{row.advanceDisplay} advance held</span> : null}
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                      <div className="flex flex-wrap items-center gap-2 xl:shrink-0 xl:flex-nowrap xl:justify-end">
                         <span className="mr-1 text-xl font-black tabular-nums text-slate-950 dark:text-white">{row.dueDisplay}</span>
                         <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => toggle(row.studentId)} aria-expanded={expanded}>
                           {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}Invoices

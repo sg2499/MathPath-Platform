@@ -6,6 +6,7 @@
 // address to add in the Razorpay dashboard. The Razorpay keys themselves
 // live only on the server (backend/.env) and are never shown here.
 
+import { HeroSearch } from "@/components/payments/CommandPalette";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Copy, CreditCard, Eye, KeyRound, Link2, Loader2, ShieldCheck, Webhook, XCircle } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -115,13 +116,14 @@ export function OnlineSettingsPanel() {
   return (
     <>
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="math-block-header"><CreditCard size={14} />Payment Settings</p>
             <h1 className="math-title">Online Payments</h1>
             <p className="math-subtitle">Fees for students in their login, and payments by Razorpay from the student login or a pay link sent to a parent.</p>
+            <HeroSearch />
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:shrink-0">
+          <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 xl:shrink-0">
             <PaymentsMetric label="Online" value={settings.onlinePaymentsLive ? "Live" : "Off"} icon={<CreditCard size={14} />} tone={settings.onlinePaymentsLive ? "emerald" : "slate"} />
             <PaymentsMetric label="Razorpay" value={settings.keyMode === "LIVE" ? "Live keys" : settings.keyMode === "TEST" ? "Test keys" : "No keys"} icon={<KeyRound size={14} />} tone={settings.keyMode === "LIVE" ? "emerald" : settings.keyMode === "TEST" ? "amber" : "slate"} />
             <PaymentsMetric label="Webhook" value={settings.webhookSecretSet ? "Ready" : "Not set"} icon={<Webhook size={14} />} tone={settings.webhookSecretSet ? "emerald" : "amber"} />

@@ -4,6 +4,7 @@
 // MP-EXP-0001, by category. Add, view, edit (with a reason) and cancel
 // (with a reason; it stays on record). Month totals by category and by
 // method, and Excel. ?add=1 opens the Add form (from the Overview).
+import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -304,13 +305,14 @@ export function ExpensesPanel() {
   return (
     <>
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="math-block-header"><ReceiptText size={14} />Expenses</p>
             <h1 className="math-title">Expenses</h1>
             <p className="math-subtitle">Money spent{month ? ` in ${MonthLabel(month)}` : ""}. Totals leave out cancelled expenses.</p>
+            <HeroSearch />
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:shrink-0">
+          <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 xl:shrink-0">
             <PaymentsMetric label="Spent" value={<span className="text-lg sm:text-xl">{data?.totals.totalDisplay ?? "—"}</span>} icon={<Wallet size={14} />} tone="amber" />
             <PaymentsMetric label="Expenses" value={data ? data.totalCount : "—"} icon={<ReceiptText size={14} />} tone="cyan" />
             <PaymentsMetric label="Biggest" value={<span className="text-base">{top ? top.categoryName : "—"}</span>} icon={<Tags size={14} />} />

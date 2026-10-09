@@ -895,3 +895,51 @@ export async function revokePayLink(linkId: string): Promise<{ link: PayLink }> 
   const { data } = await api.post(`/admin/payments/pay-links/${encodeURIComponent(linkId)}/revoke`);
   return data;
 }
+
+
+// ---------------------------------------------------------------------------
+// 2026-10-09 (Payments revamp R1): Payments Home and the ⌘K search.
+// ---------------------------------------------------------------------------
+
+export type PaymentsHome = {
+  today: string;
+  todayCollected: MoneyValue;
+  todayPaymentCount: number;
+  todayByMethod: MethodTotal[];
+  thisMonthLabel: string;
+  thisMonthCollected: MoneyValue;
+  lastMonthLabel: string;
+  lastMonthCollected: MoneyValue;
+  due: MoneyValue;
+  overdue: MoneyValue;
+  studentsWithDues: number;
+  studentsOverdue: number;
+  unpaidInvoices: number;
+  advanceHeld: MoneyValue;
+  attention: {
+    online: OnlineOrder[];
+    failedToday: number;
+    overdueStudents: { studentId: string; studentName: string; studentCode: string; mobile: string | null; overdue: MoneyValue; due: MoneyValue; maxDaysOverdue: number; invoiceCount: number }[];
+    setup: { key: string; text: string; href: string }[];
+  };
+  online: { live: boolean; enabled: boolean; keyMode: "TEST" | "LIVE" | null; recent: (OnlineOrder & { displayStatus: OnlineOrderStatus })[] };
+  recentPayments: Payment[];
+};
+
+export type PaymentsSearchResult = {
+  query: string;
+  students: { studentId: string; name: string; studentCode: string; customId: string | null; parentName: string | null; mobile: string | null; centreName: string | null; isActive: boolean; due: MoneyValue; advance: MoneyValue }[];
+  invoices: { invoiceId: string; invoiceNumber: string; studentId: string; studentName: string; studentCode: string; feeName: string; periodLabel: string | null; amountDisplay: string; balanceDisplay: string; status: InvoiceStatus; statusLabel: string; isOverdue: boolean }[];
+  receipts: { paymentId: string; receiptNumber: string; studentId: string; studentName: string; studentCode: string; paymentDate: string; amountDisplay: string; status: "RECORDED" | "CANCELLED"; channel: "COUNTER" | "ONLINE"; references: string[] }[];
+  online: { orderRef: string; razorpayOrderId: string; razorpayPaymentId: string | null; studentId: string; studentName: string; amountDisplay: string; status: OnlineOrderStatus; statusLabel: string; receiptNumber: string | null }[];
+};
+
+export async function getPaymentsHome(): Promise<PaymentsHome> {
+  const { data } = await api.get<PaymentsHome>("/admin/payments/home");
+  return data;
+}
+
+export async function searchPayments(q: string): Promise<PaymentsSearchResult> {
+  const { data } = await api.get<PaymentsSearchResult>("/admin/payments/search", { params: { q } });
+  return data;
+}

@@ -7,6 +7,7 @@
 // their payments and invoices, and Record Payment.
 // ?studentId=... opens a student; &pay=<invoiceId> also opens Record Payment
 // with that invoice ticked.
+import { useSearchParams } from "next/navigation";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -85,12 +86,28 @@ export function StudentFeesPanel() {
   const [notice, setNotice] = useState<string | null>(null);
   const pendingPay = useRef<string | null>(null);
 
+  // The address says which student to open and, with &pay=, to open Record
+  // Payment straight away (an invoice id, or "new" for nothing ticked).
+  // Watched, not just read once: the student side panel and ⌘K search link
+  // here while this tab is already open.
+  const searchParams = useSearchParams();
+  const [payTick, setPayTick] = useState(0);
+  const openStudent = useRef<string>("");
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get("studentId");
-    if (id) setStudentId(id);
-    pendingPay.current = params.get("pay");
-  }, []);
+    const id = searchParams.get("studentId");
+    if (id && id !== openStudent.current) {
+      openStudent.current = id;
+      setStudentId(id);
+      setTab("unpaid");
+      setSaved(null);
+      setNotice(null);
+    }
+    const pay = searchParams.get("pay");
+    if (pay) {
+      pendingPay.current = pay;
+      setPayTick((value) => value + 1);
+    }
+  }, [searchParams]);
 
   const optionsQuery = useQuery({ queryKey: ["admin", "payments", "invoice-students"], queryFn: listInvoiceStudentOptions, enabled: ready });
   const accountQuery = useQuery({ queryKey: ["admin", "payments", "account", studentId], queryFn: () => getStudentAccount(studentId), enabled: ready && Boolean(studentId) });
@@ -98,16 +115,22 @@ export function StudentFeesPanel() {
 
   // Opened from an invoice's "Record Payment": open the form once loaded.
   useEffect(() => {
-    if (account && pendingPay.current) {
+    if (account && pendingPay.current && account.student.studentId === studentId) {
       const invoiceId = pendingPay.current;
       pendingPay.current = null;
-      if (account.unpaidInvoices.some((row) => row.invoiceId === invoiceId)) {
+      // Take &pay= off the address, so the same link works again later.
+      ReplaceAddressKeepingTab({ studentId: account.student.studentId });
+      if (invoiceId === "new") {
+        setPreselect(account.unpaidInvoices.length === 1 ? [account.unpaidInvoices[0].invoiceId] : []);
+        setEditing(null);
+        setFormOpen(true);
+      } else if (account.unpaidInvoices.some((row) => row.invoiceId === invoiceId)) {
         setPreselect([invoiceId]);
         setEditing(null);
         setFormOpen(true);
       }
     }
-  }, [account]);
+  }, [account, payTick, studentId]);
 
   const matches = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -118,6 +141,7 @@ export function StudentFeesPanel() {
   }, [optionsQuery.data, search]);
 
   const choose = (id: string) => {
+    openStudent.current = id;
     setStudentId(id);
     setSearch("");
     setPickerOpen(false);
@@ -167,7 +191,7 @@ export function StudentFeesPanel() {
       <section className="math-hero math-slide-up">
         <div className="relative z-10 flex flex-col gap-5">
           <div>
-            <p className="math-block-header"><Wallet size={14} />Payments</p>
+            <p className="math-block-header"><Wallet size={14} />Collections</p>
             <h1 className="math-title">Student Fees</h1>
             <p className="math-subtitle">One student&apos;s account: what is due, their advance, every invoice and payment, and Record Payment.</p>
           </div>
@@ -238,7 +262,7 @@ export function StudentFeesPanel() {
                 ) : null}
               </div>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <div className="mp-fees-tiles mt-5 grid gap-3">
               <PaymentsMetric label="Due" value={<span className="text-lg sm:text-xl">{totals.dueDisplay}</span>} icon={<Wallet size={14} />} tone={totals.duePaise ? "amber" : "emerald"} />
               <PaymentsMetric label="Overdue" value={<span className="text-lg sm:text-xl">{totals.overdueDisplay}</span>} icon={<AlertTriangle size={14} />} tone={totals.overduePaise ? "amber" : "slate"} />
               <PaymentsMetric label="Advance" value={<span className="text-lg sm:text-xl">{totals.advanceDisplay}</span>} icon={<PiggyBank size={14} />} tone="cyan" />

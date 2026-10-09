@@ -7,9 +7,12 @@
 // payment that went through but did not show (the "money cut but not
 // showing" call from a parent).
 
+import { HeroSearch } from "@/components/payments/CommandPalette";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, CircleSlash, Clock3, CreditCard, Eye, Loader2, RefreshCw, Search, Settings, X, XCircle } from "lucide-react";
 import Link from "next/link";
+import { StudentLink } from "@/components/payments/StudentPanel";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/common/EmptyState";
@@ -172,11 +175,12 @@ export function OnlinePaymentsPanel() {
   const [viewing, setViewing] = useState<string | null>(null);
   const debouncedSearch = useDebounced(search);
 
+  const searchParams = useSearchParams();
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setStudentId(params.get("studentId") ?? "");
-    setViewing(params.get("order"));
-  }, []);
+    setStudentId(searchParams.get("studentId") ?? "");
+    const order = searchParams.get("order");
+    if (order) setViewing(order);
+  }, [searchParams]);
 
   const filters: OnlineOrderFilters = useMemo(
     () => ({ status, source, dateFrom, dateTo, search: debouncedSearch.trim(), studentId }),
@@ -213,13 +217,14 @@ export function OnlinePaymentsPanel() {
   return (
     <>
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="math-block-header"><CreditCard size={14} />Collections</p>
             <h1 className="math-title">Online Payments</h1>
             <p className="math-subtitle">Every Razorpay payment started from the student login or a pay link: paid, failed or not completed, with what happened at each step.</p>
+            <HeroSearch />
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:shrink-0">
+          <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 xl:shrink-0">
             <PaymentsMetric label="Paid" value={data ? data.counts.PAID.toLocaleString("en-IN") : "—"} icon={<CheckCircle2 size={14} />} tone="emerald" />
             <PaymentsMetric label="Received" value={<span className="text-lg sm:text-xl">{data?.paidDisplay ?? "—"}</span>} icon={<CreditCard size={14} />} tone="cyan" />
             <PaymentsMetric label="Attention" value={data ? data.counts.ATTENTION : "—"} icon={<AlertTriangle size={14} />} tone={data?.counts.ATTENTION ? "amber" : "slate"} />
@@ -326,7 +331,7 @@ export function OnlinePaymentsPanel() {
                           <div className="text-xs font-semibold text-slate-500">{order.sourceLabel}{order.keyMode === "TEST" ? " · test" : ""}</div>
                         </td>
                         <td className="max-w-[220px] px-2 py-3">
-                          <Link href={`/admin/payments/collections?tab=student-fees&studentId=${encodeURIComponent(order.studentId)}`} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{order.studentName}</Link>
+                          <StudentLink studentId={order.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{order.studentName}</StudentLink>
                           <div className="truncate text-xs font-semibold text-slate-500">{order.studentCode}</div>
                         </td>
                         <td className="max-w-[200px] px-2 py-3 text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300">{order.invoices.map((line) => line.invoiceNumber).join(", ")}</td>

@@ -3,6 +3,7 @@
 // 2026-10-08 (Payments Phase 4): Reports > Overview -- money in today and
 // this month, money spent, what is due and how old it is, advance held,
 // six months of collections against spending, and the latest payments.
+import { HeroSearch } from "@/components/payments/CommandPalette";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { PaymentStatusChip } from "@/components/payments/PaymentDetail";
@@ -13,6 +14,7 @@ import { FormatDate } from "@/lib/paymentsDates";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertTriangle, BarChart3, CalendarDays, Download, FilePlus2, HandCoins, Loader2, PiggyBank, ReceiptText, Wallet } from "lucide-react";
 import Link from "next/link";
+import { StudentLink } from "@/components/payments/StudentPanel";
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -68,14 +70,15 @@ export function OverviewPanel() {
   return (
     <>
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="math-block-header"><BarChart3 size={14} />Reports</p>
             <h1 className="math-title">Overview</h1>
             <p className="math-subtitle">Money in, money out, and what is still due{data ? `, as of ${FormatDate(data.today)}` : ""}.</p>
+            <HeroSearch />
           </div>
           {data ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:shrink-0">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:shrink-0">
               <PaymentsMetric label="Today" value={<span className="text-lg sm:text-xl">{data.todayCollected.display}</span>} icon={<HandCoins size={14} />} tone="emerald" />
               <PaymentsMetric label="This month" value={<span className="text-lg sm:text-xl">{data.thisMonthCollected.display}</span>} icon={<CalendarDays size={14} />} tone="cyan" />
               <PaymentsMetric label="Due" value={<span className="text-lg sm:text-xl">{data.due.display}</span>} icon={<Wallet size={14} />} tone={data.due.paise ? "amber" : "emerald"} />
@@ -200,7 +203,7 @@ export function OverviewPanel() {
                 {data.recentPayments.map((payment) => (
                   <li key={payment.paymentId} className={`flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between ${payment.status === "CANCELLED" ? "opacity-60" : ""}`}>
                     <div className="min-w-0">
-                      <Link href={`/admin/payments/collections?tab=student-fees&studentId=${encodeURIComponent(payment.studentId)}`} className="font-black text-slate-900 hover:underline dark:text-white">{payment.studentName}</Link>
+                      <StudentLink studentId={payment.studentId} className="font-black text-slate-900 hover:underline dark:text-white">{payment.studentName}</StudentLink>
                       <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{payment.receiptNumber} · {FormatDate(payment.paymentDate)} · {payment.methodSummary}</p>
                     </div>
                     <div className="flex items-center gap-3 sm:justify-end">
