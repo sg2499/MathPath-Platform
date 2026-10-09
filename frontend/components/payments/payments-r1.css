@@ -1,0 +1,33 @@
+/* 2026-10-09 (Payments revamp R1): motion for the student side panel and
+   the ⌘K search. Off when the viewer asks for reduced motion. */
+@keyframes mpFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mpSlideInRight { from { transform: translateX(24px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes mpDropIn { from { transform: translateY(-8px) scale(0.985); opacity: 0; } to { transform: none; opacity: 1; } }
+.mp-fade-in { animation: mpFadeIn 160ms ease-out both; }
+.mp-slide-in-right { animation: mpSlideInRight 220ms cubic-bezier(.2,.8,.2,1) both; }
+.mp-drop-in { animation: mpDropIn 180ms cubic-bezier(.2,.8,.2,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .mp-fade-in, .mp-slide-in-right, .mp-drop-in { animation: none; }
+}
+
+/* Solid panel and palette surfaces: the app's dark-mode tint rules make
+   bg-slate-* see-through, which let the page show through the panel. */
+.mp-panel-surface { background: #f8fafc; }
+html.dark .mp-panel-surface { background: #020617; }
+.mp-panel-head { background: #ffffff; }
+html.dark .mp-panel-head { background: #020617; }
+.mp-money-value { font-size: clamp(0.85rem, 3.7vw, 1.125rem); }
+
+/* Student Fees money tiles (5): rows always end flush.
+   Phone: 2 + 2 + 1 wide. Tablet: Due/Overdue/Advance, then Received/Invoiced. Wide: 5 across. */
+.mp-fees-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mp-fees-tiles > :last-child { grid-column: span 2 / span 2; }
+@media (min-width: 768px) {
+  .mp-fees-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .mp-fees-tiles > * { grid-column: span 2 / span 2; }
+  .mp-fees-tiles > :nth-child(n + 4) { grid-column: span 3 / span 3; }
+}
+@media (min-width: 1280px) {
+  .mp-fees-tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .mp-fees-tiles > *, .mp-fees-tiles > :nth-child(n + 4) { grid-column: auto; }
+}

@@ -14,7 +14,7 @@ import { InlineError } from "@/components/payments/PaymentsUi";
 import { createStudentPayLink, getStudentPayLink, revokePayLink } from "@/lib/api/payments";
 import { FormatDate } from "@/lib/paymentsDates";
 
-export function PayLinkCard({ studentId, studentName }: { studentId: string; studentName: string }) {
+export function PayLinkCard({ studentId, studentName, compact = false }: { studentId: string; studentName: string; compact?: boolean }) {
   const queryClient = useQueryClient();
   const key = ["admin", "payments", "pay-link", studentId];
   const query = useQuery({ queryKey: key, queryFn: () => getStudentPayLink(studentId) });
@@ -41,8 +41,8 @@ export function PayLinkCard({ studentId, studentName }: { studentId: string; stu
   const url = link ? `${origin}${link.path}` : "";
 
   return (
-    <div className="mt-5 rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className={`${compact ? "" : "mt-5 "}min-w-0 rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-950/50`}>
+      <div className={`flex flex-col gap-3 ${compact ? "" : "lg:flex-row lg:items-center lg:justify-between"}`}>
         <div className="flex min-w-0 items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-200"><Link2 size={18} /></span>
           <div className="min-w-0">

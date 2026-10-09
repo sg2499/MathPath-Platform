@@ -4,6 +4,7 @@
 // period, by method, by staff and by day, with every payment, a summary PDF
 // (the day-close sheet for a single day) and Excel. Counts the money that
 // came in by each method, from payments that are not cancelled.
+import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -23,6 +24,7 @@ import { AddDays, FormatDate, MonthEnd, MonthStart, TodayInIndia, WeekStart } fr
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { BarChart3, CalendarDays, Download, FileSpreadsheet, HandCoins, Loader2, Tag, UsersRound } from "lucide-react";
 import Link from "next/link";
+import { StudentLink } from "@/components/payments/StudentPanel";
 import { useMemo, useState } from "react";
 
 type Preset = "today" | "yesterday" | "week" | "month" | "lastMonth" | "custom";
@@ -79,14 +81,15 @@ export function CollectionsReportPanel() {
   return (
     <>
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="math-block-header"><BarChart3 size={14} />Reports</p>
             <h1 className="math-title">Collections</h1>
             <p className="math-subtitle">Money received for {periodText}, by method, staff and day. Cancelled payments are left out.</p>
+            <HeroSearch />
           </div>
           {data ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:shrink-0">
+            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 xl:shrink-0">
               <PaymentsMetric label="Received" value={<span className="text-lg sm:text-xl">{data.total.display}</span>} icon={<HandCoins size={14} />} tone="emerald" />
               <PaymentsMetric label="Payments" value={data.paymentCount} icon={<CalendarDays size={14} />} tone="cyan" />
               <PaymentsMetric label="Discount" value={<span className="text-lg sm:text-xl">{data.discount.display}</span>} icon={<Tag size={14} />} />
@@ -223,7 +226,7 @@ export function CollectionsReportPanel() {
               {data.payments.map((payment) => (
                 <li key={payment.paymentId} className="rounded-2xl border border-slate-200 p-3 dark:border-slate-800">
                   <div className="flex items-baseline justify-between gap-3">
-                    <Link href={`/admin/payments/collections?tab=student-fees&studentId=${encodeURIComponent(payment.studentId)}`} className="min-w-0 truncate font-black text-slate-900 dark:text-white">{payment.studentName}</Link>
+                    <StudentLink studentId={payment.studentId} className="min-w-0 truncate font-black text-slate-900 dark:text-white">{payment.studentName}</StudentLink>
                     <span className="shrink-0 font-black tabular-nums">{payment.inFilterDisplay}</span>
                   </div>
                   <p className="text-xs font-semibold text-slate-500">{payment.receiptNumber} · {FormatDate(payment.paymentDate)} · {payment.methodSummary}</p>
@@ -248,7 +251,7 @@ export function CollectionsReportPanel() {
                       <td className="whitespace-nowrap px-2 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300">{FormatDate(payment.paymentDate)}</td>
                       <td className="whitespace-nowrap px-2 py-2.5 font-black tabular-nums">{payment.receiptNumber}</td>
                       <td className="max-w-[220px] truncate px-2 py-2.5">
-                        <Link href={`/admin/payments/collections?tab=student-fees&studentId=${encodeURIComponent(payment.studentId)}`} className="font-bold text-slate-900 hover:underline dark:text-white">{payment.studentName}</Link>
+                        <StudentLink studentId={payment.studentId} className="font-bold text-slate-900 hover:underline dark:text-white">{payment.studentName}</StudentLink>
                       </td>
                       <td className="px-2 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300">{payment.methodSummary}</td>
                       <td className="px-2 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300">{payment.receivedByName ?? "—"}</td>

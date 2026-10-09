@@ -6,6 +6,7 @@
 // 2026-10-08 (Phase 2): the four parts are sub-tabs.
 // 2026-10-08 (Phase 4): moved into a panel; the sub-tabs (now also Fee
 // Setup) are drawn by the Payment Settings section page.
+import { HeroSearch } from "@/components/payments/CommandPalette";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
@@ -111,7 +112,7 @@ export function SettingsPanel({ tab }: { tab: SettingsPanelTab }) {
   return (
     <>
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="math-block-header"><Wallet size={14} />Payment Settings</p>
             <h1 className="math-title">{{ business: "Business Details", centres: "Centres", numbering: "Document Numbering", history: "History" }[tab]}</h1>
@@ -123,9 +124,10 @@ export function SettingsPanel({ tab }: { tab: SettingsPanelTab }) {
                 history: "Every change in Payments: who made it, when, and what changed.",
               }[tab]}
             </p>
+            <HeroSearch />
           </div>
           {settings ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:shrink-0">
+            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 xl:shrink-0">
               <PaymentsMetric label="Centres" value={settings.centres.filter((centre) => centre.isActive).length} icon={<MapPin size={14} />} tone="cyan" />
               <PaymentsMetric label="No centre" value={settings.activeStudentsWithoutCentre} icon={<Users size={14} />} tone={settings.activeStudentsWithoutCentre ? "amber" : "emerald"} />
               <PaymentsMetric

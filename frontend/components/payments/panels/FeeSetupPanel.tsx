@@ -5,6 +5,7 @@
 // 2026-10-08 (Payments Phase 1): Fee Setup -- the one list of things a student
 // can be invoiced for. Replaces the old platform's Groups, Components and
 // Group Maps screens. Nothing is deleted: items are switched off with a reason.
+import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -177,13 +178,14 @@ export function FeeSetupPanel() {
   return (
     <>
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <p className="math-block-header"><Wallet size={14} />Payments</p>
+            <p className="math-block-header"><Wallet size={14} />Payment Settings</p>
             <h1 className="math-title">Fee Setup</h1>
             <p className="math-subtitle">The fees students can be invoiced for. Changing a price only affects new invoices, never ones already issued.</p>
+            <HeroSearch />
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:shrink-0">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:shrink-0">
             <PaymentsMetric label="Active" value={activeItems.length} icon={<ReceiptText size={14} />} tone="emerald" />
             <PaymentsMetric label="Monthly" value={activeItems.filter((item) => item.billingType === "MONTHLY").length} icon={<CalendarClock size={14} />} tone="cyan" />
             <PaymentsMetric label="One-time" value={activeItems.filter((item) => item.billingType === "ONE_TIME").length} icon={<Tag size={14} />} />

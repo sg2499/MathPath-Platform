@@ -3,6 +3,7 @@
 // 2026-10-08 (Payments Phase 4): Expenses > Categories -- the list an expense
 // is filed under. Add, rename, switch off (with a reason) or on. Renaming
 // never changes past expenses; a switched-off category stays on them.
+import { HeroSearch } from "@/components/payments/CommandPalette";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { FieldLabel, InlineError, PaymentsDialog, PaymentsHistoryList, PaymentsMetric, StatusPill } from "@/components/payments/PaymentsUi";
@@ -53,13 +54,14 @@ export function ExpenseCategoriesPanel() {
   return (
     <>
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="math-block-header"><Tags size={14} />Expenses</p>
             <h1 className="math-title">Categories</h1>
             <p className="math-subtitle">What each expense is filed under, so you can see where the money goes. Renaming one never changes past expenses.</p>
+            <HeroSearch />
           </div>
-          <div className="grid grid-cols-2 gap-3 lg:shrink-0">
+          <div className="grid grid-cols-2 gap-3 xl:shrink-0">
             <PaymentsMetric label="In use" value={categories.filter((row) => row.isActive).length} icon={<Tags size={14} />} tone="emerald" />
             <PaymentsMetric label="Off" value={categories.filter((row) => !row.isActive).length} icon={<CircleSlash size={14} />} tone="amber" />
           </div>

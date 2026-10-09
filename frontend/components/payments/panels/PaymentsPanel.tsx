@@ -5,6 +5,7 @@
 // 2026-10-08 (Payments Phase 3): Payments -- every payment received, with
 // filters, totals by method, money receipt PDFs, Excel, and a detail view
 // where a payment can be edited or cancelled.
+import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -30,6 +31,8 @@ import {
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Download, Eye, FileSpreadsheet, HandCoins, Loader2, Printer, Search, Tag, Wallet, X } from "lucide-react";
 import Link from "next/link";
+import { StudentLink } from "@/components/payments/StudentPanel";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 const PAGE_SIZE = 50;
@@ -66,9 +69,13 @@ export function PaymentsPanel() {
   const [notice, setNotice] = useState<string | null>(null);
   const debouncedSearch = useDebounced(search);
 
+  // ?studentId= from a student, ?open=<payment id> from the ⌘K search.
+  const searchParams = useSearchParams();
   useEffect(() => {
-    setStudentId(new URLSearchParams(window.location.search).get("studentId") ?? "");
-  }, []);
+    setStudentId(searchParams.get("studentId") ?? "");
+    const open = searchParams.get("open");
+    if (open) setViewing(open);
+  }, [searchParams]);
 
   const filters: PaymentFilters = useMemo(
     () => ({ status, method, receivedBy, centreId, dateFrom, dateTo, search: debouncedSearch.trim(), studentId }),
@@ -117,13 +124,14 @@ export function PaymentsPanel() {
   return (
     <>
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <p className="math-block-header"><Wallet size={14} />Payments</p>
+            <p className="math-block-header"><Wallet size={14} />Collections</p>
             <h1 className="math-title">Payments</h1>
             <p className="math-subtitle">Every payment received, with its money receipt. Totals follow your filters and leave out cancelled payments.</p>
+            <HeroSearch />
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:shrink-0">
+          <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 xl:shrink-0">
             <PaymentsMetric label="Payments" value={data ? data.totalCount.toLocaleString("en-IN") : "—"} icon={<HandCoins size={14} />} tone="cyan" />
             <PaymentsMetric label="Received" value={<span className="text-lg sm:text-xl">{data?.totals.receivedDisplay ?? "—"}</span>} icon={<Wallet size={14} />} tone="emerald" />
             <PaymentsMetric label="Discount" value={<span className="text-lg sm:text-xl">{data?.totals.discountDisplay ?? "—"}</span>} icon={<Tag size={14} />} />
@@ -261,7 +269,7 @@ export function PaymentsPanel() {
                           <div className="text-xs font-semibold text-slate-500">{FormatDate(payment.paymentDate)}</div>
                         </td>
                         <td className="max-w-[220px] px-2 py-3">
-                          <Link href={`/admin/payments/collections?tab=student-fees&studentId=${encodeURIComponent(payment.studentId)}`} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{payment.studentName}</Link>
+                          <StudentLink studentId={payment.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{payment.studentName}</StudentLink>
                           <div className="truncate text-xs font-semibold text-slate-500">{[payment.studentCode, payment.centreName, payment.receivedByName ? `by ${payment.receivedByName}` : null].filter(Boolean).join(" · ")}</div>
                         </td>
                         <td className="max-w-[220px] px-2 py-3 text-xs font-semibold text-slate-700 dark:text-slate-200">{payment.methodSummary}</td>

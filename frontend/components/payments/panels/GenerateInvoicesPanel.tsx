@@ -7,6 +7,7 @@
 // be created and what will be skipped (and why), then confirm. The server
 // re-checks everything on confirm, and the same confirm press can never
 // create a second set (idempotency key per preview).
+import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -221,13 +222,14 @@ export function GenerateInvoicesPanel() {
   return (
     <>
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <p className="math-block-header"><Wallet size={14} />Payments</p>
+            <p className="math-block-header"><Wallet size={14} />Invoices</p>
             <h1 className="math-title">Generate Invoices</h1>
             <p className="math-subtitle">One invoice per student for each fee you choose. You will see exactly what is created, and what is skipped, before anything is saved.</p>
+            <HeroSearch />
           </div>
-          <div className="grid grid-cols-2 gap-3 lg:shrink-0">
+          <div className="grid grid-cols-2 gap-3 xl:shrink-0">
             <PaymentsMetric label="Students" value={selected.size} icon={<UsersRound size={14} />} tone="cyan" />
             <PaymentsMetric label="Fee items" value={feeIds.length} icon={<FilePlus2 size={14} />} tone="emerald" />
           </div>
