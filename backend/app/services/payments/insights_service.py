@@ -64,7 +64,7 @@ SETTING_LIMITS = {
 # Activity filters: which history rows each one shows.
 ACTIVITY_TYPES = {
     "PAYMENTS": ("PAYMENT", "DAY_CLOSE", "PAY_LINK"),
-    "INVOICES": ("INVOICE", "BILLING", "INVOICE_DRAFT"),
+    "INVOICES": ("INVOICE", "BILLING", "INVOICE_DRAFT", "HISTORY_IMPORT"),
     "EXPENSES": ("EXPENSE", "EXPENSE_CATEGORY"),
     "SETTINGS": (
         "FEE_ITEM", "CENTRE", "BUSINESS_PROFILE", "NUMBER_SEQUENCE", "ONLINE_SETTINGS", "REMINDER_TEMPLATE",
@@ -444,7 +444,8 @@ def Unusual(db: Session, *, Days: int | None = None, IncludeReviewed: bool = Tru
         By = Names.get(Payment.edited_by_user_id if Payment.edited_at and _Aware(Payment.edited_at) >= Since else Payment.created_by_user_id) or Payment.received_by_name or "Not recorded"
         StudentName, StudentCode = _StudentName(Payment)
         Discount = int(Payment.discount_paise or 0)
-        if Discount:
+        # Old-platform history (source LEGACY) was given there, not here.
+        if Discount and Payment.source != "LEGACY":
             Share = Discount * 100 / max(1, Payment.amount_paise + Discount)
             if Discount > Settings.discount_amount_paise or Share > Settings.discount_percent:
                 Items.append({
@@ -691,6 +692,10 @@ def _Describe(Row: PaymentAuditLog) -> dict[str, Any]:
     elif Kind == "STUDENT_CENTRE":
         Text = f"Moved {After.get('student') or 'a student'} to {After.get('centre') or 'no centre'}"
         Href = "/admin/payments/settings?tab=centres"
+    elif Kind == "HISTORY_IMPORT":
+        Icon = "invoice"
+        Href = "/admin/payments/invoices?tab=all"
+        Text = f"Brought in the old platform's payment history: {After.get('invoices', 0)} invoices and {After.get('payments', 0)} payments" + (f", {After.get('studentsAdded')} former students added" if After.get("studentsAdded") else "")
     elif Kind == "INSIGHT_REVIEW":
         Icon = "insight"
         Text = "Marked an unusual item as reviewed" if Action == "REVIEW" else "Moved an unusual item back to open"
