@@ -519,6 +519,40 @@ class PaymentReminderTemplate(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+
+class PaymentInsightSettings(Base):
+    """What counts as unusual activity (revamp R6, 2026-10-09). One row,
+    id "default"; editable in Payment Settings > Insights."""
+
+    __tablename__ = "payment_insight_settings"
+    id = Column(String, primary_key=True, default="default")
+    # A discount on one payment above this amount, or above this share of
+    # what it settled (amount paid + discount), is flagged.
+    discount_amount_paise = Column(Integer, nullable=False, default=50000)
+    discount_percent = Column(Integer, nullable=False, default=20)
+    # This many cancellations (payments, invoices, expenses) by one person
+    # in one day, or more, is flagged.
+    cancellations_per_day = Column(Integer, nullable=False, default=3)
+    # A payment dated more than this many days before it was entered (or
+    # last edited) is flagged.
+    backdated_days = Column(Integer, nullable=False, default=7)
+    updated_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class PaymentInsightReview(Base):
+    """An unusual-activity item someone has looked at (revamp R6). The key
+    names the item (for example DISCOUNT:<payment id>); reviewed items move
+    out of the main list but stay visible under "Reviewed"."""
+
+    __tablename__ = "payment_insight_reviews"
+    key = Column(String(200), primary_key=True)
+    note = Column(Text, nullable=True)
+    reviewed_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    reviewed_by_name = Column(String(150), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 __all__ = [
     "PaymentOnlineSettings",
     "PaymentLink",
@@ -543,6 +577,8 @@ __all__ = [
     "PaymentInvoiceDraft",
     "PaymentFollowUp",
     "PaymentReminderTemplate",
+    "PaymentInsightSettings",
+    "PaymentInsightReview",
 ]
 
 

@@ -14,11 +14,10 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { ModePill } from "@/components/payments/panels/BillingSettingsPanel";
 import { ReplaceAddressKeepingTab } from "@/components/payments/PaymentsSection";
-import { InlineError, PaymentsDialog, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { InlineError, PaymentsDialog, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { StudentLink } from "@/components/payments/StudentPanel";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
@@ -113,7 +112,7 @@ export function MonthlyBillingPanel() {
       </section>
 
       {query.isLoading ? (
-        <div className="mt-6"><LoadingState label="Loading the month…" /></div>
+        <div className="mt-6"><PaymentsLoading label="Loading the month…" variant="cards" /></div>
       ) : query.error || !data ? (
         <div className="mt-6"><ErrorState message="Monthly billing could not be loaded. Refresh the page to try again." /></div>
       ) : (

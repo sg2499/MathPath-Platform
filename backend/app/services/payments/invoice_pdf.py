@@ -703,3 +703,106 @@ def RenderCollectionSummaryPdf(Business: dict[str, Any], Report: dict[str, Any],
     Story += [Spacer(1, 14 * mm), KeepTogether([Sign])]
     Doc.build(Story)
     return Buffer.getvalue()
+
+
+# ----------------------------------------------------------------------------
+# Statement of account (revamp R6, 2026-10-09)
+# ----------------------------------------------------------------------------
+
+def RenderStatementPdf(Business: dict[str, Any], Centre: dict[str, Any], Account: dict[str, Any], *, AsOf) -> bytes:
+    """One student's statement: every invoice (adds to the balance) and
+    payment (takes off it, with any discount), oldest first, with the
+    running balance, and the totals. Cancelled documents are listed, struck
+    out of the figures."""
+    from datetime import date as _date
+
+    Buffer = BytesIO()
+    Student = Account["student"]
+    Totals = Account["totals"]
+    Title = f"Statement · {Student.get('name') or ''}"
+    Doc = BaseDocTemplate(Buffer, pagesize=A4, leftMargin=16 * mm, rightMargin=16 * mm, topMargin=14 * mm, bottomMargin=16 * mm, title=Title, author="MathPath", creator="MathPath")
+    Body = Frame(Doc.leftMargin, Doc.bottomMargin, Doc.width, Doc.height, id="body", leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
+    Doc.addPageTemplates([PageTemplate(id="statement", frames=[Body], onPageEnd=_OnPageEnd)])
+    S = _Styles()
+    W = Doc.width
+    Story: list = [_StatusMark("STATEMENT", f"Statement · {Student.get('studentCode') or ''} · {_FormatDate(AsOf)}")]
+    Story += _BusinessHeader(Business, [
+        Paragraph("STATEMENT", S["title"]),
+        Spacer(1, 2 * mm),
+        Paragraph("<b>Statement of account</b>", S["rightBold"]),
+        Paragraph(f"As of {_FormatDate(AsOf)}", S["right"]),
+    ], S, W)
+    Story += _CentreBlock(Centre, S, W)
+
+    Who = [Paragraph("STUDENT", S["label"]), Paragraph(f"<b>{_T(Student.get('name'))}</b>", S["body"])]
+    if Student.get("parentName"):
+        Who.append(Paragraph(f"Parent: {_T(Student['parentName'])}", S["body"]))
+    if Student.get("mobile"):
+        Who.append(Paragraph(_T(Student["mobile"]), S["body"]))
+    Details = [("Student ID", Student.get("studentCode")), ("Old ID", Student.get("customId")), ("Level", Student.get("levelCode")), ("Centre", Student.get("centreName"))]
+    DetailRows = [[Paragraph(_T(Label), S["label"]), Paragraph(_T(Value), S["body"])] for Label, Value in Details if Value]
+    DetailTable = Table(DetailRows or [[Paragraph("", S["body"])]], colWidths=[W * 0.16, W * 0.29])
+    DetailTable.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    Head = Table([[Who, DetailTable]], colWidths=[W * 0.55, W * 0.45])
+    Head.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+    Story += [Head, Spacer(1, 5 * mm)]
+
+    # Summary.
+    Summary = [
+        ("Invoiced", Totals["invoicedPaise"]),
+        ("Received", Totals["receivedPaise"]),
+        ("Discount", Totals["discountPaise"]),
+        ("Due now", Totals["duePaise"]),
+        ("Of which overdue", Totals["overduePaise"]),
+        ("Advance held", Totals["advancePaise"]),
+    ]
+    Cells = [[Paragraph(_T(Label.upper()), S["cellHead"]) for Label, _ in Summary], [Paragraph(f"<b>{Money(Value)}</b>" if Label == "Due now" else Money(Value), S["cell"]) for Label, Value in Summary]]
+    SummaryTable = Table(Cells, colWidths=[W / len(Summary)] * len(Summary))
+    SummaryTable.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), WASH),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    Story += [SummaryTable, Spacer(1, 6 * mm)]
+
+    # Every entry, oldest first, with the running balance.
+    Rows = [[Paragraph(Text, S["cellHead"] if Index < 3 else S["cellHeadRight"]) for Index, Text in enumerate(["DATE", "DOCUMENT", "DETAILS", "CHARGE", "PAID / CREDIT", "BALANCE"])]]
+    Struck: list[int] = []
+    for Entry in reversed(Account["statement"]):
+        Cancelled = bool(Entry.get("cancelled"))
+        Details = _T(Entry.get("description"))
+        if Cancelled:
+            Details += f" · cancelled ({_T(Entry.get('amountDisplay'))})"
+        Balance = int(Entry["balancePaise"])
+        BalanceText = Money(abs(Balance)) + (" adv." if Balance < 0 else "")
+        Rows.append([
+            Paragraph(_FormatDate(_date.fromisoformat(Entry["date"])), S["cell"]),
+            Paragraph(_T(Entry.get("number")), S["cell"]),
+            Paragraph(Details, S["cell"]),
+            Paragraph(Money(Entry["chargePaise"]) if Entry["chargePaise"] else "-", S["cellRight"]),
+            Paragraph(Money(Entry["creditPaise"]) if Entry["creditPaise"] else "-", S["cellRight"]),
+            Paragraph(BalanceText, S["cellRight"]),
+        ])
+        if Cancelled:
+            Struck.append(len(Rows) - 1)
+    Style = [
+        ("BACKGROUND", (0, 0), (-1, 0), WASH),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.6, RULE),
+        ("LINEBELOW", (0, 1), (-1, -1), 0.3, RULE),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]
+    for RowIndex in Struck:
+        Style.append(("TEXTCOLOR", (0, RowIndex), (-1, RowIndex), MUTED))
+    if len(Rows) > 1:
+        Entries = Table(Rows, colWidths=[W * 0.14, W * 0.17, W * 0.28, W * 0.13, W * 0.14, W * 0.14], repeatRows=1)
+        Entries.setStyle(TableStyle(Style))
+        Story += [Paragraph("ACCOUNT", S["label"]), Spacer(1, 1.5 * mm), Entries]
+    else:
+        Story += [Paragraph("Nothing invoiced or paid yet.", S["body"])]
+    Closing = int(Account["statement"][0]["balancePaise"]) if Account["statement"] else 0
+    ClosingText = f"Balance due: <b>{Money(Closing)}</b>" if Closing > 0 else (f"Advance held: <b>{Money(-Closing)}</b>" if Closing < 0 else "<b>Nothing due.</b>")
+    Story += [Spacer(1, 4 * mm), Paragraph(ClosingText, S["right"]), Spacer(1, 8 * mm),
+              Paragraph("This is a computer-generated statement. Please contact the centre if anything here looks wrong.", S["foot"])]
+    Doc.build(Story)
+    return Buffer.getvalue()

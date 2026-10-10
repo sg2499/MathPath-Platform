@@ -3,6 +3,8 @@
 // 2026-10-09 (Payments revamp R1): Payments Home, the office's daily desk.
 // Today's money, what is due, what needs someone to look, quick actions and
 // the latest payments. Student names open the side panel; ⌘K searches.
+// R6: this month's collection rate, unusual activity to review, and the
+// latest activity (who did what).
 
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -13,18 +15,21 @@ import {
   CreditCard,
   FilePlus2,
   HandCoins,
+  History,
   Link2,
   PhoneCall,
   ReceiptText,
+  ShieldAlert,
   TrendingUp,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { Suspense, type ReactNode } from "react";
+import { Suspense, type CSSProperties, type ReactNode } from "react";
 
 import { AppShell } from "@/components/common/AppShell";
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
+import { PaymentsLoading } from "@/components/payments/PaymentsUi";
+import { ActivityRow } from "@/components/payments/Activity";
 import { PaymentStatusChip } from "@/components/payments/PaymentDetail";
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { PaymentsChrome } from "@/components/payments/PaymentsSection";
@@ -89,7 +94,8 @@ function HomeBody({ data }: { data: PaymentsHome }) {
   const followItems: { key: string; text: string; view: string }[] = [];
   if (follow.promisedToday) followItems.push({ key: "today", view: "today", text: `${follow.promisedToday} promised payment${follow.promisedToday === 1 ? "" : "s"} due today (${follow.promisedTodayAmount.display}).` });
   if (follow.promiseMissed) followItems.push({ key: "missed", view: "missed", text: `${follow.promiseMissed} promise${follow.promiseMissed === 1 ? "" : "s"} to pay missed.` });
-  const attentionCount = followItems.length + data.attention.online.length + data.attention.setup.length + (data.attention.failedToday ? 1 : 0) + pendingDays.length + billingItems.length;
+  const unusualOpen = data.insights.unusualOpen;
+  const attentionCount = (unusualOpen ? 1 : 0) + followItems.length + data.attention.online.length + data.attention.setup.length + (data.attention.failedToday ? 1 : 0) + pendingDays.length + billingItems.length;
   const monthUp = data.lastMonthCollected.paise > 0 ? Math.round(((data.thisMonthCollected.paise - data.lastMonthCollected.paise) / data.lastMonthCollected.paise) * 100) : null;
   const todayClosed = close.todayState === "CLOSED" && !close.todayChangedAfterClose;
   const dayLine = close.todayState === "CLOSED"
@@ -135,7 +141,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
           icon={<TrendingUp size={17} />}
           tone="cyan"
           href="/admin/payments/reports?tab=overview"
-          sub={<>{data.lastMonthLabel}: {data.lastMonthCollected.display}{monthUp !== null ? <span className={monthUp >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"}> ({monthUp >= 0 ? "+" : ""}{monthUp}% so far)</span> : null}</>}
+          sub={<>{data.lastMonthLabel}: {data.lastMonthCollected.display}{monthUp !== null ? <span className={monthUp >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"}> ({monthUp >= 0 ? "+" : ""}{monthUp}% so far)</span> : null}{data.insights.rate !== null ? <span className="block text-cyan-700 dark:text-cyan-300">{data.insights.rate}% of this month&apos;s billing collected</span> : null}</>}
         />
         <Stat
           label="Due"
@@ -162,9 +168,16 @@ function HomeBody({ data }: { data: PaymentsHome }) {
             icon={attentionCount ? <AlertTriangle size={18} className="text-amber-600" /> : <CheckCircle2 size={18} className="text-emerald-600" />}
           >
             {attentionCount === 0 ? (
-              <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">All clear: no promises due or missed, billing is up to date, earlier days are closed, no online payments are waiting, and nothing needs setting up.</p>
+              <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">All clear: nothing unusual to review, no promises due or missed, billing is up to date, earlier days are closed, no online payments are waiting, and nothing needs setting up.</p>
             ) : (
               <ul className="grid gap-2">
+                {unusualOpen ? (
+                  <li>
+                    <Link href="/admin/payments/reports?tab=insights#unusual" className="flex items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50/80 px-4 py-3 text-sm font-bold text-violet-900 transition hover:border-violet-300 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100">
+                      <ShieldAlert size={16} className="shrink-0" /><span className="min-w-0 flex-1">{unusualOpen} unusual item{unusualOpen === 1 ? "" : "s"} to review (large discounts, cancellations or backdated payments in the last {data.insights.unusualDays} days).</span><ArrowRight size={15} className="shrink-0" />
+                    </Link>
+                  </li>
+                ) : null}
                 {followItems.map((item) => (
                   <li key={item.key}>
                     <Link href={`/admin/payments/collections?tab=follow-ups&view=${item.view}`} className="flex items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50/80 px-4 py-3 text-sm font-bold text-violet-900 transition hover:border-violet-300 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100">
@@ -291,6 +304,24 @@ function HomeBody({ data }: { data: PaymentsHome }) {
           </Card>
 
       </div>
+
+      {/* Revamp R6: who did what, latest first. One full-width card. */}
+      <div className="mt-6">
+        <Card
+          title="Recent activity"
+          icon={<History size={18} className="text-indigo-600 dark:text-indigo-400" />}
+          action={<Link href="/admin/payments/reports?tab=activity" className="inline-flex items-center gap-1 text-sm font-black text-cyan-700 hover:underline dark:text-cyan-300">All activity<ArrowRight size={14} /></Link>}
+        >
+          {data.activity.length ? (
+            // Newest first, down the left column then the right.
+            <ul className="grid grid-cols-[minmax(0,1fr)] gap-x-8 xl:grid-flow-col xl:grid-cols-2 xl:[grid-template-rows:repeat(var(--rows),auto)]" style={{ "--rows": Math.ceil(data.activity.length / 2) } as CSSProperties}>
+              {data.activity.map((item) => <li key={item.id} className="border-b border-slate-100 dark:border-slate-800"><ActivityRow item={item} withDay /></li>)}
+            </ul>
+          ) : (
+            <p className="grid min-h-[96px] place-items-center rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-400">Nothing has happened in Payments yet.</p>
+          )}
+        </Card>
+      </div>
     </>
   );
 }
@@ -301,7 +332,7 @@ function HomeInner() {
   if (!ready) return null;
   return (
     <PaymentsChrome>
-      {query.isLoading ? <LoadingState label="Loading payments…" /> : query.error || !query.data ? <ErrorState message="Payments Home could not be loaded. Refresh the page to try again." /> : <HomeBody data={query.data} />}
+      {query.isLoading ? <PaymentsLoading label="Loading payments…" variant="page" /> : query.error || !query.data ? <ErrorState message="Payments Home could not be loaded. Refresh the page to try again." /> : <HomeBody data={query.data} />}
     </PaymentsChrome>
   );
 }
@@ -309,7 +340,7 @@ function HomeInner() {
 export default function PaymentsHomePage() {
   return (
     <AppShell title="Payments">
-      <Suspense fallback={<LoadingState label="Loading payments…" />}>
+      <Suspense fallback={<PaymentsLoading label="Loading payments…" variant="page" />}>
         <HomeInner />
       </Suspense>
     </AppShell>

@@ -5,8 +5,7 @@
 // never changes past expenses; a switched-off category stays on them.
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
-import { FieldLabel, InlineError, PaymentsDialog, PaymentsHistoryList, PaymentsMetric, StatusPill } from "@/components/payments/PaymentsUi";
+import { FieldLabel, InlineError, PaymentsDialog, PaymentsHistoryList, PaymentsMetric, StatusPill, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { createExpenseCategory, listExpenseCategories, updateExpenseCategory, type ExpenseCategory } from "@/lib/api/payments";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -82,7 +81,7 @@ export function ExpenseCategoriesPanel() {
         {active.error ? <div className="mt-4"><InlineError error={active.error} /></div> : null}
         <div className="mt-5">
           {query.isLoading ? (
-            <LoadingState label="Loading categories..." />
+            <PaymentsLoading label="Loading categories..." />
           ) : query.error ? (
             <ErrorState message="Categories could not be loaded. Refresh the page to try again." />
           ) : (

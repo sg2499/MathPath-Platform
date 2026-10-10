@@ -8,8 +8,7 @@
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
-import { FieldLabel, InlineError, PaymentsDialog, PaymentsHistoryList, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { FieldLabel, InlineError, PaymentsDialog, PaymentsHistoryList, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { ReplaceAddressKeepingTab } from "@/components/payments/PaymentsSection";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
@@ -295,7 +294,7 @@ export function InvoicesPanel() {
 
         <div className="mt-5">
           {listQuery.isLoading ? (
-            <LoadingState label="Loading invoices..." />
+            <PaymentsLoading label="Loading invoices..." />
           ) : listQuery.error ? (
             <ErrorState message="Invoices could not be loaded. Refresh the page to try again." />
           ) : !invoices.length ? (

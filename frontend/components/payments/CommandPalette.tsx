@@ -4,6 +4,7 @@
 // pages. One box for students (name, ID, parent, mobile), invoice and
 // receipt numbers, payment references and Razorpay ids, plus shortcuts to
 // the common jobs. Arrow keys move, Enter opens, Esc closes.
+// R6: expenses (number, bill number, item, vendor), Insights and Activity.
 
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -13,7 +14,9 @@ import {
   FilePlus2,
   FileText,
   HandCoins,
+  History,
   Loader2,
+  Receipt,
   ReceiptText,
   Search,
   Settings,
@@ -49,6 +52,8 @@ const SHORTCUTS: { title: string; detail: string; href: string; icon: LucideIcon
   { title: "Generate invoices", detail: "Invoices › Generate (one-time items)", href: "/admin/payments/invoices?tab=generate", icon: FilePlus2, words: "generate invoices bill one time registration book bag raise" },
   { title: "Collections report", detail: "Reports › Collections", href: "/admin/payments/reports?tab=collections", icon: BarChart3, words: "today collection report method staff" },
   { title: "Follow-ups", detail: "Collections › Follow-ups", href: "/admin/payments/collections?tab=follow-ups", icon: Wallet, words: "follow up followups chase remind reminder call promise dues pending overdue" },
+  { title: "Insights", detail: "Reports › Insights", href: "/admin/payments/reports?tab=insights", icon: BarChart3, words: "insights collection rate days to pay forecast unusual activity discount backdated cancellations trend" },
+  { title: "Activity", detail: "Reports › Activity (who did what)", href: "/admin/payments/reports?tab=activity", icon: History, words: "activity history log audit who changed what feed" },
   { title: "Dues", detail: "Reports › Dues", href: "/admin/payments/reports?tab=dues", icon: Wallet, words: "dues pending unpaid overdue outstanding" },
   { title: "Online payments", detail: "Collections › Online Payments", href: "/admin/payments/collections?tab=online", icon: CreditCard, words: "online razorpay failed attention pay link" },
   { title: "All invoices", detail: "Invoices", href: "/admin/payments/invoices?tab=all", icon: FileText, words: "invoices list all" },
@@ -207,6 +212,18 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         run: () => go(`/admin/payments/collections?tab=online&order=${encodeURIComponent(order.orderRef)}`),
       });
     }
+    for (const expense of data?.expenses ?? []) {
+      list.push({
+        key: `e-${expense.expenseId}`,
+        group: "Expenses",
+        icon: Receipt,
+        title: expense.expenseNumber,
+        detail: [expense.item, expense.vendor, expense.categoryName].filter(Boolean).join(" · "),
+        side: expense.status === "CANCELLED" ? "Cancelled" : expense.amountDisplay,
+        sideTone: "slate",
+        run: () => go(`/admin/payments/expenses?tab=expenses&open=${encodeURIComponent(expense.expenseId)}`),
+      });
+    }
     for (const item of shortcuts) {
       list.push({
         key: `a-${item.href}`, group: "Go to", icon: item.icon, title: item.title, detail: item.detail,
@@ -245,7 +262,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   };
 
   const searching = query.length >= 2 && results.isFetching && !results.data;
-  const nothing = query.length >= 2 && results.data && !results.data.students.length && !results.data.invoices.length && !results.data.receipts.length && !results.data.online.length;
+  const nothing = query.length >= 2 && results.data && !results.data.students.length && !results.data.invoices.length && !results.data.receipts.length && !results.data.online.length && !(results.data.expenses ?? []).length;
   let lastGroup = "";
   const toneClass = {
     amber: "text-amber-700 dark:text-amber-300",
@@ -270,7 +287,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             autoFocus
             value={text}
             onChange={(event) => setText(event.target.value)}
-            placeholder="Search a student, mobile, invoice, receipt or Razorpay id…"
+            placeholder="Search a student, mobile, invoice, receipt, expense or Razorpay id…"
             className="h-14 min-w-0 flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 dark:text-white"
             role="combobox"
             aria-label="Search payments"
@@ -319,7 +336,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           <span><kbd className="font-black">↑↓</kbd> move</span>
           <span><kbd className="font-black">Enter</kbd> open</span>
           <span><kbd className="font-black">Esc</kbd> close</span>
-          <span className="ml-auto">Students open in a side panel</span>
+          <span className="ml-auto">On any Payments page: <kbd className="font-black">N</kbd> new payment · <kbd className="font-black">/</kbd> search</span>
         </div>
       </div>
     </div>,

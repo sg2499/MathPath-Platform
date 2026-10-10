@@ -12,9 +12,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
 import { HeroSearch } from "@/components/payments/CommandPalette";
-import { InlineError, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { InlineError, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
   BILLING_MODE_LABELS,
@@ -74,7 +73,7 @@ export function BillingSettingsPanel() {
       </section>
 
       {query.isLoading ? (
-        <div className="mt-6"><LoadingState label="Loading billing settings…" /></div>
+        <div className="mt-6"><PaymentsLoading label="Loading billing settings…" variant="cards" /></div>
       ) : query.error || !data ? (
         <div className="mt-6"><ErrorState message="Billing settings could not be loaded. Refresh the page to try again." /></div>
       ) : (
@@ -242,7 +241,7 @@ function StudentModes() {
       {apply.error ? <div className="mt-3"><InlineError error={apply.error} /></div> : null}
 
       {query.isLoading ? (
-        <div className="mt-4"><LoadingState label="Loading students…" /></div>
+        <div className="mt-4"><PaymentsLoading label="Loading students…" /></div>
       ) : query.error ? (
         <div className="mt-4"><InlineError error={query.error} /></div>
       ) : (

@@ -8,9 +8,8 @@ import { HeroSearch } from "@/components/payments/CommandPalette";
 import { useFollowUp } from "@/components/payments/FollowUp";
 import { useQuickPay } from "@/components/payments/QuickPay";
 import { EmptyState } from "@/components/common/EmptyState";
-import { LoadingState } from "@/components/common/LoadingState";
 import { BUCKET_COLOURS } from "@/components/payments/panels/OverviewPanel";
-import { InlineError, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { InlineError, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
   downloadDuesExcel,
@@ -205,7 +204,7 @@ export function DuesPanel() {
 
         <div className="mt-5">
           {query.isLoading ? (
-            <LoadingState label="Loading dues..." />
+            <PaymentsLoading label="Loading dues..." />
           ) : query.error ? (
             <InlineError error={query.error} />
           ) : !data?.students.length ? (

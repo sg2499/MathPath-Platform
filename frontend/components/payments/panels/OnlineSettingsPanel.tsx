@@ -12,8 +12,7 @@ import { CheckCircle2, Copy, CreditCard, Eye, KeyRound, Link2, Loader2, ShieldCh
 import { useEffect, useState, type ReactNode } from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
-import { InlineError, PaymentsDialog, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { InlineError, PaymentsDialog, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { getOnlineSettings, updateOnlineSettings, type OnlineSettings } from "@/lib/api/payments";
 
@@ -99,7 +98,7 @@ export function OnlineSettingsPanel() {
   useEffect(() => setOrigin(window.location.origin), []);
 
   if (!ready) return null;
-  if (query.isLoading) return <LoadingState label="Loading online payment settings..." />;
+  if (query.isLoading) return <PaymentsLoading label="Loading online payment settings..." variant="cards" />;
   if (query.error || !query.data) return <ErrorState message="Online payment settings could not be loaded. Refresh the page to try again." />;
   const settings: OnlineSettings = query.data;
   const webhookUrl = `${origin}${settings.webhookPath}`;

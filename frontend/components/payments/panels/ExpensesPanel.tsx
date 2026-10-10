@@ -3,14 +3,15 @@
 // 2026-10-08 (Payments Phase 4): Expenses -- money spent, numbered
 // MP-EXP-0001, by category. Add, view, edit (with a reason) and cancel
 // (with a reason; it stays on record). Month totals by category and by
-// method, and Excel. ?add=1 opens the Add form (from the Overview).
+// method, and Excel. ?add=1 opens the Add form (from the Overview);
+// ?open=<id> opens one expense (revamp R6: search and the activity feed).
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
-import { FieldLabel, InlineError, PaymentsDialog, PaymentsHistoryList, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { FieldLabel, InlineError, PaymentsDialog, PaymentsHistoryList, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
+  getExpense,
   cancelExpense,
   COUNTER_METHODS,
   createExpense,
@@ -270,7 +271,19 @@ export function ExpensesPanel() {
   const debounced = useDebounced(search);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("add") === "1") setFormOpen(true);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("add") === "1") setFormOpen(true);
+    // Revamp R6: ?open=<expense id> (from search or the activity feed)
+    // opens that expense.
+    const openId = params.get("open");
+    if (openId) {
+      getExpense(openId)
+        .then((expense) => {
+          setMonth(expense.expenseDate.slice(0, 7));
+          setViewing(expense);
+        })
+        .catch(() => setNotice("That expense could not be opened. It may have been removed from this list."));
+    }
   }, []);
 
   const filters: ExpenseFilters = useMemo(() => ({ month, status, categoryId, centreId, method, search: debounced.trim() }), [month, status, categoryId, centreId, method, debounced]);
@@ -392,7 +405,7 @@ export function ExpensesPanel() {
 
         <div className="mt-5">
           {query.isLoading ? (
-            <LoadingState label="Loading expenses..." />
+            <PaymentsLoading label="Loading expenses..." />
           ) : query.error ? (
             <ErrorState message="Expenses could not be loaded. Refresh the page to try again." />
           ) : !data?.expenses.length ? (

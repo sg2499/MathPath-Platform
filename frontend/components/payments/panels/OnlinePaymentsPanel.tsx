@@ -17,9 +17,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
 import { ReplaceAddressKeepingTab } from "@/components/payments/PaymentsSection";
-import { InlineError, PaymentsDialog, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { InlineError, PaymentsDialog, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { checkOnlineOrder, getOnlineOrder, listOnlineOrders, type OnlineOrder, type OnlineOrderFilters, type OnlineOrderStatus } from "@/lib/api/payments";
 
@@ -99,7 +98,7 @@ function OrderDialog({ orderRef, onClose, onChanged }: { orderRef: string | null
       }
     >
       {query.isLoading ? (
-        <LoadingState label="Loading..." />
+        <PaymentsLoading label="Loading..." />
       ) : query.error || !order ? (
         <InlineError error={query.error} />
       ) : (
@@ -280,7 +279,7 @@ export function OnlinePaymentsPanel() {
 
         <div className="mt-5">
           {listQuery.isLoading ? (
-            <LoadingState label="Loading online payments..." />
+            <PaymentsLoading label="Loading online payments..." />
           ) : listQuery.error ? (
             <ErrorState message="Online payments could not be loaded. Refresh the page to try again." />
           ) : !orders.length ? (

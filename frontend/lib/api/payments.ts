@@ -760,6 +760,11 @@ export async function updateExpenseCategory(categoryId: string, payload: { name?
   return data;
 }
 
+export async function getExpense(expenseId: string): Promise<Expense> {
+  const { data } = await api.get<Expense>(`/admin/payments/expenses/${encodeURIComponent(expenseId)}`);
+  return data;
+}
+
 export async function listExpenses(filters: ExpenseFilters, page = 1, pageSize = 50): Promise<ExpenseList> {
   const { data } = await api.get<ExpenseList>("/admin/payments/expenses", { params: { ...CleanParams(filters), page, pageSize } });
   return data;
@@ -906,6 +911,8 @@ export type PaymentsHome = {
   dayClose: HomeDayClose;
   billing: HomeBilling;
   followUps: HomeFollowUps;
+  insights: HomeInsights;
+  activity: ActivityItem[];
   todayCollected: MoneyValue;
   todayPaymentCount: number;
   todayByMethod: MethodTotal[];
@@ -935,6 +942,7 @@ export type PaymentsSearchResult = {
   invoices: { invoiceId: string; invoiceNumber: string; studentId: string; studentName: string; studentCode: string; feeName: string; periodLabel: string | null; amountDisplay: string; balanceDisplay: string; status: InvoiceStatus; statusLabel: string; isOverdue: boolean }[];
   receipts: { paymentId: string; receiptNumber: string; studentId: string; studentName: string; studentCode: string; paymentDate: string; amountDisplay: string; status: "RECORDED" | "CANCELLED"; channel: "COUNTER" | "ONLINE"; references: string[] }[];
   online: { orderRef: string; razorpayOrderId: string; razorpayPaymentId: string | null; studentId: string; studentName: string; amountDisplay: string; status: OnlineOrderStatus; statusLabel: string; receiptNumber: string | null }[];
+  expenses: { expenseId: string; expenseNumber: string; expenseDate: string; item: string; vendor: string | null; categoryName: string; amountDisplay: string; status: "RECORDED" | "CANCELLED" }[];
 };
 
 export async function getPaymentsHome(): Promise<PaymentsHome> {
@@ -1300,5 +1308,156 @@ export async function updateReminderTemplate(key: ReminderTemplateKey, body: str
 
 export async function resetReminderTemplate(key: ReminderTemplateKey): Promise<ReminderTemplates> {
   const { data } = await api.post<ReminderTemplates>(`/admin/payments/followups/templates/${key}/reset`);
+  return data;
+}
+
+
+// ---------------------------------------------------------------------------
+// 2026-10-09 (Payments revamp R6): insights, unusual activity, the activity
+// feed and the student statement PDF.
+// ---------------------------------------------------------------------------
+
+export type InsightMonth = {
+  month: string;
+  label: string;
+  longLabel: string;
+  invoiceCount: number;
+  billed: MoneyValue;
+  collected: MoneyValue;
+  rate: number | null;
+  moneyIn: MoneyValue;
+  overdueAt: string;
+  overdue: MoneyValue;
+  overdueInvoices: number;
+  averageDaysToPay: number | null;
+};
+
+export type UnusualKind = "DISCOUNT" | "CANCELLATIONS" | "BACKDATED";
+
+export type UnusualItem = {
+  key: string;
+  kind: UnusualKind;
+  kindLabel: string;
+  at: string | null;
+  actorName: string;
+  title: string;
+  detail: string;
+  href: string | null;
+  studentId: string | null;
+  amount: MoneyValue | null;
+  reviewed: { byName: string | null; at: string | null; note: string | null } | null;
+};
+
+export type InsightSettings = {
+  discountAmount: MoneyValue;
+  discountPercent: number;
+  cancellationsPerDay: number;
+  backdatedDays: number;
+  updatedAt: string | null;
+};
+
+export type UnusualActivity = {
+  days: number;
+  windows: number[];
+  settings: InsightSettings;
+  openCount: number;
+  reviewedCount: number;
+  items: UnusualItem[];
+};
+
+export type PaymentsInsights = {
+  today: string;
+  thisMonthLabel: string;
+  collection: {
+    rate: number | null;
+    previousRate: number | null;
+    previousLabel: string | null;
+    billed: MoneyValue;
+    collected: MoneyValue;
+    averageDaysToPay: number | null;
+    medianDaysToPay: number | null;
+    paidInvoices: number;
+    onTimePercent: number | null;
+    windowDays: number;
+  };
+  forecast: {
+    billed: MoneyValue;
+    invoiceCount: number;
+    collected: MoneyValue;
+    stillToCome: MoneyValue;
+    overdue: MoneyValue;
+    dueByMonthEnd: MoneyValue;
+    dueLater: MoneyValue;
+    monthEnd: string;
+    moneyInThisMonth: MoneyValue;
+  };
+  overdueNow: MoneyValue;
+  dueNow: MoneyValue;
+  months: InsightMonth[];
+  topDues: { studentId: string; studentName: string; studentCode: string; centreName: string | null; isActive: boolean; due: MoneyValue; overdue: MoneyValue; maxDaysOverdue: number; invoiceCount: number; share: number | null }[];
+  topDuesShare: number | null;
+  studentsWithDues: number;
+  unusual: UnusualActivity;
+};
+
+export type HomeInsights = { monthLabel: string; rate: number | null; billed: MoneyValue; collected: MoneyValue; unusualOpen: number; unusualDays: number };
+
+export type ActivityIcon = "payment" | "invoice" | "expense" | "cancel" | "dayclose" | "link" | "insight" | "settings";
+export type ActivityType = "ALL" | "PAYMENTS" | "INVOICES" | "EXPENSES" | "SETTINGS" | "CANCELLATIONS";
+
+export type ActivityItem = {
+  id: string;
+  at: string | null;
+  actorName: string;
+  actorId: string | null;
+  entityType: string;
+  action: string;
+  reason: string | null;
+  count: number;
+  text: string;
+  href: string | null;
+  icon: ActivityIcon;
+  amount: string | null;
+};
+
+export type ActivityPage = { type: ActivityType; personId: string | null; items: ActivityItem[]; nextBefore: string | null; people: { userId: string; name: string }[] };
+
+export async function getPaymentsInsights(days?: number): Promise<PaymentsInsights> {
+  const { data } = await api.get<PaymentsInsights>("/admin/payments/insights", { params: days ? { days } : {} });
+  return data;
+}
+
+export async function getUnusualActivity(days?: number): Promise<UnusualActivity> {
+  const { data } = await api.get<UnusualActivity>("/admin/payments/insights/unusual", { params: days ? { days } : {} });
+  return data;
+}
+
+export async function getInsightSettings(): Promise<InsightSettings> {
+  const { data } = await api.get<InsightSettings>("/admin/payments/insights/settings");
+  return data;
+}
+
+export async function updateInsightSettings(payload: { discountAmount?: string; discountPercent?: string; cancellationsPerDay?: string; backdatedDays?: string }): Promise<InsightSettings> {
+  const { data } = await api.put<InsightSettings>("/admin/payments/insights/settings", payload);
+  return data;
+}
+
+export async function markUnusualReviewed(key: string, note?: string | null): Promise<{ key: string; reviewed: UnusualItem["reviewed"] }> {
+  const { data } = await api.post("/admin/payments/insights/reviews", { key, note: note || null });
+  return data;
+}
+
+export async function undoUnusualReviewed(key: string): Promise<{ key: string; reviewed: null }> {
+  const { data } = await api.post("/admin/payments/insights/reviews/undo", { key });
+  return data;
+}
+
+export async function getPaymentsActivity(params: { type?: ActivityType; person?: string | null; before?: string | null; limit?: number }): Promise<ActivityPage> {
+  const { data } = await api.get<ActivityPage>("/admin/payments/activity", { params: CleanParams({ type: params.type, person: params.person ?? undefined, before: params.before ?? undefined, limit: params.limit ? String(params.limit) : undefined }) });
+  return data;
+}
+
+export async function downloadStatementPdf(studentId: string): Promise<Blob> {
+  const { data } = await api.get(`/admin/payments/students/${encodeURIComponent(studentId)}/statement/pdf`, { responseType: "blob" });
   return data;
 }

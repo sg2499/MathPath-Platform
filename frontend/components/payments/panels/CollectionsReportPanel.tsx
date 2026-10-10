@@ -7,8 +7,7 @@
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
-import { InlineError, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { InlineError, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
   COUNTER_METHODS,
@@ -153,7 +152,7 @@ export function CollectionsReportPanel() {
       </section>
 
       {query.isLoading ? (
-        <div className="mt-6"><LoadingState label="Loading collections..." /></div>
+        <div className="mt-6"><PaymentsLoading label="Loading collections..." variant="cards" /></div>
       ) : query.error ? (
         <div className="mt-6"><InlineError error={query.error} /></div>
       ) : !data ? (
