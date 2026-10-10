@@ -9,7 +9,7 @@
 // bottom sheet on a phone) instead of sliding in from the right.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ArrowRight, BellRing, HandCoins, Loader2, MessageSquarePlus, Phone, PiggyBank, ReceiptText, UserRound, Wallet, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, BellRing, Download, FilePlus2, HandCoins, Loader2, MessageSquarePlus, Phone, PiggyBank, ReceiptText, UserRound, Wallet, X } from "lucide-react";
 import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -18,7 +18,8 @@ import { InlineError } from "@/components/payments/PaymentsUi";
 import { PayLinkCard } from "@/components/payments/PayLinkCard";
 import { LastContactText, PromisePill, useFollowUp } from "@/components/payments/FollowUp";
 import { useQuickPay } from "@/components/payments/QuickPay";
-import { addFollowUpNote, getStudentAccount, getStudentBilling, getStudentFollowUp } from "@/lib/api/payments";
+import { addFollowUpNote, downloadStatementPdf, getStudentAccount, getStudentBilling, getStudentFollowUp, saveBlob } from "@/lib/api/payments";
+import { usePaymentsToast } from "@/components/payments/PaymentsToast";
 import "./payments-r1.css";
 import { FormatDate } from "@/lib/paymentsDates";
 
@@ -85,6 +86,15 @@ function StudentPanel({ studentId, onClose }: { studentId: string | null; onClos
   useEffect(() => setMounted(true), []);
   const query = useQuery({ queryKey: ["admin", "payments", "account", studentId], queryFn: () => getStudentAccount(studentId!), enabled: Boolean(studentId) });
   const billing = useQuery({ queryKey: ["admin", "payments", "billing", "student", studentId], queryFn: () => getStudentBilling(studentId!), enabled: Boolean(studentId) });
+  const toast = usePaymentsToast();
+  const statement = useMutation({
+    mutationFn: (id: string) => downloadStatementPdf(id),
+    onSuccess: (blob) => {
+      const code = query.data?.student.studentCode ?? "student";
+      saveBlob(blob, `Statement-${code}.pdf`);
+      toast?.({ text: `Statement for ${query.data?.student.name ?? "the student"} downloaded.` });
+    },
+  });
 
   useEffect(() => {
     if (!studentId) return;
@@ -226,13 +236,19 @@ function StudentPanel({ studentId, onClose }: { studentId: string | null; onClos
         </div>
 
         {account ? (
-          <footer className="mp-panel-head flex flex-wrap gap-2 border-t border-slate-200 px-5 py-4 dark:border-slate-800 sm:justify-end sm:px-6">
+          <footer className="mp-panel-head grid grid-cols-2 gap-2 border-t border-slate-200 px-5 py-4 dark:border-slate-800 sm:flex sm:flex-wrap sm:items-center sm:px-6">
+            {/* Revamp R6: the statement PDF and a new invoice for this student. */}
+            <button type="button" onClick={() => statement.mutate(account.student.studentId)} disabled={statement.isPending} className="math-button-secondary order-3 justify-center whitespace-nowrap sm:order-none">
+              {statement.isPending ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}Statement PDF
+            </button>
+            <Link href={`/admin/payments/invoices?tab=generate&studentId=${encodeURIComponent(account.student.studentId)}`} onClick={onClose} className="math-button-secondary order-4 justify-center whitespace-nowrap sm:order-none sm:mr-auto"><FilePlus2 size={16} />New invoice</Link>
             {quickPay ? (
-              <button type="button" onClick={() => { onClose(); quickPay.open(account.student.studentId); }} className="math-button-primary flex-1 justify-center whitespace-nowrap sm:flex-none"><HandCoins size={17} />Record Payment</button>
+              <button type="button" onClick={() => { onClose(); quickPay.open(account.student.studentId); }} className="math-button-primary order-1 justify-center whitespace-nowrap sm:order-none"><HandCoins size={17} />Record Payment</button>
             ) : (
-              <Link href={AccountHref(account.student.studentId, "new")} onClick={onClose} className="math-button-primary flex-1 justify-center whitespace-nowrap sm:flex-none"><HandCoins size={17} />Record Payment</Link>
+              <Link href={AccountHref(account.student.studentId, "new")} onClick={onClose} className="math-button-primary order-1 justify-center whitespace-nowrap sm:order-none"><HandCoins size={17} />Record Payment</Link>
             )}
-            <Link href={AccountHref(account.student.studentId)} onClick={onClose} className="math-button-secondary flex-1 justify-center whitespace-nowrap sm:flex-none">Full account<ArrowRight size={16} /></Link>
+            <Link href={AccountHref(account.student.studentId)} onClick={onClose} className="math-button-secondary order-2 justify-center whitespace-nowrap sm:order-none">Full account<ArrowRight size={16} /></Link>
+            {statement.error ? <div className="order-5 col-span-2 w-full"><InlineError error={statement.error} /></div> : null}
           </footer>
         ) : null}
       </section>

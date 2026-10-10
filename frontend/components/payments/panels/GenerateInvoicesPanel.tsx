@@ -10,8 +10,7 @@
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
-import { FieldLabel, InlineError, PaymentsDialog, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { FieldLabel, InlineError, PaymentsDialog, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
   downloadInvoicesPdf,
@@ -279,7 +278,7 @@ export function GenerateInvoicesPanel() {
           {pdfMutation.error ? <div className="mt-3"><InlineError error={pdfMutation.error} /></div> : null}
         </section>
       ) : loading ? (
-        <div className="mt-6"><LoadingState label="Loading fee items and students..." /></div>
+        <div className="mt-6"><PaymentsLoading label="Loading fee items and students..." /></div>
       ) : failed ? (
         <div className="mt-6"><ErrorState message="Fee items or students could not be loaded. Refresh the page to try again." /></div>
       ) : (

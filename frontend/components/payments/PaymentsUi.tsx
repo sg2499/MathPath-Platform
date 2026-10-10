@@ -293,3 +293,67 @@ export function PaymentsHistoryList({ entityType, entityId, limit = 50 }: { enti
     </ol>
   );
 }
+
+// 2026-10-09 (Payments revamp R6): loading placeholders in the shape of what
+// is coming (rows for a list, cards for a page) instead of a spinner. The
+// label is still read out to screen readers.
+function Bar({ className = "" }: { className?: string }) {
+  return <span className={`block rounded-full bg-slate-200/80 dark:bg-slate-800 ${className}`} />;
+}
+
+function SkeletonRows({ count }: { count: number }) {
+  return (
+    <ul className="grid gap-3">
+      {Array.from({ length: count }, (_, index) => (
+        <li key={index} className="flex items-center gap-3 rounded-2xl border border-slate-100 px-4 py-3 dark:border-slate-800/80">
+          <span className="h-9 w-9 shrink-0 rounded-xl bg-slate-200/80 dark:bg-slate-800" />
+          <span className="grid min-w-0 flex-1 gap-2">
+            <Bar className={`h-3 ${index % 2 ? "w-2/5" : "w-1/2"}`} />
+            <Bar className={`h-2.5 ${index % 3 ? "w-3/5" : "w-1/3"}`} />
+          </span>
+          <Bar className="h-4 w-20 shrink-0" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function PaymentsLoading({ label = "Loading…", variant = "list", rows = 5 }: { label?: string; variant?: "list" | "cards" | "page"; rows?: number }) {
+  return (
+    <div role="status" aria-live="polite" aria-busy="true" className="motion-safe:animate-pulse">
+      <span className="sr-only">{label}</span>
+      {variant === "page" ? (
+        <div className="grid gap-6" aria-hidden>
+          <div className="math-card grid gap-3 p-6">
+            <Bar className="h-3 w-24" />
+            <Bar className="h-8 w-64 max-w-full" />
+            <Bar className="h-3 w-80 max-w-full" />
+            <Bar className="mt-2 h-11 w-full max-w-md rounded-2xl" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+            {[0, 1, 2, 3].map((index) => (
+              <div key={index} className="math-card grid gap-3 p-5">
+                <Bar className="h-3 w-24" />
+                <Bar className="h-7 w-32 max-w-full" />
+                <Bar className="h-2.5 w-28 max-w-full" />
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {[0, 1].map((index) => (
+              <div key={index} className="math-card p-5 sm:p-6"><Bar className="mb-4 h-4 w-40" /><SkeletonRows count={3} /></div>
+            ))}
+          </div>
+        </div>
+      ) : variant === "cards" ? (
+        <div className="grid gap-6 lg:grid-cols-2" aria-hidden>
+          {[0, 1].map((index) => (
+            <div key={index} className="math-card p-5 sm:p-6"><Bar className="mb-4 h-4 w-40" /><SkeletonRows count={Math.max(2, Math.ceil(rows / 2))} /></div>
+          ))}
+        </div>
+      ) : (
+        <div aria-hidden><SkeletonRows count={rows} /></div>
+      )}
+    </div>
+  );
+}

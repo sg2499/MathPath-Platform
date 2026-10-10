@@ -8,16 +8,7 @@
 // Setup) are drawn by the Payment Settings section page.
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
-import {
-  FieldError,
-  FieldLabel,
-  InlineError,
-  PaymentsDialog,
-  PaymentsHistoryList,
-  PaymentsMetric,
-  StatusPill,
-} from "@/components/payments/PaymentsUi";
+import { FieldError, FieldLabel, InlineError, PaymentsDialog, PaymentsHistoryList, PaymentsMetric, StatusPill, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
   assignStudentsToCentre,
@@ -142,7 +133,7 @@ export function SettingsPanel({ tab }: { tab: SettingsPanelTab }) {
       </section>
 
       {settingsQuery.isLoading ? (
-        <div className="mt-6"><LoadingState label="Loading payment settings..." /></div>
+        <div className="mt-6"><PaymentsLoading label="Loading payment settings..." variant="cards" /></div>
       ) : settingsQuery.error || !settings ? (
         <div className="mt-6"><ErrorState message="Payment settings could not be loaded. Refresh the page to try again." /></div>
       ) : (
@@ -461,7 +452,7 @@ function AssignStudentsDialog({ open, centres, onClose, onSaved }: { open: boole
       <div className="mt-3"><InlineError error={mutation.error} /></div>
 
       {studentsQuery.isLoading ? (
-        <div className="mt-4"><LoadingState label="Loading students..." /></div>
+        <div className="mt-4"><PaymentsLoading label="Loading students..." /></div>
       ) : studentsQuery.error ? (
         <div className="mt-4"><InlineError error={studentsQuery.error} /></div>
       ) : (

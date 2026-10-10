@@ -9,10 +9,9 @@ import { HeroSearch } from "@/components/payments/CommandPalette";
 import { RecordPaymentButton } from "@/components/payments/QuickPay";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
 import { PaymentDetailDialog, PaymentStatusChip } from "@/components/payments/PaymentDetail";
 import { PaymentForm } from "@/components/payments/PaymentForm";
-import { InlineError, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { InlineError, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { ReplaceAddressKeepingTab } from "@/components/payments/PaymentsSection";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
@@ -221,7 +220,7 @@ export function PaymentsPanel() {
 
         <div className="mt-5">
           {listQuery.isLoading ? (
-            <LoadingState label="Loading payments..." />
+            <PaymentsLoading label="Loading payments..." />
           ) : listQuery.error ? (
             <ErrorState message="Payments could not be loaded. Refresh the page to try again." />
           ) : !payments.length ? (

@@ -49,7 +49,7 @@ def test_search_finds_students_invoices_receipts_and_razorpay_ids(_razorpay):
     payment_id = _razorpay.pay(made["razorpayOrderId"])
     online.VerifyCheckout(db, Order=db.get(OnlinePaymentOrder, made["orderRef"]), RazorpayOrderId=made["razorpayOrderId"], RazorpayPaymentId=payment_id, Signature=_sign(made["razorpayOrderId"], payment_id))
 
-    assert home.Search(db, "a") == {"query": "a", "students": [], "invoices": [], "receipts": [], "online": []}
+    assert home.Search(db, "a") == {"query": "a", "students": [], "invoices": [], "receipts": [], "online": [], "expenses": []}
     by_name = home.Search(db, "aarav")
     assert [row["studentId"] for row in by_name["students"]] == ["s1"] and by_name["students"][0]["due"]["display"] == "₹350.00"
     assert home.Search(db, "MP-S2")["students"][0]["name"] == "Bina Roy"

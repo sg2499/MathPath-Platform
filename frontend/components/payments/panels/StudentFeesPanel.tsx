@@ -10,11 +10,10 @@
 import { useSearchParams } from "next/navigation";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
 import { PaymentDetailDialog, PaymentStatusChip } from "@/components/payments/PaymentDetail";
 import { PaymentForm } from "@/components/payments/PaymentForm";
 import { PayLinkCard } from "@/components/payments/PayLinkCard";
-import { InlineError, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { InlineError, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { ReplaceAddressKeepingTab } from "@/components/payments/PaymentsSection";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
@@ -236,7 +235,7 @@ export function StudentFeesPanel() {
       {!studentId ? (
         <div className="mt-6"><EmptyState title="Choose a student" description="Search above by name or student ID. You can also open a student from the Invoices list or the Students page." /></div>
       ) : accountQuery.isLoading ? (
-        <div className="mt-6"><LoadingState label="Loading the student's account..." /></div>
+        <div className="mt-6"><PaymentsLoading label="Loading the student's account..." variant="cards" /></div>
       ) : accountQuery.error || !account || !totals ? (
         <div className="mt-6"><ErrorState message="This student's account could not be loaded. Refresh the page or choose the student again." /></div>
       ) : (

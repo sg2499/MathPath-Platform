@@ -517,6 +517,24 @@ def admin_student_account(student_id: str, db: Session = Depends(get_db), user: 
     return StudentAccount(db, student_id)
 
 
+@router.get("/students/{student_id}/statement/pdf")
+def admin_student_statement_pdf(student_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    """Revamp R6: the student's statement of account as a PDF."""
+    from app.models import PaymentCentre, Student
+    from app.services.payments.invoice_pdf import RenderStatementPdf
+    from app.services.payments import invoices_service
+    from app.services.payments.invoices_service import _BusinessSnapshot, _CentreSnapshot
+
+    Account = StudentAccount(db, student_id)
+    StudentRow = db.get(Student, student_id)
+    Centres = db.query(PaymentCentre).order_by(PaymentCentre.display_order.asc(), PaymentCentre.name.asc()).all()
+    Today = invoices_service.TodayInIndia()
+    Content = RenderStatementPdf(_BusinessSnapshot(db), _CentreSnapshot(db, StudentRow.centre_id if StudentRow else None, Centres), Account, AsOf=Today)
+    db.commit()
+    Code = Account["student"].get("studentCode") or "student"
+    return _PdfResponse(Content, f"Statement-{Code}-{Today.isoformat()}.pdf")
+
+
 @router.post("/students/{student_id}/apply-advance")
 def admin_apply_advance(student_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return ApplyAdvanceNow(db, StudentId=student_id, Actor=user)
@@ -1060,3 +1078,66 @@ def admin_reset_reminder_template(key: str, db: Session = Depends(get_db), user:
     from app.services.payments.followups_service import ResetTemplate
 
     return ResetTemplate(db, Key=key, Actor=user)
+
+
+# --- Insights and activity (revamp R6) ---------------------------------------------
+
+class InsightSettingsRequest(BaseModel):
+    discountAmount: str | int | None = None
+    discountPercent: str | int | None = None
+    cancellationsPerDay: str | int | None = None
+    backdatedDays: str | int | None = None
+
+
+class InsightReviewRequest(BaseModel):
+    key: str = Field(max_length=200)
+    note: str | None = Field(default=None, max_length=300)
+
+
+@router.get("/insights")
+def admin_insights(days: int | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.insights_service import Insights
+
+    return Insights(db, UnusualDays=days)
+
+
+@router.get("/insights/unusual")
+def admin_insights_unusual(days: int | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.insights_service import Unusual
+
+    return Unusual(db, Days=days)
+
+
+@router.get("/insights/settings")
+def admin_insight_settings(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.insights_service import GetSettings
+
+    return GetSettings(db)
+
+
+@router.put("/insights/settings")
+def admin_update_insight_settings(payload: InsightSettingsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.insights_service import UpdateSettings
+
+    return UpdateSettings(db, Fields={Key: Value for Key, Value in _SentFields(payload).items() if Value is not None}, Actor=user)
+
+
+@router.post("/insights/reviews")
+def admin_insight_review(payload: InsightReviewRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.insights_service import MarkReviewed
+
+    return MarkReviewed(db, Key=payload.key, Note=payload.note, Actor=user)
+
+
+@router.post("/insights/reviews/undo")
+def admin_insight_unreview(payload: InsightReviewRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.insights_service import UndoReviewed
+
+    return UndoReviewed(db, Key=payload.key, Actor=user)
+
+
+@router.get("/activity")
+def admin_payments_activity(type: str | None = None, person: str | None = None, before: str | None = None, limit: int | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.insights_service import Activity
+
+    return Activity(db, Type=type, PersonId=person, Before=before, Limit=limit)

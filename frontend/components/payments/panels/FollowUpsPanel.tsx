@@ -12,11 +12,10 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { LastContactText, PromisePill, useFollowUp, type FollowUpTarget } from "@/components/payments/FollowUp";
 import { ReplaceAddressKeepingTab } from "@/components/payments/PaymentsSection";
-import { PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { StudentLink } from "@/components/payments/StudentPanel";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { getFollowUps, type FollowUpStudent } from "@/lib/api/payments";
@@ -124,7 +123,7 @@ export function FollowUpsPanel() {
         {data && !data.inAppAvailable ? <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Remind in app needs &quot;Show fees to students&quot; switched on (Payment Settings › Online Payments).</p> : null}
 
         {query.isLoading ? (
-          <div className="mt-4"><LoadingState label="Loading follow-ups…" /></div>
+          <div className="mt-4"><PaymentsLoading label="Loading follow-ups…" /></div>
         ) : query.error || !data ? (
           <div className="mt-4"><ErrorState message="Follow-ups could not be loaded. Refresh the page to try again." /></div>
         ) : rows.length === 0 ? (

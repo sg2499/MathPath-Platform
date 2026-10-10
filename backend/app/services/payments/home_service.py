@@ -7,7 +7,8 @@ search used across the Payments pages.
     today, the biggest overdue accounts, setup gaps), and the latest
     payments and online payments.
   * Search -- one box for students (name, ID, parent, mobile), invoices,
-    receipts (number or reference) and Razorpay order or payment ids.
+    receipts (number or reference), Razorpay order or payment ids, and
+    (revamp R6) expenses by number, bill number, item or vendor.
 
 Read only: nothing here changes data.
 """
@@ -104,11 +105,17 @@ def PaymentsHome(db: Session) -> dict[str, Any]:
     from app.services.payments.followups_service import HomeFollowUps
 
     FollowUpsSummary = HomeFollowUps(db)
+    from app.services.payments.insights_service import Activity, HomeInsights
+
+    InsightsSummary = HomeInsights(db)
+    LatestActivity = Activity(db, Limit=8)["items"]
     return {
         "today": Base["today"],
         "dayClose": DayClose,
         "billing": Billing,
         "followUps": FollowUpsSummary,
+        "insights": InsightsSummary,
+        "activity": LatestActivity,
         "todayCollected": Base["todayCollected"],
         "todayPaymentCount": Base["todayPaymentCount"],
         "todayByMethod": Base["todayByMethod"],
@@ -163,7 +170,7 @@ def Search(db: Session, Query: Any) -> dict[str, Any]:
     from app.services.payments.receipts_service import AdvanceBalances, InvoiceBalance
 
     Text = " ".join(str(Query or "").split())[:80]
-    Empty = {"query": Text, "students": [], "invoices": [], "receipts": [], "online": []}
+    Empty = {"query": Text, "students": [], "invoices": [], "receipts": [], "online": [], "expenses": []}
     if len(Text) < SEARCH_MIN_LENGTH:
         return Empty
     Like = f"%{Text.lower()}%"
@@ -282,4 +289,35 @@ def Search(db: Session, Query: Any) -> dict[str, Any]:
             Payload = OrderPayload(db, Row)
             Online.append({Key: Payload[Key] for Key in ("orderRef", "razorpayOrderId", "razorpayPaymentId", "studentId", "studentName", "amountDisplay", "status", "statusLabel", "receiptNumber")})
 
-    return {"query": Text, "students": Students, "invoices": Invoices, "receipts": Receipts, "online": Online}
+    # Expenses (revamp R6): by number, bill number, item or vendor.
+    from app.models import Expense
+
+    ExpenseRows = (
+        db.query(Expense)
+        .filter(
+            or_(
+                func.lower(Expense.expense_number).like(Like),
+                func.lower(func.coalesce(Expense.bill_number, "")).like(Like),
+                func.lower(Expense.item).like(Like),
+                func.lower(func.coalesce(Expense.vendor, "")).like(Like),
+            )
+        )
+        .order_by(Expense.expense_date.desc(), Expense.expense_number.desc())
+        .limit(SEARCH_LIMIT)
+        .all()
+    )
+    Expenses = [
+        {
+            "expenseId": Row.id,
+            "expenseNumber": Row.expense_number,
+            "expenseDate": Row.expense_date.isoformat(),
+            "item": Row.item,
+            "vendor": Row.vendor,
+            "categoryName": Row.category_name,
+            "amountDisplay": FormatIndianRupees(Row.amount_paise),
+            "status": Row.status,
+        }
+        for Row in ExpenseRows
+    ]
+
+    return {"query": Text, "students": Students, "invoices": Invoices, "receipts": Receipts, "online": Online, "expenses": Expenses}

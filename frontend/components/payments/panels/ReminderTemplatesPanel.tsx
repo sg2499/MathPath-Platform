@@ -9,9 +9,8 @@ import { BellRing, CheckCircle2, Loader2, RotateCcw, Settings2 } from "lucide-re
 import { useRef, useState } from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
 import { HeroSearch } from "@/components/payments/CommandPalette";
-import { InlineError } from "@/components/payments/PaymentsUi";
+import { InlineError, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { getReminderTemplates, resetReminderTemplate, updateReminderTemplate, type ReminderTemplateKey, type ReminderTemplates } from "@/lib/api/payments";
 
@@ -36,7 +35,7 @@ export function ReminderTemplatesPanel() {
         </div>
       </section>
       {query.isLoading ? (
-        <div className="mt-6"><LoadingState label="Loading reminders…" /></div>
+        <div className="mt-6"><PaymentsLoading label="Loading reminders…" variant="cards" /></div>
       ) : query.error || !query.data ? (
         <div className="mt-6"><ErrorState message="Reminders could not be loaded. Refresh the page to try again." /></div>
       ) : (

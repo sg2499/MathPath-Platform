@@ -8,16 +8,7 @@
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
-import {
-  FieldError,
-  FieldLabel,
-  InlineError,
-  PaymentsDialog,
-  PaymentsHistoryList,
-  PaymentsMetric,
-  StatusPill,
-} from "@/components/payments/PaymentsUi";
+import { FieldError, FieldLabel, InlineError, PaymentsDialog, PaymentsHistoryList, PaymentsMetric, StatusPill, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
   createFeeItem,
@@ -226,7 +217,7 @@ export function FeeSetupPanel() {
 
         <div className="mt-5">
           {itemsQuery.isLoading ? (
-            <LoadingState label="Loading fee items..." />
+            <PaymentsLoading label="Loading fee items..." />
           ) : itemsQuery.error ? (
             <ErrorState message="Fee items could not be loaded. Refresh the page to try again." />
           ) : !items.length ? (

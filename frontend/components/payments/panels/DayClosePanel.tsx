@@ -14,10 +14,9 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { ReplaceAddressKeepingTab } from "@/components/payments/PaymentsSection";
-import { InlineError, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { InlineError, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
   closeDay,
@@ -138,7 +137,7 @@ export function DayClosePanel() {
       </div>
 
       {summaryQuery.isLoading ? (
-        <div className="mt-6"><LoadingState label="Loading the day…" /></div>
+        <div className="mt-6"><PaymentsLoading label="Loading the day…" variant="cards" /></div>
       ) : summaryQuery.error || !data ? (
         <div className="mt-6"><ErrorState message="This day could not be loaded. Refresh the page to try again." /></div>
       ) : (

@@ -14,6 +14,7 @@ import { ArrowLeft, CalendarDays, CheckCircle2, Download, Eye, HandCoins, Loader
 import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
+import { usePaymentsToast } from "@/components/payments/PaymentsToast";
 import { PaymentForm } from "@/components/payments/PaymentForm";
 import { InlineError, PaymentsDialog } from "@/components/payments/PaymentsUi";
 import {
@@ -88,6 +89,12 @@ function QuickPaySheet({ initialStudentId, onClose }: { initialStudentId: string
   const [done, setDone] = useState<{ payment: Payment; dueAfter: number; studentName: string } | null>(null);
   const [fullForm, setFullForm] = useState<{ account: StudentAccount; invoiceIds: string[] } | null>(null);
   const queryClient = useQueryClient();
+  const toast = usePaymentsToast();
+  // Revamp R6: closing after a payment leaves a confirmation with a link.
+  const closeAfterDone = () => {
+    if (done) toast?.({ text: `${done.payment.receiptNumber} recorded for ${done.studentName}.`, href: `/admin/payments/collections?tab=payments&open=${encodeURIComponent(done.payment.paymentId)}`, hrefLabel: "View" });
+    onClose();
+  };
 
   const afterSave = (payment: Payment, account: StudentAccount, applied: number) => {
     queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
@@ -114,7 +121,7 @@ function QuickPaySheet({ initialStudentId, onClose }: { initialStudentId: string
         studentName={done.studentName}
         dueAfter={done.dueAfter}
         onNext={() => { setDone(null); setStudentId(null); }}
-        onClose={onClose}
+        onClose={closeAfterDone}
       />
     );
   }

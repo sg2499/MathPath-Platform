@@ -4,10 +4,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import { LoadingState } from "@/components/common/LoadingState";
+import { PaymentsLoading } from "@/components/payments/PaymentsUi";
 
 export default function PaymentsIndexPage() {
   const router = useRouter();
   useEffect(() => router.replace("/admin/payments/home"), [router]);
-  return <LoadingState label="Opening Payments…" />;
+  return <PaymentsLoading label="Opening Payments…" variant="page" />;
 }

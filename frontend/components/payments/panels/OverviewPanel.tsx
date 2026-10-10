@@ -6,9 +6,8 @@
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { RecordPaymentButton } from "@/components/payments/QuickPay";
 import { ErrorState } from "@/components/common/ErrorState";
-import { LoadingState } from "@/components/common/LoadingState";
 import { PaymentStatusChip } from "@/components/payments/PaymentDetail";
-import { InlineError, PaymentsMetric } from "@/components/payments/PaymentsUi";
+import { InlineError, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { downloadCollectionsPdf, getPaymentsOverview, saveBlob, type DuesBucketKey } from "@/lib/api/payments";
 import { FormatDate } from "@/lib/paymentsDates";
@@ -31,7 +30,7 @@ export const BUCKET_COLOURS: Record<DuesBucketKey, string> = {
   D90_PLUS: "#9f1239",
 };
 
-function useIsDarkMode(): boolean {
+export function useIsDarkMode(): boolean {
   const [dark, setDark] = useState(false);
   useEffect(() => {
     const read = () => setDark(document.documentElement.classList.contains("dark"));
@@ -43,7 +42,7 @@ function useIsDarkMode(): boolean {
   return dark;
 }
 
-function CompactRupees(paise: number): string {
+export function CompactRupees(paise: number): string {
   const rupees = paise / 100;
   if (rupees >= 1_00_00_000) return `₹${(rupees / 1_00_00_000).toFixed(1)}Cr`;
   if (rupees >= 1_00_000) return `₹${(rupees / 1_00_000).toFixed(1)}L`;
@@ -90,7 +89,7 @@ export function OverviewPanel() {
       </section>
 
       {query.isLoading ? (
-        <div className="mt-6"><LoadingState label="Loading the overview..." /></div>
+        <div className="mt-6"><PaymentsLoading label="Loading the overview..." variant="cards" /></div>
       ) : query.error || !data ? (
         <div className="mt-6"><ErrorState message="The overview could not be loaded. Refresh the page to try again." /></div>
       ) : (

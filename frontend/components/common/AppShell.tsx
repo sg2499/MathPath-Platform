@@ -529,7 +529,7 @@ export function AppShell({
           shortLabel: "Settings",
           href: "/admin/payments/settings",
           icon: Building2,
-          tooltip: "Business details, centres, document numbering, fee setup, online payments and history",
+          tooltip: "Business details, centres, numbering, fee setup, billing, reminders, online payments, insight limits and history",
         },
         {
           label: "Invoices",
@@ -547,7 +547,7 @@ export function AppShell({
           label: "Reports",
           href: "/admin/payments/reports",
           icon: BarChart3,
-          tooltip: "Overview, Collections and Dues",
+          tooltip: "Overview, Insights, Collections, Dues and Activity",
         },
         {
           label: "Expenses",

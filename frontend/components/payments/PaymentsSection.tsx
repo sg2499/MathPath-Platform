@@ -7,22 +7,23 @@
 //   Payment Settings  Business Details · Centres · Document Numbering · Fee Setup · Online Payments · History
 //   Invoices          All Invoices · Generate Invoices
 //   Collections       Student Fees · Payments · Online Payments
-//   Reports           Overview · Collections · Dues
+//   Reports           Overview · Insights · Collections · Dues · Activity
 //   Expenses          Expenses · Categories
 //
 // The tab is kept in the address (?tab=...), so refresh, back and shared
 // links land on the same tab. Switching tabs gives a clean address (only
 // ?tab=), so filters from one tab never leak into another.
 import { AppShell } from "@/components/common/AppShell";
-import { LoadingState } from "@/components/common/LoadingState";
-import { getBillingSettings, getOnlineSettings, getPaymentSettings } from "@/lib/api/payments";
+import { PaymentsLoading } from "@/components/payments/PaymentsUi";
+import { getBillingSettings, getOnlineSettings, getPaymentSettings, getUnusualActivity } from "@/lib/api/payments";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { CommandPalette, PaymentsSearchContext, useCommandPaletteShortcut } from "@/components/payments/CommandPalette";
 import { FollowUpProvider } from "@/components/payments/FollowUp";
-import { QuickPayProvider } from "@/components/payments/QuickPay";
+import { PaymentsToastProvider } from "@/components/payments/PaymentsToast";
+import { QuickPayProvider, useQuickPay } from "@/components/payments/QuickPay";
 import { StudentPanelProvider } from "@/components/payments/StudentPanel";
 
 export type SectionTab<T extends string> = {
@@ -121,17 +122,45 @@ export function PaymentsChrome({ children }: { children: ReactNode }) {
   const show = useCallback(() => setOpen(true), []);
   useCommandPaletteShortcut(show);
   return (
+    <PaymentsToastProvider>
     <QuickPayProvider>
       <FollowUpProvider>
       <StudentPanelProvider>
         <PaymentsSearchContext.Provider value={show}>
           {children}
+          <PaymentsShortcuts openSearch={show} paletteOpen={open} />
           <CommandPalette open={open} onClose={() => setOpen(false)} />
         </PaymentsSearchContext.Provider>
       </StudentPanelProvider>
       </FollowUpProvider>
     </QuickPayProvider>
+    </PaymentsToastProvider>
   );
+}
+
+// 2026-10-09 (revamp R6): single-key shortcuts on every Payments page --
+// N records a payment (Quick Pay), / searches. Ignored while typing, while
+// a dialog is open, or with Ctrl / Alt / Cmd held.
+function PaymentsShortcuts({ openSearch, paletteOpen }: { openSearch: () => void; paletteOpen: boolean }) {
+  const quickPay = useQuickPay();
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (paletteOpen || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (event.key === "/") {
+        event.preventDefault();
+        openSearch();
+      } else if ((event.key === "n" || event.key === "N") && quickPay) {
+        event.preventDefault();
+        quickPay.open();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openSearch, paletteOpen, quickPay]);
+  return null;
 }
 
 
@@ -143,7 +172,7 @@ export function PaymentsSection<T extends string>(props: {
   render: (tab: T) => ReactNode;
 }) {
   return (
-    <Suspense fallback={<LoadingState label={`Loading ${props.title.toLowerCase()}...`} />}>
+    <Suspense fallback={<PaymentsLoading label={`Loading ${props.title.toLowerCase()}…`} variant="page" />}>
       <SectionInner {...props} />
     </Suspense>
   );
@@ -164,6 +193,12 @@ export function useSettingsFlags() {
   };
 }
 
+/** Revamp R6: an amber dot on Reports > Insights while unusual activity waits for review. */
+export function useReportsFlags() {
+  const query = useQuery({ queryKey: ["admin", "payments", "insights", "unusual", 30], queryFn: () => getUnusualActivity(30), staleTime: 60_000 });
+  return { unusual: Boolean(query.data && query.data.openCount > 0) };
+}
+
 /** Revamp R3: monthly billing needs attention (a fee not chosen for a mode). */
 export function useBillingFlag(): boolean {
   const query = useQuery({ queryKey: ["admin", "payments", "billing", "settings"], queryFn: getBillingSettings, staleTime: 30_000 });
@@ -179,5 +214,5 @@ export function RedirectToTab({ path, tab }: { path: string; tab: string }) {
     const rest = params.toString();
     router.replace(`${path}?tab=${encodeURIComponent(tab)}${rest ? `&${rest}` : ""}`);
   }, [router, path, tab]);
-  return <LoadingState label="Opening…" />;
+  return <PaymentsLoading label="Opening…" variant="page" />;
 }
