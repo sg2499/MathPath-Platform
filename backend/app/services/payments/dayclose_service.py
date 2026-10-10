@@ -20,6 +20,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -76,12 +77,18 @@ def _Clean(Value: Any, Limit: int) -> str | None:
 # The day's figures
 # ----------------------------------------------------------------------------
 
+def _NotOldHistory():
+    """Payments brought in from the old platform (source LEGACY) were counted
+    there; Day Close here starts with this site's own money (2026-10-10)."""
+    return or_(PaymentReceipt.source.is_(None), PaymentReceipt.source != "LEGACY")
+
+
 def DayFigures(db: Session, Day: date) -> dict[str, Any]:
     """What the platform says came in (and went out in cash) on one day."""
     Lines = (
         db.query(PaymentMethodLine, PaymentReceipt)
         .join(PaymentReceipt, PaymentMethodLine.payment_id == PaymentReceipt.id)
-        .filter(PaymentReceipt.status == "RECORDED", PaymentReceipt.payment_date == Day)
+        .filter(PaymentReceipt.status == "RECORDED", PaymentReceipt.payment_date == Day, _NotOldHistory())
         .order_by(PaymentReceipt.receipt_number.asc(), PaymentMethodLine.line_order.asc())
         .all()
     )
@@ -284,7 +291,7 @@ def RecentDays(db: Session, *, Days: int = RECENT_DAYS) -> dict[str, Any]:
     for Line, Payment in (
         db.query(PaymentMethodLine, PaymentReceipt)
         .join(PaymentReceipt, PaymentMethodLine.payment_id == PaymentReceipt.id)
-        .filter(PaymentReceipt.status == "RECORDED", PaymentReceipt.payment_date >= Start, PaymentReceipt.payment_date <= Today)
+        .filter(PaymentReceipt.status == "RECORDED", PaymentReceipt.payment_date >= Start, PaymentReceipt.payment_date <= Today, _NotOldHistory())
         .all()
     ):
         Entry = Totals[Payment.payment_date]
