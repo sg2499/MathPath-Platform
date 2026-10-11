@@ -191,7 +191,7 @@ export default function AdminAnnualCompetitionAttemptReviewPage() {
 
         {/* 2026-10-11: the same Answer Sheet (section blocks) and Scorecard
             tabs as every other result page (components/common/ResultReviewTabs). */}
-        <ResultReviewTabs Questions={ToAnnualReviewQuestions(Review.sections)} Sections={ToAnnualReviewSections(Review.sections)} Viewer="ADMIN" />
+        <ResultReviewTabs Questions={ToAnnualReviewQuestions(Review.sections)} Sections={ToAnnualReviewSections(Review.sections)} Viewer="ADMIN" ScorecardContent={<ScorecardTab Review={Review} />} />
       </section>
     </AppShell>
   );
@@ -205,5 +205,122 @@ function MetricCard({ icon, label, value, helper }: { icon: React.ReactNode; lab
       <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">{value}</p>
       <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-300">{helper}</p>
     </article>
+  );
+}
+
+// 2026-10-11 (Shailesh): the Annual Competition keeps its own plain
+// scorecard -- no strengths or weak areas, and no accuracy for students.
+// Section-by-section marks table, derived from the exact same `sections`
+// data the Answer Sheet tab already renders -- deliberately NOT re-fetched
+// or re-derived from Review.result, so this tab's totals can never drift
+// from what the Answer Sheet tab visibly shows above it (the same class of
+// mismatch the section-scoped scoring fix (2026-09-09) exists to prevent
+// at the data layer, kept true here at the display layer too).
+function ScorecardTab({ Review }: { Review: AnnualCompetitionAttemptReview }) {
+  const Rows = Review.sections.map((SectionReview) => ({
+    sectionNumber: SectionReview.sectionNumber,
+    sectionTitle: SectionReview.sectionTitle || `Section ${SectionReview.sectionNumber}`,
+    totalQuestions: SectionReview.questions.length,
+    // 2026-09-27 (Shailesh, Scorecard "Total Attempted" feature): a
+    // question already carries isUnanswered on this exact review payload
+    // (mirrored verbatim across student/admin/teacher), so "attempted" is
+    // derivable with no new backend field or fetch.
+    attemptedCount: SectionReview.questions.filter((QuestionReview) => !QuestionReview.isUnanswered).length,
+    correctCount: SectionReview.questions.filter((QuestionReview) => QuestionReview.isCorrect).length,
+  }));
+  const TotalQuestions = Rows.reduce((Sum, Row) => Sum + Row.totalQuestions, 0);
+  const TotalAttempted = Rows.reduce((Sum, Row) => Sum + Row.attemptedCount, 0);
+  const TotalMarksObtained = Rows.reduce((Sum, Row) => Sum + Row.correctCount, 0);
+  const ResultForBreakdown = Review.result;
+  const AttemptedCountForBreakdown = ResultForBreakdown ? ResultForBreakdown.correctCount + ResultForBreakdown.wrongCount : 0;
+
+  return (
+    <div className="math-card p-5">
+      <div className="mb-4">
+        <p className="math-block-header"><ListChecks size={14} />Scorecard</p>
+        <h3 className="text-lg font-black text-slate-950 dark:text-white">Section-Wise Marks</h3>
+      </div>
+
+      {Rows.length === 0 ? (
+        <p className="rounded-[20px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
+          No section data is available for this attempt yet.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[620px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b-2 border-slate-200 dark:border-slate-700">
+                <th className="px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Section</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Total Questions</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Questions Attempted</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Correct Answers</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Marks Obtained</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Rows.map((Row) => (
+                <tr key={Row.sectionNumber} className="border-b border-slate-100 dark:border-slate-800">
+                  <td className="px-3 py-3 font-bold text-slate-900 dark:text-slate-100">
+                    Section {Row.sectionNumber} — {Row.sectionTitle}
+                  </td>
+                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{Row.totalQuestions}</td>
+                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{Row.attemptedCount}</td>
+                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{Row.correctCount}</td>
+                  <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{Row.correctCount}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-[#2563eb]/30 dark:border-cyan-300/30">
+                <td className="px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">Total</td>
+                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{TotalQuestions}</td>
+                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{TotalAttempted}</td>
+                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{TotalMarksObtained}</td>
+                <td className="px-3 py-3 text-right text-lg font-black text-[#2563eb] dark:text-cyan-100">{TotalMarksObtained}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      <div className="mt-4 rounded-[22px] border border-[#2563eb]/25 bg-[#2563eb]/5 px-5 py-4 text-center dark:border-cyan-300/30 dark:bg-cyan-400/10">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2563eb] dark:text-cyan-100">Total Marks Obtained</p>
+        <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
+          {TotalMarksObtained}/{TotalQuestions}
+        </p>
+      </div>
+
+      {/* 2026-09-14 (Shailesh, accuracy-formula fix): same breakdown the
+          student-facing ScorecardTab shows -- accuracy is CORRECT /
+          ATTEMPTED, never correct-out-of-every-question-in-the-paper. Reuses
+          Review.result (backend-computed, already fetched), never
+          recomputed here. */}
+      {ResultForBreakdown ? (
+        <div className="mt-4 rounded-[22px] border border-emerald-500/25 bg-emerald-500/5 p-5 dark:border-emerald-400/25 dark:bg-emerald-400/10">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Accuracy Breakdown</p>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Attempted</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{AttemptedCountForBreakdown}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Correct</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{ResultForBreakdown.correctCount}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Wrong</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{ResultForBreakdown.wrongCount}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Unanswered</p>
+              <p className="text-lg font-black text-slate-950 dark:text-white">{ResultForBreakdown.unansweredCount}</p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+            Accuracy = Correct ÷ Attempted = {ResultForBreakdown.correctCount}/{AttemptedCountForBreakdown} = {FormatNumber(ResultForBreakdown.accuracyPercentage)}%
+          </p>
+        </div>
+      ) : null}
+    </div>
   );
 }

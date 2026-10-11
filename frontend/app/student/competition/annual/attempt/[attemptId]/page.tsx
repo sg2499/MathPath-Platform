@@ -684,7 +684,7 @@ function AnnualCompetitionAttemptContent() {
             review is released (practice: at once; official: with results). */}
         {reviewQuery.data?.released && reviewQuery.data.sections ? (
           <div className="mt-5">
-            <ResultReviewTabs Questions={ToAnnualReviewQuestions(reviewQuery.data.sections)} Sections={ToAnnualReviewSections(reviewQuery.data.sections)} Viewer="STUDENT" />
+            <ResultReviewTabs Questions={ToAnnualReviewQuestions(reviewQuery.data.sections)} Sections={ToAnnualReviewSections(reviewQuery.data.sections)} Viewer="STUDENT" ScorecardContent={<ScorecardTab review={reviewQuery.data} />} />
           </div>
         ) : null}
       </AppShell>
@@ -937,6 +937,89 @@ function TimerMetricCard({ remainingSeconds }: { remainingSeconds: number }) {
       </div>
       <div className="shrink-0">
         <TestTimer remainingSeconds={remainingSeconds} className="!px-3.5 !py-2 !text-sm" />
+      </div>
+    </div>
+  );
+}
+
+// 2026-10-11 (Shailesh): the Annual Competition keeps its own plain
+// scorecard -- no strengths or weak areas, and no accuracy for students.
+// Section-by-section marks table, derived from the exact same `sections`
+// data the Answer Sheet tab above already renders -- never re-fetched or
+// re-derived from a separate result payload, so this tab's totals can
+// never drift from what the Answer Sheet visibly shows (mirrors the admin
+// ScorecardTab's own reasoning verbatim).
+function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
+  const rows = (review.sections || []).map((sectionReview) => ({
+    sectionNumber: sectionReview.sectionNumber,
+    sectionTitle: sectionReview.sectionTitle || `Section ${sectionReview.sectionNumber}`,
+    totalQuestions: sectionReview.questions.length,
+    // 2026-09-27 (Shailesh, Scorecard "Total Attempted" feature): a
+    // question already carries isUnanswered on this exact review payload
+    // (mirrored verbatim across student/admin/teacher -- see this
+    // component's own file-level comment), so "attempted" is derivable
+    // with no new backend field or fetch.
+    attemptedCount: sectionReview.questions.filter((questionReview) => !questionReview.isUnanswered).length,
+    correctCount: sectionReview.questions.filter((questionReview) => questionReview.isCorrect).length,
+  }));
+  const totalQuestions = rows.reduce((sum, row) => sum + row.totalQuestions, 0);
+  const totalAttempted = rows.reduce((sum, row) => sum + row.attemptedCount, 0);
+  const totalMarksObtained = rows.reduce((sum, row) => sum + row.correctCount, 0);
+
+  return (
+    <div className="math-card p-5">
+      <div className="mb-4">
+        <p className="math-block-header"><ListChecks size={14} />Scorecard</p>
+        <h3 className="text-lg font-black text-slate-950 dark:text-white">Section-Wise Marks</h3>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="rounded-[20px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
+          No section data is available for this attempt yet.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="se-tbl se-cards se-tbl-figures w-full min-w-[620px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b-2 border-slate-200 dark:border-slate-700">
+                <th className="px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Section</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Total Questions</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Questions Attempted</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Correct Answers</th>
+                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Marks Obtained</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.sectionNumber} className="border-b border-slate-100 dark:border-slate-800">
+                  <td data-label="Section" className="se-card-title px-3 py-3 font-bold text-slate-900 dark:text-slate-100">
+                    Section {row.sectionNumber}: {row.sectionTitle}
+                  </td>
+                  <td data-label="Total Questions" className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.totalQuestions}</td>
+                  <td data-label="Questions Attempted" className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.attemptedCount}</td>
+                  <td data-label="Correct Answers" className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.correctCount}</td>
+                  <td data-label="Marks Obtained" className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{row.correctCount}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-[#2563eb]/30 dark:border-cyan-300/30">
+                <td data-label="Section" className="se-card-title px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">Total</td>
+                <td data-label="Total Questions" className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalQuestions}</td>
+                <td data-label="Questions Attempted" className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalAttempted}</td>
+                <td data-label="Correct Answers" className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalMarksObtained}</td>
+                <td data-label="Marks Obtained" className="px-3 py-3 text-right text-lg font-black text-[#2563eb] dark:text-cyan-100">{totalMarksObtained}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      <div className="mt-4 rounded-[22px] border border-[#2563eb]/25 bg-[#2563eb]/5 px-5 py-4 text-center dark:border-cyan-300/30 dark:bg-cyan-400/10">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2563eb] dark:text-cyan-100">Total Marks Obtained</p>
+        <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
+          {totalMarksObtained}/{totalQuestions}
+        </p>
       </div>
     </div>
   );

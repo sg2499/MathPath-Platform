@@ -174,6 +174,7 @@ export function ResultReviewTabs({
   Viewer,
   Heading,
   FocusRequest,
+  ScorecardContent,
 }: {
   Questions: ReviewQuestion[];
   // The paper's sections when known, so a section with no questions still
@@ -185,6 +186,10 @@ export function ResultReviewTabs({
   // Asks the review to open one section in the Answer Sheet -- e.g. a mock
   // result's "focus on BODMAS" button. A new Nonce repeats the request.
   FocusRequest?: { Title: string; Nonce: number } | null;
+  // A page's own Scorecard in place of the shared one. The Annual
+  // Competition keeps its plain marks scorecard: no strengths or weak areas
+  // (that is what mock insights are for), and no accuracy for students.
+  ScorecardContent?: React.ReactNode;
 }) {
   // Pages build their rows inline, so the input is compared by content
   // (question keys and answers) rather than by array identity.
@@ -277,7 +282,7 @@ export function ResultReviewTabs({
           ))}
         </div>
       ) : (
-        <Scorecard Sections={Sections} OnOpenSection={OpenSection} />
+        ScorecardContent ?? <Scorecard Sections={Sections} OnOpenSection={OpenSection} />
       )}
     </section>
   );
