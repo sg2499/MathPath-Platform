@@ -265,6 +265,20 @@ function MonthBody({ data, onPeriod, onMonth }: { data: BillingMonth; onPeriod: 
         )}
       </Card>
 
+      {data.exempt.length ? (
+        <details className="math-card mt-6 p-5 sm:p-6">
+          <summary className="cursor-pointer text-sm font-black text-slate-700 dark:text-slate-200">No monthly fee ({data.exempt.length}): never billed, set in Payment Settings › Billing</summary>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {data.exempt.map((row) => (
+              <li key={row.studentId} className="min-w-0 rounded-2xl border border-slate-200 px-4 py-2.5 dark:border-slate-800">
+                <StudentLink studentId={row.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{row.studentName}</StudentLink>
+                <span className="block truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{row.studentCode}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+
       {released.length || dropped.length ? (
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <section className="math-card flex h-full min-w-0 flex-col p-5 sm:p-6">

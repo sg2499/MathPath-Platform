@@ -289,7 +289,7 @@ function CentresSection({ centres, withoutCentre, onSaved }: { centres: PaymentC
 
       {withoutCentre > 0 ? (
         <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between">
-          <span className="flex items-start gap-2"><Info size={16} className="mt-0.5 shrink-0" />{withoutCentre} active {withoutCentre === 1 ? "student has" : "students have"} no centre yet. The payment history migration fills this in from the old platform, or you can assign them now.</span>
+          <span className="flex items-start gap-2"><Info size={16} className="mt-0.5 shrink-0" />{withoutCentre} active {withoutCentre === 1 ? "student has" : "students have"} no centre yet, so their invoices and receipts list every centre's address. Assign them with Assign Students; documents made after that show only their centre.</span>
           <button type="button" className="math-button-secondary shrink-0 !py-2 text-xs" onClick={() => setAssignOpen(true)}>Assign Now</button>
         </div>
       ) : null}
@@ -545,7 +545,7 @@ function NumberingSection({ sequences, onSaved }: { sequences: NumberSequence[];
               <dt className="font-semibold text-slate-500">Last issued here</dt><dd className="text-right font-black tabular-nums">{sequence.lastIssuedFormatted ?? "None yet"}</dd>
             </dl>
             {!sequence.isConfigured ? (
-              <p className="mt-3 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">The payment history migration sets this to continue straight after the old platform&apos;s last {sequence.label.toLowerCase()} number. No {sequence.label.toLowerCase()} can be created until then.</p>
+              <p className="mt-3 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">Set the next number with Set Next Number. No {sequence.label.toLowerCase()} can be created until it is set.</p>
             ) : null}
             <button type="button" className="math-role-action-button mt-4 h-9 px-3 text-xs" onClick={() => { setEditing(sequence); setValue(sequence.isConfigured ? String(sequence.nextNumber) : ""); setReason(""); setConfirmText(""); mutation.reset(); }}>
               <Pencil size={13} />Set Next Number

@@ -231,7 +231,7 @@ def BuildDuesWorkbook(Report: dict[str, Any]) -> bytes:
          "Yes" if Row["isActive"] else "No"]
         for Row in Report["students"]
     ]
-    _Sheet(Book, "Students", [("Student", 26), ("Student ID", 13), ("Old ID", 10), ("Parent", 22), ("Mobile", 14), ("Centre", 14), ("Level", 9), ("Invoices", 9),
+    _Sheet(Book, "Students", [("Student", 26), ("Student ID", 13), ("Admission No.", 13), ("Parent", 22), ("Mobile", 14), ("Centre", 14), ("Level", 9), ("Invoices", 9),
                               ("Oldest Due", 12), ("Days Overdue", 12), ("Age", 20), ("Overdue (Rs)", 13), ("Total Due (Rs)", 14), ("Advance (Rs)", 13), ("Active", 8)],
            Students, {12, 13, 14}, ["Total", "", "", "", "", "", "", Report["invoiceCount"], "", "", "", _Rs(Report["overdue"]["paise"]), _Rs(Report["total"]["paise"]), "", ""], First=True)
     Invoices = [

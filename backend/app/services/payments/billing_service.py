@@ -1,6 +1,8 @@
 """Payments revamp R3 (2026-10-09, Shailesh): monthly billing.
 
-  * Every student has a billing mode: INDIA (the default) or INTERNATIONAL.
+  * Every student has a billing mode: INDIA (the default), INTERNATIONAL, or
+    EXEMPT ("No monthly fee": test accounts, staff children, scholarships). EXEMPT
+    students never get a monthly draft; one-time invoices still work.
     Payment Settings > Billing says which monthly fee item each mode is
     charged (India ₹1,100, International ₹2,200 in Fee Setup).
   * On the 1st of every month the platform drafts that month's monthly-fee
@@ -47,7 +49,8 @@ from app.models import (
 from app.services.payments.audit import WritePaymentAudit
 from app.services.payments.money import FormatIndianRupees
 
-MODES = {"INDIA": "India", "INTERNATIONAL": "International"}
+MODES = {"INDIA": "India", "INTERNATIONAL": "International", "EXEMPT": "No monthly fee"}
+EXEMPT_REASON = "Not released: set to No monthly fee in Payment Settings › Billing"
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
 
@@ -167,6 +170,7 @@ def _FeeItems(db: Session, Settings: PaymentBillingSettings) -> dict[str, FeeIte
     return {
         "INDIA": db.get(FeeItem, Settings.india_fee_item_id) if Settings.india_fee_item_id else None,
         "INTERNATIONAL": db.get(FeeItem, Settings.international_fee_item_id) if Settings.international_fee_item_id else None,
+        "EXEMPT": None,
     }
 
 
@@ -211,7 +215,7 @@ def BillingSettings(db: Session) -> dict[str, Any]:
     Fees = _FeeItems(db, Settings)
     Active = _ActiveStudents(db)
     Modes = ModesFor(db, [Row.id for Row, _ in Active])
-    Counts = {"INDIA": 0, "INTERNATIONAL": 0}
+    Counts = {"INDIA": 0, "INTERNATIONAL": 0, "EXEMPT": 0}
     for Row, _ in Active:
         Counts[Modes.get(Row.id, "INDIA")] += 1
     Monthly = db.query(FeeItem).filter(FeeItem.billing_type == "MONTHLY").order_by(FeeItem.display_order.asc(), FeeItem.name.asc()).all()
@@ -285,7 +289,7 @@ def ListStudentModes(db: Session) -> list[dict[str, Any]]:
 def SetStudentModes(db: Session, *, StudentIds: list[str], Mode: Any, Actor: User | None) -> dict[str, Any]:
     ModeText = str(Mode or "").upper()
     if ModeText not in MODES:
-        api_error(422, "MODE_INVALID", "Choose India or International.")
+        api_error(422, "MODE_INVALID", "Choose India, International or No monthly fee.")
     Ids = [Id for Id in dict.fromkeys(str(Id).strip() for Id in StudentIds or []) if Id]
     if not Ids:
         api_error(422, "NO_STUDENTS_SELECTED", "Choose at least one student.")
@@ -372,6 +376,8 @@ def MonthBilling(db: Session, PeriodValue: Any = None) -> dict[str, Any]:
                 Issue = f"Already has {Invoiced[Draft.student_id].fee_name} for {PeriodLabel(Period)} ({Invoiced[Draft.student_id].invoice_number})"
             elif not Base["isActive"]:
                 Issue = "Student is inactive"
+            elif Base["billingMode"] == "EXEMPT":
+                Issue = "Set to No monthly fee in Payment Settings › Billing"
             elif not Base["fee"]:
                 Issue = f"No monthly fee chosen for {Base['billingModeLabel']} students"
         Advance = Advances.get(Draft.student_id, 0) if Draft.status == "DRAFT" else 0
@@ -394,7 +400,10 @@ def MonthBilling(db: Session, PeriodValue: Any = None) -> dict[str, Any]:
             "droppedByName": UserNames.get(Draft.dropped_by_user_id or ""),
             "createdAt": _Iso(Draft.created_at),
         })
-    NotBilled = [_Student(StudentId) for StudentId in sorted(ActiveIds - DraftIds - set(Invoiced), key=lambda Id: ((People[Id][1].full_name or "").lower(), Id))]
+    Exempt = {Id for Id in ActiveIds if Modes.get(Id, "INDIA") == "EXEMPT"}
+    ByName = lambda Id: ((People[Id][1].full_name or "").lower(), Id)  # noqa: E731
+    NotBilled = [_Student(StudentId) for StudentId in sorted(ActiveIds - DraftIds - set(Invoiced) - Exempt, key=ByName)]
+    NeverBilled = [_Student(StudentId) for StudentId in sorted(Exempt - set(Invoiced) - DraftIds, key=ByName)]
     Ready = [Row for Row in Rows if Row["status"] == "DRAFT" and not Row["issue"]]
     InternationalCount = sum(1 for Id in ActiveIds if Modes.get(Id, "INDIA") == "INTERNATIONAL")
     Problems = _Problems(db, Settings, Fees, InternationalCount)
@@ -420,12 +429,14 @@ def MonthBilling(db: Session, PeriodValue: Any = None) -> dict[str, Any]:
             "dropped": sum(1 for Row in Rows if Row["status"] == "DROPPED"),
             "invoiced": len(Invoiced),
             "notBilled": len(NotBilled),
+            "exempt": len(NeverBilled),
             "activeStudents": len(ActiveIds),
         },
         "readyTotal": _Money(sum(Row["fee"]["paise"] for Row in Ready)),
         "readyAdvance": _Money(sum(Row["advanceToApply"]["paise"] for Row in Ready)),
         "drafts": Rows,
         "notBilled": NotBilled,
+        "exempt": NeverBilled,
     }
 
 
@@ -439,6 +450,7 @@ def _CreateDrafts(db: Session, Period: str, StudentIds: list[str] | None, Source
     for the month. Caller holds the settings lock and commits."""
     Active = {Row.id for Row, _ in _ActiveStudents(db)}
     Targets = Active if StudentIds is None else (Active & set(StudentIds))
+    Targets -= {Id for Id, Mode in ModesFor(db, sorted(Targets)).items() if Mode == "EXEMPT"}
     if not Targets:
         return 0
     Have = {Row.student_id for Row in db.query(PaymentInvoiceDraft.student_id).filter(PaymentInvoiceDraft.period_key == Period).all()}
@@ -543,6 +555,18 @@ def ReleaseDrafts(db: Session, *, PeriodValue: Any, DraftIds: list[str], Idempot
         api_error(409, "NOTHING_TO_RELEASE", "None of the chosen drafts are waiting to be released. Refresh to see the latest.")
     Fees = _FeeItems(db, Settings)
     Modes = ModesFor(db, [Row.student_id for Row in Waiting])
+    Now = datetime.now(timezone.utc)
+    # A draft made before the student was set to No monthly fee is closed, never raised.
+    ExemptDrafts = [Row for Row in Waiting if Modes.get(Row.student_id) == "EXEMPT"]
+    for Row in ExemptDrafts:
+        Row.status = "DROPPED"
+        Row.drop_reason = EXEMPT_REASON
+        Row.dropped_at = Now
+        Row.dropped_by_user_id = Actor.id if Actor else None
+    Waiting = [Row for Row in Waiting if Modes.get(Row.student_id) != "EXEMPT"]
+    if not Waiting:
+        db.commit()
+        return {"released": 0, "notReleased": [], "replayed": False, "batch": None, "month": MonthBilling(db, Period)}
     StudentFeeItems: dict[str, str] = {}
     Missing: dict[str, int] = defaultdict(int)
     for Row in Waiting:
@@ -557,7 +581,6 @@ def ReleaseDrafts(db: Session, *, PeriodValue: Any, DraftIds: list[str], Idempot
         Text = ", ".join(f"{Count} {Mode}" for Mode, Count in Missing.items())
         api_error(422, "BILLING_FEE_NOT_SET", f"Choose an active monthly fee for every billing mode in Payment Settings › Billing first ({Text} student{'s' if sum(Missing.values()) != 1 else ''}).")
     ByStudent = {Row.student_id: Row for Row in Waiting}
-    Now = datetime.now(timezone.utc)
     Request = {
         "feeItemIds": sorted(set(StudentFeeItems.values())),
         "billingMonth": int(Period[5:]),
@@ -623,7 +646,7 @@ def HomeBilling(db: Session) -> dict[str, Any]:
         "period": Period,
         "periodLabel": PeriodLabel(Period),
         "waiting": Waiting,
-        "notBilled": len(Active - Drafted - Invoiced) if Watching else 0,
+        "notBilled": len(Active - Drafted - Invoiced - {Id for Id, Mode in ModesFor(db, sorted(Active)).items() if Mode == "EXEMPT"}) if Watching else 0,
         "feesReady": bool(Settings.india_fee_item_id),
         "autoDraftsEnabled": bool(Settings.auto_drafts_enabled),
         "autoFromLabel": PeriodLabel(Settings.auto_from_period) if Settings.auto_from_period else None,
@@ -636,7 +659,7 @@ def StudentBilling(db: Session, StudentId: str) -> dict[str, Any]:
     Mode = ModesFor(db, [StudentId]).get(StudentId, "INDIA")
     Invoice = _LiveMonthly(db, Period, [StudentId]).get(StudentId)
     Draft = db.query(PaymentInvoiceDraft).filter(PaymentInvoiceDraft.student_id == StudentId, PaymentInvoiceDraft.period_key == Period).first()
-    State = "INVOICED" if Invoice else ("DRAFT" if Draft and Draft.status == "DRAFT" else "DROPPED" if Draft and Draft.status == "DROPPED" else "NOT_BILLED")
+    State = "INVOICED" if Invoice else ("DRAFT" if Draft and Draft.status == "DRAFT" else "DROPPED" if Draft and Draft.status == "DROPPED" else "EXEMPT" if Mode == "EXEMPT" else "NOT_BILLED")
     return {
         "billingMode": Mode,
         "billingModeLabel": MODES[Mode],

@@ -292,14 +292,16 @@ def _DuesRows(db: Session, Search: str | None = None) -> list[dict[str, Any]]:
 # The list
 # ----------------------------------------------------------------------------
 
+# Overdue comes first and is the default: money not yet due needs no chasing.
 VIEWS = {
-    "ALL": "Everyone who owes",
     "OVERDUE": "Overdue",
     "TODAY": "Promised for today",
     "MISSED": "Promise missed",
-    "NEVER": "Never contacted",
+    "NEVER": "Overdue, not contacted",
     "RECENT": "Contacted recently",
+    "ALL": "Everyone who owes",
 }
+DEFAULT_VIEW = "OVERDUE"
 
 
 def _InView(View: str, Row: dict[str, Any]) -> bool:
@@ -312,16 +314,16 @@ def _InView(View: str, Row: dict[str, Any]) -> bool:
     if View == "MISSED":
         return bool(Promise and Promise["state"] == "MISSED")
     if View == "NEVER":
-        return State["lastContact"] is None
+        return Row["overduePaise"] > 0 and State["lastContact"] is None
     if View == "RECENT":
         return State["daysSinceContact"] is not None and State["daysSinceContact"] < RECENT_DAYS
     return True
 
 
 def FollowUps(db: Session, *, View: Any = None, Search: Any = None) -> dict[str, Any]:
-    ViewKey = str(View or "ALL").upper()
+    ViewKey = str(View or DEFAULT_VIEW).upper()
     if ViewKey not in VIEWS:
-        ViewKey = "ALL"
+        ViewKey = DEFAULT_VIEW
     Rows = _DuesRows(db, _Clean(Search, 80))
     States = _States(db, [Row["studentId"] for Row in Rows])
     for Row in Rows:

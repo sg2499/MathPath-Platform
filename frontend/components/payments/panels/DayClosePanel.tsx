@@ -152,6 +152,14 @@ export function DayClosePanel() {
   );
 }
 
+// Where the opening cash comes from: kept at the last close, plus any days
+// since then that were never closed.
+function OpeningLabel(f: DaySummary["figures"]) {
+  if (!f.opening.lastCloseDate) return "Opening cash (no earlier close)";
+  const base = f.opening.kept.paise ? `Opening cash (kept at close of ${FormatDate(f.opening.lastCloseDate)}` : `Opening cash (nothing kept at close of ${FormatDate(f.opening.lastCloseDate)}`;
+  return f.opening.unclosedDays.length ? `${base}, plus ${f.opening.unclosedDays.length} day${f.opening.unclosedDays.length === 1 ? "" : "s"} not closed)` : `${base})`;
+}
+
 function DayFiguresCard({ data }: { data: DaySummary }) {
   const f = data.figures;
   return (
@@ -165,6 +173,7 @@ function DayFiguresCard({ data }: { data: DaySummary }) {
         </div>
       )}
       <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-2 dark:bg-slate-900/60">
+        <Row label={OpeningLabel(f)} value={f.openingCash.display} />
         <Row label="Cash received" value={f.cashReceived.display} />
         <Row label={`Less cash paid for expenses${f.expenseCount ? ` (${f.expenseCount})` : ""}`} value={f.cashSpent.paise ? `− ${f.cashSpent.display}` : f.cashSpent.display} />
         <Row label="Cash expected in hand" value={f.expectedCash.display} strong />
@@ -195,6 +204,8 @@ function CountCard({ data }: { data: DaySummary }) {
   const expected = data.figures.expectedCash.paise;
   const [counted, setCounted] = useState(expected > 0 ? "" : "0");
   const [note, setNote] = useState("");
+  const [handed, setHanded] = useState("0");
+  const [handoverTo, setHandoverTo] = useState("");
   const [tried, setTried] = useState(false);
   const [reopening, setReopening] = useState(false);
   const [reason, setReason] = useState("");
@@ -205,9 +216,15 @@ function CountCard({ data }: { data: DaySummary }) {
   const problems: string[] = [];
   if (!valid) problems.push(counted.trim() ? "Enter the cash counted as a number, like 900 or 900.50." : "Enter the cash you counted.");
   if (valid && difference && !note.trim()) problems.push("The count does not match. Add a note saying why.");
+  const handedPaise = handed.trim() ? ParsePaise(handed) : 0;
+  const handedValid = handedPaise !== null && !Number.isNaN(handedPaise);
+  if (!handedValid) problems.push("Enter the cash taken out as a number, or 0.");
+  if (valid && handedValid && (handedPaise as number) > (countedPaise as number)) problems.push("The cash taken out cannot be more than the cash counted.");
+  if (handedValid && (handedPaise as number) > 0 && !handoverTo.trim()) problems.push("Say where the cash went: banked (which account) or handed to whom.");
+  const kept = valid && handedValid ? (countedPaise as number) - (handedPaise as number) : null;
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
-  const closeMutation = useMutation({ mutationFn: () => closeDay({ date: data.date, countedCashPaise: countedPaise as number, note: note.trim() || null }), onSuccess: refresh });
+  const closeMutation = useMutation({ mutationFn: () => closeDay({ date: data.date, countedCashPaise: countedPaise as number, note: note.trim() || null, handedOverPaise: (handedPaise as number) || 0, handoverTo: handoverTo.trim() || null }), onSuccess: refresh });
   const reopenMutation = useMutation({ mutationFn: () => reopenDay(data.date, reason.trim()), onSuccess: refresh });
   const pdf = useMutation({ mutationFn: () => downloadDayClosePdf(data.date), onSuccess: (blob) => saveBlob(blob, `MathPath-Day-Close-${data.date}.pdf`) });
 
@@ -223,12 +240,18 @@ function CountCard({ data }: { data: DaySummary }) {
       <Card title="Day closed" icon={<CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />} action={<StatePill state="CLOSED" changed={close.changedAfterClose} />}>
         {close.changedAfterClose && close.changes ? (
           <div role="status" className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-            Payments or expenses for this day changed after it was closed. Total taken: {close.changes.totalAtClose.display} then, {close.changes.totalNow.display} now. Cash expected: {close.changes.cashAtClose.display} then, {close.changes.cashNow.display} now. Reopen the day to count and close it again.
+            {close.changes.openingChanged
+              ? <>The opening cash changed after this day was closed (an earlier day was closed again): {close.changes.openingAtClose.display} then, {close.changes.openingNow.display} now. </>
+              : <>Payments or expenses for this day changed after it was closed. Total taken: {close.changes.totalAtClose.display} then, {close.changes.totalNow.display} now. </>}
+            Cash expected: {close.changes.cashAtClose.display} then, {close.changes.cashNow.display} now. Reopen the day to count and close it again.
           </div>
         ) : null}
+        <Row label="Opening cash" value={close.openingCash.display} />
         <Row label="Cash expected (at closing)" value={close.expectedCash.display} />
         <Row label="Cash counted" value={close.countedCash.display} />
         <Row label="Difference" value={DifferenceText(close.difference.paise)} strong tone={tone} />
+        {close.handedOver.paise ? <Row label={`Taken out at close${close.handoverTo ? ` (${close.handoverTo})` : ""}`} value={`− ${close.handedOver.display}`} /> : null}
+        <Row label="Left in the drawer (next day's opening)" value={close.keptInDrawer.display} strong />
         {close.note ? <p className="mt-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 dark:bg-slate-900/60 dark:text-slate-200">Note: {close.note}</p> : null}
         <p className="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
           Closed by {close.closedByName ?? "someone"} on {When(close.closedAt)}{close.closeCount > 1 ? ` (closed ${close.closeCount} times)` : ""}.
@@ -271,6 +294,18 @@ function CountCard({ data }: { data: DaySummary }) {
           <input autoFocus={data.isToday} className="math-input text-lg font-black tabular-nums" inputMode="decimal" value={counted} onChange={(event) => setCounted(event.target.value)} placeholder={data.figures.expectedCash.display.replace("₹", "")} aria-invalid={tried && !valid} />
         </label>
         <Row label="Difference" value={valid ? DifferenceText(difference) : "—"} strong tone={differenceTone} />
+        <div className="grid gap-3 rounded-2xl border border-slate-200 p-3 sm:grid-cols-2 dark:border-slate-800">
+          <label className="grid gap-1.5">
+            <span className="text-sm font-black text-slate-900 dark:text-white">Cash taken out now (₹)</span>
+            <input className="math-input tabular-nums" inputMode="decimal" value={handed} onChange={(event) => setHanded(event.target.value)} placeholder="0" aria-invalid={tried && !handedValid} />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Banked or handed over at closing. 0 if it all stays in the drawer.</span>
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-sm font-black text-slate-900 dark:text-white">Where it went {handedValid && (handedPaise as number) > 0 ? <span className="text-rose-600 dark:text-rose-300">(needed)</span> : null}</span>
+            <input className="math-input" maxLength={200} value={handoverTo} onChange={(event) => setHandoverTo(event.target.value)} placeholder="For example: deposited in HDFC, or handed to Shailesh" />
+          </label>
+          <div className="sm:col-span-2"><Row label="Left in the drawer for the next day" value={kept === null ? "—" : FormatRupees(Math.max(0, kept))} strong /></div>
+        </div>
         <label className="grid gap-1.5">
           <span className="text-sm font-black text-slate-900 dark:text-white">Note {valid && difference ? <span className="text-rose-600 dark:text-rose-300">(needed: the count does not match)</span> : <span className="font-semibold text-slate-500">(optional)</span>}</span>
           <textarea className="math-input min-h-[76px]" maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} placeholder="For example: ₹50 given as change from the drawer" />

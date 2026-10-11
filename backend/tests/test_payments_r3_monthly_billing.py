@@ -46,7 +46,7 @@ def test_settings_guess_the_fees_and_start_automatic_drafts_next_month():
     assert settings["indiaFee"]["feeItemId"] == monthly and settings["indiaFee"]["display"] == "₹1,100.00"
     assert settings["internationalFee"]["feeItemId"] == intl and settings["internationalFee"]["display"] == "₹2,200.00"
     assert settings["autoDraftsEnabled"] is True and settings["autoFromPeriod"] == "2026-11" and settings["nextAutoLabel"] == "November 2026"
-    assert settings["counts"] == {"INDIA": 2, "INTERNATIONAL": 0} and settings["problems"] == []
+    assert settings["counts"] == {"INDIA": 2, "INTERNATIONAL": 0, "EXEMPT": 0} and settings["problems"] == []
 
     with pytest.raises(HTTPException) as one_time:
         bill.UpdateBillingSettings(db, Request={"internationalFeeItemId": bag}, Actor=admin)
@@ -58,7 +58,7 @@ def test_settings_guess_the_fees_and_start_automatic_drafts_next_month():
 
     result = bill.SetStudentModes(db, StudentIds=["s2"], Mode="international", Actor=admin)
     assert result["studentsChanged"] == 1 and result["modeLabel"] == "International"
-    assert bill.BillingSettings(db)["counts"] == {"INDIA": 1, "INTERNATIONAL": 1}
+    assert bill.BillingSettings(db)["counts"] == {"INDIA": 1, "INTERNATIONAL": 1, "EXEMPT": 0}
     unset = bill.UpdateBillingSettings(db, Request={"internationalFeeItemId": None}, Actor=admin)
     assert unset["problems"] == ["Choose the monthly fee for International students (1 student)."]
     off = bill.UpdateBillingSettings(db, Request={"autoDraftsEnabled": False}, Actor=admin)
@@ -216,9 +216,9 @@ def test_international_competition_slot_students_start_as_international():
     ])
     db.commit()
     settings = bill.BillingSettings(db)
-    assert settings["counts"] == {"INDIA": 1, "INTERNATIONAL": 1}
+    assert settings["counts"] == {"INDIA": 1, "INTERNATIONAL": 1, "EXEMPT": 0}
     modes = {row["studentId"]: row["billingMode"] for row in bill.ListStudentModes(db)}
     assert modes == {"s1": "INDIA", "s2": "INTERNATIONAL", "s3": "INDIA"}
     # Only once: an admin's later change is never overwritten.
     bill.SetStudentModes(db, StudentIds=["s2"], Mode="INDIA", Actor=admin)
-    assert bill.BillingSettings(db)["counts"] == {"INDIA": 2, "INTERNATIONAL": 0}
+    assert bill.BillingSettings(db)["counts"] == {"INDIA": 2, "INTERNATIONAL": 0, "EXEMPT": 0}

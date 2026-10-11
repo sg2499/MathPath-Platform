@@ -44,7 +44,7 @@ function Target(row: FollowUpStudent): FollowUpTarget {
 export function FollowUpsPanel() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const params = useSearchParams();
-  const [view, setView] = useState((params.get("view") || "ALL").toUpperCase());
+  const [view, setView] = useState((params.get("view") || "OVERDUE").toUpperCase());
   const [text, setText] = useState("");
   const search = useDebounced(text.trim());
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -55,7 +55,7 @@ export function FollowUpsPanel() {
   useEffect(() => setSelected(new Set()), [view, search]);
   const chooseView = (next: string) => {
     setView(next);
-    ReplaceAddressKeepingTab({ view: next === "ALL" ? null : next.toLowerCase() });
+    ReplaceAddressKeepingTab({ view: next === "OVERDUE" ? null : next.toLowerCase() });
   };
   const chosen = rows.filter((row) => selected.has(row.studentId));
   const allTicked = rows.length > 0 && rows.every((row) => selected.has(row.studentId));
@@ -75,7 +75,7 @@ export function FollowUpsPanel() {
           <div className="min-w-0">
             <p className="math-block-header"><Users size={14} />Collections</p>
             <h1 className="math-title">Follow-ups</h1>
-            <p className="math-subtitle">Everyone who owes money, most urgent first. Log calls and promises, and send reminders in the app.</p>
+            <p className="math-subtitle">Overdue students first, most urgent at the top. Log calls and promises, and send reminders in the app.</p>
             <HeroSearch />
           </div>
           {data ? (
@@ -128,7 +128,7 @@ export function FollowUpsPanel() {
           <div className="mt-4"><ErrorState message="Follow-ups could not be loaded. Refresh the page to try again." /></div>
         ) : rows.length === 0 ? (
           <p className="mt-4 grid min-h-[120px] place-items-center rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-400">
-            {view === "ALL" && !search ? "Nobody owes anything. Nothing to follow up." : "Nobody here right now."}
+            {search ? "Nobody here right now." : view === "ALL" ? "Nobody owes anything. Nothing to follow up." : view === "OVERDUE" ? `Nobody is overdue. ${counts.ALL ? `${counts.ALL} ${counts.ALL === 1 ? "student owes money that is" : "students owe money that is"} not due yet: see Everyone who owes.` : ""}` : "Nobody here right now."}
           </p>
         ) : (
           <ul className="mt-4 grid gap-3">

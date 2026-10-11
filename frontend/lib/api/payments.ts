@@ -545,6 +545,11 @@ export async function applyStudentAdvance(studentId: string): Promise<{ appliedP
   return data;
 }
 
+export async function applyAdvanceForAll(): Promise<{ students: number; appliedPaise: number; appliedDisplay: string }> {
+  const { data } = await api.post("/admin/payments/advance/apply-all");
+  return data;
+}
+
 export async function downloadReceiptPdf(paymentId: string): Promise<Blob> {
   const { data } = await api.get(`/admin/payments/receipts/${paymentId}/pdf`, { responseType: "blob" });
   return data;
@@ -578,6 +583,8 @@ export type PaymentsOverview = {
   thisMonthCollected: MoneyValue;
   lastMonthLabel: string;
   lastMonthCollected: MoneyValue;
+  lastMonthToDateCollected: MoneyValue;
+  lastMonthToDateLabel: string;
   thisMonthSpent: MoneyValue;
   thisMonthNet: MoneyValue;
   due: MoneyValue;
@@ -920,6 +927,8 @@ export type PaymentsHome = {
   thisMonthCollected: MoneyValue;
   lastMonthLabel: string;
   lastMonthCollected: MoneyValue;
+  lastMonthToDateCollected: MoneyValue;
+  lastMonthToDateLabel: string;
   due: MoneyValue;
   overdue: MoneyValue;
   studentsWithDues: number;
@@ -931,6 +940,7 @@ export type PaymentsHome = {
     failedToday: number;
     overdueStudents: { studentId: string; studentName: string; studentCode: string; mobile: string | null; overdue: MoneyValue; due: MoneyValue; maxDaysOverdue: number; invoiceCount: number }[];
     setup: { key: string; text: string; href: string }[];
+    advance: { students: number; usable: MoneyValue; names: string[] } | null;
   };
   online: { live: boolean; enabled: boolean; keyMode: "TEST" | "LIVE" | null; recent: (OnlineOrder & { displayStatus: OnlineOrderStatus })[] };
   recentPayments: Payment[];
@@ -970,6 +980,9 @@ export type DayFigures = {
   cashReceived: MoneyValue;
   cashSpent: MoneyValue;
   expenseCount: number;
+  openingCash: MoneyValue;
+  opening: { kept: MoneyValue; lastCloseDate: string | null; unclosed: MoneyValue; unclosedDays: string[] };
+  cashMovement: MoneyValue;
   expectedCash: MoneyValue;
   byStaff: (MoneyValue & { name: string; paymentCount: number; cash: MoneyValue })[];
   byCentre: (MoneyValue & { name: string; paymentCount: number; cash: MoneyValue })[];
@@ -982,6 +995,10 @@ export type DayCloseRecord = {
   expectedCash: MoneyValue;
   countedCash: MoneyValue;
   difference: MoneyValue;
+  openingCash: MoneyValue;
+  handedOver: MoneyValue;
+  handoverTo: string | null;
+  keptInDrawer: MoneyValue;
   note: string | null;
   closeCount: number;
   closedByName: string | null;
@@ -990,7 +1007,7 @@ export type DayCloseRecord = {
   reopenedAt: string | null;
   reopenReason: string | null;
   changedAfterClose: boolean;
-  changes: { totalAtClose: MoneyValue; totalNow: MoneyValue; cashAtClose: MoneyValue; cashNow: MoneyValue } | null;
+  changes: { totalAtClose: MoneyValue; totalNow: MoneyValue; cashAtClose: MoneyValue; cashNow: MoneyValue; openingChanged: boolean; openingAtClose: MoneyValue; openingNow: MoneyValue } | null;
 };
 
 export type DaySummary = {
@@ -1011,6 +1028,8 @@ export type RecentDay = {
   state: DayCloseState;
   countedCash: MoneyValue | null;
   difference: MoneyValue | null;
+  handedOver: MoneyValue | null;
+  cashMovement: MoneyValue;
   closedByName: string | null;
   closedAt: string | null;
   changedAfterClose: boolean;
@@ -1039,7 +1058,7 @@ export async function getRecentDays(): Promise<{ today: string; days: RecentDay[
   return data;
 }
 
-export async function closeDay(payload: { date: string; countedCashPaise: number; note?: string | null }): Promise<DaySummary> {
+export async function closeDay(payload: { date: string; countedCashPaise: number; note?: string | null; handedOverPaise?: number; handoverTo?: string | null }): Promise<DaySummary> {
   const { data } = await api.post<DaySummary>("/admin/payments/day-close", payload);
   return data;
 }
@@ -1059,8 +1078,8 @@ export async function downloadDayClosePdf(date: string): Promise<Blob> {
 // 2026-10-09 (Payments revamp R3): monthly billing.
 // ---------------------------------------------------------------------------
 
-export type BillingMode = "INDIA" | "INTERNATIONAL";
-export const BILLING_MODE_LABELS: Record<BillingMode, string> = { INDIA: "India", INTERNATIONAL: "International" };
+export type BillingMode = "INDIA" | "INTERNATIONAL" | "EXEMPT";
+export const BILLING_MODE_LABELS: Record<BillingMode, string> = { INDIA: "India", INTERNATIONAL: "International", EXEMPT: "No monthly fee" };
 
 export type BillingFee = MoneyValue & { feeItemId: string; name: string; isActive: boolean };
 
@@ -1118,11 +1137,12 @@ export type BillingMonth = {
   dueDate: string;
   settings: { indiaFee: BillingFee | null; internationalFee: BillingFee | null; autoDraftsEnabled: boolean; autoFromLabel: string | null };
   problems: string[];
-  counts: { waiting: number; ready: number; withIssue: number; released: number; dropped: number; invoiced: number; notBilled: number; activeStudents: number };
+  counts: { waiting: number; ready: number; withIssue: number; released: number; dropped: number; invoiced: number; notBilled: number; exempt: number; activeStudents: number };
   readyTotal: MoneyValue;
   readyAdvance: MoneyValue;
   drafts: BillingDraft[];
   notBilled: BillingMonthStudent[];
+  exempt: BillingMonthStudent[];
 };
 
 export type BillingReleaseResult = {
@@ -1135,7 +1155,7 @@ export type BillingReleaseResult = {
 
 export type HomeBilling = { period: string; periodLabel: string; waiting: number; notBilled: number; feesReady: boolean; autoDraftsEnabled: boolean; autoFromLabel: string | null };
 
-export type StudentBillingState = { billingMode: BillingMode; billingModeLabel: string; period: string; periodLabel: string; state: "INVOICED" | "DRAFT" | "DROPPED" | "NOT_BILLED"; invoiceNumber: string | null; dropReason: string | null };
+export type StudentBillingState = { billingMode: BillingMode; billingModeLabel: string; period: string; periodLabel: string; state: "INVOICED" | "DRAFT" | "DROPPED" | "NOT_BILLED" | "EXEMPT"; invoiceNumber: string | null; dropReason: string | null };
 
 export async function getBillingSettings(): Promise<BillingSettings> {
   const { data } = await api.get<BillingSettings>("/admin/payments/billing/settings");
