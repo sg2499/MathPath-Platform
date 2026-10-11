@@ -3384,6 +3384,7 @@ def AssessmentResultPayload(Db: Session, Attempt: AssessmentAttempt, IncludeRevi
             .order_by(AssessmentQuestion.question_number.asc())
             .all()
         )
+        ReviewVersion = Db.get(AssessmentVersion, Attempt.assessment_version_id)
         for Question in Questions:
             Options = (
                 Db.query(AssessmentQuestionOption)
@@ -3392,6 +3393,7 @@ def AssessmentResultPayload(Db: Session, Attempt: AssessmentAttempt, IncludeRevi
                 .all()
             )
             Answer = Answers.get(Question.id)
+            ReviewMark = float(ResolvedAssessmentQuestionMark(Db, ReviewVersion, Question, len(Questions)) or 0)
             Selected = next((Option for Option in Options if Answer and Option.id == Answer.selected_option_id), None)
             Correct = next((Option for Option in Options if Option.is_correct), None)
             Rows.append({
@@ -3422,6 +3424,12 @@ def AssessmentResultPayload(Db: Session, Attempt: AssessmentAttempt, IncludeRevi
                 "sectionTitle": AssessmentSectionName((SafeJson(Question.metadata_json, {}) or {}).get("assessmentSectionTitle")) or None,
                 "selectedOption": {"id": Selected.id, "label": Selected.option_label, "value": Selected.option_value} if Selected else None,
                 "correctOption": {"id": Correct.id, "label": Correct.option_label, "value": Correct.option_value} if Correct else None,
+                # 2026-10-11: the section blocks and scorecard on the result
+                # pages -- what the question was worth (same rule as grading)
+                # and what it earned.
+                "isUnanswered": not (Answer and (Answer.selected_option_id or str(Answer.selected_value or "").strip())),
+                "marks": ReviewMark,
+                "marksAwarded": ReviewMark if Answer and Answer.is_correct else 0.0,
             })
         Payload["questionReview"] = Rows
     return Payload

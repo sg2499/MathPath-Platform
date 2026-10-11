@@ -2,7 +2,7 @@
 
 import { api } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
   Lightbulb,
@@ -262,5 +262,67 @@ export function AssessmentFeedbackRemarkCard({
         </p>
       ) : null}
     </section>
+  );
+}
+
+// 2026-10-11 (Shailesh): the card above was built but never placed on a page,
+// so a teacher opening a submitted assessment (including from the "assessment
+// submitted" notification, which links here with ?feedback=1) had nowhere to
+// write feedback. This loads the attempt's feedback for whoever is viewing --
+// teacher (write and edit, own students), admin (write, edit and remove) or
+// student (read only, shown once there is feedback) -- and renders the card.
+async function LoadFeedback(Role: ViewerRole, AttemptId: string) {
+  const Prefix = Role === "ADMIN" ? "/admin" : Role === "TEACHER" ? "/teacher" : "/student";
+  const Response = await api.get(`${Prefix}/assessment-attempts/${AttemptId}/remarks`, {
+    headers: { "X-Auth-Role": Role },
+  });
+  return (Response.data?.teacherFeedback as AssessmentTeacherFeedback | null) || null;
+}
+
+export function AssessmentRemarksPanel({
+  AttemptId,
+  ViewerRole,
+  AccuracyPercentage,
+  ScrollIntoView = false,
+}: {
+  AttemptId: string;
+  ViewerRole: ViewerRole;
+  AccuracyPercentage?: number | null;
+  // True when the page was opened to write feedback (?feedback=1).
+  ScrollIntoView?: boolean;
+}) {
+  const QueryKey = useMemo(() => ["assessment-attempt-remarks", ViewerRole, AttemptId], [ViewerRole, AttemptId]);
+  const Query = useQuery({
+    queryKey: QueryKey,
+    queryFn: () => LoadFeedback(ViewerRole, AttemptId),
+    enabled: Boolean(AttemptId),
+  });
+  const Ready = Query.isSuccess || Query.isError;
+  useEffect(() => {
+    if (!ScrollIntoView || !Ready) return;
+    const Timer = window.setTimeout(() => {
+      document.getElementById("assessment-feedback")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
+    return () => window.clearTimeout(Timer);
+  }, [ScrollIntoView, Ready]);
+  if (!Ready) return null;
+  if (Query.isError) {
+    // Never offer an empty box over feedback that could not be loaded: saving
+    // it would replace what is there without the writer having seen it.
+    if (ViewerRole === "STUDENT") return null;
+    return (
+      <section id="assessment-feedback" className="rounded-[24px] border border-rose-200 bg-rose-50 p-5 text-sm font-bold text-rose-800 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-100">
+        The assessment remarks could not be loaded. Refresh the page to write or edit them.
+      </section>
+    );
+  }
+  return (
+    <AssessmentFeedbackRemarkCard
+      AttemptId={AttemptId}
+      ViewerRole={ViewerRole}
+      Feedback={Query.data || null}
+      AccuracyPercentage={AccuracyPercentage}
+      QueryKey={QueryKey}
+    />
   );
 }

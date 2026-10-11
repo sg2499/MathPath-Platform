@@ -1,11 +1,11 @@
 "use client";
 
+import { ResultReviewTabs, ToPracticeReviewQuestions } from "@/components/common/ResultReviewTabs";
 import { AppShell } from "@/components/common/AppShell";
 import { BackButton } from "@/components/student/BackButton";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { ResultSummary } from "@/components/student/ResultSummary";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { RewardEarnedModal, type RewardBreakdown } from "@/components/gamification/RewardEarnedModal";
 import { EpicCelebration } from "@/components/gamification/EpicCelebration";
 import { BadgeInspectionModal } from "@/components/gamification/BadgeInspectionModal";
@@ -14,10 +14,9 @@ import { getBadgeVisualConfig } from "@/lib/gamification/badgeVisuals";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getAttemptResult } from "@/lib/api/student";
-import { formatAnswerValue } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence } from "framer-motion";
-import { CheckCircle2, BookOpenCheck } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -218,49 +217,7 @@ export default function ResultPage() {
             </div>
           </div>
 
-          <section>
-            <div className="mb-4 flex items-center gap-3 px-2 sm:px-0">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                <BookOpenCheck size={22} />
-              </div>
-              <div>
-                <h2 className="text-3xl font-black text-slate-950">Question Review</h2>
-                <p className="text-slate-600">See each question, your selected answer, and the correct answer.</p>
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              {query.data.questionReview?.map((q) => (
-                <div key={q.questionId} className="math-card p-6">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <h3 className="text-xl font-black text-slate-950">Question {q.questionNumber}</h3>
-                    <span className={`math-badge ${q.isCorrect ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>
-                      {q.isCorrect ? "Correct" : "Needs Practice"}
-                    </span>
-                  </div>
-
-                  <div className="mt-5 rounded-[28px] bg-slate-50/90 p-6">
-                    <MathQuestionDisplay operands={q.operands} operators={q.operators} displayType={(q as any).displayType ?? (q as any).display_type} questionText={(q as any).questionText ?? (q as any).question_text} />
-                  </div>
-
-                  <div className="mt-5 grid gap-3 xl:grid-cols-2">
-                    <div className={`rounded-[22px] p-4 ${q.isCorrect ? "bg-emerald-50 text-emerald-900" : q.studentAnswer ? "bg-rose-50 text-rose-900" : "bg-amber-50 text-amber-900"}`}>
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em]">Your Answer</p>
-                      <p className="mt-2 text-lg font-black">
-                        {q.studentAnswer ? formatAnswerValue(q.studentAnswer) : "Not Answered"}
-                      </p>
-                    </div>
-                    <div className="rounded-[22px] bg-emerald-50 p-4 text-emerald-900">
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700">Correct Answer</p>
-                      <p className="mt-2 text-lg font-black">
-                        {q.correctAnswer !== undefined && q.correctAnswer !== null ? formatAnswerValue(q.correctAnswer) : "Hidden"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+          <ResultReviewTabs Questions={ToPracticeReviewQuestions(query.data.questionReview as any)} Viewer="STUDENT" />
         </div>
       ) : null}
       </AppShell>

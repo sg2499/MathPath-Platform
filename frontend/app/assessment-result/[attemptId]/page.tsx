@@ -1,10 +1,10 @@
 "use client";
 
+import { ResultReviewTabs, ToAssessmentReviewQuestions } from "@/components/common/ResultReviewTabs";
+import { AssessmentRemarksPanel } from "@/components/common/AssessmentFeedbackRemarkCard";
 import { AppShell } from "@/components/common/AppShell";
-import { ReviewCorrectAnswer, ReviewStudentAnswer } from "@/lib/assessmentReview";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { api, apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
@@ -187,6 +187,13 @@ function StudentAssessmentResultPageContent() {
 
   if (!Ready) return null;
 
+  // Who is looking: the shared page is opened with ?viewer=teacher|admin from
+  // those portals; without it, the signed-in role decides.
+  const StoredRole = String(getStoredUser()?.role || "").toUpperCase();
+  const ReviewViewer: "ADMIN" | "TEACHER" | "STUDENT" =
+    ViewerRole || (StoredRole === "ADMIN" || StoredRole === "SUPER_ADMIN" ? "ADMIN" : StoredRole === "TEACHER" ? "TEACHER" : "STUDENT");
+  const OpenedForFeedback = SearchParams.get("feedback") === "1";
+
   return (
     <AppShell title="Assessment Result">
       {Query.isLoading ? <LoadingState label="Loading assessment result..." /> : null}
@@ -219,6 +226,13 @@ function StudentAssessmentResultPageContent() {
 
           <AssessmentFeedbackCard Result={Query.data} />
 
+          <AssessmentRemarksPanel
+            AttemptId={Params.attemptId}
+            ViewerRole={ReviewViewer}
+            AccuracyPercentage={Number(Query.data.accuracyPercentage || 0)}
+            ScrollIntoView={OpenedForFeedback}
+          />
+
           <div className="flex flex-wrap items-center gap-3">
             <button className="math-role-action-button px-4 py-3" onClick={() => Router.push(assessmentBackRoute(ViewerRole))}>
               <ArrowLeft size={16} />
@@ -229,51 +243,7 @@ function StudentAssessmentResultPageContent() {
             </div>
           </div>
 
-          <section>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                <Award size={22} />
-              </div>
-              <div>
-                <h2 className="text-3xl font-black text-slate-950">Question Review</h2>
-                <p className="text-slate-600">See each question, the answer given, and the correct answer.</p>
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              {Query.data.questionReview?.map((Question) => (
-                <div key={Question.questionId} className="math-card p-6">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <h3 className="text-xl font-black text-slate-950">Question {Question.questionNumber}</h3>
-                    <span className={`math-badge ${Question.isCorrect ? "bg-emerald-50 text-emerald-700 border-emerald-200" : ReviewStudentAnswer(Question) ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>{Question.isCorrect ? "Correct" : ReviewStudentAnswer(Question) ? "Wrong" : "Unanswered"}</span>
-                  </div>
-
-                  <div className="mt-5 rounded-[28px] bg-slate-50/90 p-6">
-                    <MathQuestionDisplay operands={Question.operands} operators={Question.operators} displayType={(Question as any).displayType ?? (Question as any).display_type} questionText={(Question as any).questionText ?? (Question as any).question_text} />
-                  </div>
-
-                  <div className="mt-5 grid gap-3 xl:grid-cols-2">
-                    <div
-                      className={`rounded-[22px] p-4 ${
-                        Question.isCorrect
-                          ? `bg-emerald-50 text-emerald-900 ${ViewerRole === "ADMIN" ? "dark:!bg-emerald-50 dark:!text-emerald-900 dark:!ring-1 dark:!ring-emerald-200" : ""}`
-                          : ReviewStudentAnswer(Question)
-                            ? `bg-rose-50 text-rose-900 ${ViewerRole === "ADMIN" ? "dark:!bg-rose-50 dark:!text-rose-900 dark:!ring-1 dark:!ring-rose-200" : ""}`
-                            : `bg-amber-50 text-amber-900 ${ViewerRole === "ADMIN" ? "dark:!bg-amber-50 dark:!text-amber-900 dark:!ring-1 dark:!ring-amber-200" : ""}`
-                      }`}
-                    >
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em]">Your Answer</p>
-                      <p className="mt-2 text-lg font-black">{ReviewStudentAnswer(Question) ?? "Not Answered"}</p>
-                    </div>
-                    <div className={`rounded-[22px] bg-emerald-50 p-4 text-emerald-900 ${ViewerRole === "ADMIN" ? "dark:!bg-emerald-50 dark:!text-emerald-900 dark:!ring-1 dark:!ring-emerald-200" : ""}`}>
-                      <p className={`text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700 ${ViewerRole === "ADMIN" ? "dark:!text-emerald-700" : ""}`}>Correct Answer</p>
-                      <p className="mt-2 text-lg font-black">{ReviewCorrectAnswer(Question) ?? "Not Available"}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+          <ResultReviewTabs Questions={ToAssessmentReviewQuestions(Query.data.questionReview as any)} Viewer={ReviewViewer} />
         </div>
       ) : null}
     </AppShell>

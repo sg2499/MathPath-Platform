@@ -44,6 +44,9 @@ function Metric({ label, value, helper, icon }: { label: string; value: string |
 }
 
 function StudentStatusPill({ Student }: { Student: TeacherAssignableAssessmentStudent }) {
+  if (Student.testAccount) {
+    return <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-black text-sky-700">Test Account</span>;
+  }
   if (Student.approvedReattemptAccess) {
     return <span className="rounded-full bg-purple-50 px-3 py-1 text-xs font-black text-purple-700">Re-Attempt Approved</span>;
   }
@@ -208,15 +211,24 @@ export default function TeacherAssignAssessmentPage() {
     Students.forEach((Student) => {
       if (Student.levelId && (!ModuleFilter || Student.moduleId === ModuleFilter)) LevelMap.set(Student.levelId, `${Student.moduleCode || "Module"} · ${Student.levelCode || "Level"}`);
     });
+    // Levels with a live assessment are listed too: with the test account in
+    // class, a level can have an assessment but none of the teacher's other
+    // students.
+    Assessments.forEach((Assessment) => {
+      if (Assessment.levelId && (!ModuleFilter || Assessment.moduleId === ModuleFilter) && !LevelMap.has(Assessment.levelId)) {
+        LevelMap.set(Assessment.levelId, `${Assessment.moduleCode || "Module"} · ${Assessment.levelCode || "Level"}`);
+      }
+    });
     return Array.from(LevelMap.entries()).map(([Value, Label]) => ({ Value, Label }));
-  }, [Students, ModuleFilter]);
+  }, [Students, Assessments, ModuleFilter]);
 
   const FilteredStudents = useMemo(() => {
     const Query = SearchText.trim().toLowerCase();
     return Students.filter((Student) => {
       const MatchesSearch = !Query || `${Student.studentName} ${Student.studentCode} ${Student.levelCode || ""}`.toLowerCase().includes(Query);
-      const MatchesModule = !ModuleFilter || Student.moduleId === ModuleFilter;
-      const MatchesLevel = !LevelFilter || Student.levelId === LevelFilter;
+      // The test account is shown for every module and level.
+      const MatchesModule = !ModuleFilter || Student.moduleId === ModuleFilter || Boolean(Student.testAccount);
+      const MatchesLevel = !LevelFilter || Student.levelId === LevelFilter || Boolean(Student.testAccount);
       return MatchesSearch && MatchesModule && MatchesLevel;
     });
   }, [Students, SearchText, ModuleFilter, LevelFilter]);
@@ -254,7 +266,7 @@ export default function TeacherAssignAssessmentPage() {
   const SelectedAssessment = Assessments.find((Assessment) => Assessment.assessmentVersionId === SelectedAssessmentVersionId) ?? null;
   const AssignableStudents = useMemo(() => {
     return FilteredStudents.filter((Student) => {
-      const LevelMatches = !SelectedAssessment || Student.levelId === SelectedAssessment.levelId;
+      const LevelMatches = !SelectedAssessment || Student.levelId === SelectedAssessment.levelId || Boolean(Student.testAccount);
       const DifferentVersionRequired = Boolean(Student.requiresReattempt && SelectedAssessment && Student.sourceAssessmentVersionId === SelectedAssessment.assessmentVersionId);
       return Boolean(Student.canAssign && LevelMatches && !DifferentVersionRequired);
     });
@@ -405,7 +417,7 @@ export default function TeacherAssignAssessmentPage() {
 
               <div className="mt-5 space-y-3">
                 {FilteredStudents.length ? FilteredStudents.map((Student) => {
-                  const LevelMatches = !SelectedAssessment || Student.levelId === SelectedAssessment.levelId;
+                  const LevelMatches = !SelectedAssessment || Student.levelId === SelectedAssessment.levelId || Boolean(Student.testAccount);
                   const DifferentVersionRequired = Boolean(Student.requiresReattempt && SelectedAssessment && Student.sourceAssessmentVersionId === SelectedAssessment.assessmentVersionId);
                   const CanSelect = Boolean(Student.canAssign && LevelMatches && SelectedAssessment && !DifferentVersionRequired);
                   const BlockReason = DifferentVersionRequired ? "Different Version Required." : Student.assignmentBlockReason;
@@ -420,7 +432,7 @@ export default function TeacherAssignAssessmentPage() {
                             <StudentStatusPill Student={Student} />
                           </div>
                           <p className="mt-1 text-xs font-bold text-slate-500"><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{Student.studentCode}</span> · {Student.moduleCode || "Module"} · {Student.levelCode || "Level"}</p>
-                          <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{Student.canAssign ? (Student.approvedReattemptAccess ? "Admin-approved re-attempt access is available." : Student.testingOverrideApplied ? "Eligible through controlled assessment access." : Student.readinessBypassApplied ? GuideLineForStudent(Student) : "Ready for original assessment assignment.") : BlockReason}</p>
+                          <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{Student.testAccount ? "Test account: can be given any level's assessment, as often as needed." : Student.canAssign ? (Student.approvedReattemptAccess ? "Admin-approved re-attempt access is available." : Student.testingOverrideApplied ? "Eligible through controlled assessment access." : Student.readinessBypassApplied ? GuideLineForStudent(Student) : "Ready for original assessment assignment.") : BlockReason}</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center text-xs font-black text-slate-600 dark:text-slate-300">

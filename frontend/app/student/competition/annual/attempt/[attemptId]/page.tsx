@@ -1,11 +1,11 @@
 "use client";
 
+import { ResultReviewTabs, ToAnnualReviewQuestions, ToAnnualReviewSections } from "@/components/common/ResultReviewTabs";
 import { AppShell } from "@/components/common/AppShell";
-import { Chip } from "@/components/common/DetailWorkspaceViews";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { MathQuestionDisplay, NeedsWideQuestionBoard } from "@/components/common/MathQuestionDisplay";
+import { NeedsWideQuestionBoard } from "@/components/common/MathQuestionDisplay";
 import { QuestionCard } from "@/components/student/QuestionCard";
 import type { AnswerInputBoxHandle } from "@/components/student/AnswerInputBox";
 import { QuestionNavigator } from "@/components/student/QuestionNavigator";
@@ -188,7 +188,6 @@ function AnnualCompetitionAttemptContent() {
     enabled: ready && Boolean(attemptId) && Boolean(liveAttempt) && liveAttempt?.status !== "IN_PROGRESS",
     refetchOnWindowFocus: false,
   });
-  const [reviewTab, setReviewTab] = useState<"answerSheet" | "scorecard">("answerSheet");
 
   // Package 8 (certificate half): only ever offered once resultQuery.data
   // itself says released:true -- the backend re-checks this independently
@@ -680,53 +679,12 @@ function AnnualCompetitionAttemptContent() {
             unreleased OFFICIAL attempt reviewQuery.data.sections stays
             null (PRACTICE is always released instantly, see the backend
             docstring, so this appears immediately for practice results). */}
+        {/* Phase G / 2026-10-11: Answer Sheet (section blocks) and Scorecard,
+            the same shared tabs as every other result page. Only once the
+            review is released (practice: at once; official: with results). */}
         {reviewQuery.data?.released && reviewQuery.data.sections ? (
-          <div className="mt-5 space-y-5">
-            <div className="math-card p-2">
-              <div className="flex flex-wrap gap-2">
-                <ReviewTabButton active={reviewTab === "answerSheet"} onClick={() => setReviewTab("answerSheet")} label="Answer Sheet" />
-                <ReviewTabButton active={reviewTab === "scorecard"} onClick={() => setReviewTab("scorecard")} label="Scorecard" />
-              </div>
-            </div>
-
-            {reviewTab === "answerSheet" ? (
-              reviewQuery.data.sections.length === 0 ? (
-                <div className="math-card p-5 text-sm font-bold text-slate-700 dark:text-slate-300">
-                  No section data is available for this attempt yet.
-                </div>
-              ) : (
-                reviewQuery.data.sections.map((sectionReview) => (
-                  <div key={sectionReview.sectionNumber} className="math-card p-5">
-                    <div className="mb-4 flex flex-col gap-2 rounded-[22px] border border-[#2563eb]/15 bg-[#2563eb]/5 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/30 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2563eb] dark:text-cyan-100">
-                          Section {sectionReview.sectionNumber}
-                        </p>
-                        <h3 className="text-lg font-black text-slate-950 dark:text-white">
-                          {sectionReview.sectionTitle || `Section ${sectionReview.sectionNumber}`}
-                          {sectionReview.mode ? ` · ${FormatSectionMode(sectionReview.mode)}` : ""}
-                        </h3>
-                      </div>
-                      <Chip tone="slate">{sectionReview.questions.length} Questions</Chip>
-                    </div>
-
-                    {sectionReview.questions.length === 0 ? (
-                      <p className="rounded-[20px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
-                        No questions found for this section.
-                      </p>
-                    ) : (
-                      <div className="space-y-5">
-                        {sectionReview.questions.map((questionReview) => (
-                          <QuestionReviewCard key={questionReview.questionId} question={questionReview} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )
-            ) : (
-              <ScorecardTab review={reviewQuery.data} />
-            )}
+          <div className="mt-5">
+            <ResultReviewTabs Questions={ToAnnualReviewQuestions(reviewQuery.data.sections)} Sections={ToAnnualReviewSections(reviewQuery.data.sections)} Viewer="STUDENT" />
           </div>
         ) : null}
       </AppShell>
@@ -965,147 +923,6 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
       <div className="min-w-0">
         <p className="se-stat-label">{label}</p>
         <p className="se-stat-value">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-// Phase G: local duplicates of the admin review screen's own
-// QuestionReviewCard/AnswerBox/ScorecardTab (annual-result/[attemptId]/
-// page.tsx) -- deliberately re-declared here rather than imported across
-// the admin/student route trees, matching this codebase's own established
-// per-page-helper-duplication convention (see e.g. FormatDateTime,
-// triggerBlobDownload above).
-function ReviewTabButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className={active ? "math-role-tab math-role-tab-active" : "math-role-tab"}>
-      {label}
-    </button>
-  );
-}
-
-function QuestionReviewCard({ question }: { question: AnnualCompetitionAttemptReviewQuestion }) {
-  return (
-    <article className="rounded-[28px] border border-[#2563eb]/15 bg-white/86 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-xl font-black text-slate-950 dark:text-white">Question {question.questionNumber}</h3>
-        <Chip tone={question.isUnanswered ? "slate" : question.isCorrect ? "green" : "red"}>
-          {question.isUnanswered ? "Unanswered" : question.isCorrect ? "Correct" : "Wrong"}
-        </Chip>
-      </div>
-
-      <div className="mt-5 rounded-[24px] bg-slate-50/90 p-5 dark:bg-slate-950/60">
-        <MathQuestionDisplay
-          operands={question.operands}
-          operators={question.operators}
-          displayType={question.displayType}
-          questionText={question.questionText}
-        />
-      </div>
-
-      <div className="mt-5 grid gap-3 xl:grid-cols-2">
-        <AnswerBox title="Your Answer" tone={question.isUnanswered ? "neutral" : question.isCorrect ? "correct" : "wrong"}>
-          {question.studentAnswer ?? "Not Answered"}
-        </AnswerBox>
-        <AnswerBox title="Correct Answer" tone="correct">
-          {question.correctAnswer ?? "Not Available"}
-        </AnswerBox>
-      </div>
-    </article>
-  );
-}
-
-function AnswerBox({ title, children, tone }: { title: string; children: React.ReactNode; tone: "correct" | "wrong" | "neutral" }) {
-  const className =
-    tone === "correct"
-      ? "border-emerald-100 bg-emerald-50/80 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/25 dark:text-emerald-100"
-      : tone === "wrong"
-        ? "border-rose-100 bg-rose-50/80 text-rose-950 dark:border-rose-800 dark:bg-rose-950/25 dark:text-rose-100"
-        : "border-amber-100 bg-amber-50/80 text-amber-950 dark:border-amber-800 dark:bg-amber-950/25 dark:text-amber-100";
-  return (
-    <div className={`rounded-[22px] border p-4 ${className}`}>
-      <p className="text-xs font-extrabold uppercase tracking-[0.14em] opacity-80">{title}</p>
-      <p className="mt-2 text-lg font-black">{children}</p>
-    </div>
-  );
-}
-
-// Section-by-section marks table, derived from the exact same `sections`
-// data the Answer Sheet tab above already renders -- never re-fetched or
-// re-derived from a separate result payload, so this tab's totals can
-// never drift from what the Answer Sheet visibly shows (mirrors the admin
-// ScorecardTab's own reasoning verbatim).
-function ScorecardTab({ review }: { review: AnnualCompetitionAttemptReview }) {
-  const rows = (review.sections || []).map((sectionReview) => ({
-    sectionNumber: sectionReview.sectionNumber,
-    sectionTitle: sectionReview.sectionTitle || `Section ${sectionReview.sectionNumber}`,
-    totalQuestions: sectionReview.questions.length,
-    // 2026-09-27 (Shailesh, Scorecard "Total Attempted" feature): a
-    // question already carries isUnanswered on this exact review payload
-    // (mirrored verbatim across student/admin/teacher -- see this
-    // component's own file-level comment), so "attempted" is derivable
-    // with no new backend field or fetch.
-    attemptedCount: sectionReview.questions.filter((questionReview) => !questionReview.isUnanswered).length,
-    correctCount: sectionReview.questions.filter((questionReview) => questionReview.isCorrect).length,
-  }));
-  const totalQuestions = rows.reduce((sum, row) => sum + row.totalQuestions, 0);
-  const totalAttempted = rows.reduce((sum, row) => sum + row.attemptedCount, 0);
-  const totalMarksObtained = rows.reduce((sum, row) => sum + row.correctCount, 0);
-
-  return (
-    <div className="math-card p-5">
-      <div className="mb-4">
-        <p className="math-block-header"><ListChecks size={14} />Scorecard</p>
-        <h3 className="text-lg font-black text-slate-950 dark:text-white">Section-Wise Marks</h3>
-      </div>
-
-      {rows.length === 0 ? (
-        <p className="rounded-[20px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
-          No section data is available for this attempt yet.
-        </p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="se-tbl se-cards se-tbl-figures w-full min-w-[620px] border-collapse text-sm">
-            <thead>
-              <tr className="border-b-2 border-slate-200 dark:border-slate-700">
-                <th className="px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Section</th>
-                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Total Questions</th>
-                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Questions Attempted</th>
-                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Correct Answers</th>
-                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Marks Obtained</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.sectionNumber} className="border-b border-slate-100 dark:border-slate-800">
-                  <td data-label="Section" className="se-card-title px-3 py-3 font-bold text-slate-900 dark:text-slate-100">
-                    Section {row.sectionNumber}: {row.sectionTitle}
-                  </td>
-                  <td data-label="Total Questions" className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.totalQuestions}</td>
-                  <td data-label="Questions Attempted" className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.attemptedCount}</td>
-                  <td data-label="Correct Answers" className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{row.correctCount}</td>
-                  <td data-label="Marks Obtained" className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{row.correctCount}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-[#2563eb]/30 dark:border-cyan-300/30">
-                <td data-label="Section" className="se-card-title px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">Total</td>
-                <td data-label="Total Questions" className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalQuestions}</td>
-                <td data-label="Questions Attempted" className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalAttempted}</td>
-                <td data-label="Correct Answers" className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{totalMarksObtained}</td>
-                <td data-label="Marks Obtained" className="px-3 py-3 text-right text-lg font-black text-[#2563eb] dark:text-cyan-100">{totalMarksObtained}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      )}
-
-      <div className="mt-4 rounded-[22px] border border-[#2563eb]/25 bg-[#2563eb]/5 px-5 py-4 text-center dark:border-cyan-300/30 dark:bg-cyan-400/10">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2563eb] dark:text-cyan-100">Total Marks Obtained</p>
-        <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
-          {totalMarksObtained}/{totalQuestions}
-        </p>
       </div>
     </div>
   );
