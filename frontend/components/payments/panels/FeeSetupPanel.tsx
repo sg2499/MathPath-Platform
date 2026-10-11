@@ -223,7 +223,7 @@ export function FeeSetupPanel() {
           ) : !items.length ? (
             <EmptyState
               title="No fee items yet"
-              description="Add the fees students pay, like Monthly Fee or Registration Charges. The old platform's fee list will also arrive with the payment history migration."
+              description="Add the fees students pay, like Monthly Fee or Registration Charges."
             />
           ) : !visible.length ? (
             <EmptyState title="No fee items match" description="Try a different search, or show switched-off items." />

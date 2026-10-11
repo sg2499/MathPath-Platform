@@ -326,7 +326,7 @@ def _InvoiceStory(Invoice: PaymentInvoice, S: dict[str, ParagraphStyle], Content
             BillTo.append(Paragraph(_T(Part), S["body"]))
     DetailRows = [
         ("Student ID", Student.get("studentCode")),
-        ("Old ID", Student.get("customId")),
+        ("Admission No.", Student.get("customId")),
         ("Level", " ".join(Part for Part in [Student.get("levelCode"), f"({Student['levelName']})" if Student.get("levelName") else None] if Part) or None),
         ("Fee", Invoice.fee_name),
         ("Period", (f"{_MonthName(Invoice.billing_month)} {Invoice.billing_year}" if Invoice.billing_month and Invoice.billing_year else None)),
@@ -483,7 +483,7 @@ def _ReceiptStory(Snapshot: dict[str, Any], P: dict[str, Any], S: dict[str, Para
     Details = [Paragraph("DETAILS", S["label"])]
     for Label, Value in [
         ("Student ID", Student.get("studentCode")),
-        ("Old ID", Student.get("customId")),
+        ("Admission No.", Student.get("customId")),
         ("Level", Student.get("levelCode")),
         ("Paid by", P.get("payBy")),
         ("Received by", P.get("receivedByName")),
@@ -634,6 +634,7 @@ def RenderCollectionSummaryPdf(Business: dict[str, Any], Report: dict[str, Any],
         Close = DayClose.get("close") if DayClose.get("state") == "CLOSED" else None
         Count = [
             [Paragraph("CASH", S["cellHead"]), Paragraph("AMOUNT", S["cellHeadRight"])],
+            [Paragraph("Opening cash in the drawer", S["cell"]), Paragraph(Money((Close or {}).get("openingCash", Figures.get("openingCash", {"paise": 0}))["paise"]), S["cellRight"])],
             [Paragraph("Cash received", S["cell"]), Paragraph(Money(Figures["cashReceived"]["paise"]), S["cellRight"])],
             [Paragraph(f"Less cash paid for expenses ({Figures['expenseCount']})", S["cell"]), Paragraph(Money(Figures["cashSpent"]["paise"]), S["cellRight"])],
             [Paragraph("<b>Expected cash in hand</b>", S["cell"]), Paragraph(f"<b>{Money((Close or {}).get('expectedCash', Figures['expectedCash'])['paise'])}</b>", S["cellRight"])],
@@ -645,6 +646,11 @@ def RenderCollectionSummaryPdf(Business: dict[str, Any], Report: dict[str, Any],
                 [Paragraph("<b>Cash counted</b>", S["cell"]), Paragraph(f"<b>{Money(Close['countedCash']['paise'])}</b>", S["cellRight"])],
                 [Paragraph("Difference", S["cell"]), Paragraph(_T(DiffText), S["cellRight"])],
             ]
+            if Close.get("handedOver", {}).get("paise"):
+                Count += [
+                    [Paragraph(f"Taken out at close ({_T(Close.get('handoverTo') or '')})", S["cell"]), Paragraph(Money(Close["handedOver"]["paise"]), S["cellRight"])],
+                    [Paragraph("<b>Left in the drawer</b>", S["cell"]), Paragraph(f"<b>{Money(Close['keptInDrawer']['paise'])}</b>", S["cellRight"])],
+                ]
         Table4 = Table(Count, colWidths=[W * 0.42, W * 0.2])
         Table4.setStyle(TableStyle(Grid[:-1] + [("LINEBELOW", (0, -1), (-1, -1), 0.6, RULE)]))
         Table4.hAlign = "LEFT"
@@ -739,7 +745,7 @@ def RenderStatementPdf(Business: dict[str, Any], Centre: dict[str, Any], Account
         Who.append(Paragraph(f"Parent: {_T(Student['parentName'])}", S["body"]))
     if Student.get("mobile"):
         Who.append(Paragraph(_T(Student["mobile"]), S["body"]))
-    Details = [("Student ID", Student.get("studentCode")), ("Old ID", Student.get("customId")), ("Level", Student.get("levelCode")), ("Centre", Student.get("centreName"))]
+    Details = [("Student ID", Student.get("studentCode")), ("Admission No.", Student.get("customId")), ("Level", Student.get("levelCode")), ("Centre", Student.get("centreName"))]
     DetailRows = [[Paragraph(_T(Label), S["label"]), Paragraph(_T(Value), S["body"])] for Label, Value in Details if Value]
     DetailTable = Table(DetailRows or [[Paragraph("", S["body"])]], colWidths=[W * 0.16, W * 0.29])
     DetailTable.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1), ("VALIGN", (0, 0), (-1, -1), "TOP")]))

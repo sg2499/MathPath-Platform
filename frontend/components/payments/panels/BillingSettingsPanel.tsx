@@ -7,7 +7,7 @@
 // students at once.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarClock, CheckCircle2, Globe2, IndianRupee, Loader2, Search, Settings2, UsersRound } from "lucide-react";
+import { AlertTriangle, Ban, CalendarClock, CheckCircle2, Globe2, IndianRupee, Loader2, Search, Settings2, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -40,6 +40,9 @@ function Card({ title, icon, children }: { title: string; icon: ReactNode; child
 }
 
 export function ModePill({ mode }: { mode: BillingMode }) {
+  if (mode === "EXEMPT") {
+    return <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-200 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"><Ban size={12} />No monthly fee</span>;
+  }
   return mode === "INTERNATIONAL" ? (
     <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-violet-100 px-2.5 py-1 text-xs font-black text-violet-800 dark:bg-violet-950/40 dark:text-violet-200"><Globe2 size={12} />International</span>
   ) : (
@@ -59,13 +62,14 @@ export function BillingSettingsPanel() {
           <div className="min-w-0">
             <p className="math-block-header"><Settings2 size={14} />Payment Settings</p>
             <h1 className="math-title">Billing</h1>
-            <p className="math-subtitle">The monthly fee for India and International students, the automatic drafts on the 1st, and each student&apos;s billing mode.</p>
+            <p className="math-subtitle">The monthly fee for India and International students, the automatic drafts on the 1st, and each student&apos;s billing mode. Students set to No monthly fee never get a monthly bill.</p>
             <HeroSearch />
           </div>
           {data ? (
-            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 xl:shrink-0">
+            <div className="grid grid-cols-2 gap-3 min-[480px]:grid-cols-4 xl:shrink-0">
               <PaymentsMetric label="India" value={data.counts.INDIA} icon={<IndianRupee size={14} />} tone="cyan" />
               <PaymentsMetric label="International" value={data.counts.INTERNATIONAL} icon={<Globe2 size={14} />} tone="cyan" />
+              <PaymentsMetric label="No monthly fee" value={data.counts.EXEMPT ?? 0} icon={<Ban size={14} />} tone="slate" />
               <PaymentsMetric label="Next drafts" value={<span className="text-lg sm:text-xl">{data.nextAutoLabel ?? "Off"}</span>} icon={<CalendarClock size={14} />} tone={data.autoDraftsEnabled ? "emerald" : "amber"} />
             </div>
           ) : null}
@@ -218,9 +222,10 @@ function StudentModes() {
           <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name or student ID" />
         </label>
         <select className="math-select" value={mode} onChange={(event) => setMode(event.target.value as "ALL" | BillingMode)} aria-label="Filter by mode">
-          <option value="ALL">India and International</option>
+          <option value="ALL">Every mode</option>
           <option value="INDIA">India only</option>
           <option value="INTERNATIONAL">International only</option>
+          <option value="EXEMPT">No monthly fee only</option>
         </select>
         <select className="math-select" value={level} onChange={(event) => setLevel(event.target.value)} aria-label="Filter by level">
           <option value="ALL">All levels</option>
@@ -236,6 +241,7 @@ function StudentModes() {
         <span className="mr-auto text-sm font-black text-slate-700 dark:text-slate-200">{selected.size} selected</span>
         <button type="button" className="math-button-secondary" disabled={!selected.size || apply.isPending} onClick={() => apply.mutate("INDIA")}><IndianRupee size={16} />Set India</button>
         <button type="button" className="math-button-secondary" disabled={!selected.size || apply.isPending} onClick={() => apply.mutate("INTERNATIONAL")}><Globe2 size={16} />Set International</button>
+        <button type="button" className="math-button-secondary" disabled={!selected.size || apply.isPending} onClick={() => apply.mutate("EXEMPT")} title="Never billed the monthly fee: test accounts, staff children, scholarships"><Ban size={16} />Set no monthly fee</button>
       </div>
       {result ? <div role="status" className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">{result}</div> : null}
       {apply.error ? <div className="mt-3"><InlineError error={apply.error} /></div> : null}

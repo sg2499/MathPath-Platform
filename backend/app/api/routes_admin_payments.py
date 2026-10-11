@@ -535,6 +535,13 @@ def admin_student_statement_pdf(student_id: str, db: Session = Depends(get_db), 
     return _PdfResponse(Content, f"Statement-{Code}-{Today.isoformat()}.pdf")
 
 
+@router.post("/advance/apply-all")
+def admin_apply_advance_all(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.receipts_service import ApplyAdvanceForAll
+
+    return ApplyAdvanceForAll(db, Actor=user)
+
+
 @router.post("/students/{student_id}/apply-advance")
 def admin_apply_advance(student_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return ApplyAdvanceNow(db, StudentId=student_id, Actor=user)
@@ -829,6 +836,8 @@ class DayCloseRequest(BaseModel):
     date: str | None = None
     countedCashPaise: int = Field(ge=0)
     note: str | None = Field(default=None, max_length=500)
+    handedOverPaise: int = Field(default=0, ge=0)
+    handoverTo: str | None = Field(default=None, max_length=200)
 
 
 class DayReopenRequest(BaseModel):
@@ -860,7 +869,7 @@ def admin_day_close(date: str | None = None, db: Session = Depends(get_db), user
 def admin_close_day(payload: DayCloseRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     from app.services.payments.dayclose_service import CloseDay
 
-    return CloseDay(db, DayValue=payload.date, CountedPaise=payload.countedCashPaise, Note=payload.note, Actor=user)
+    return CloseDay(db, DayValue=payload.date, CountedPaise=payload.countedCashPaise, Note=payload.note, Actor=user, HandedOverPaise=payload.handedOverPaise, HandoverTo=payload.handoverTo)
 
 
 @router.post("/day-close/{day}/reopen")
@@ -876,7 +885,7 @@ def admin_day_close_pdf(day: str, db: Session = Depends(get_db), user: User = De
     from app.services.payments.invoices_service import _BusinessSnapshot
 
     Summary = DaySummary(db, day)
-    Report = CollectionsReport(db, Filters={"dateFrom": Summary["date"], "dateTo": Summary["date"]})
+    Report = CollectionsReport(db, Filters={"dateFrom": Summary["date"], "dateTo": Summary["date"], "excludeOldHistory": True})
     return _PdfResponse(RenderCollectionSummaryPdf(_BusinessSnapshot(db), Report, DayClose=Summary), f"MathPath-Day-Close-{Summary['date']}.pdf")
 
 

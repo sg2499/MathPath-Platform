@@ -106,6 +106,9 @@ def _CollectionLines(db: Session, DateFrom: date, DateTo: date, Filters: dict[st
         Query = Query.filter(PaymentReceipt.received_by_user_id == Filters["receivedBy"])
     if Filters.get("centreId"):
         Query = Query.filter(PaymentReceipt.centre_id == Filters["centreId"]) if Filters["centreId"] != "NONE" else Query.filter(PaymentReceipt.centre_id.is_(None))
+    if Filters.get("excludeOldHistory"):
+        # The day-close sheet: old-platform payments were counted on the old site.
+        Query = Query.filter(or_(PaymentReceipt.source.is_(None), PaymentReceipt.source != "LEGACY"))
     return Query.order_by(PaymentReceipt.payment_date.asc(), PaymentReceipt.receipt_number.asc(), PaymentMethodLine.line_order.asc()).all()
 
 
@@ -296,7 +299,7 @@ def DuesReport(db: Session, *, Filters: dict[str, Any]) -> dict[str, Any]:
     elif Sort == "overdue":
         Result.sort(key=lambda Row: (-Row["maxDaysOverdue"], -Row["duePaise"]))
     else:
-        Result.sort(key=lambda Row: (-Row["duePaise"], (Row["studentName"] or "").lower()))
+        Result.sort(key=lambda Row: (-Row["duePaise"], -Row["overduePaise"], -Row["maxDaysOverdue"], (Row["studentName"] or "").lower()))
     Grand = sum(BucketTotals.values())
     return {
         "asOf": Today.isoformat(),
@@ -356,6 +359,10 @@ def Overview(db: Session) -> dict[str, Any]:
         })
     Recent = db.query(PaymentReceipt).order_by(PaymentReceipt.created_at.desc(), PaymentReceipt.receipt_number.desc()).limit(8).all()
     ThisMonthCollected = _CollectedBetween(db, ThisMonth, Today + timedelta(days=1))
+    # Like for like: the same days of last month (1st to today's date, capped at
+    # last month's length), so the 11th is never compared with a whole month.
+    SameDays = min(Today.day, calendar.monthrange(LastMonth.year, LastMonth.month)[1])
+    LastMonthToDateEnd = LastMonth + timedelta(days=SameDays)
     ThisMonthSpent = ExpensesTotal(db, ThisMonth, Today + timedelta(days=1))
     return {
         "today": Today.isoformat(),
@@ -366,6 +373,8 @@ def Overview(db: Session) -> dict[str, Any]:
         "thisMonthCollected": _Money(ThisMonthCollected),
         "lastMonthLabel": f"{calendar.month_name[LastMonth.month]} {LastMonth.year}",
         "lastMonthCollected": _Money(_CollectedBetween(db, LastMonth, ThisMonth)),
+        "lastMonthToDateCollected": _Money(_CollectedBetween(db, LastMonth, LastMonthToDateEnd)),
+        "lastMonthToDateLabel": f"1–{SameDays} {calendar.month_abbr[LastMonth.month]}",
         "thisMonthSpent": _Money(ThisMonthSpent),
         "thisMonthNet": _Money(ThisMonthCollected - ThisMonthSpent),
         "due": Dues["total"],

@@ -658,6 +658,54 @@ def CancelPayment(db: Session, *, PaymentId: str, Reason: Any, Actor: User | Non
     return PaymentPayload(db, Payment)
 
 
+def AdvanceWithDues(db: Session) -> list[dict[str, Any]]:
+    """Students who hold advance and also have an unpaid invoice: money that
+    could pay their dues today. Advance is otherwise only used on new invoices."""
+    Owing = [
+        Row[0]
+        for Row in db.query(PaymentInvoice.student_id)
+        .filter(PaymentInvoice.status.in_(("PENDING", "PART_PAID")))
+        .distinct()
+        .all()
+    ]
+    Balances = AdvanceBalances(db, Owing)
+    if not Balances:
+        return []
+    Names = {Row.id: (UserRow.full_name, Row.student_code) for Row, UserRow in db.query(Student, User).join(User, Student.user_id == User.id).filter(Student.id.in_(list(Balances))).all()}
+    DueBy: dict[str, int] = defaultdict(int)
+    for Row in db.query(PaymentInvoice).filter(PaymentInvoice.student_id.in_(list(Balances)), PaymentInvoice.status.in_(("PENDING", "PART_PAID"))).all():
+        DueBy[Row.student_id] += InvoiceBalance(Row)
+    Result = []
+    for StudentId, Advance in Balances.items():
+        Usable = min(Advance, DueBy.get(StudentId, 0))
+        if Usable <= 0:
+            continue
+        Name, Code = Names.get(StudentId, ("", None))
+        Result.append({"studentId": StudentId, "studentName": Name, "studentCode": Code, "advancePaise": Advance, "usablePaise": Usable})
+    Result.sort(key=lambda Row: (-Row["usablePaise"], (Row["studentName"] or "").lower()))
+    return Result
+
+
+def ApplyAdvanceForAll(db: Session, *, Actor: User | None) -> dict[str, Any]:
+    """Uses every student's advance on their unpaid invoices, oldest first, in
+    one go. Each student's payments get their usual ADVANCE_APPLIED audit line."""
+    # Students are locked in id order, like every other bulk payments job,
+    # so this can run beside a monthly release without a deadlock.
+    Students = sorted(AdvanceWithDues(db), key=lambda Row: Row["studentId"])
+    Applied = 0
+    Count = 0
+    for Row in Students:
+        Done = ApplyAdvance(db, StudentId=Row["studentId"], Actor=Actor)
+        if Done:
+            Applied += Done
+            Count += 1
+    if not Applied:
+        db.rollback()
+        api_error(409, "NOTHING_TO_APPLY", "No student has advance that can pay an unpaid invoice.")
+    db.commit()
+    return {"students": Count, "appliedPaise": Applied, "appliedDisplay": FormatIndianRupees(Applied)}
+
+
 def ApplyAdvanceNow(db: Session, *, StudentId: str, Actor: User | None) -> dict[str, Any]:
     Applied = ApplyAdvance(db, StudentId=StudentId, Actor=Actor)
     if not Applied:

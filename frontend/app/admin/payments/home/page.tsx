@@ -6,7 +6,7 @@
 // R6: this month's collection rate, unusual activity to review, and the
 // latest activity (who did what).
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowRight,
@@ -24,7 +24,7 @@ import {
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { Suspense, type CSSProperties, type ReactNode } from "react";
+import { Suspense, useState, type CSSProperties, type ReactNode } from "react";
 
 import { AppShell } from "@/components/common/AppShell";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -37,7 +37,9 @@ import { useQuickPay } from "@/components/payments/QuickPay";
 import { OnlineStatusChip } from "@/components/payments/panels/OnlinePaymentsPanel";
 import { StudentLink } from "@/components/payments/StudentPanel";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
-import { getPaymentsHome, type PaymentsHome } from "@/lib/api/payments";
+import { applyAdvanceForAll, getPaymentsHome, type PaymentsHome } from "@/lib/api/payments";
+import { apiErrorMessage } from "@/lib/api";
+import { usePaymentsToast } from "@/components/payments/PaymentsToast";
 import { FormatDate } from "@/lib/paymentsDates";
 
 function Greeting(): string {
@@ -81,6 +83,40 @@ function Card({ title, action, children, icon }: { title: string; action?: React
   );
 }
 
+// Advance sitting with a student who also owes money: one confirmed press uses
+// it on their unpaid invoices, oldest first (each student's history records it).
+function AdvanceItem({ advance }: { advance: NonNullable<PaymentsHome["attention"]["advance"]> }) {
+  const queryClient = useQueryClient();
+  const toast = usePaymentsToast();
+  const [confirming, setConfirming] = useState(false);
+  const apply = useMutation({
+    mutationFn: applyAdvanceForAll,
+    onSuccess: (result) => {
+      setConfirming(false);
+      queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
+      toast?.({ text: `${result.appliedDisplay} of advance used on dues for ${result.students} student${result.students === 1 ? "" : "s"}.` });
+    },
+  });
+  const who = advance.names.join(", ") + (advance.students > advance.names.length ? ` and ${advance.students - advance.names.length} more` : "");
+  return (
+    <li className="rounded-2xl border border-violet-200 bg-violet-50/80 px-4 py-3 text-sm font-bold text-violet-900 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100">
+      <div className="flex flex-wrap items-center gap-3">
+        <Wallet size={16} className="shrink-0" />
+        <span className="min-w-0 flex-1">{advance.usable.display} of advance can pay dues now ({who}).</span>
+        {!confirming ? (
+          <button type="button" className="math-button-secondary !min-h-0 !px-3 !py-1.5 text-xs" onClick={() => setConfirming(true)}>Use it on dues</button>
+        ) : (
+          <span className="flex items-center gap-2">
+            <button type="button" className="math-button-primary !min-h-0 !px-3 !py-1.5 text-xs" disabled={apply.isPending} onClick={() => apply.mutate()}>{apply.isPending ? "Applying…" : `Apply ${advance.usable.display}`}</button>
+            <button type="button" className="math-button-secondary !min-h-0 !px-3 !py-1.5 text-xs" disabled={apply.isPending} onClick={() => setConfirming(false)}>Cancel</button>
+          </span>
+        )}
+      </div>
+      {apply.error ? <p className="mt-2 text-xs font-bold text-rose-700 dark:text-rose-300">{apiErrorMessage(apply.error)}</p> : null}
+    </li>
+  );
+}
+
 function HomeBody({ data }: { data: PaymentsHome }) {
   const quickPay = useQuickPay();
   const close = data.dayClose;
@@ -95,8 +131,8 @@ function HomeBody({ data }: { data: PaymentsHome }) {
   if (follow.promisedToday) followItems.push({ key: "today", view: "today", text: `${follow.promisedToday} promised payment${follow.promisedToday === 1 ? "" : "s"} due today (${follow.promisedTodayAmount.display}).` });
   if (follow.promiseMissed) followItems.push({ key: "missed", view: "missed", text: `${follow.promiseMissed} promise${follow.promiseMissed === 1 ? "" : "s"} to pay missed.` });
   const unusualOpen = data.insights.unusualOpen;
-  const attentionCount = (unusualOpen ? 1 : 0) + followItems.length + data.attention.online.length + data.attention.setup.length + (data.attention.failedToday ? 1 : 0) + pendingDays.length + billingItems.length;
-  const monthUp = data.lastMonthCollected.paise > 0 ? Math.round(((data.thisMonthCollected.paise - data.lastMonthCollected.paise) / data.lastMonthCollected.paise) * 100) : null;
+  const attentionCount = (unusualOpen ? 1 : 0) + followItems.length + data.attention.online.length + data.attention.setup.length + (data.attention.failedToday ? 1 : 0) + pendingDays.length + billingItems.length + (data.attention.advance ? 1 : 0);
+  const monthUp = data.lastMonthToDateCollected.paise > 0 ? Math.round(((data.thisMonthCollected.paise - data.lastMonthToDateCollected.paise) / data.lastMonthToDateCollected.paise) * 100) : null;
   const todayClosed = close.todayState === "CLOSED" && !close.todayChangedAfterClose;
   const dayLine = close.todayState === "CLOSED"
     ? close.todayChangedAfterClose ? "Today was closed, then payments changed." : "Today is closed."
@@ -141,7 +177,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
           icon={<TrendingUp size={17} />}
           tone="cyan"
           href="/admin/payments/reports?tab=overview"
-          sub={<>{data.lastMonthLabel}: {data.lastMonthCollected.display}{monthUp !== null ? <span className={monthUp >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"}> ({monthUp >= 0 ? "+" : ""}{monthUp}% so far)</span> : null}{data.insights.rate !== null ? <span className="block text-cyan-700 dark:text-cyan-300">{data.insights.rate}% of this month&apos;s billing collected</span> : null}</>}
+          sub={<>{data.lastMonthToDateLabel}: {data.lastMonthToDateCollected.display}{monthUp !== null ? <span className={monthUp >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"}> ({monthUp >= 0 ? "+" : ""}{monthUp}% vs the same days)</span> : null}{data.insights.rate !== null ? <span className="block text-cyan-700 dark:text-cyan-300">{data.insights.rate}% of this month&apos;s billing collected</span> : null}</>}
         />
         <Stat
           label="Due"
@@ -201,6 +237,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
                     </Link>
                   </li>
                 ))}
+                {data.attention.advance ? <AdvanceItem advance={data.attention.advance} /> : null}
                 {data.attention.setup.map((item) => (
                   <li key={item.key}>
                     <Link href={item.href} className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm font-bold text-amber-900 transition hover:border-amber-300 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">

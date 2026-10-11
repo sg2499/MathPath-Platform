@@ -5,6 +5,13 @@ method lines of payments that are not cancelled, by payment date. Expected
 cash in hand is the cash received that day minus the cash paid out for
 expenses that day.
 
+2026-10-11 (live review): the drawer carries over. A day opens with what was
+kept in the drawer at the last close (counted minus what was handed over or
+banked at that close), plus the net cash of any days in between that were
+never closed. Expected cash in hand = opening + cash received - cash spent.
+At close the admin records the cash counted and any cash taken out (banked or
+handed over, and to whom); the rest is the next day's opening.
+
 Closing records those figures, the cash actually counted, the difference and
 a note (a note is needed when the count does not match), and who closed it.
 A closed day can be reopened with a reason and closed again; every close and
@@ -83,8 +90,62 @@ def _NotOldHistory():
     return or_(PaymentReceipt.source.is_(None), PaymentReceipt.source != "LEGACY")
 
 
-def DayFigures(db: Session, Day: date) -> dict[str, Any]:
-    """What the platform says came in (and went out in cash) on one day."""
+def _NetCashByDay(db: Session, Start: date, End: date) -> dict[date, int]:
+    """Cash received minus cash spent on expenses, per day, Start..End inclusive."""
+    Net: dict[date, int] = defaultdict(int)
+    if End < Start:
+        return Net
+    for Amount, Day in (
+        db.query(PaymentMethodLine.amount_paise, PaymentReceipt.payment_date)
+        .join(PaymentReceipt, PaymentMethodLine.payment_id == PaymentReceipt.id)
+        .filter(PaymentReceipt.status == "RECORDED", PaymentMethodLine.method == "CASH", PaymentReceipt.payment_date >= Start, PaymentReceipt.payment_date <= End, _NotOldHistory())
+        .all()
+    ):
+        Net[Day] += Amount
+    for Amount, Day in (
+        db.query(ExpenseMethodLine.amount_paise, Expense.expense_date)
+        .join(Expense, ExpenseMethodLine.expense_id == Expense.id)
+        .filter(Expense.status == "RECORDED", ExpenseMethodLine.method == "CASH", Expense.expense_date >= Start, Expense.expense_date <= End)
+        .all()
+    ):
+        Net[Day] -= Amount
+    return Net
+
+
+def _Kept(Row: PaymentDayClose) -> int:
+    """What a close left in the drawer. Closes made before the drawer carried
+    over (2026-10-11, no opening recorded) are treated as emptying it."""
+    if Row.opening_cash_paise is None:
+        return 0
+    return (Row.counted_cash_paise or 0) - (Row.handed_over_paise or 0)
+
+
+def _LastCloseBefore(db: Session, Day: date) -> PaymentDayClose | None:
+    return (
+        db.query(PaymentDayClose)
+        .filter(PaymentDayClose.close_date < Day, PaymentDayClose.status == "CLOSED")
+        .order_by(PaymentDayClose.close_date.desc())
+        .first()
+    )
+
+
+def Opening(db: Session, Day: date) -> dict[str, Any]:
+    """The drawer at the start of Day: kept at the last close before it, plus
+    the cash of days since then that were not closed (or were reopened)."""
+    Last = _LastCloseBefore(db, Day)
+    if not Last:
+        return {"paise": 0, "kept": 0, "lastCloseDate": None, "unclosed": 0, "unclosedDays": []}
+    Kept = _Kept(Last)
+    Between = _NetCashByDay(db, Last.close_date + timedelta(days=1), Day - timedelta(days=1))
+    Days = sorted(Key for Key, Value in Between.items() if Value)
+    Unclosed = sum(Between.values())
+    return {"paise": Kept + Unclosed, "kept": Kept, "lastCloseDate": Last.close_date.isoformat(), "unclosed": Unclosed, "unclosedDays": [Key.isoformat() for Key in Days]}
+
+
+def DayFigures(db: Session, Day: date, OpeningValue: dict[str, Any] | None = None) -> dict[str, Any]:
+    """What the platform says came in (and went out in cash) on one day. The
+    fingerprint covers the day's own payments and expenses only; a change in
+    the opening is compared separately (see _ClosePayload)."""
     Lines = (
         db.query(PaymentMethodLine, PaymentReceipt)
         .join(PaymentReceipt, PaymentMethodLine.payment_id == PaymentReceipt.id)
@@ -128,6 +189,7 @@ def DayFigures(db: Session, Day: date) -> dict[str, Any]:
 
     Total = sum(ByMethod.values())
     CashReceived = ByMethod.get("CASH", 0)
+    Start = OpeningValue if OpeningValue is not None else Opening(db, Day)
     Order = sorted(ByMethod, key=lambda Method: (Method != "CASH", -ByMethod[Method]))
     return {
         "date": Day.isoformat(),
@@ -137,7 +199,10 @@ def DayFigures(db: Session, Day: date) -> dict[str, Any]:
         "cashReceived": _Money(CashReceived),
         "cashSpent": _Money(CashSpent),
         "expenseCount": len(ExpenseIds),
-        "expectedCash": _Money(CashReceived - CashSpent),
+        "openingCash": _Money(Start["paise"]),
+        "opening": {"kept": _Money(Start["kept"]), "lastCloseDate": Start["lastCloseDate"], "unclosed": _Money(Start["unclosed"]), "unclosedDays": Start["unclosedDays"]},
+        "cashMovement": _Money(CashReceived - CashSpent),
+        "expectedCash": _Money(Start["paise"] + CashReceived - CashSpent),
         "byStaff": [
             {"name": Value["name"], "paymentCount": len(Value["payments"]), **_Money(Value["total"]), "cash": _Money(Value["cash"])}
             for _, Value in sorted(ByStaff.items(), key=lambda Item: -Item[1]["total"])
@@ -154,7 +219,8 @@ def _ClosePayload(Row: PaymentDayClose | None, Live: dict[str, Any]) -> dict[str
     if not Row:
         return None
     Expected = json.loads(Row.expected_json or "{}")
-    Changed = Row.status == "CLOSED" and Row.fingerprint != Live["fingerprint"]
+    OpeningChanged = _OpeningChanged(Row, Live)
+    Changed = Row.status == "CLOSED" and (Row.fingerprint != Live["fingerprint"] or OpeningChanged)
     return {
         "closeId": Row.id,
         "status": Row.status,
@@ -162,6 +228,10 @@ def _ClosePayload(Row: PaymentDayClose | None, Live: dict[str, Any]) -> dict[str
         "expectedCash": _Money(Row.expected_cash_paise),
         "countedCash": _Money(Row.counted_cash_paise),
         "difference": _Money(Row.difference_paise),
+        "openingCash": _Money(Row.opening_cash_paise or 0),
+        "handedOver": _Money(Row.handed_over_paise or 0),
+        "handoverTo": Row.handover_to,
+        "keptInDrawer": _Money((Row.counted_cash_paise or 0) - (Row.handed_over_paise or 0)),
         "note": Row.note,
         "closeCount": Row.close_count,
         "closedByName": Row.closed_by_name,
@@ -175,8 +245,17 @@ def _ClosePayload(Row: PaymentDayClose | None, Live: dict[str, Any]) -> dict[str
             "totalNow": Live["total"],
             "cashAtClose": _Money(Row.expected_cash_paise),
             "cashNow": Live["expectedCash"],
+            "openingChanged": OpeningChanged,
+            "openingAtClose": _Money(Row.opening_cash_paise or 0),
+            "openingNow": Live["openingCash"],
         } if Changed else None,
     }
+
+
+def _OpeningChanged(Row: PaymentDayClose, Live: dict[str, Any]) -> bool:
+    """An earlier day was closed again with a different count or hand-over, so
+    the drawer this day started with is not what it was counted against."""
+    return Row.status == "CLOSED" and Row.opening_cash_paise is not None and Row.opening_cash_paise != Live["openingCash"]["paise"]
 
 
 def DaySummary(db: Session, DayValue: Any = None) -> dict[str, Any]:
@@ -212,10 +291,18 @@ def _Counted(Value: Any) -> int:
     return Paise
 
 
-def CloseDay(db: Session, *, DayValue: Any, CountedPaise: Any, Note: Any, Actor: User | None) -> dict[str, Any]:
+def CloseDay(db: Session, *, DayValue: Any, CountedPaise: Any, Note: Any, Actor: User | None, HandedOverPaise: Any = 0, HandoverTo: Any = None) -> dict[str, Any]:
     Day = _Day(DayValue)
     Counted = _Counted(CountedPaise)
     NoteText = _Clean(Note, 500)
+    HandedOver = _Counted(HandedOverPaise or 0)
+    HandoverText = _Clean(HandoverTo, 200)
+    if HandedOver > Counted:
+        api_error(422, "HANDOVER_TOO_LARGE", "The cash taken out cannot be more than the cash counted.")
+    if HandedOver and not HandoverText:
+        api_error(422, "HANDOVER_TO_REQUIRED", "Say where the cash went: banked (which account) or handed to whom.")
+    if not HandedOver:
+        HandoverText = None
     Row = db.query(PaymentDayClose).filter(PaymentDayClose.close_date == Day).with_for_update().first()
     if Row and Row.status == "CLOSED":
         api_error(409, "DAY_ALREADY_CLOSED", f"{Day.strftime('%d %b %Y')} is already closed. Reopen it first to close it again.")
@@ -239,6 +326,9 @@ def CloseDay(db: Session, *, DayValue: Any, CountedPaise: Any, Note: Any, Actor:
     Row.expected_cash_paise = Expected
     Row.counted_cash_paise = Counted
     Row.difference_paise = Difference
+    Row.opening_cash_paise = Live["openingCash"]["paise"]
+    Row.handed_over_paise = HandedOver
+    Row.handover_to = HandoverText
     Row.note = NoteText
     Row.fingerprint = Live["fingerprint"]
     Row.closed_by_user_id = Actor.id if Actor else None
@@ -251,7 +341,7 @@ def CloseDay(db: Session, *, DayValue: Any, CountedPaise: Any, Note: Any, Actor:
         api_error(409, "DAY_ALREADY_CLOSED", f"{Day.strftime('%d %b %Y')} was just closed by someone else. Refresh to see it.")
     WritePaymentAudit(
         db, EntityType="DAY_CLOSE", EntityId=Day.isoformat(), Action="CLOSE", Actor=Actor, Before=Before,
-        After={"expectedCashPaise": Expected, "countedCashPaise": Counted, "differencePaise": Difference, "totalPaise": Live["total"]["paise"], "paymentCount": Live["paymentCount"]},
+        After={"expectedCashPaise": Expected, "countedCashPaise": Counted, "differencePaise": Difference, "openingCashPaise": Live["openingCash"]["paise"], "handedOverPaise": HandedOver, "handoverTo": HandoverText, "totalPaise": Live["total"]["paise"], "paymentCount": Live["paymentCount"]},
         Reason=NoteText,
     )
     db.commit()
@@ -306,26 +396,66 @@ def RecentDays(db: Session, *, Days: int = RECENT_DAYS) -> dict[str, Any]:
     ):
         Totals[Row.expense_date]["cashSpent"] += Line.amount_paise
     Closes = {Row.close_date: Row for Row in db.query(PaymentDayClose).filter(PaymentDayClose.close_date >= Start, PaymentDayClose.close_date <= Today).all()}
+    Openings = _Openings(db, Start, Today, Closes)
     Dates = sorted(set(Totals) | set(Closes) | {Today}, reverse=True)
     Rows = []
     for Day in Dates:
         Entry = Totals[Day]
         Close = Closes.get(Day)
-        Changed = bool(Close and Close.status == "CLOSED" and Close.fingerprint != DayFigures(db, Day)["fingerprint"])
+        Changed = False
+        if Close and Close.status == "CLOSED":
+            Figures = DayFigures(db, Day, OpeningValue=Openings[Day])
+            Changed = Close.fingerprint != Figures["fingerprint"] or _OpeningChanged(Close, Figures)
+        Expected = Openings[Day]["paise"] + Entry["cash"] - Entry["cashSpent"]
         Rows.append({
             "date": Day.isoformat(),
             "isToday": Day == Today,
             "paymentCount": len(Entry["payments"]),
             "total": _Money(Entry["total"]),
-            "expectedCash": _Money(Entry["cash"] - Entry["cashSpent"]),
+            "expectedCash": _Money(Expected),
+            "cashMovement": _Money(Entry["cash"] - Entry["cashSpent"]),
             "state": Close.status if Close else "OPEN",
             "countedCash": _Money(Close.counted_cash_paise) if Close else None,
             "difference": _Money(Close.difference_paise) if Close else None,
+            "handedOver": _Money(Close.handed_over_paise or 0) if Close else None,
             "closedByName": Close.closed_by_name if Close else None,
             "closedAt": _Iso(Close.closed_at) if Close else None,
             "changedAfterClose": Changed,
         })
     return {"today": Today.isoformat(), "days": Rows}
+
+
+def _Openings(db: Session, Start: date, End: date, Closes: dict[date, PaymentDayClose]) -> dict[date, dict[str, Any]]:
+    """Opening for every day Start..End in one pass (same rule as Opening)."""
+    Last = _LastCloseBefore(db, Start)
+    Carry = _Kept(Last) if Last else 0
+    LastDate = Last.close_date if Last else None
+    Net = _NetCashByDay(db, (Last.close_date + timedelta(days=1)) if Last else Start, End)
+    Unclosed: list[date] = []
+    if Last:
+        for Offset in range((Start - Last.close_date).days - 1):
+            Day = Last.close_date + timedelta(days=Offset + 1)
+            Carry += Net.get(Day, 0)
+            if Net.get(Day):
+                Unclosed.append(Day)
+    Kept = _Kept(Last) if Last else 0
+    Result: dict[date, dict[str, Any]] = {}
+    Day = Start
+    while Day <= End:
+        Result[Day] = {"paise": Carry if LastDate else 0, "kept": Kept, "lastCloseDate": LastDate.isoformat() if LastDate else None,
+                       "unclosed": (Carry - Kept) if LastDate else 0, "unclosedDays": [Item.isoformat() for Item in Unclosed]}
+        Close = Closes.get(Day)
+        if Close and Close.status == "CLOSED":
+            Kept = _Kept(Close)
+            Carry = Kept
+            LastDate = Day
+            Unclosed = []
+        elif LastDate:
+            Carry += Net.get(Day, 0)
+            if Net.get(Day):
+                Unclosed.append(Day)
+        Day += timedelta(days=1)
+    return Result
 
 
 def HomeDayClose(db: Session) -> dict[str, Any]:
@@ -336,7 +466,7 @@ def HomeDayClose(db: Session) -> dict[str, Any]:
     TodayRow = next((Row for Row in Recent if Row["isToday"]), None)
     Pending = [
         Row for Row in Recent
-        if not Row["isToday"] and (Row["changedAfterClose"] or (Row["state"] != "CLOSED" and (Row["paymentCount"] or Row["expectedCash"]["paise"])))
+        if not Row["isToday"] and (Row["changedAfterClose"] or (Row["state"] != "CLOSED" and (Row["paymentCount"] or Row["cashMovement"]["paise"])))
     ]
     return {
         "today": Today.isoformat(),

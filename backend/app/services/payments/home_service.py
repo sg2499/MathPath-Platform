@@ -123,6 +123,8 @@ def PaymentsHome(db: Session) -> dict[str, Any]:
         "thisMonthCollected": Base["thisMonthCollected"],
         "lastMonthLabel": Base["lastMonthLabel"],
         "lastMonthCollected": Base["lastMonthCollected"],
+        "lastMonthToDateCollected": Base["lastMonthToDateCollected"],
+        "lastMonthToDateLabel": Base["lastMonthToDateLabel"],
         "due": Base["due"],
         "overdue": Base["overdue"],
         "studentsWithDues": Base["studentsWithDues"],
@@ -146,6 +148,7 @@ def PaymentsHome(db: Session) -> dict[str, Any]:
                 for Row in Overdue[:6]
             ],
             "setup": Setup,
+            "advance": _AdvanceAttention(db),
         },
         "online": {
             "live": Online["onlinePaymentsLive"],
@@ -321,3 +324,21 @@ def Search(db: Session, Query: Any) -> dict[str, Any]:
     ]
 
     return {"query": Text, "students": Students, "invoices": Invoices, "receipts": Receipts, "online": Online, "expenses": Expenses}
+
+
+def _AdvanceAttention(db: Session) -> dict[str, Any] | None:
+    """Advance that could pay dues right now (otherwise it waits for the next invoice)."""
+    from app.services.payments.receipts_service import AdvanceWithDues
+
+    try:
+        Rows = AdvanceWithDues(db)
+    except Exception:  # never let Home fail because of it
+        db.rollback()
+        return None
+    if not Rows:
+        return None
+    return {
+        "students": len(Rows),
+        "usable": _Money(sum(Row["usablePaise"] for Row in Rows)),
+        "names": [Row["studentName"] for Row in Rows[:3]],
+    }

@@ -208,7 +208,7 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
                     <td className="py-2 pr-3 text-right font-semibold text-slate-700 dark:text-slate-200">{month.collected.display}</td>
                     <td className="py-2 pr-3 text-right font-black text-slate-900 dark:text-white">{Percent(month.rate)}</td>
                     <td className="py-2 pr-3 text-right font-semibold text-slate-700 dark:text-slate-200">{month.averageDaysToPay ?? "—"}</td>
-                    <td className={`py-2 text-right font-black ${month.overdue.paise ? "text-rose-700 dark:text-rose-300" : "text-slate-500"}`}>{month.overdue.display}</td>
+                    <td className={`py-2 text-right font-black ${month.overdue.paise ? "text-rose-700 dark:text-rose-300" : "text-slate-500"}`}>{month.overdue.display}{month.month === data.months[data.months.length - 1]?.month ? <span className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">so far (month not over)</span> : null}</td>
                   </tr>
                 ))}
               </tbody>

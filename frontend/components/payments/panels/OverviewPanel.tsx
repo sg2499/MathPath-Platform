@@ -62,7 +62,7 @@ export function OverviewPanel() {
 
   if (!ready) return null;
   const maxBucket = Math.max(1, ...(data?.buckets ?? []).map((row) => row.paise));
-  const change = data && data.lastMonthCollected.paise ? Math.round(((data.thisMonthCollected.paise - data.lastMonthCollected.paise) / data.lastMonthCollected.paise) * 100) : null;
+  const change = data && data.lastMonthToDateCollected.paise ? Math.round(((data.thisMonthCollected.paise - data.lastMonthToDateCollected.paise) / data.lastMonthToDateCollected.paise) * 100) : null;
   const chartData = (data?.series ?? []).map((row) => ({ label: row.label, Collected: row.collected.paise / 100, Spent: row.spent.paise / 100 }));
   const grid = dark ? "#334155" : "#e2e8f0";
   const axis = dark ? "#cbd5e1" : "#475569";
@@ -141,8 +141,8 @@ export function OverviewPanel() {
                 </div>
               </dl>
               <p className="mt-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {data.lastMonthLabel}: {data.lastMonthCollected.display} collected
-                {change !== null ? ` · this month so far is ${change >= 0 ? `${change}% ahead` : `${Math.abs(change)}% behind`}` : ""}.
+                {data.lastMonthLabel}: {data.lastMonthCollected.display} collected in the whole month, {data.lastMonthToDateCollected.display} by the same date ({data.lastMonthToDateLabel})
+                {change !== null ? `. This month is ${change >= 0 ? `${change}% ahead` : `${Math.abs(change)}% behind`} that pace` : ""}.
               </p>
             </section>
 

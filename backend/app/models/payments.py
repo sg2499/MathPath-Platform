@@ -612,5 +612,14 @@ class PaymentDayClose(Base):
     reopened_by_name = Column(String(150), nullable=True)
     reopened_at = Column(DateTime(timezone=True), nullable=True)
     reopen_reason = Column(Text, nullable=True)
+    # 2026-10-11: the drawer carries over. Opening = what was kept in the
+    # drawer at the last close (counted − handed over) plus the cash of any
+    # days in between that were never closed. Cash taken out at close (banked
+    # or handed over) is recorded with who or where it went.
+    # NULL on closes made before 2026-10-11: those are treated as having
+    # handed everything over, and their opening is never compared.
+    opening_cash_paise = Column(Integer, nullable=True)
+    handed_over_paise = Column(Integer, nullable=False, default=0, server_default="0")
+    handover_to = Column(String(200), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

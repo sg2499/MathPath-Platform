@@ -1722,6 +1722,20 @@ def ensure_payments_foundation() -> None:
             with engine.begin() as connection:
                 connection.execute(text(f"ALTER TABLE payment_invoices ADD COLUMN {if_not_exists}discount_paise INTEGER NOT NULL DEFAULT 0"))
 
+    # 2026-10-11 (Payments review): Day Close carries the drawer over and
+    # records cash handed over or banked at close.
+    if "payment_day_closes" in inspector.get_table_names():
+        existing = {column["name"] for column in inspector.get_columns("payment_day_closes")}
+        if_not_exists = "" if engine.dialect.name == "sqlite" else "IF NOT EXISTS "
+        for name, ddl in (
+            ("opening_cash_paise", "INTEGER"),
+            ("handed_over_paise", "INTEGER NOT NULL DEFAULT 0"),
+            ("handover_to", "VARCHAR(200)"),
+        ):
+            if name not in existing:
+                with engine.begin() as connection:
+                    connection.execute(text(f"ALTER TABLE payment_day_closes ADD COLUMN {if_not_exists}{name} {ddl}"))
+
     from app.services.payments.setup_service import EnsurePaymentDefaults
 
     db = SessionLocal()
