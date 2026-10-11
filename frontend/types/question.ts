@@ -43,6 +43,9 @@ export type DpsStudentQuestion = {
   question_text?: string | null;
   display_type?: string | null;
   savedAnswerText?: string | null;
+  // "QUOTIENT_REMAINDER" when the answer is typed as "12, 3"; says nothing
+  // about the answer's value.
+  answerFormat?: string | null;
 };
 
 export type AdminPreviewOption = {

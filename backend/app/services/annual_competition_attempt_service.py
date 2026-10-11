@@ -141,6 +141,7 @@ from typing import Any
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.services.student_question_safety import answer_format
 from app.core import config as app_config
 from app.core.errors import api_error
 from app.services.answer_matching import answers_match
@@ -649,6 +650,7 @@ def _ActiveSectionQuestionsPayload(db: Session, AttemptRecord: CompetitionEventA
                 # payload reaches the student's own browser mid-attempt,
                 # same guarantee _QuestionOptionPayload's is_correct
                 # omission already made for the old MCQ shape.
+                "answerFormat": answer_format(QuestionRecord.correct_answer),
                 "savedAnswerText": ExistingAnswer.selected_value if ExistingAnswer else None,
             }
         )

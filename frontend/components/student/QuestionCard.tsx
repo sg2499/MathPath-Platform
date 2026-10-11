@@ -121,6 +121,7 @@ export function QuestionCard({
             initialValue={savedAnswerText}
             disabled={disabled}
             onSave={onSave}
+            answerFormat={(question as any).answerFormat ?? null}
           />
           {phoneNav ? <PhoneQuestionArrow direction="next" disabled={!phoneNav.canNext} onClick={phoneNav.onNext} /> : null}
         </div>

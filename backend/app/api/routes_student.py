@@ -19,6 +19,8 @@ from app.services.assessment_engine_service import (
     AssessmentAttemptPayload,
     GetAssessmentAttemptForStudent,
     SaveAssessmentAnswer,
+    EnsureOpenAccessAssessmentAssignments,
+    IsAssessmentOpenAccessStudent,
     SubmitAssessmentAttempt,
     AssessmentResultPayload,
 )
@@ -104,7 +106,8 @@ class StartAssessmentRequest(BaseModel):
 
 class SaveAssessmentAnswerRequest(BaseModel):
     questionId: str
-    selectedOptionId: str
+    answerText: str | None = None
+    selectedOptionId: str | None = None
 
 
 class StartCompetitionMockRequest(BaseModel):
@@ -584,6 +587,10 @@ def assignments(db: Session = Depends(get_db), student: Student = Depends(get_cu
 @router.get("/assessments")
 def student_assessments(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     payload = []
+    # The test account (MP-ST-001) holds every published assessment and may
+    # take any of them again (see IsAssessmentOpenAccessStudent).
+    EnsureOpenAccessAssessmentAssignments(db, student)
+    OpenAccess = IsAssessmentOpenAccessStudent(student)
 
     EngineAssignments = (
         db.query(AssessmentAssignment)
@@ -600,6 +607,7 @@ def student_assessments(db: Session = Depends(get_db), student: Student = Depend
         Row["durationMinutes"] = Row.get("durationMinutes")
         Row["durationSeconds"] = Row.get("durationSeconds")
         Row["reattemptAvailable"] = Row.get("status") == "REATTEMPT_AVAILABLE"
+        Row["canRetake"] = OpenAccess
         payload.append(Row)
 
     LegacyRows = [a for a in get_student_assignments(db, student) if a.assignment_type == "ASSESSMENT"]
@@ -1131,7 +1139,7 @@ def resume_assessment_attempt(attempt_id: str, db: Session = Depends(get_db), st
 
 @router.post("/assessment-attempts/{attempt_id}/answers")
 def save_assessment_attempt_answer(attempt_id: str, payload: SaveAssessmentAnswerRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
-    return SaveAssessmentAnswer(db, student, attempt_id, payload.questionId, payload.selectedOptionId)
+    return SaveAssessmentAnswer(db, student, attempt_id, payload.questionId, AnswerText=payload.answerText, SelectedOptionId=payload.selectedOptionId)
 
 
 @router.post("/assessment-attempts/{attempt_id}/submit")

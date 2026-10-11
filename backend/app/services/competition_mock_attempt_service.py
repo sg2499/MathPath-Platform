@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
 from app.services.competition_mock_generation_service import _MmCompetitionPadVisualAddLessRows
+from app.services.student_question_safety import student_safe_metadata
 from app.models import (
     CompetitionMockAssignment,
     CompetitionMockAttempt,
@@ -277,7 +278,9 @@ def _question_payload(
         "questionText": question.question_text,
         "operands": shaped_question.get("operands") or [],
         "operators": shaped_question.get("operators") or [],
-        "metadata": metadata,
+        # Only the question's text and section reach the open paper (see
+        # student_question_safety.py); the review after submit is unchanged.
+        "metadata": student_safe_metadata(metadata),
         "options": [
             {
                 "optionId": option.id,

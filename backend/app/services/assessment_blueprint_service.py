@@ -29,6 +29,7 @@ from app.models import (
 )
 
 from app.services.assessment_engine_service import (
+    ApplyAssessmentSectionOverrides,
     RegisterPublishedBlueprintVersion,
     AssessmentModuleCode,
     _CONCEPT_WEIGHTED_MODULES,
@@ -99,7 +100,7 @@ def level_section_registry_config(module_code: str, level: Level) -> dict[str, A
             "competition_mock_generation_service.py) before an assessment can be built for this level.",
             {"moduleCode": module_code, "levelCode": level_code},
         )
-    return config
+    return ApplyAssessmentSectionOverrides(module_code, level_code, config)
 
 
 def _weighted_section_keys(registry_config: dict[str, Any]) -> set[str]:

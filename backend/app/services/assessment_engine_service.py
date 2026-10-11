@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import replace
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import uuid4
 
+from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
+from app.services.answer_matching import answers_match
+from app.services.student_question_safety import answer_format, student_safe_metadata
 from app.models import (
     AssessmentAssignment,
     AssessmentAttempt,
@@ -487,7 +492,38 @@ def SectionWiseLevelConfig(ModuleCode: str, LevelItem: Level | None) -> dict[str
             f"No competition mock section structure has been defined yet for {ModuleCode} level '{LevelCode}'.",
             {"moduleCode": ModuleCode, "levelCode": LevelCode},
         )
-    return Config
+    return ApplyAssessmentSectionOverrides(ModuleCode, LevelCode, Config)
+
+
+# Assessment-only changes to a level's mock section structure (2026-10-11,
+# Shailesh). An assessment must only test what the level's own practice sheets
+# teach. PM-L3's mock Section 4 is "Division & BODMAS", but division appears in
+# a single practice sheet (Lesson 10, DPS 3), so the assessment's Section 4 is
+# BODMAS only. Mocks and the Annual Competition keep the shared registry
+# unchanged; the section KEY is kept so blueprints already saved stay valid.
+_ASSESSMENT_SECTION_OVERRIDES: dict[tuple[str, str], dict[str, dict[str, Any]]] = {
+    ("PM", "PM-L3"): {
+        "PM_L3_DIVISION_BODMAS": {
+            "title": "Section 4 - BODMAS",
+            "pool": [{"title": "BODMAS", "conceptFamily": "BODMAS", "bodmasTemplate": "MIXED"}],
+        },
+    },
+}
+
+
+def ApplyAssessmentSectionOverrides(ModuleCode: str | None, LevelCode: str | None, Config: dict[str, Any]) -> dict[str, Any]:
+    Overrides = _ASSESSMENT_SECTION_OVERRIDES.get(((ModuleCode or "").upper(), str(LevelCode or "")))
+    if not Overrides:
+        return Config
+    Definitions = [
+        {**Definition, "title": Overrides[Definition["key"]]["title"]} if Definition.get("key") in Overrides and Overrides[Definition["key"]].get("title") else dict(Definition)
+        for Definition in Config.get("sectionDefinitions", [])
+    ]
+    Pools = {
+        Key: [dict(Item) for Item in Overrides[Key]["pool"]] if Key in Overrides and Overrides[Key].get("pool") else Pool
+        for Key, Pool in (Config.get("sectionConceptPools", {}) or {}).items()
+    }
+    return {**Config, "sectionDefinitions": Definitions, "sectionConceptPools": Pools}
 
 
 def MmSectionRegistryConfig(LevelItem: Level | None, SectionDefinition: dict[str, Any], ConceptSpec: dict[str, Any], QuestionCount: int, Seed: str) -> MMConfig:
@@ -2170,6 +2206,73 @@ def PromotedLevelStartPayload(Db: Session, Promotion: StudentLevelPromotion | No
     }
 
 
+# Test account (2026-10-11, Shailesh): MP-ST-001 can open every level's
+# published assessment at any time and retake it freely, so the papers can be
+# checked end to end on the live site. It is never promoted by an assessment,
+# never raises a re-attempt request and never sends result notifications.
+ASSESSMENT_OPEN_ACCESS_STUDENT_CODES = frozenset({"MP-ST-001"})
+
+
+def IsAssessmentOpenAccessStudent(StudentItem: Student | None) -> bool:
+    if not StudentItem:
+        return False
+    Codes = {str(getattr(StudentItem, Field, "") or "").strip().upper() for Field in ("student_code", "custom_id")}
+    return bool(Codes & ASSESSMENT_OPEN_ACCESS_STUDENT_CODES)
+
+
+def EnsureOpenAccessAssessmentAssignments(Db: Session, StudentItem: Student) -> int:
+    """For the test account only: makes sure it holds an assignment for every
+    published assessment version of every level, so each one shows on its
+    Assessments page. Returns how many were created. Does nothing for any
+    other student."""
+    if not IsAssessmentOpenAccessStudent(StudentItem):
+        return 0
+    Held = {
+        VersionId
+        for (VersionId,) in Db.query(AssessmentAssignment.assessment_version_id)
+        .filter(AssessmentAssignment.student_id == StudentItem.id)
+        .all()
+    }
+    Created = 0
+    for Version in AvailablePublishedVersions(Db):
+        if Version.id in Held:
+            continue
+        Db.add(AssessmentAssignment(
+            assessment_version_id=Version.id,
+            blueprint_id=Version.blueprint_id,
+            student_id=StudentItem.id,
+            status="ASSIGNED",
+            assessment_assignment_type="ORIGINAL",
+            current_attempt_number=0,
+            max_attempts=1,
+            is_active=True,
+        ))
+        Created += 1
+    if Created:
+        try:
+            Db.commit()
+        except IntegrityError:
+            # Another request (a second tab) created them at the same moment.
+            Db.rollback()
+            return 0
+    return Created
+
+
+def _PromotionBlockForStudent(StudentItem: Student | None, LevelItem: Level | None) -> tuple[str, str] | None:
+    """Why this student cannot be promoted from this assessment's level, or
+    None. A student who has already moved to another level (promoted by an
+    earlier result, or moved by an admin) must never be promoted again from an
+    older level's result: that would move them sideways or backwards."""
+    if IsAssessmentOpenAccessStudent(StudentItem):
+        return ("TEST_ACCOUNT_NOT_PROMOTED", "This is the test account. Its assessment results never change its level.")
+    if StudentItem and LevelItem and StudentItem.current_level_id and StudentItem.current_level_id != LevelItem.id:
+        return (
+            "PROMOTION_LEVEL_MISMATCH",
+            f"The student is no longer on {LevelItem.level_code}, so this result cannot promote them. Check their current level in Students.",
+        )
+    return None
+
+
 def AssessmentProgressionPayload(
     Db: Session,
     Assignment: AssessmentAssignment | None,
@@ -2235,6 +2338,18 @@ def AssessmentProgressionPayload(
     NextModule = Db.get(Module, NextLevel.module_id) if NextLevel else None
     NextLevelAvailable = bool(NextLevel)
     PromotionBlockReason = None if NextLevelAvailable else f"No next level is available after {LevelItem.level_code if LevelItem else 'this level'}. Create the next level in Learning Path before promoting this student."
+    StudentBlock = _PromotionBlockForStudent(Db.get(Student, Assignment.student_id), LevelItem)
+    if StudentBlock:
+        return {
+            "progressionStatus": "NOT_AVAILABLE",
+            "progressionStatusLabel": "Not Available",
+            "isReadyForNextLevel": False,
+            "isPromoted": False,
+            "nextLevelAvailable": NextLevelAvailable,
+            "promotionCanProceed": False,
+            "promotionBlockReason": StudentBlock[1],
+            "progressionMessage": StudentBlock[1],
+        }
 
     return {
         "progressionStatus": "READY_FOR_NEXT_LEVEL",
@@ -2287,6 +2402,10 @@ def PromoteAssessmentStudentToNextLevel(Db: Session, AssessmentAssignmentId: str
     Attempt = LatestAssessmentAttemptForAssignment(Db, Assignment.id)
     if not Result or not Result.cleared:
         api_error(400, "PROMOTION_NOT_AVAILABLE", "Student can be promoted only after clearing the level assessment.")
+
+    StudentBlock = _PromotionBlockForStudent(StudentItem, LevelItem)
+    if StudentBlock:
+        api_error(400, StudentBlock[0], StudentBlock[1])
 
     NextLevel = NextLevelForLevel(Db, LevelItem)
     if not NextLevel:
@@ -2596,13 +2715,11 @@ def AssessmentRemainingSeconds(Attempt: AssessmentAttempt) -> int:
     return max(0, int(Delta.total_seconds()))
 
 
-def AssessmentQuestionSafePayload(Db: Session, Question: AssessmentQuestion, SavedOptionId: str | None = None) -> dict[str, Any]:
-    Options = (
-        Db.query(AssessmentQuestionOption)
-        .filter(AssessmentQuestionOption.assessment_question_id == Question.id)
-        .order_by(AssessmentQuestionOption.display_order.asc(), AssessmentQuestionOption.option_label.asc())
-        .all()
-    )
+def AssessmentQuestionSafePayload(Db: Session, Question: AssessmentQuestion, SavedAnswer: "AssessmentAttemptAnswer | None" = None) -> dict[str, Any]:
+    """2026-10-11 (Shailesh): assessments are answered by typing, in the same
+    answer box as practice sheets and the Annual Competition. The options a
+    version was generated with are never sent to the student any more (one of
+    them is the correct answer), and a saved answer comes back as its text."""
     return {
         "questionId": Question.id,
         "questionNumber": Question.question_number,
@@ -2610,22 +2727,16 @@ def AssessmentQuestionSafePayload(Db: Session, Question: AssessmentQuestion, Sav
         "questionText": Question.question_text,
         "operands": SafeJson(Question.operands_json, []),
         "operators": SafeJson(Question.operators_json, []),
-        "metadata": SafeJson(Question.metadata_json, {}),
-        "savedOptionId": SavedOptionId,
-        "options": [
-            {
-                "optionId": Option.id,
-                "label": Option.option_label,
-                "value": Option.option_value,
-            }
-            for Option in Options
-        ],
+        # Only the question's text and section (see student_question_safety.py).
+        "metadata": student_safe_metadata(SafeJson(Question.metadata_json, {})),
+        "answerFormat": answer_format(Question.correct_answer),
+        "savedAnswerText": (SavedAnswer.selected_value or None) if SavedAnswer else None,
     }
 
 
 def AssessmentQuestionsForAttempt(Db: Session, Attempt: AssessmentAttempt) -> list[dict[str, Any]]:
     SavedAnswers = {
-        Answer.assessment_question_id: Answer.selected_option_id
+        Answer.assessment_question_id: Answer
         for Answer in Db.query(AssessmentAttemptAnswer)
         .filter(AssessmentAttemptAnswer.assessment_attempt_id == Attempt.id)
         .all()
@@ -2692,6 +2803,13 @@ def StudentAssessmentStartPayload(Db: Session, StudentItem: Student, AssignmentI
         .order_by(AssessmentResult.completion_date.desc().nullslast(), AssessmentResult.created_at.desc())
         .first()
     )
+    Sections = AssessmentVersionSections(Db, Version)
+    HasRemainderAnswers = bool(Version) and (
+        Db.query(AssessmentQuestion.id)
+        .filter(AssessmentQuestion.assessment_version_id == Version.id, AssessmentQuestion.correct_answer.like("%,%"))
+        .first()
+        is not None
+    )
     Action = "Start Assessment"
     if LatestAttempt and LatestAttempt.status == "IN_PROGRESS":
         Action = "Resume Assessment"
@@ -2710,6 +2828,7 @@ def StudentAssessmentStartPayload(Db: Session, StudentItem: Student, AssignmentI
         "attemptId": LatestAttempt.id if LatestAttempt else None,
         "resultAttemptId": LatestResult.assessment_attempt_id if LatestResult else None,
         "action": Action,
+        "canRetake": IsAssessmentOpenAccessStudent(StudentItem) and Action == "View Result",
         "details": {
             "questions": Version.total_questions if Version else 0,
             "totalMarks": Version.total_marks if Version else 100,
@@ -2717,18 +2836,32 @@ def StudentAssessmentStartPayload(Db: Session, StudentItem: Student, AssignmentI
             "durationMinutes": round((Version.duration_seconds or 0) / 60, 2) if Version else 0,
             "marksPerQuestion": Version.marks_per_question if Version else 0,
             "benchmarkPercentage": PASSING_PERCENTAGE,
-            "answerType": "MCQ",
-            "optionsPerQuestion": 4,
+            "answerType": "TYPED",
             "navigationAllowed": True,
             "autoSubmit": True,
         },
-        "instructions": [
-            "Answer each question carefully before submitting.",
-            "Each question has 4 options.",
-            "You can move between questions using the navigator.",
-            "The assessment will auto-submit when time is up.",
-        ],
+        "sections": Sections,
+        "instructions": AssessmentInstructions(Version, Sections, HasRemainderAnswers),
     }
+
+
+def AssessmentInstructions(Version: AssessmentVersion | None, Sections: list[dict[str, Any]], HasRemainderAnswers: bool = False) -> list[str]:
+    """The 'Before You Begin' list on the assessment brief. Plain, short, and
+    true for every level: typed answers, one overall timer, sections in order
+    with free movement back, auto-save and auto-submit."""
+    Minutes = int(round((Version.duration_seconds or 0) / 60)) if Version else 0
+    Lines = ["Type each answer in the answer box and press Enter to save it and move to the next question."]
+    if HasRemainderAnswers:
+        Lines.append("For a division with a remainder, type the quotient and the remainder separated by a comma, for example 12, 3.")
+    if len(Sections) > 1:
+        Lines.append(f"The paper has {len(Sections)} sections. A short briefing opens as you reach each one; the timer keeps running.")
+        Lines.append("You can go back to any earlier question or section and change your answer before you submit.")
+    else:
+        Lines.append("You can go back to any question and change your answer before you submit.")
+    Lines.append(f"You have {Minutes} minutes in total. The timer starts when you press Start and does not pause." if Minutes else "The timer starts when you press Start and does not pause.")
+    Lines.append("Answers save automatically. When time is up, the assessment submits itself with the answers saved so far.")
+    Lines.append(f"Score {int(PASSING_PERCENTAGE)}% or more to clear the level.")
+    return Lines
 
 
 def StartAssessmentAttempt(Db: Session, StudentItem: Student, AssignmentId: str) -> AssessmentAttempt:
@@ -2745,7 +2878,8 @@ def StartAssessmentAttempt(Db: Session, StudentItem: Student, AssignmentId: str)
     )
     if LatestAttempt and LatestAttempt.status == "IN_PROGRESS":
         return LatestAttempt
-    if LatestAttempt and LatestAttempt.status in {"CLEARED", "NEEDS_RE_ATTEMPT", "SUBMITTED", "AUTO_SUBMITTED"}:
+    OpenAccess = IsAssessmentOpenAccessStudent(StudentItem)
+    if LatestAttempt and LatestAttempt.status in {"CLEARED", "NEEDS_RE_ATTEMPT", "SUBMITTED", "AUTO_SUBMITTED"} and not OpenAccess:
         api_error(400, "ASSESSMENT_ALREADY_ATTEMPTED", "This assessment attempt is already completed. View the result or wait for re-attempt access.")
 
     QuestionCount = Db.query(AssessmentQuestion).filter(AssessmentQuestion.assessment_version_id == Version.id).count()
@@ -2762,6 +2896,8 @@ def StartAssessmentAttempt(Db: Session, StudentItem: Student, AssignmentId: str)
         LinkedApproval = Db.get(AssessmentReattemptApproval, getattr(Assignment, "reattempt_approval_id", None)) if getattr(Assignment, "reattempt_approval_id", None) else None
         if LinkedApproval and LinkedApproval.next_attempt_number:
             AttemptNumber = int(LinkedApproval.next_attempt_number)
+    if OpenAccess and LatestAttempt:
+        AttemptNumber = int(LatestAttempt.attempt_number or 0) + 1
 
     Attempt = AssessmentAttempt(
         assessment_assignment_id=Assignment.id,
@@ -2782,6 +2918,58 @@ def StartAssessmentAttempt(Db: Session, StudentItem: Student, AssignmentId: str)
     Db.commit()
     Db.refresh(Attempt)
     return Attempt
+
+
+_SECTION_PREFIX_RE = re.compile(r"^\s*Section\s+\d+\s*[-:\u2013\u2014]\s*", re.IGNORECASE)
+
+
+def AssessmentSectionName(Title: str | None) -> str:
+    """'Section 4 - BODMAS' -> 'BODMAS' (the number is shown separately)."""
+    return _SECTION_PREFIX_RE.sub("", str(Title or "")).strip()
+
+
+def AssessmentVersionSections(Db: Session, Version: AssessmentVersion | None) -> list[dict[str, Any]]:
+    """The sections of one generated version, in question order: number,
+    name, how many questions, the first and last question number, and the
+    marks. Built from the questions themselves, so it is always exactly what
+    the student is asked. A version made before sections existed (lesson-wise)
+    returns one unnamed section covering every question."""
+    if not Version:
+        return []
+    Questions = (
+        Db.query(AssessmentQuestion)
+        .filter(AssessmentQuestion.assessment_version_id == Version.id)
+        .order_by(AssessmentQuestion.question_number.asc())
+        .all()
+    )
+    Total = len(Questions)
+    Sections: list[dict[str, Any]] = []
+    for Question in Questions:
+        Metadata = SafeJson(Question.metadata_json, {}) or {}
+        Key = Metadata.get("assessmentSectionKey") or "ALL"
+        if not Sections or Sections[-1]["key"] != Key:
+            Number = Metadata.get("assessmentSectionNumber")
+            Sections.append({
+                "key": Key,
+                "sectionNumber": int(Number) if Number else len(Sections) + 1,
+                "title": AssessmentSectionName(Metadata.get("assessmentSectionTitle")) or None,
+                "questionCount": 0,
+                "firstQuestionNumber": Question.question_number,
+                "lastQuestionNumber": Question.question_number,
+                "marks": 0.0,
+            })
+        Section = Sections[-1]
+        Section["questionCount"] += 1
+        Section["lastQuestionNumber"] = Question.question_number
+        Section["marks"] += float(ResolvedAssessmentQuestionMark(Db, Version, Question, Total) or 0)
+    for Section in Sections:
+        Marks = Section["marks"]
+        Section["marks"] = int(Marks) if float(Marks).is_integer() else round(Marks, 2)
+        Section["marksPerQuestion"] = (
+            (int(Marks / Section["questionCount"]) if float(Marks / Section["questionCount"]).is_integer() else round(Marks / Section["questionCount"], 2))
+            if Section["questionCount"] else 0
+        )
+    return Sections
 
 
 def AssessmentAttemptPayload(Db: Session, Attempt: AssessmentAttempt) -> dict[str, Any]:
@@ -2805,26 +2993,61 @@ def AssessmentAttemptPayload(Db: Session, Attempt: AssessmentAttempt) -> dict[st
         "totalQuestions": Attempt.total_questions,
         "totalMarks": Version.total_marks if Version else Attempt.max_score,
         "benchmarkPercentage": PASSING_PERCENTAGE,
+        "answerMode": "TYPED",
+        "sections": AssessmentVersionSections(Db, Version) if Attempt.status == "IN_PROGRESS" else [],
         "questions": AssessmentQuestionsForAttempt(Db, Attempt) if Attempt.status == "IN_PROGRESS" else [],
         "resultAvailable": Attempt.status != "IN_PROGRESS",
     }
 
 
-def SaveAssessmentAnswer(Db: Session, StudentItem: Student, AttemptId: str, QuestionId: str, SelectedOptionId: str) -> dict[str, Any]:
+MAX_ASSESSMENT_ANSWER_LENGTH = 40
+
+
+def _LockAssessmentAttempt(Db: Session, AttemptId: str) -> AssessmentAttempt | None:
+    """SELECT ... FOR UPDATE on this one attempt for the rest of the
+    transaction, so a typed answer and Submit can never race: whichever runs
+    second sees the first one's work. Same guard the practice-sheet and
+    Annual Competition typed-answer paths use (attempt_service.
+    _lock_attempt_for_update, annual _LockAttemptForUpdate)."""
+    return Db.query(AssessmentAttempt).filter(AssessmentAttempt.id == AttemptId).with_for_update().populate_existing().first()
+
+
+def _AnsweredCount(Db: Session, AttemptId: str) -> int:
+    return (
+        Db.query(AssessmentAttemptAnswer)
+        .filter(
+            AssessmentAttemptAnswer.assessment_attempt_id == AttemptId,
+            or_(AssessmentAttemptAnswer.selected_option_id.isnot(None), func.coalesce(AssessmentAttemptAnswer.selected_value, "") != ""),
+        )
+        .count()
+    )
+
+
+def SaveAssessmentAnswer(Db: Session, StudentItem: Student, AttemptId: str, QuestionId: str, AnswerText: str | None = None, SelectedOptionId: str | None = None) -> dict[str, Any]:
+    """Saves one typed answer (2026-10-11). An empty answer clears the
+    question. SelectedOptionId is still accepted for a multiple-choice attempt
+    opened before typed answers arrived, so an old browser tab cannot break."""
     # GetAssessmentAttemptForStudent() already runs EnsureAssessmentAttemptActiveOrAutoSubmit()
-    # internally, so an expired attempt is auto-submitted (with its notification
-    # sent, exactly once) before it's ever returned here -- no need for a second,
-    # duplicate expiry check in this function anymore.
+    # internally, so an expired attempt is auto-submitted before it is ever returned here.
     Attempt = GetAssessmentAttemptForStudent(Db, StudentItem, AttemptId)
     if Attempt.status != "IN_PROGRESS":
         return {"status": Attempt.status, "resultAvailable": True}
+    Attempt = _LockAssessmentAttempt(Db, Attempt.id) or Attempt
+    if Attempt.status != "IN_PROGRESS":
+        Db.commit()
+        return {"status": Attempt.status, "resultAvailable": True}
 
     Question = Db.get(AssessmentQuestion, QuestionId)
-    Option = Db.get(AssessmentQuestionOption, SelectedOptionId)
     if not Question or Question.assessment_version_id != Attempt.assessment_version_id:
         api_error(404, "ASSESSMENT_QUESTION_NOT_FOUND", "Assessment question not found.")
-    if not Option or Option.assessment_question_id != Question.id:
-        api_error(400, "INVALID_ASSESSMENT_OPTION", "Selected option does not belong to this question.")
+    Option = None
+    if SelectedOptionId and AnswerText is None:
+        Option = Db.get(AssessmentQuestionOption, SelectedOptionId)
+        if not Option or Option.assessment_question_id != Question.id:
+            api_error(400, "INVALID_ASSESSMENT_OPTION", "Selected option does not belong to this question.")
+    Text = None if Option else str(AnswerText or "").strip()
+    if Text is not None and len(Text) > MAX_ASSESSMENT_ANSWER_LENGTH:
+        api_error(422, "ANSWER_TOO_LONG", "That answer is too long. Check it and try again.")
 
     Answer = (
         Db.query(AssessmentAttemptAnswer)
@@ -2834,27 +3057,36 @@ def SaveAssessmentAnswer(Db: Session, StudentItem: Student, AttemptId: str, Ques
         )
         .first()
     )
+    if Text == "":
+        if Answer:
+            Db.delete(Answer)
+            Db.flush()
+        Attempt.attempted_count = _AnsweredCount(Db, Attempt.id)
+        Db.commit()
+        return {"saved": True, "cleared": True, "status": Attempt.status, "questionId": Question.id, "answerText": ""}
+
     if not Answer:
         Answer = AssessmentAttemptAnswer(
             assessment_attempt_id=Attempt.id,
             assessment_question_id=Question.id,
         )
         Db.add(Answer)
-    Answer.selected_option_id = Option.id
-    Answer.selected_value = Option.option_value
-    Answer.is_correct = bool(Option.is_correct)
     Version = Db.get(AssessmentVersion, Attempt.assessment_version_id)
-    Answer.marks_awarded = ResolvedAssessmentQuestionMark(Db, Version, Question) if Option.is_correct else 0.0
+    if Option:
+        Answer.selected_option_id = Option.id
+        Answer.selected_value = Option.option_value
+        Answer.is_correct = bool(Option.is_correct)
+    else:
+        Answer.selected_option_id = None
+        Answer.selected_value = Text
+        Answer.is_correct = answers_match(Question.correct_answer, Text)
+    Answer.marks_awarded = ResolvedAssessmentQuestionMark(Db, Version, Question) if Answer.is_correct else 0.0
     Answer.answered_at = NowUtc()
     Answer.updated_at = NowUtc()
-
-    Attempt.attempted_count = (
-        Db.query(AssessmentAttemptAnswer)
-        .filter(AssessmentAttemptAnswer.assessment_attempt_id == Attempt.id, AssessmentAttemptAnswer.selected_option_id.isnot(None))
-        .count()
-    )
+    Db.flush()
+    Attempt.attempted_count = _AnsweredCount(Db, Attempt.id)
     Db.commit()
-    return {"saved": True, "status": Attempt.status, "questionId": Question.id, "selectedOptionId": Option.id}
+    return {"saved": True, "status": Attempt.status, "questionId": Question.id, "answerText": Answer.selected_value}
 
 
 def SubmitAssessmentAttempt(Db: Session, StudentItem: Student, AttemptId: str, Auto: bool = False) -> AssessmentAttempt:
@@ -2872,6 +3104,10 @@ def _SubmitAssessmentAttemptCore(Db: Session, Attempt: AssessmentAttempt, Auto: 
     """
     if Attempt.status != "IN_PROGRESS":
         return Attempt
+    Attempt = _LockAssessmentAttempt(Db, Attempt.id) or Attempt
+    if Attempt.status != "IN_PROGRESS":
+        Db.commit()
+        return Attempt
 
     Version = Db.get(AssessmentVersion, Attempt.assessment_version_id)
     Assignment = Db.get(AssessmentAssignment, Attempt.assessment_assignment_id)
@@ -2887,13 +3123,19 @@ def _SubmitAssessmentAttemptCore(Db: Session, Attempt: AssessmentAttempt, Auto: 
     TotalQuestions = len(Questions)
     for Question in Questions:
         Answer = Answers.get(Question.id)
-        if Answer and Answer.selected_option_id:
+        Typed = bool(Answer and not Answer.selected_option_id and str(Answer.selected_value or "").strip())
+        if Answer and (Answer.selected_option_id or Typed):
             AttemptedCount += 1
-            Option = Db.get(AssessmentQuestionOption, Answer.selected_option_id)
-            IsCorrect = bool(Option and Option.is_correct)
+            if Typed:
+                # 2026-10-11: typed answer, judged exactly like practice sheets
+                # and the Annual Competition (answer_matching.answers_match).
+                IsCorrect = answers_match(Question.correct_answer, Answer.selected_value)
+            else:
+                Option = Db.get(AssessmentQuestionOption, Answer.selected_option_id)
+                IsCorrect = bool(Option and Option.is_correct)
+                Answer.selected_value = Option.option_value if Option else Answer.selected_value
             QuestionMarks = ResolvedAssessmentQuestionMark(Db, Version, Question, TotalQuestions)
             Answer.is_correct = IsCorrect
-            Answer.selected_value = Option.option_value if Option else Answer.selected_value
             Answer.marks_awarded = QuestionMarks if IsCorrect else 0.0
             if IsCorrect:
                 CorrectCount += 1
@@ -2959,7 +3201,8 @@ def _SubmitAssessmentAttemptCore(Db: Session, Attempt: AssessmentAttempt, Auto: 
     ExistingResult.level_cleared = Status == "CLEARED"
     ExistingResult.completion_date = SubmittedAt
 
-    if Assignment and Status == "NEEDS_RE_ATTEMPT":
+    OpenAccess = IsAssessmentOpenAccessStudent(Db.get(Student, Attempt.student_id))
+    if Assignment and Status == "NEEDS_RE_ATTEMPT" and not OpenAccess:
         EnsurePendingAssessmentReattemptApproval(
             Db,
             Assignment,
@@ -2970,12 +3213,15 @@ def _SubmitAssessmentAttemptCore(Db: Session, Attempt: AssessmentAttempt, Auto: 
     Db.commit()
     Db.refresh(Attempt)
 
-    _ProcessAssessmentCompletionNotification(Db, Attempt)
+    if not OpenAccess:
+        _ProcessAssessmentCompletionNotification(Db, Attempt)
     # Transient (non-persisted) attribute -- same pattern as attempt_service.
     # py's submit_attempt() / competition_mock_attempt_service.py's
     # _side_effects_result, lets AssessmentResultPayload() surface this same
     # request's reward_breakdown without a second DB round-trip.
-    Attempt._side_effects_result = _ProcessAssessmentGamificationSideEffects(Db, Attempt)
+    # The test account earns no XP or coins, so its free retakes never move
+    # it up a leaderboard.
+    Attempt._side_effects_result = None if OpenAccess else _ProcessAssessmentGamificationSideEffects(Db, Attempt)
 
     return Attempt
 
@@ -3166,6 +3412,14 @@ def AssessmentResultPayload(Db: Session, Attempt: AssessmentAttempt, IncludeRevi
                 "operands": SafeJson(Question.operands_json, []),
                 "operators": SafeJson(Question.operators_json, []),
                 "isCorrect": bool(Answer and Answer.is_correct),
+                # Typed answers (2026-10-11): what the student wrote and the
+                # correct answer, as text. selectedOption / correctOption stay
+                # for the results of multiple-choice attempts made before.
+                "selectedAnswer": (Answer.selected_value or None) if Answer else None,
+                "correctAnswer": Question.correct_answer,
+                "answerMode": "OPTION" if Answer and Answer.selected_option_id else "TYPED",
+                "sectionNumber": (SafeJson(Question.metadata_json, {}) or {}).get("assessmentSectionNumber"),
+                "sectionTitle": AssessmentSectionName((SafeJson(Question.metadata_json, {}) or {}).get("assessmentSectionTitle")) or None,
                 "selectedOption": {"id": Selected.id, "label": Selected.option_label, "value": Selected.option_value} if Selected else None,
                 "correctOption": {"id": Correct.id, "label": Correct.option_label, "value": Correct.option_value} if Correct else None,
             })

@@ -192,10 +192,16 @@ function scopeText(row: AssessmentRow) {
     .join(" • ");
 }
 
+// The test account (MP-ST-001) may take any assessment again: its finished
+// rows open the assessment brief, which offers both Take It Again and View Result.
+function canRetakeRow(row: AssessmentRow) {
+  return Boolean((row as Record<string, unknown>).canRetake);
+}
+
 function assessmentHref(row: AssessmentRow) {
   const status = normalizeStatus(row.status);
   const attemptId = value(row, ["attemptId"], "");
-  if (["COMPLETED", "CLEARED", "NEEDS_RE_ATTEMPT", "REATTEMPT_AVAILABLE"].includes(status) && attemptId) {
+  if (["COMPLETED", "CLEARED", "NEEDS_RE_ATTEMPT", "REATTEMPT_AVAILABLE"].includes(status) && attemptId && !canRetakeRow(row)) {
     return `/student/assessment-result/${attemptId}`;
   }
   const id = value(row, ["assignmentId", "assessmentAssignmentId", "assessmentId", "id"], "");
@@ -738,7 +744,8 @@ function StudentAssessmentRecordRow({ row, FocusTarget }: { row: AssessmentRow; 
   const title = assessmentTitle(row);
   const status = statusDisplay(row.status);
   const href = assessmentHref(row);
-  const actionLabel = ["COMPLETED", "CLEARED", "NEEDS_RE_ATTEMPT", "REATTEMPT_AVAILABLE"].includes(normalizeStatus(row.status)) ? "View Result" : normalizeStatus(row.status) === "IN_PROGRESS" ? "Resume Assessment" : "Start Assessment";
+  const isFinished = ["COMPLETED", "CLEARED", "NEEDS_RE_ATTEMPT", "REATTEMPT_AVAILABLE"].includes(normalizeStatus(row.status));
+  const actionLabel = isFinished ? (canRetakeRow(row) ? "Open Assessment" : "View Result") : normalizeStatus(row.status) === "IN_PROGRESS" ? "Resume Assessment" : "Start Assessment";
   const isPrimaryAssessmentAction = actionLabel !== "View Result";
   const FocusId = String(value(row, ["attemptId", "assignmentId", "assessmentAssignmentId", "assessmentId", "id"], ""));
   const IsFocused = FocusTarget ? studentAssessmentMatchesTarget(row, FocusTarget) : false;
