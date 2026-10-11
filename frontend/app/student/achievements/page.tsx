@@ -9,13 +9,16 @@ import { AppShell } from "@/components/common/AppShell";
 import { useRouter } from "next/navigation";
 import { LoadingState } from "@/components/common/LoadingState";
 import { ErrorState } from "@/components/common/ErrorState";
-import { BadgeInspectionModal } from "@/components/gamification/BadgeInspectionModal";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import {
   BadgeIconMap as IconMap,
   badgeColorConfig,
   fallbackBadgeConfig as fallbackConfig,
 } from "@/lib/gamification/badgeVisuals";
+import dynamic from "next/dynamic";
+
+// 2026-10-11 (performance): the 3D / celebration scenes load only when shown.
+const BadgeInspectionModal = dynamic(() => import("@/components/gamification/BadgeInspectionModal").then((Module) => Module.BadgeInspectionModal), { ssr: false });
 
 // FORCE TAILWIND TO COMPILE THESE EXACT CLASSES DURING HOT-RELOAD
 // Without this, Next.js dev server may not pick up tailwind.config.ts changes until a full restart

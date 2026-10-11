@@ -3,9 +3,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PackageOpen, Sparkles, Lock, Trophy } from 'lucide-react';
-import { AlphaPackUnboxCinematic } from './AlphaPackUnboxCinematic';
 import { cn } from '@/lib/utils';
 import { InitCaps } from "@/lib/initCaps";
+import dynamic from "next/dynamic";
+
+// 2026-10-11 (performance): the 3D / celebration scenes load only when shown.
+const AlphaPackUnboxCinematic = dynamic(() => import("./AlphaPackUnboxCinematic").then((Module) => Module.AlphaPackUnboxCinematic), { ssr: false });
 
 interface VaultItem {
   id: string;

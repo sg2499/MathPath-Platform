@@ -125,6 +125,24 @@ export async function logout(): Promise<{ loggedOut: boolean }> {
   return data;
 }
 
+// 2026-10-11: sign-out happens in the background (the screen moves to the
+// sign-in page at once). Signing in again waits for it to finish first, so a
+// late sign-out reply can never clear the cookies of the new session.
+let PendingSignOut: Promise<unknown> | null = null;
+
+export function signOutInBackground(): void {
+  const Request = logout().catch(() => undefined);
+  PendingSignOut = Request;
+  void Request.finally(() => {
+    if (PendingSignOut === Request) PendingSignOut = null;
+  });
+}
+
+export async function waitForPendingSignOut(MaxMs = 5000): Promise<void> {
+  if (!PendingSignOut) return;
+  await Promise.race([PendingSignOut, new Promise((Resolve) => setTimeout(Resolve, MaxMs))]);
+}
+
 function LoadImageFromFile(FileValue: File): Promise<HTMLImageElement> {
   return new Promise((Resolve, Reject) => {
     const Reader = new FileReader();

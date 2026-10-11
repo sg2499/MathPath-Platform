@@ -4,8 +4,11 @@ import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { RankBadge } from './RankBadge';
-import { RankInspectionModal } from './RankInspectionModal';
 import { Coins, Sparkles } from 'lucide-react';
+import dynamic from "next/dynamic";
+
+// 2026-10-11 (performance): the 3D / celebration scenes load only when shown.
+const RankInspectionModal = dynamic(() => import("./RankInspectionModal").then((Module) => Module.RankInspectionModal), { ssr: false });
 
 export interface StudentWalletProps {
   currentXp: number;
@@ -63,6 +66,10 @@ export function getRankTierFromXp(xp: number): string {
 
 export function StudentWallet({ currentXp, currentRankTier, coinBalance, className, isLoading }: StudentWalletProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // Mounted from the first open on, so the 3D rank scene isn't downloaded
+  // with the dashboard.
+  const [modalWanted, setModalWanted] = useState(false);
+  if (isModalOpen && !modalWanted) setModalWanted(true);
 
   // Resolve rank tier dynamically if not explicitly provided
   const resolvedRankTier = currentRankTier || getRankTierFromXp(currentXp);
@@ -229,12 +236,14 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
       </motion.div>
 
       {/* Cinematic Modal Overlay */}
+      {modalWanted ? (
       <RankInspectionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         currentXp={currentXp}
         currentRankTier={resolvedRankTier}
       />
+      ) : null}
     </>
   );
 }

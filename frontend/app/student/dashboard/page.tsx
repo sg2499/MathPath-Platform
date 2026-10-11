@@ -9,6 +9,8 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { api, apiErrorMessage } from "@/lib/api";
 import { getStudentAssignments, getStudentAssessments, getStudentResults, getStudentCompetitionMockAssignments, getStudentActivityRange } from "@/lib/api/student";
 import { useQuery } from "@tanstack/react-query";
+import { getMe } from "@/lib/api/auth";
+import { getStoredUserForRole, updateStoredUser } from "@/lib/auth";
 import {
   BarChart3, BookOpenCheck, GraduationCap, ShieldCheck, Trophy, Laptop, Award,
   Coins, Cpu, RadioTower, Lock, ChevronLeft, ChevronRight, CheckCircle, Target, Focus, Scan, Zap,
@@ -22,7 +24,7 @@ import type { ReactNode } from "react";
 import React, { useRef, useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, useMotionValue, useSpring, useTransform, useMotionTemplate, AnimatePresence } from "framer-motion";
-import { GAMER_MOTIVATIONS } from "./quotes";
+import type { MotivationQuote } from "./quotes";
 
 const IconMap: Record<string, any> = {
   Target, Focus, Scan, Zap, FastForward, Rocket, Medal, Flag, Crown, Flame,
@@ -299,6 +301,18 @@ export default function StudentDashboardPage() {
   const Router = useRouter();
   const isDark = useDarkMode();
   const [quoteIndex, setQuoteIndex] = useState(0);
+  // 2026-10-11 (performance): the quote list (~180 KB) loads after the page
+  // has shown, instead of with it.
+  const [GAMER_MOTIVATIONS, SetMotivations] = useState<MotivationQuote[]>([]);
+  useEffect(() => {
+    let Alive = true;
+    import("./quotes").then((Module) => {
+      if (Alive) SetMotivations(Module.GAMER_MOTIVATIONS);
+    });
+    return () => {
+      Alive = false;
+    };
+  }, []);
   const [quoteIsFlipped, setQuoteIsFlipped] = useState(false);
   const [intelIndex, setIntelIndex] = useState(0);
   const [conquestIndex, setConquestIndex] = useState(0);
@@ -331,6 +345,23 @@ export default function StudentDashboardPage() {
   useEffect(() => {
     setModalPortalReady(true);
   }, []);
+
+  // 2026-10-11 (Shailesh): the student's current level ("PM-L3") in the
+  // header. Read fresh each visit so it changes right after a promotion; the
+  // stored profile shows it instantly meanwhile.
+  const MeQuery = useQuery({
+    queryKey: ["student-me-level"],
+    queryFn: async () => {
+      const Me = await getMe();
+      // Only refresh a profile that is still there: if the student signed out
+      // while this was on its way, it must not be written back.
+      if (getStoredUserForRole("STUDENT")) updateStoredUser(Me);
+      return Me;
+    },
+    enabled: Ready,
+    staleTime: 0,
+  });
+  const CurrentLevelCode = MeQuery.data?.student?.currentLevelCode ?? (Ready ? getStoredUserForRole("STUDENT")?.student?.currentLevelCode : null) ?? null;
 
   const AssignmentQuery = useQuery({
     queryKey: ["student-assignments"],
@@ -389,10 +420,10 @@ export default function StudentDashboardPage() {
   useEffect(() => {
     if (quoteIsFlipped) return;
     const quoteTimer = setInterval(() => {
-      setQuoteIndex((prev) => (prev + 1) % GAMER_MOTIVATIONS.length);
+      setQuoteIndex((prev) => (prev + 1) % Math.max(1, GAMER_MOTIVATIONS.length));
     }, 8000);
     return () => clearInterval(quoteTimer);
-  }, [quoteIsFlipped]);
+  }, [quoteIsFlipped, GAMER_MOTIVATIONS.length]);
 
   const Assignments = AssignmentQuery.data ?? [];
   const Assessments = AssessmentQuery.data ?? [];
@@ -745,6 +776,12 @@ export default function StudentDashboardPage() {
               <h1 className="se-hero-title">
                 My Learning Workspace
               </h1>
+              {CurrentLevelCode ? (
+                <p className="se-level-badge" aria-label={`Current level ${CurrentLevelCode}`}>
+                  <span className="se-level-badge-label">Current Level</span>
+                  <span className="se-level-badge-code">{CurrentLevelCode}</span>
+                </p>
+              ) : null}
               <StudentFeesCard />
             </div>
 
@@ -843,20 +880,21 @@ export default function StudentDashboardPage() {
                        <AnimatePresence mode="wait">
                           <motion.div
                             key={quoteIndex}
-                            initial={{ opacity: 0, filter: 'blur(12px)', scale: 0.97 }}
-                            animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }}
-                            exit={{ opacity: 0, filter: 'blur(12px)', scale: 1.03 }}
+                            initial={{ opacity: 0, scale: 0.97 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 1.03 }}
                             transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
                             className="absolute inset-0 flex items-stretch justify-stretch"
                           >
                              {(() => {
-                               const activeQuote = GAMER_MOTIVATIONS[quoteIndex];
+                               const activeQuote = GAMER_MOTIVATIONS[quoteIndex % Math.max(1, GAMER_MOTIVATIONS.length)];
+                               if (!activeQuote) return null;
                                const style = generateGodTierStyle(quoteIndex, isDark);
                                return (
                                  <div className="w-full h-full flex flex-col justify-center items-center relative px-8 sm:px-12 pt-8 pb-16 transition-all duration-700" style={{ background: style.bg }}>
                                     {/* Ambient Glow Orbs */}
-                                    <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-[80px] pointer-events-none transition-colors duration-1000" style={{ background: style.orb1 }} />
-                                    <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full blur-[80px] pointer-events-none transition-colors duration-1000" style={{ background: style.orb2 }} />
+                                    <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full mp-soft-glow scale-[1.5] pointer-events-none transition-colors duration-1000" style={{ background: style.orb1 }} />
+                                    <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full mp-soft-glow scale-[1.5] pointer-events-none transition-colors duration-1000" style={{ background: style.orb2 }} />
 
                                     <div className="z-20 text-center w-full max-w-5xl flex flex-col items-center">
                                       <h3

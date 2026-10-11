@@ -8,6 +8,7 @@
 // re-checks everything on confirm, and the same confirm press can never
 // create a second set (idempotency key per preview).
 import { HeroSearch } from "@/components/payments/CommandPalette";
+import { FeeItemPicker } from "@/components/payments/FeeItemPicker";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FieldLabel, InlineError, PaymentsDialog, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
@@ -27,14 +28,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
-  CalendarClock,
   CheckCircle2,
   Download,
   FilePlus2,
   FileText,
   Loader2,
   Search,
-  Tag,
   UsersRound,
   Wallet,
 } from "lucide-react";
@@ -76,6 +75,7 @@ export function GenerateInvoicesPanel() {
   const [thisYear, thisMonth] = today.split("-").map(Number);
 
   const [feeIds, setFeeIds] = useState<string[]>([]);
+  const [feePickerOpen, setFeePickerOpen] = useState(false);
   const [month, setMonth] = useState<number>(thisMonth);
   const [year, setYear] = useState<number>(thisYear);
   const [invoiceDate, setInvoiceDate] = useState(today);
@@ -283,7 +283,7 @@ export function GenerateInvoicesPanel() {
         <div className="mt-6"><ErrorState message="Fee items or students could not be loaded. Refresh the page to try again." /></div>
       ) : (
         <>
-          <section className="mt-6 math-card p-5 sm:p-6">
+          <section className={`mt-6 math-card p-5 sm:p-6 ${feePickerOpen ? "relative z-30" : ""}`}>
             <p className="math-block-header"><FilePlus2 size={14} />Step 1</p>
             <h2 className="text-2xl font-black text-slate-950 dark:text-white">What to invoice</h2>
             {!activeFees.length ? (
@@ -291,39 +291,15 @@ export function GenerateInvoicesPanel() {
                 <EmptyState title="No fee items yet" description="Add fee items in Fee Setup first, then come back here." />
               </div>
             ) : (
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {activeFees.map((item) => {
-                  const checked = feeIds.includes(item.feeItemId);
-                  return (
-                    <label
-                      key={item.feeItemId}
-                      className={`flex cursor-pointer items-start gap-3 rounded-3xl border px-4 py-3 transition ${checked ? "border-cyan-400 bg-cyan-50/70 dark:border-cyan-600 dark:bg-cyan-950/30" : "border-slate-200 bg-white/70 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950/50"}`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 shrink-0"
-                        checked={checked}
-                        onChange={() => setFeeIds(checked ? feeIds.filter((id) => id !== item.feeItemId) : [...feeIds, item.feeItemId])}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-baseline justify-between gap-2">
-                          <span className="font-black text-slate-900 dark:text-white">{item.name}</span>
-                          <span className="shrink-0 font-black tabular-nums text-slate-950 dark:text-white">{item.amountDisplay}</span>
-                        </span>
-                        <span className="mt-1 flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                          {item.billingType === "MONTHLY" ? <><CalendarClock size={12} />Monthly</> : <><Tag size={12} />One-time</>}
-                          {item.gstIncluded ? " · 18% GST included" : " · No GST"}
-                        </span>
-                      </span>
-                    </label>
-                  );
-                })}
+              <div className="mt-4 max-w-3xl">
+                <FieldLabel>Fee Items</FieldLabel>
+                <FeeItemPicker items={activeFees} value={feeIds} onChange={setFeeIds} onOpenChange={setFeePickerOpen} />
               </div>
             )}
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {hasMonthly ? (
-                <div className="grid grid-cols-2 gap-3 sm:col-span-2 xl:col-span-2">
+                <div className="grid grid-cols-2 items-end gap-3 sm:col-span-2 xl:col-span-2">
                   <label className="block">
                     <FieldLabel>Month (monthly fee)</FieldLabel>
                     <select className="math-input" value={month} onChange={(event) => setMonth(Number(event.target.value))}>

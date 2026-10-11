@@ -6,9 +6,12 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Award, Zap, Lock, CheckCircle2, ChevronRight, ChevronLeft, Info } from 'lucide-react';
 import { RankBadge } from './RankBadge';
-import { RankCinematicOverlay } from './RankCinematicOverlay';
 import { RankGuideModal } from './RankGuideModal';
 import { InitCaps } from "@/lib/initCaps";
+import dynamic from "next/dynamic";
+
+// 2026-10-11 (performance): the 3D / celebration scenes load only when shown.
+const RankCinematicOverlay = dynamic(() => import("./RankCinematicOverlay").then((Module) => Module.RankCinematicOverlay), { ssr: false });
 
 export interface RankInspectionModalProps {
   isOpen: boolean;

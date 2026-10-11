@@ -16,6 +16,7 @@ export type CurrentUser = {
     customId?: string | null;
     currentModuleId?: string | null;
     currentLevelId?: string | null;
+    currentLevelCode?: string | null;
     photoUrl?: string | null;
     signatureUrl?: string | null;
     className?: string | null;

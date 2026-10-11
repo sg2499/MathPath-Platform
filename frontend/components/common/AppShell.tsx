@@ -11,7 +11,7 @@ import {
   changePassword,
   disableTwoFactor,
   enableTwoFactor,
-  logout as logoutApi,
+  signOutInBackground,
   logoutAllSessions,
   startTwoFactorSetup,
   uploadProfilePhoto,
@@ -193,6 +193,7 @@ export function AppShell({
   const pathname = usePathname();
   const [MountedUser, SetMountedUser] = useState<StoredUser>(null);
   const [AuthReady, SetAuthReady] = useState(false);
+  const SigningOutRef = useRef(false);
 
   // Trigger heartbeat to keep live radar accurate
   useHeartbeat();
@@ -219,6 +220,9 @@ export function AppShell({
 
   useEffect(() => {
     function RefreshMountedUser() {
+      // Signing out: the sign-in page is already on its way; keep this
+      // screen as it is instead of flashing the "Securing" placeholder.
+      if (SigningOutRef.current) return;
       const ExpectedRole = expectedRoleFromPath(pathname);
 
       if (ExpectedRole) {
@@ -367,6 +371,53 @@ export function AppShell({
     staleTime: 60_000,
     retry: false,
   });
+
+  // 2026-10-11 (performance): once the page is up and the browser is idle,
+  // load every menu page (and the sign-in page) ahead of time, so a click
+  // only waits for that page's data. Skipped when the device asks to save
+  // data.
+  const NavHrefsRef = useRef<string[]>([]);
+  const IntentPrefetched = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!AuthReady || typeof window === "undefined") return;
+    const Connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    if (Connection?.saveData) return;
+    let Cancelled = false;
+    const IdleWindow = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number };
+    const Idle = (Callback: () => void) => {
+      if (IdleWindow.requestIdleCallback) IdleWindow.requestIdleCallback(Callback, { timeout: 2500 });
+      else window.setTimeout(Callback, 900);
+    };
+    const Queue = NavHrefsRef.current.filter((Href) => Href !== pathname);
+    // The sign-in page is built per request, so it is fetched in full (not
+    // just its shell) for this role's address, ready for an instant sign-out.
+    const SignInHref = `/login?role=${IsAdmin ? "admin" : IsTeacher ? "teacher" : "student"}`;
+    const Step = () => {
+      if (Cancelled) return;
+      const Batch = Queue.splice(0, 3);
+      Batch.forEach((Href) => {
+        try {
+          router.prefetch(Href);
+        } catch {
+          // A prefetch is only a head start; ignore failures.
+        }
+      });
+      if (Queue.length) Idle(Step);
+    };
+    const Start = window.setTimeout(() => {
+      try {
+        router.prefetch(SignInHref, { kind: "full" } as unknown as Parameters<typeof router.prefetch>[1]);
+      } catch {
+        // Only a head start.
+      }
+      Idle(Step);
+    }, 600);
+    return () => {
+      Cancelled = true;
+      window.clearTimeout(Start);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [AuthReady, IsStudent, IsTeacher, IsAdmin, pathname]);
 
   if (!AuthReady && expectedRoleFromPath(pathname)) {
     return (
@@ -836,6 +887,17 @@ export function AppShell({
       : IsAdmin
         ? adminNav
         : [];
+  // Loaded ahead while idle: the dashboard, single-page menu items, and the
+  // pages in the section you're in. Everything else loads the moment you
+  // point at or touch it (PrefetchOnIntent), so background loading never
+  // competes with the page you're using.
+  NavHrefsRef.current = navGroups
+    .flatMap((Group) => {
+      if (!Group.children?.length) return [Group.href];
+      const InThisSection = Group.children.some((Child) => isRouteActive(Child.href));
+      return InThisSection ? Group.children.map((Child) => Child.href) : [];
+    })
+    .filter((Href): Href is string => Boolean(Href));
 
   function isRouteActive(href: string) {
     if (!pathname) return false;
@@ -859,25 +921,26 @@ export function AppShell({
 
   const ActiveIcon = activeItem?.icon || LayoutDashboard;
 
-  async function logout() {
+  // 2026-10-11 (Shailesh: sign-out "should be instantaneous and seamless"):
+  // go straight to the sign-in page (already loaded in the background, see
+  // the prefetch above) and end the session on the server in the
+  // background. Before, the page waited for the server first, then cleared
+  // the stored profile, which flashed "Securing MathPath Workspace..." until
+  // the sign-in page arrived. SigningOutRef stops that flash.
+  function logout() {
     const LogoutRole = IsAdmin ? "admin" : IsTeacher ? "teacher" : "student";
     if (typeof window !== "undefined") {
       localStorage.setItem("mathpath_login_role", LogoutRole.toUpperCase());
       localStorage.setItem("mathpath_active_role", LogoutRole.toUpperCase());
     }
-    // The session cookie is httpOnly -- page JS can't clear it itself, so
-    // sign-out has to be a real backend call now (previously clearAuth()
-    // alone was enough, since the token just lived in localStorage).
-    // Best-effort: still clear local state and navigate away even if this
-    // call fails (e.g. the session had already expired), matching the old
-    // behavior of always being able to reach the login screen.
-    try {
-      await logoutApi();
-    } catch {
-      // Ignore -- see comment above.
-    }
+    SigningOutRef.current = true;
+    // The session cookie is httpOnly, so only the server can clear it. The
+    // request is sent now (with this role's headers) and finishes on its
+    // own; a failure is ignored, as before -- the sign-in page is reached
+    // either way and the stored profile is cleared below.
+    signOutInBackground();
+    router.replace(`/login?role=${LogoutRole}`);
     clearSession();
-    router.push(`/login?role=${LogoutRole}`);
   }
 
   function toggleTheme() {
@@ -898,6 +961,20 @@ export function AppShell({
     else if (IsTeacher) router.push("/teacher/dashboard");
     else if (IsAdmin) router.push("/admin/dashboard");
     else router.push("/login");
+  }
+
+  // Load a menu page the moment someone points at, touches or tabs to it:
+  // the 100-300 ms before the click is usually enough for the page itself.
+  function PrefetchOnIntent(...Hrefs: Array<string | undefined>) {
+    for (const Href of Hrefs) {
+      if (!Href || IntentPrefetched.current.has(Href)) continue;
+      IntentPrefetched.current.add(Href);
+      try {
+        router.prefetch(Href);
+      } catch {
+        // Only a head start.
+      }
+    }
   }
 
   function navigateTo(href?: string) {
@@ -1208,7 +1285,11 @@ export function AppShell({
                           key={group.label}
                           type="button"
                           onClick={() => navigateTo(group.href)}
-                          onMouseEnter={() => setHoveredNavGroup(group.label)}
+                          onPointerDown={() => PrefetchOnIntent(group.href)}
+                          onMouseEnter={() => {
+                            setHoveredNavGroup(group.label);
+                            PrefetchOnIntent(group.href);
+                          }}
                           onMouseLeave={() => setHoveredNavGroup(null)}
                           onFocus={() => setHoveredNavGroup(group.label)}
                           onBlur={() => setHoveredNavGroup(null)}
@@ -1268,6 +1349,7 @@ export function AppShell({
                         onMouseEnter={() => {
                           setOpenGroup(group.label);
                           setHoveredNavGroup(group.label);
+                          PrefetchOnIntent(...(group.children || []).map((Child) => Child.href));
                         }}
                         onMouseLeave={() => {
                           setOpenGroup(null);
@@ -1276,12 +1358,16 @@ export function AppShell({
                       >
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
+                            PrefetchOnIntent(...(group.children || []).map((Child) => Child.href));
                             setOpenGroup((current) =>
                               current === group.label ? null : group.label,
-                            )
-                          }
-                          onFocus={() => setHoveredNavGroup(group.label)}
+                            );
+                          }}
+                          onFocus={() => {
+                            setHoveredNavGroup(group.label);
+                            PrefetchOnIntent(...(group.children || []).map((Child) => Child.href));
+                          }}
                           onBlur={() => setHoveredNavGroup(null)}
                           className={`premium-nav-item group shrink min-w-[2rem] lg:px-1.5 xl:px-3 text-xs lg:text-[12px] xl:text-sm ${AdminNavCompact} ${
                             active ? "premium-nav-item-active" : ""
@@ -1378,6 +1464,8 @@ export function AppShell({
                                       key={child.href}
                                       type="button"
                                       onClick={() => navigateTo(child.href)}
+                                      onPointerDown={() => PrefetchOnIntent(child.href)}
+                                      onFocus={() => PrefetchOnIntent(child.href)}
                                       data-teacher-nav-child={IsTeacher && theme === "light" ? "true" : undefined}
                                       data-student-nav-child={IsStudent && theme === "light" ? "true" : undefined}
                                       className={`math-dropdown-option group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-black transition ${
@@ -1577,6 +1665,7 @@ export function AppShell({
                         key={group.label}
                         type="button"
                         onClick={() => navigateTo(group.href)}
+                        onPointerDown={() => PrefetchOnIntent(group.href)}
                         title={group.tooltip}
                         aria-label={group.tooltip}
                           data-teacher-nav-hover-scope={IsTeacher && theme === "light" ? "true" : undefined}
@@ -1598,11 +1687,13 @@ export function AppShell({
                     <div key={group.label} className="math-mobile-group">
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          // Opening a section on a phone: load its pages now.
+                          PrefetchOnIntent(...(group.children || []).map((Child) => Child.href));
                           setOpenGroup((current) =>
                             current === group.label ? null : group.label,
-                          )
-                        }
+                          );
+                        }}
                         title={group.tooltip}
                         aria-label={group.tooltip}
                           data-teacher-nav-hover-scope={IsTeacher && theme === "light" ? "true" : undefined}
@@ -1634,6 +1725,7 @@ export function AppShell({
                                 key={child.href}
                                 type="button"
                                 onClick={() => navigateTo(child.href)}
+                                onPointerDown={() => PrefetchOnIntent(child.href)}
                                 title={child.tooltip}
                                 aria-label={child.tooltip}
                                 className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-black transition ${

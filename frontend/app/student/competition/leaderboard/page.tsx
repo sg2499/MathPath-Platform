@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { Award, Clock, Star, Trophy, Users, AlertCircle, ChevronDown, ArrowLeft } from "lucide-react";
 import { LeaderboardAPI } from "@/lib/api-leaderboard";
 import { LoadingState } from "@/components/common/LoadingState";
+import { RisingParticles } from "@/components/common/RisingParticles";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -242,27 +243,17 @@ const searchParams = useSearchParams();
           mix-blend-multiply instead, which darkens toward the particle color
           against a light background the same way screen brightens toward it
           against a dark one -- dark mode's look is untouched. */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden mix-blend-multiply dark:mix-blend-screen">
-        {[...Array(40)].map((_, i) => (
-           <motion.div key={i}
-             initial={{ y: "100vh", x: Math.random() * 100 + "vw", opacity: 0 }}
-             animate={{ y: "-10vh", opacity: [0, Math.random(), 0] }}
-             transition={{ duration: 10 + Math.random() * 20, repeat: Infinity, delay: Math.random() * 10 }}
-             className="absolute w-1 h-1 bg-indigo-400 dark:bg-white rounded-full shadow-[0_0_10px_rgba(99,102,241,0.7)] dark:shadow-[0_0_10px_#fff]"
-             style={{ filter: `blur(${Math.random() * 2}px)` }}
-           />
-        ))}
-      </div>
+      <RisingParticles seed={11} className="bg-indigo-400/90 dark:bg-white shadow-[0_0_8px_rgba(99,102,241,0.55)] dark:shadow-[0_0_8px_#fff]" />
       
       {/* 2. Dynamic Aurora Gradients reacting to Hover States */}
-      <div className={`absolute top-[-10%] left-[-10%] w-[60%] h-[80%] blur-[150px] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${activeHeroRank === 1 ? 'bg-yellow-500/20 dark:bg-yellow-600/30' : viewMode === 'CUMULATIVE' ? 'bg-blue-500/10 dark:bg-blue-600/20' : 'bg-orange-500/10 dark:bg-orange-600/20'}`} />
-      <div className={`absolute bottom-[-10%] right-[-10%] w-[60%] h-[80%] blur-[150px] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${activeHeroRank === 1 ? 'bg-yellow-500/20 dark:bg-yellow-600/30' : viewMode === 'CUMULATIVE' ? 'bg-indigo-500/10 dark:bg-indigo-600/20' : 'bg-fuchsia-500/10 dark:bg-fuchsia-600/20'}`} />
+      <div className={`absolute top-[-10%] left-[-10%] w-[60%] h-[80%] mp-soft-glow scale-[1.5] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${activeHeroRank === 1 ? 'bg-yellow-500/20 dark:bg-yellow-600/30' : viewMode === 'CUMULATIVE' ? 'bg-blue-500/10 dark:bg-blue-600/20' : 'bg-orange-500/10 dark:bg-orange-600/20'}`} />
+      <div className={`absolute bottom-[-10%] right-[-10%] w-[60%] h-[80%] mp-soft-glow scale-[1.5] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${activeHeroRank === 1 ? 'bg-yellow-500/20 dark:bg-yellow-600/30' : viewMode === 'CUMULATIVE' ? 'bg-indigo-500/10 dark:bg-indigo-600/20' : 'bg-fuchsia-500/10 dark:bg-fuchsia-600/20'}`} />
       
       {/* 3. Deep Contrast Backdrop for the podium to make the Gold/Bronze glows POP absolutely perfectly */}
-      <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px] bg-slate-900/10 dark:bg-black/80 blur-[120px] pointer-events-none rounded-[100%] z-0" />
+      <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px] bg-slate-900/10 dark:bg-black/80 mp-soft-glow scale-[1.3] pointer-events-none rounded-[100%] z-0" />
 
       {/* 4. Volumetric Spotlight from above */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-white/60 dark:from-white/10 to-transparent blur-[80px] pointer-events-none z-0" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-white/60 dark:from-white/10 to-transparent mp-soft-fade pointer-events-none z-0" />
 
       <div className="relative z-10 w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
         <PodiumHeroAnimation rank={activeHeroRank} viewMode={viewMode} student={activeHeroRank ? top3[activeHeroRank - 1] : undefined} onComplete={() => setActiveHeroRank(null)} />
