@@ -1,10 +1,10 @@
 "use client";
 
+import { ResultReviewTabs, ToMockReviewQuestions } from "@/components/common/ResultReviewTabs";
 import { AppShell } from "@/components/common/AppShell";
 import { Chip } from "@/components/common/DetailWorkspaceViews";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getAdminCompetitionMockResult } from "@/lib/api/admin";
@@ -27,7 +27,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { CompetitionMessage, competitionMessagePools } from "@/lib/utils/competitionMessages";
 
 function formatDuration(seconds?: number | null) {
@@ -76,8 +76,6 @@ function stableHash(value: string) {
 function pickFrom<T>(pool: T[], seed: number, offset = 0): T {
   return pool[(seed + offset) % pool.length];
 }
-
-
 
 function competitionBandKey(percentage: number) {
   if (percentage >= 100) return "perfect";
@@ -160,20 +158,6 @@ function buildCompetitionMessage(
   };
 }
 
-function sectionAnchorKey(
-  sectionTitle?: string | null,
-  sectionNumber?: number | string | null,
-) {
-  const base = sectionTitle || `Section ${sectionNumber || "unknown"}`;
-  return `competition-section-${String(base)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")}`;
-}
-
-type ResultTab = "questions" | "analysis";
-
-
 function TeacherCompetitionResultDarkHoverStyles() {
   return (
     <style>{`
@@ -255,7 +239,8 @@ export default function AdminCompetitionMockResultPage() {
   const params = useParams<{ attemptId: string }>();
   const router = useRouter();
   const attemptId = params.attemptId;
-  const [activeTab, setActiveTab] = useState<ResultTab>("questions");
+  // Focus-area buttons open a section in the review (ResultReviewTabs).
+  const [focusRequest, setFocusRequest] = useState<{ Title: string; Nonce: number } | null>(null);
 
   const query = useQuery({
     queryKey: ["teacher-competition-mock-result", attemptId],
@@ -294,24 +279,15 @@ export default function AdminCompetitionMockResultPage() {
   const questionReview = result.questionReview || [];
   const competitionMessage = buildCompetitionMessage(result);
 
-  // Strengths/Areas to Improve/focus-area buttons pass an individual concept
-  // name (e.g. "BODMAS"), not a section title (2026-07-19, Shailesh) -- the
-  // Question Review tab's anchors are still built per-section (several
-  // concepts share one section), so resolve the concept back to its parent
-  // section here before scrolling, rather than threading section identity
-  // through every caller/prop. Falls back to using the passed value directly
-  // for anything that's already a section title (or an unmapped legacy
-  // value), so this stays safe even if a caller is missed.
+  // Focus-area buttons pass a concept name (e.g. "BODMAS"), not a section
+  // title -- several concepts share one section -- so map the concept back to
+  // its section and ask the review to open that section.
   const conceptToSectionTitle = new Map<string, string>(
     (result.conceptPerformance || []).map((item: any): [string, string] => [item.concept, item.sectionTitle || item.concept]),
   );
   const jumpToSection = (nameOrConcept: string) => {
-    setActiveTab("questions");
     const sectionTarget = conceptToSectionTitle.get(nameOrConcept) || nameOrConcept;
-    window.setTimeout(() => {
-      const target = document.getElementById(sectionAnchorKey(sectionTarget));
-      target?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 80);
+    setFocusRequest({ Title: sectionTarget, Nonce: Date.now() });
   };
 
   return (
@@ -387,27 +363,10 @@ export default function AdminCompetitionMockResultPage() {
           onSectionSelect={jumpToSection}
         />
 
-        <div className="math-card p-2">
-          <div className="flex flex-wrap gap-2">
-            <ResultTabButton
-              active={activeTab === "questions"}
-              onClick={() => setActiveTab("questions")}
-              label="Question Review"
-            />
-            <ResultTabButton
-              active={activeTab === "analysis"}
-              onClick={() => setActiveTab("analysis")}
-              label="Result Analysis"
-            />
-          </div>
-        </div>
-
-        {activeTab === "questions" ? (
-          <QuestionReviewTab questions={questionReview} />
-        ) : null}
-        {activeTab === "analysis" ? (
-          <ResultAnalysisTab result={result} onSectionSelect={jumpToSection} />
-        ) : null}
+        {/* 2026-10-11: Answer Sheet (section blocks) and Scorecard, the same
+            two tabs on every result page. The old Result Analysis tab's
+            section rows, strengths and weak areas live in the Scorecard. */}
+        <ResultReviewTabs Questions={ToMockReviewQuestions(questionReview as any)} Viewer="ADMIN" FocusRequest={focusRequest} />
       </section>
     </AppShell>
   );
@@ -487,281 +446,6 @@ function CompetitionMessageBox({
   );
 }
 
-function ResultTabButton({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={
-        active
-          ? "math-role-tab math-role-tab-active"
-          : "math-role-tab"
-      }
-    >
-      {label}
-    </button>
-  );
-}
-
-function QuestionReviewTab({
-  questions,
-}: {
-  questions: NonNullable<
-    Awaited<ReturnType<typeof getAdminCompetitionMockResult>>["questionReview"]
-  >;
-}) {
-  const groupedSections = useMemo(() => {
-    const groups: Array<{
-      key: string;
-      title: string;
-      sectionNumber?: number | string | null;
-      questions: typeof questions;
-    }> = [];
-
-    questions.forEach((question: any) => {
-      const title =
-        question.sectionTitle || question.concept || "Competition Mock";
-      const key = sectionAnchorKey(title, question.sectionNumber);
-      const existing = groups.find((group) => group.key === key);
-      if (existing) {
-        existing.questions.push(question);
-      } else {
-        groups.push({
-          key,
-          title,
-          sectionNumber: question.sectionNumber,
-          questions: [question],
-        });
-      }
-    });
-
-    return groups;
-  }, [questions]);
-
-  return (
-    <section className="math-card p-5">
-      <div className="mb-5 flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2563eb]/5 text-[#2563eb] dark:bg-cyan-400/10 dark:text-cyan-100">
-          <BookOpenCheck size={22} />
-        </div>
-        <div>
-          <p className="math-block-header"><BookMarked size={14} />Question Review</p>
-          <h2 className="text-2xl font-black text-slate-950 dark:text-white">
-            Questions, Student Answers And Correct Answers
-          </h2>
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            Review every mock question with the selected answer and the correct
-            answer.
-          </p>
-        </div>
-      </div>
-
-      {questions.length === 0 ? (
-        <p className="rounded-[22px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-5 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
-          Question review is not available for this submitted mock yet.
-        </p>
-      ) : (
-        <div className="space-y-6">
-          {groupedSections.map((section: any) => (
-            <div
-              key={section.key}
-              id={section.key}
-              className="scroll-mt-28 rounded-[30px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 dark:border-slate-700 dark:bg-slate-950/30"
-            >
-              <div className="mb-4 flex flex-col gap-2 rounded-[22px] border border-[#2563eb]/15 bg-white/90 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/80 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2563eb] dark:text-cyan-100">
-                    Section Review
-                  </p>
-                  <h3 className="text-lg font-black text-slate-950 dark:text-white">
-                    {section.sectionNumber
-                      ? `Section ${section.sectionNumber} - `
-                      : ""}
-                    {section.title}
-                  </h3>
-                </div>
-                <Chip tone="slate">
-                  {section.questions.length} Questions
-                </Chip>
-              </div>
-
-              <div className="space-y-5">
-                {section.questions.map((question: any) => (
-                  <article
-                    key={question.questionId}
-                    className="rounded-[28px] border border-[#2563eb]/15 bg-white/86 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <h3 className="text-xl font-black text-slate-950 dark:text-white">
-                          Question {question.questionNumber}
-                        </h3>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <Chip tone="purple">Section {question.sectionNumber || "-"}</Chip>
-                          <Chip tone="slate">{question.sectionTitle || "Competition Mock"}</Chip>
-                        </div>
-                      </div>
-                      <Chip
-                        tone={
-                          question.isUnanswered
-                            ? "slate"
-                            : question.isCorrect
-                              ? "green"
-                              : "red"
-                        }
-                      >
-                        {question.isUnanswered
-                          ? "Unanswered"
-                          : question.isCorrect
-                            ? "Correct"
-                            : "Wrong"}
-                      </Chip>
-                    </div>
-
-                    <div className="mt-5 rounded-[24px] bg-slate-50/90 p-5 dark:bg-slate-950/60">
-                      <MathQuestionDisplay
-                        operands={(question.operands || []) as any}
-                        operators={(question.operators || []) as any}
-                        displayType={
-                          (question as any).displayType ??
-                          (question as any).display_type
-                        }
-                        questionText={
-                          (question as any).questionText ??
-                          (question as any).question_text
-                        }
-                      />
-                    </div>
-
-                    <div className="mt-5 grid gap-3 xl:grid-cols-2">
-                      <AnswerBox
-                        title="Student Answer"
-                        tone={
-                          question.isCorrect
-                            ? "correct"
-                            : question.isUnanswered
-                              ? "neutral"
-                              : "wrong"
-                        }
-                      >
-                        {question.selectedOption
-                          ? `${question.selectedOption.label}. ${question.selectedOption.value}`
-                          : "Not Answered"}
-                      </AnswerBox>
-                      <AnswerBox title="Correct Answer" tone="correct">
-                        {question.correctOption
-                          ? `${question.correctOption.label}. ${question.correctOption.value}`
-                          : "Not Available"}
-                      </AnswerBox>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function AnswerBox({
-  title,
-  children,
-  tone,
-}: {
-  title: string;
-  children: React.ReactNode;
-  tone: "correct" | "wrong" | "neutral";
-}) {
-  const className =
-    tone === "correct"
-      ? "border-emerald-100 bg-emerald-50/80 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/25 dark:text-emerald-100"
-      : tone === "wrong"
-        ? "border-rose-100 bg-rose-50/80 text-rose-950 dark:border-rose-800 dark:bg-rose-950/25 dark:text-rose-100"
-        : "border-amber-100 bg-amber-50/80 text-amber-950 dark:border-amber-800 dark:bg-amber-950/25 dark:text-amber-100";
-  return (
-    <div className={`rounded-[22px] border p-4 ${className}`}>
-      <p className="text-xs font-extrabold uppercase tracking-[0.14em] opacity-80">
-        {title}
-      </p>
-      <p className="mt-2 text-lg font-black">{children}</p>
-    </div>
-  );
-}
-
-function ResultAnalysisTab({
-  result,
-  onSectionSelect,
-}: {
-  result: Awaited<ReturnType<typeof getAdminCompetitionMockResult>>;
-  onSectionSelect: (sectionName: string) => void;
-}) {
-  return (
-    <>
-      <div className="math-card overflow-hidden p-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="math-block-header"><Brain size={14} />Concept Analysis</p>
-            <h2 className="text-xl font-black text-slate-950 dark:text-white">
-              Section Performance
-            </h2>
-          </div>
-        </div>
-        <div className="mt-5 overflow-hidden rounded-[24px] border border-[#2563eb]/15 dark:border-slate-700">
-          {(result.conceptPerformance || []).length === 0 ? (
-            <div className="p-5 text-sm font-bold text-slate-700 dark:text-slate-300">
-              No concept analysis is available for this mock yet.
-            </div>
-          ) : (
-            <div className="divide-y divide-[#2563eb]/15 dark:divide-slate-700">
-              {result.conceptPerformance.map((item: any) => (
-                <button
-                  key={item.concept}
-                  type="button"
-                  onClick={() => onSectionSelect(item.concept)}
-                  className="tc-dark-hover-analysis-row grid w-full gap-2 p-4 text-left text-sm font-bold text-slate-800 transition hover:bg-[#2563eb]/5 hover:text-[#2563eb] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40 dark:text-slate-100 dark:hover:bg-cyan-500/25 dark:hover:text-white dark:focus:ring-cyan-300/40 sm:grid-cols-[1fr_auto_auto] sm:items-center"
-                >
-                  <span>{item.concept}</span>
-                  <span>
-                    {item.correct}/{item.total} Correct
-                  </span>
-                  <Chip tone="slate">
-                    {formatNumber(item.percentage)}%
-                  </Chip>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <InsightCard
-          title="Strengths"
-          items={result.conceptStrengths || []}
-          empty="No strong areas identified yet."
-          onSectionSelect={onSectionSelect}
-        />
-        <InsightCard
-          title="Weak Areas"
-          items={result.conceptWeaknesses || []}
-          empty="No weak areas identified from this mock."
-          onSectionSelect={onSectionSelect}
-        />
-      </div>
-    </>
-  );
-}
-
 function MetricCard({
   icon,
   label,
@@ -787,51 +471,6 @@ function MetricCard({
       <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-300">
         {helper}
       </p>
-    </article>
-  );
-}
-
-function InsightCard({
-  title,
-  items,
-  empty,
-  onSectionSelect,
-}: {
-  title: string;
-  items: Array<{
-    concept: string;
-    correct: number;
-    total: number;
-    percentage: number;
-  }>;
-  empty: string;
-  onSectionSelect: (sectionName: string) => void;
-}) {
-  return (
-    <article className="math-card p-5">
-      <p className="math-block-header"><Lightbulb size={14} />Result Insight</p>
-      <h3 className="text-lg font-black text-slate-950 dark:text-white">
-        {title}
-      </h3>
-      {items.length === 0 ? (
-        <p className="mt-4 rounded-[20px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
-          {empty}
-        </p>
-      ) : (
-        <div className="mt-4 grid gap-2">
-          {items.map((item: any) => (
-            <button
-              key={item.concept}
-              type="button"
-              onClick={() => onSectionSelect(item.concept)}
-              className="tc-dark-hover-analysis-row flex w-full items-center justify-between rounded-[18px] border border-[#2563eb]/15 bg-white/80 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-[#2563eb]/40 hover:bg-[#2563eb]/5 hover:text-[#2563eb] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40 dark:border-cyan-300/20 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/25 dark:hover:text-white dark:focus:ring-cyan-300/40"
-            >
-              <span>{item.concept}</span>
-              <span>{formatNumber(item.percentage)}%</span>
-            </button>
-          ))}
-        </div>
-      )}
     </article>
   );
 }

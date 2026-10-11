@@ -1,18 +1,17 @@
 "use client";
 
+import { ResultReviewTabs, ToPracticeReviewQuestions } from "@/components/common/ResultReviewTabs";
 import { AppShell } from "@/components/common/AppShell";
-import { BenchmarkBadge, BenchmarkAlert } from "@/components/common/BenchmarkBadge";
+import { BenchmarkAlert } from "@/components/common/BenchmarkBadge";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { ResultSummary } from "@/components/student/ResultSummary";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
-import { formatAnswerValue } from "@/lib/utils";
 import { getAdminAttemptResult } from "@/lib/api/admin";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpenCheck, CalendarClock, CheckCircle2, Clock, Stethoscope, UserRound, XCircle } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, CalendarClock, CheckCircle2, Clock, Stethoscope, UserRound } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 
 function formatDate(value?: string | null) {
@@ -69,53 +68,7 @@ export default function AdminAttemptDetailPage() {
             </div>
           </div>
 
-          <section>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                <BookOpenCheck size={22} />
-              </div>
-              <div>
-                <h2 className="text-3xl font-black text-slate-950">Question Review</h2>
-                <p className="text-slate-600">Question-wise student answer and correct answer.</p>
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              {query.data.questionReview?.map((q) => {
-                const statusLabel = q.studentAnswer ? (q.isCorrect ? "Correct" : "Wrong") : "Unanswered";
-
-                return (
-                  <div key={q.questionId} className="math-card p-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <h3 className="text-xl font-black text-slate-950">Question {q.questionNumber}</h3>
-                      <span className={`math-badge ${q.isCorrect ? "border-emerald-200 bg-emerald-50 text-emerald-700" : q.studentAnswer ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                        {q.isCorrect ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                        {statusLabel}
-                      </span>
-                    </div>
-
-                    <div className="mt-5 rounded-[28px] bg-slate-50/90 p-6">
-                      <MathQuestionDisplay operands={q.operands} operators={q.operators} displayType={(q as any).displayType ?? (q as any).display_type} questionText={(q as any).questionText ?? (q as any).question_text} />
-                    </div>
-
-                    <div className="mt-5 grid gap-3 xl:grid-cols-2">
-                      <div className={`rounded-[22px] p-4 ${q.isCorrect ? "bg-emerald-50 text-emerald-900" : q.studentAnswer ? "bg-rose-50 text-rose-900" : "bg-amber-50 text-amber-900"}`}>
-                        <p className="text-xs font-extrabold uppercase tracking-[0.14em]">Student answer</p>
-                        <p className="mt-2 text-lg font-black">
-                          {q.studentAnswer ? formatAnswerValue(q.studentAnswer) : "Not Answered"}
-                        </p>
-                      </div>
-
-                      <div className="rounded-[22px] bg-emerald-50 p-4 text-emerald-900">
-                        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700">Correct answer</p>
-                        <p className="mt-2 text-lg font-black">{q.correctAnswer !== undefined && q.correctAnswer !== null ? formatAnswerValue(q.correctAnswer) : "Hidden"}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <ResultReviewTabs Questions={ToPracticeReviewQuestions(query.data.questionReview as any)} Viewer="ADMIN" />
         </div>
       ) : null}
     </AppShell>

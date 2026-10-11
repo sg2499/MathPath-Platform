@@ -3,11 +3,10 @@
 import { AppShell } from "@/components/common/AppShell";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
+import { ResultReviewTabs, ToPracticeReviewQuestions } from "@/components/common/ResultReviewTabs";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getAdminAttempt } from "@/lib/api/admin";
-import { formatAnswerValue } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { FileQuestion } from "lucide-react";
@@ -23,8 +22,8 @@ export default function AdminAttemptReviewPage() {
       {query.error ? <ErrorState message={apiErrorMessage(query.error)} /> : null}
       {query.data ? (
         <div className="space-y-5">
-          <div className="math-card p-6"><p className="math-block-header"><FileQuestion size={14} />Attempt Review</p><h1 className="mt-3 text-3xl font-black">{query.data.student?.studentName}</h1><p className="mt-2 text-slate-600">Score: {query.data.summary?.score} / {query.data.summary?.maxScore} · Accuracy: {query.data.summary?.accuracyPercentage}%</p></div>
-          {(query.data.questionReview ?? query.data.questions)?.map((q: any) => <div className="math-card p-5" key={q.questionNumber}><h3 className="font-bold">Question {q.questionNumber}</h3><div className="mt-4"><MathQuestionDisplay operands={q.operands} operators={q.operators} displayType={(q as any).displayType ?? (q as any).display_type} questionText={(q as any).questionText ?? (q as any).question_text} /></div><p className="mt-3">Selected: <strong>{q.studentAnswer ? formatAnswerValue(q.studentAnswer) : "Not Answered"}</strong></p><p>Correct: <strong>{q.correctAnswer !== undefined && q.correctAnswer !== null ? formatAnswerValue(q.correctAnswer) : "Not available"}</strong></p></div>)}
+          <div className="math-card p-6"><p className="math-block-header"><FileQuestion size={14} />Attempt Review</p><h1 className="mt-3 text-3xl font-black">{query.data.student?.studentName}</h1><p className="mt-2 text-slate-600">Score {query.data.summary?.score} / {query.data.summary?.maxScore}, accuracy {query.data.summary?.accuracyPercentage}%</p></div>
+          <ResultReviewTabs Questions={ToPracticeReviewQuestions(query.data.questionReview ?? query.data.questions)} Viewer="ADMIN" />
         </div>
       ) : null}
     </AppShell>

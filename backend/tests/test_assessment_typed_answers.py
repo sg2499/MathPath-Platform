@@ -198,3 +198,16 @@ def test_assessment_payload_sends_no_generator_notes(db, setup):
     for q in AssessmentAttemptPayload(db, attempt)["questions"]:
         assert set(q["metadata"]) <= STUDENT_SAFE_METADATA_KEYS
         assert q["answerFormat"] is None  # PM-L3 has no remainder answers
+
+
+def test_review_rows_carry_marks(db, setup):
+    student = setup["student"]
+    attempt = StartAssessmentAttempt(db, student, setup["assignment"].id)
+    questions = _questions(db, setup["version"])
+    drill = next(q for q in questions if q.concept_tag == "CONCEPT_DRILL")
+    SaveAssessmentAnswer(db, student, attempt.id, drill.id, AnswerText=str(drill.correct_answer))
+    SubmitAssessmentAttempt(db, student, attempt.id)
+    rows = {r["questionNumber"]: r for r in AssessmentResultPayload(db, attempt)["questionReview"]}
+    assert rows[drill.question_number]["marks"] == 5 and rows[drill.question_number]["marksAwarded"] == 5
+    assert rows[1]["marks"] == 1 and rows[1]["marksAwarded"] == 0 and rows[1]["isUnanswered"] is True
+    assert sum(r["marks"] for r in rows.values()) == 100

@@ -17,7 +17,7 @@ from app.services.attempt_service import ensure_active_or_auto_submit, result_pa
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, NeedsReattemptAttempts
 from app.services.assessment_eligibility_service import assessment_eligibility_payload, eligibility_for_students
 from app.services.assessment_blueprint_service import blueprint_payload, teacher_visible_blueprints
-from app.services.assessment_engine_service import AvailablePublishedVersions, AssessmentVersionOptionPayload, ExistingAssessmentAssignmentForLevel, AssessmentAssignmentPayload, AssessmentResultPayload, AssessmentProgressionPayload, StudentLevelPromotionPayload, EnsureAssessmentAttemptActiveOrAutoSubmit
+from app.services.assessment_engine_service import AvailablePublishedVersions, AssessmentVersionOptionPayload, ExistingAssessmentAssignmentForLevel, AssessmentAssignmentPayload, AssessmentResultPayload, AssessmentProgressionPayload, StudentLevelPromotionPayload, EnsureAssessmentAttemptActiveOrAutoSubmit, IsAssessmentOpenAccessStudent
 from app.services.assessment_notification_service import NotifyAssessmentAssignmentsCreated
 from app.services.practice_notification_service import NotifyPracticeAssignmentsCreated
 from app.services.lesson_progress_service import (
@@ -2018,6 +2018,11 @@ def teacher_available_assessments(
     own_students = own_students_query(db, teacher).filter(Student.is_active == True).all()
     teacher_module_ids = {student.current_module_id for student in own_students if student.current_module_id}
     teacher_level_ids = {student.current_level_id for student in own_students if student.current_level_id}
+    # A teacher with the test account (MP-ST-001) in class can give it any
+    # level's assessment, so every published level is visible to them.
+    if any(IsAssessmentOpenAccessStudent(student) for student in own_students):
+        teacher_module_ids |= {LevelRow.module_id for LevelRow in db.query(Level).all()}
+        teacher_level_ids |= {LevelRow.id for LevelRow in db.query(Level).all()}
     if moduleId and moduleId not in teacher_module_ids:
         api_error(403, "MODULE_NOT_ASSIGNED_TO_TEACHER", "This module is not assigned to your students.")
     if levelId and levelId not in teacher_level_ids:
@@ -2042,10 +2047,13 @@ def teacher_assign_assessment_options(
 ):
     own_students = own_students_query(db, teacher).filter(Student.is_active == True).order_by(Student.student_code.asc()).all()
     rows = []
+    HasTestAccount = False
     for StudentItem in own_students:
-        if moduleId and StudentItem.current_module_id != moduleId:
+        IsTestAccount = IsAssessmentOpenAccessStudent(StudentItem)
+        HasTestAccount = HasTestAccount or IsTestAccount
+        if moduleId and StudentItem.current_module_id != moduleId and not IsTestAccount:
             continue
-        if levelId and StudentItem.current_level_id != levelId:
+        if levelId and StudentItem.current_level_id != levelId and not IsTestAccount:
             continue
         Eligibility = assessment_eligibility_payload(db, StudentItem, StudentItem.current_level_id) if StudentItem.current_level_id else None
         ExistingAssignment = ExistingAssessmentAssignmentForLevel(db, StudentItem.id, StudentItem.current_level_id) if StudentItem.current_level_id else None
@@ -2060,7 +2068,7 @@ def teacher_assign_assessment_options(
         ReadinessOpen = AssessmentReadinessGateOpen(Eligibility, ActiveTestingOverride)
         IsOriginalAssignable = bool(ReadinessOpen and not ExistingAssignment)
         IsReattemptAssignable = bool(ReattemptNeeded and ApprovedReattemptAccess)
-        CanAssign = bool(IsOriginalAssignable or IsReattemptAssignable)
+        CanAssign = bool(IsOriginalAssignable or IsReattemptAssignable or IsTestAccount)
         ReadinessMode = AssessmentAssignmentReadinessMode(Eligibility, ActiveTestingOverride)
         rows.append({
             **(Eligibility or {
@@ -2100,7 +2108,10 @@ def teacher_assign_assessment_options(
             "testingOverrideLabel": ASSESSMENT_TESTING_OVERRIDE_LABEL if ActiveTestingOverride else None,
             "readinessGateMode": ReadinessMode,
             "canAssign": CanAssign,
-            "assignmentBlockReason": (
+            # The test account takes any level's assessment, any number of
+            # times; the screen offers it for whichever assessment is chosen.
+            "testAccount": IsTestAccount,
+            "assignmentBlockReason": None if IsTestAccount else (
                 "Admin-approved re-attempt access is available." if ExistingAssignment and ReattemptNeeded and ApprovedReattemptAccess else
                 "Re-attempt requires Admin approval." if ReattemptNeeded else
                 "Already assigned for this level." if ExistingAssignment else
@@ -2109,6 +2120,8 @@ def teacher_assign_assessment_options(
         })
 
     teacher_level_ids = {row.get("levelId") for row in rows if row.get("levelId")}
+    if HasTestAccount:
+        teacher_level_ids |= {LevelRow.id for LevelRow in db.query(Level).all()}
     versions = []
     for Version in AvailablePublishedVersions(db, levelId):
         Blueprint = db.get(AssessmentBlueprint, Version.blueprint_id)
@@ -2171,6 +2184,39 @@ def teacher_assign_assessment(
         StudentItem = own_students_query(db, teacher).filter(Student.id == StudentId, Student.is_active == True).first()
         if not StudentItem:
             Rejected.append({"studentId": StudentId, "reason": "Student is not assigned to this teacher."})
+            continue
+        if IsAssessmentOpenAccessStudent(StudentItem):
+            # The test account: any level, no readiness or one-per-level
+            # rule. It may already hold this version (it is given every
+            # published assessment automatically); then this teacher takes it
+            # over, so it shows on their tracker, instead of a duplicate.
+            TestRow = (
+                db.query(AssessmentAssignment)
+                .filter(AssessmentAssignment.assessment_version_id == Version.id, AssessmentAssignment.student_id == StudentItem.id)
+                .order_by(AssessmentAssignment.assigned_at.desc())
+                .first()
+            )
+            if TestRow and (not TestRow.is_active or str(TestRow.status or "").upper() in {"CANCELLED", "REVOKED", "INACTIVE"}):
+                # A cancelled copy comes back as a fresh assignment.
+                TestRow.status = "ASSIGNED"
+            if not TestRow:
+                TestRow = AssessmentAssignment(
+                    assessment_version_id=Version.id,
+                    blueprint_id=Blueprint.id,
+                    student_id=StudentItem.id,
+                    status="ASSIGNED",
+                    assessment_assignment_type="ORIGINAL",
+                    current_attempt_number=0,
+                    max_attempts=1,
+                )
+                db.add(TestRow)
+            TestRow.teacher_id = teacher.id
+            TestRow.assigned_by_user_id = TeacherUser.id if TeacherUser else None
+            TestRow.assigned_at = datetime.now(timezone.utc)
+            TestRow.instructions = payload.instructions
+            TestRow.is_active = True
+            db.flush()
+            CreatedAssignments.append(TestRow.id)
             continue
         if StudentItem.current_level_id != Blueprint.level_id:
             Rejected.append({"studentId": StudentId, "reason": "Assessment level does not match the student's current level."})

@@ -339,6 +339,8 @@ export type TeacherAvailableAssessment = {
 };
 
 export type TeacherAssignableAssessmentStudent = TeacherAssessmentEligibilityRow & {
+  // The test account (MP-ST-001): offered for every level's assessment.
+  testAccount?: boolean;
   alreadyAssigned: boolean;
   existingAssessmentAssignmentId: string | null;
   sourceAssessmentVersionId?: string | null;

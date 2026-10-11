@@ -14,11 +14,11 @@
 // GetCompetitionEventAttemptReviewForTeacher's own docstring on the
 // backend for why that's the same is_released gate, not a new one).
 
+import { ResultReviewTabs, ToAnnualReviewQuestions, ToAnnualReviewSections } from "@/components/common/ResultReviewTabs";
 import { AppShell } from "@/components/common/AppShell";
 import { Chip } from "@/components/common/DetailWorkspaceViews";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { FormatCompetitionLevelLabel } from "@/lib/api/admin";
@@ -38,7 +38,6 @@ import {
   Trophy,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
 
 function FormatDurationSeconds(Value: number | null | undefined): string {
   if (Value === null || Value === undefined) return "-";
@@ -62,14 +61,11 @@ function FormatNumber(Value: number | null | undefined): string {
   return String(Math.round(Number(Value)));
 }
 
-type ReviewTab = "answerSheet" | "scorecard";
-
 export default function TeacherAnnualCompetitionAttemptReviewPage() {
   const Ready = useProtectedPage(["TEACHER"]);
   const Params = useParams<{ attemptId: string }>();
   const Router = useRouter();
   const AttemptId = Params.attemptId;
-  const [ActiveTab, SetActiveTab] = useState<ReviewTab>("answerSheet");
 
   const ReviewQuery = useQuery({
     queryKey: ["teacher-annual-competition-attempt-review", AttemptId],
@@ -180,214 +176,11 @@ export default function TeacherAnnualCompetitionAttemptReviewPage() {
           </div>
         ) : null}
 
-        <div className="math-card p-2">
-          <div className="flex flex-wrap gap-2">
-            <ReviewTabButton active={ActiveTab === "answerSheet"} onClick={() => SetActiveTab("answerSheet")} label="Answer Sheet" />
-            <ReviewTabButton active={ActiveTab === "scorecard"} onClick={() => SetActiveTab("scorecard")} label="Scorecard" />
-          </div>
-        </div>
-
-        {ActiveTab === "answerSheet" ? (
-          !Review.sections || Review.sections.length === 0 ? (
-            <div className="math-card p-5 text-sm font-bold text-slate-700 dark:text-slate-300">
-              No section data is available for this attempt yet.
-            </div>
-          ) : (
-            Review.sections.map((SectionReview) => (
-              <div key={SectionReview.sectionNumber} className="math-card p-5">
-                <div className="mb-4 flex flex-col gap-2 rounded-[22px] border border-[#2563eb]/15 bg-[#2563eb]/5 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/30 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2563eb] dark:text-cyan-100">Section {SectionReview.sectionNumber}</p>
-                    <h3 className="text-lg font-black text-slate-950 dark:text-white">
-                      {SectionReview.sectionTitle || `Section ${SectionReview.sectionNumber}`}
-                      {SectionReview.mode ? ` · ${SectionReview.mode}` : ""}
-                    </h3>
-                  </div>
-                  <Chip tone="slate">{SectionReview.questions.length} Questions</Chip>
-                </div>
-
-                {SectionReview.questions.length === 0 ? (
-                  <p className="rounded-[20px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
-                    No questions found for this section.
-                  </p>
-                ) : (
-                  <div className="space-y-5">
-                    {SectionReview.questions.map((QuestionReview) => (
-                      <QuestionReviewCard key={QuestionReview.questionId} Question={QuestionReview} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))
-          )
-        ) : (
-          <ScorecardTab Review={Review} />
-        )}
+        {/* 2026-10-11: the same Answer Sheet (section blocks) and Scorecard
+            tabs as every other result page (components/common/ResultReviewTabs). */}
+        <ResultReviewTabs Questions={ToAnnualReviewQuestions(Review.sections)} Sections={ToAnnualReviewSections(Review.sections)} Viewer="TEACHER" />
       </section>
     </AppShell>
-  );
-}
-
-function ReviewTabButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className={active ? "math-role-tab math-role-tab-active" : "math-role-tab"}>
-      {label}
-    </button>
-  );
-}
-
-// Section-by-section marks table, derived from the exact same `sections`
-// data the Answer Sheet tab already renders -- mirrors the admin page's own
-// ScorecardTab (same reasoning: this tab's totals must never drift from
-// what the Answer Sheet tab visibly shows above it).
-function ScorecardTab({ Review }: { Review: TeacherAnnualCompetitionAttemptReview }) {
-  const Sections = Review.sections || [];
-  const Rows = Sections.map((SectionReview) => ({
-    sectionNumber: SectionReview.sectionNumber,
-    sectionTitle: SectionReview.sectionTitle || `Section ${SectionReview.sectionNumber}`,
-    totalQuestions: SectionReview.questions.length,
-    // 2026-09-27 (Shailesh, Scorecard "Total Attempted" feature): a
-    // question already carries isUnanswered on this exact review payload
-    // (mirrored verbatim across student/admin/teacher), so "attempted" is
-    // derivable with no new backend field or fetch.
-    attemptedCount: SectionReview.questions.filter((QuestionReview) => !QuestionReview.isUnanswered).length,
-    correctCount: SectionReview.questions.filter((QuestionReview) => QuestionReview.isCorrect).length,
-  }));
-  const TotalQuestions = Rows.reduce((Sum, Row) => Sum + Row.totalQuestions, 0);
-  const TotalAttempted = Rows.reduce((Sum, Row) => Sum + Row.attemptedCount, 0);
-  const TotalMarksObtained = Rows.reduce((Sum, Row) => Sum + Row.correctCount, 0);
-  const ResultForBreakdown = Review.result;
-  const AttemptedCountForBreakdown = ResultForBreakdown ? ResultForBreakdown.correctCount + ResultForBreakdown.wrongCount : 0;
-
-  return (
-    <div className="math-card p-5">
-      <div className="mb-4">
-        <p className="math-block-header"><ListChecks size={14} />Scorecard</p>
-        <h3 className="text-lg font-black text-slate-950 dark:text-white">Section-wise Marks</h3>
-      </div>
-
-      {Rows.length === 0 ? (
-        <p className="rounded-[20px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
-          No section data is available for this attempt yet.
-        </p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[620px] border-collapse text-sm">
-            <thead>
-              <tr className="border-b-2 border-slate-200 dark:border-slate-700">
-                <th className="px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Section</th>
-                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Total Questions</th>
-                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Questions Attempted</th>
-                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Correct Answers</th>
-                <th className="px-3 py-2.5 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Marks Obtained</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Rows.map((Row) => (
-                <tr key={Row.sectionNumber} className="border-b border-slate-100 dark:border-slate-800">
-                  <td className="px-3 py-3 font-bold text-slate-900 dark:text-slate-100">
-                    Section {Row.sectionNumber} — {Row.sectionTitle}
-                  </td>
-                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{Row.totalQuestions}</td>
-                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{Row.attemptedCount}</td>
-                  <td className="px-3 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{Row.correctCount}</td>
-                  <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{Row.correctCount}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-[#2563eb]/30 dark:border-cyan-300/30">
-                <td className="px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">Total</td>
-                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{TotalQuestions}</td>
-                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{TotalAttempted}</td>
-                <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{TotalMarksObtained}</td>
-                <td className="px-3 py-3 text-right text-lg font-black text-[#2563eb] dark:text-cyan-100">{TotalMarksObtained}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      )}
-
-      <div className="mt-4 rounded-[22px] border border-[#2563eb]/25 bg-[#2563eb]/5 px-5 py-4 text-center dark:border-cyan-300/30 dark:bg-cyan-400/10">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2563eb] dark:text-cyan-100">Total Marks Obtained</p>
-        <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
-          {TotalMarksObtained}/{TotalQuestions}
-        </p>
-      </div>
-
-      {ResultForBreakdown ? (
-        <div className="mt-4 rounded-[22px] border border-emerald-500/25 bg-emerald-500/5 p-5 dark:border-emerald-400/25 dark:bg-emerald-400/10">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Accuracy Breakdown</p>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Attempted</p>
-              <p className="text-lg font-black text-slate-950 dark:text-white">{AttemptedCountForBreakdown}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Correct</p>
-              <p className="text-lg font-black text-slate-950 dark:text-white">{ResultForBreakdown.correctCount}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Wrong</p>
-              <p className="text-lg font-black text-slate-950 dark:text-white">{ResultForBreakdown.wrongCount}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Unanswered</p>
-              <p className="text-lg font-black text-slate-950 dark:text-white">{ResultForBreakdown.unansweredCount}</p>
-            </div>
-          </div>
-          <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-            Accuracy = Correct ÷ Attempted = {ResultForBreakdown.correctCount}/{AttemptedCountForBreakdown} = {FormatNumber(ResultForBreakdown.accuracyPercentage)}%
-          </p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function QuestionReviewCard({ Question }: { Question: TeacherAnnualCompetitionAttemptReviewQuestion }) {
-  return (
-    <article className="rounded-[28px] border border-[#2563eb]/15 bg-white/86 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-xl font-black text-slate-950 dark:text-white">Question {Question.questionNumber}</h3>
-        <Chip tone={Question.isUnanswered ? "slate" : Question.isCorrect ? "green" : "red"}>
-          {Question.isUnanswered ? "Unanswered" : Question.isCorrect ? "Correct" : "Wrong"}
-        </Chip>
-      </div>
-
-      <div className="mt-5 rounded-[24px] bg-slate-50/90 p-5 dark:bg-slate-950/60">
-        <MathQuestionDisplay
-          operands={Question.operands}
-          operators={Question.operators}
-          displayType={Question.displayType}
-          questionText={Question.questionText}
-        />
-      </div>
-
-      <div className="mt-5 grid gap-3 xl:grid-cols-2">
-        <AnswerBox title="Student Answer" tone={Question.isUnanswered ? "neutral" : Question.isCorrect ? "correct" : "wrong"}>
-          {Question.studentAnswer ?? "Not Answered"}
-        </AnswerBox>
-        <AnswerBox title="Correct Answer" tone="correct">
-          {Question.correctAnswer ?? "Not Available"}
-        </AnswerBox>
-      </div>
-    </article>
-  );
-}
-
-function AnswerBox({ title, children, tone }: { title: string; children: React.ReactNode; tone: "correct" | "wrong" | "neutral" }) {
-  const ClassName =
-    tone === "correct"
-      ? "border-emerald-100 bg-emerald-50/80 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/25 dark:text-emerald-100"
-      : tone === "wrong"
-        ? "border-rose-100 bg-rose-50/80 text-rose-950 dark:border-rose-800 dark:bg-rose-950/25 dark:text-rose-100"
-        : "border-amber-100 bg-amber-50/80 text-amber-950 dark:border-amber-800 dark:bg-amber-950/25 dark:text-amber-100";
-  return (
-    <div className={`rounded-[22px] border p-4 ${ClassName}`}>
-      <p className="text-xs font-extrabold uppercase tracking-[0.14em] opacity-80">{title}</p>
-      <p className="mt-2 text-lg font-black">{children}</p>
-    </div>
   );
 }
 

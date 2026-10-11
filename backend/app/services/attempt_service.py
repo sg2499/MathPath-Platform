@@ -752,6 +752,16 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
     if include_review:
         questions = db.query(GeneratedQuestion).filter(GeneratedQuestion.question_set_id == attempt.question_set_id).order_by(GeneratedQuestion.question_number).all()
         answers = {a.question_id: a for a in db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == attempt.id).all()}
+        # 2026-10-11 (Shailesh): the result pages show the review as section
+        # blocks plus a section-wise scorecard, so each row says which section
+        # it belongs to and what it was worth (the same marks grading used,
+        # see _GradeAttemptAnswers).
+        review_dps = db.get(DPS, attempt.dps_id)
+        review_default_marks = float(getattr(review_dps, "marks_per_question", 1) or 1)
+        review_sections = {
+            section.id: section
+            for section in db.query(DPSSection).filter(DPSSection.dps_id == attempt.dps_id).all()
+        }
         for q in questions:
             # DPS questions are typed free-text answers now, not MCQ picks --
             # see OPEN_ISSUES.md 2026-08-03e. The result view (student,
@@ -760,6 +770,8 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
             # of a lettered option.
             selected = answers.get(q.id)
             student_value = (selected.selected_value or "").strip() if selected else ""
+            review_section = review_sections.get(q.dps_section_id) if q.dps_section_id else None
+            question_marks = _SectionMarksPerQuestion(review_section, review_default_marks)
             questions_review.append({
                 "questionNumber": q.question_number,
                 "questionId": q.id,
@@ -773,6 +785,11 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
                 "studentAnswer": student_value or None,
                 "correctAnswer": q.correct_answer,
                 "isCorrect": bool(selected.is_correct) if selected else False,
+                "isUnanswered": not student_value,
+                "sectionNumber": review_section.section_number if review_section else None,
+                "sectionTitle": review_section.section_title if review_section else None,
+                "marks": question_marks,
+                "marksAwarded": question_marks if (selected and selected.is_correct) else 0.0,
             })
     retry_assignment = latest_retry_assignment_for_attempt(db, attempt)
     retry_workflow = BuildRetryWorkflowPayload(attempt, retry_assignment)

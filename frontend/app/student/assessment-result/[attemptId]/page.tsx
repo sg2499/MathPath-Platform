@@ -1,11 +1,11 @@
 "use client";
 
+import { ResultReviewTabs, ToAssessmentReviewQuestions } from "@/components/common/ResultReviewTabs";
+import { AssessmentRemarksPanel } from "@/components/common/AssessmentFeedbackRemarkCard";
 import { AppShell } from "@/components/common/AppShell";
-import { ReviewCorrectAnswer, ReviewStudentAnswer } from "@/lib/assessmentReview";
 import { BackButton } from "@/components/student/BackButton";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
@@ -245,6 +245,9 @@ export default function StudentAssessmentResultPage() {
 
           <AssessmentFeedbackCard Result={Query.data} />
 
+          {/* The teacher's feedback for this attempt, once there is some. */}
+          <AssessmentRemarksPanel AttemptId={Params.attemptId} ViewerRole="STUDENT" AccuracyPercentage={Number(Query.data.accuracyPercentage || 0)} />
+
           <div className="flex flex-wrap items-center gap-3">
             <div className={`math-badge ${Query.data.status === "CLEARED" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
               {Query.data.performanceBand}
@@ -254,43 +257,7 @@ export default function StudentAssessmentResultPage() {
             ) : null}
           </div>
 
-          <section>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                <Award size={22} />
-              </div>
-              <div>
-                <h2 className="text-3xl font-black text-slate-950">Question Review</h2>
-                <p className="text-slate-600">Review each question, your answer, and the correct answer calmly.</p>
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              {Query.data.questionReview?.map((Question) => (
-                <div key={Question.questionId} className="math-student-panel">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <h3 className="text-xl font-black text-slate-950">Question {Question.questionNumber}</h3>
-                    <span className={`math-badge ${Question.isCorrect ? "bg-emerald-50 text-emerald-700 border-emerald-200" : ReviewStudentAnswer(Question) ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>{Question.isCorrect ? "Correct" : ReviewStudentAnswer(Question) ? "Wrong" : "Unanswered"}</span>
-                  </div>
-
-                  <div className="mt-5 rounded-[28px] bg-slate-50/90 p-6">
-                    <MathQuestionDisplay operands={Question.operands} operators={Question.operators} displayType={(Question as any).displayType ?? (Question as any).display_type} questionText={(Question as any).questionText ?? (Question as any).question_text} />
-                  </div>
-
-                  <div className="mt-5 grid gap-3 xl:grid-cols-2">
-                    <div className={`rounded-[22px] p-4 ${Question.isCorrect ? "bg-emerald-50 text-emerald-900" : ReviewStudentAnswer(Question) ? "bg-rose-50 text-rose-900" : "bg-amber-50 text-amber-900"}`}>
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em]">Your Answer</p>
-                      <p className="mt-2 text-lg font-black">{ReviewStudentAnswer(Question) ?? "Not Answered"}</p>
-                    </div>
-                    <div className="rounded-[22px] bg-emerald-50 p-4 text-emerald-900">
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700">Correct Answer</p>
-                      <p className="mt-2 text-lg font-black">{ReviewCorrectAnswer(Question) ?? "Not Available"}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+          <ResultReviewTabs Questions={ToAssessmentReviewQuestions(Query.data.questionReview as any)} Viewer="STUDENT" />
         </div>
       ) : null}
       </AppShell>
