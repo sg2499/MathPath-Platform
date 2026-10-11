@@ -14,9 +14,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Award, CheckCircle2, Clock3, Rocket, ShieldAlert, Sparkles, Target, ClipboardCheck } from "lucide-react";
 import { PremiumResultFeedbackCard } from "@/components/common/PerformanceFeedback";
 import { RewardEarnedModal, type RewardBreakdown } from "@/components/gamification/RewardEarnedModal";
-import { RankCinematicOverlay } from "@/components/gamification/RankCinematicOverlay";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+
+// 2026-10-11 (performance): the 3D / celebration scenes load only when shown.
+const RankCinematicOverlay = dynamic(() => import("@/components/gamification/RankCinematicOverlay").then((Module) => Module.RankCinematicOverlay), { ssr: false });
 
 
 function CleanNumber(Value: unknown) {

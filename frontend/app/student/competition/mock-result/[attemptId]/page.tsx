@@ -21,13 +21,16 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { EpicCelebration } from "@/components/gamification/EpicCelebration";
-import { BadgeInspectionModal } from "@/components/gamification/BadgeInspectionModal";
-import { RankCinematicOverlay } from "@/components/gamification/RankCinematicOverlay";
 import { RewardEarnedModal, type RewardBreakdown } from "@/components/gamification/RewardEarnedModal";
 import { getBadgeVisualConfig } from "@/lib/gamification/badgeVisuals";
 import { AnimatePresence } from "framer-motion";
 import { CompetitionMessage, competitionMessagePools } from "@/lib/utils/competitionMessages";
+import dynamic from "next/dynamic";
+
+// 2026-10-11 (performance): the 3D / celebration scenes load only when shown.
+const EpicCelebration = dynamic(() => import("@/components/gamification/EpicCelebration").then((Module) => Module.EpicCelebration), { ssr: false });
+const BadgeInspectionModal = dynamic(() => import("@/components/gamification/BadgeInspectionModal").then((Module) => Module.BadgeInspectionModal), { ssr: false });
+const RankCinematicOverlay = dynamic(() => import("@/components/gamification/RankCinematicOverlay").then((Module) => Module.RankCinematicOverlay), { ssr: false });
 
 // Rarity order used purely to sequence the post-submission badge reveal --
 // legendary badges are always shown last so the moment escalates rather than

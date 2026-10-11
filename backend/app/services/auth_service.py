@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from app.models import User, Student, Teacher
+from app.models import User, Student, Teacher, Level
 from app.core.security import verify_password, create_access_token, create_two_factor_challenge_token
 from app.core.errors import api_error
 
@@ -24,6 +24,12 @@ def user_login_id(user: User, student: Student | None = None, teacher: Teacher |
     if teacher and teacher.teacher_code:
         return teacher.teacher_code
     return None
+
+
+def _level_code(db: Session, level_id: str | None) -> str | None:
+    if not level_id:
+        return None
+    return db.query(Level.level_code).filter(Level.id == level_id).scalar()
 
 
 def user_payload(db: Session, user: User) -> dict:
@@ -56,6 +62,9 @@ def user_payload(db: Session, user: User) -> dict:
             "customId": student.custom_id,
             "currentModuleId": student.current_module_id,
             "currentLevelId": student.current_level_id,
+            # 2026-10-11: the code (e.g. "PM-L3") for the dashboard's
+            # Current Level badge; read fresh on every /auth/me.
+            "currentLevelCode": _level_code(db, student.current_level_id),
             "photoUrl": public_profile_photo_url(user, student.photo_url),
             "signatureUrl": student.signature_url,
             "className": student.class_name,

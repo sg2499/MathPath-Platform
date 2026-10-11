@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { Trophy, Users, AlertCircle, ChevronDown, ArrowLeft } from "lucide-react";
 import { DpsLeaderboardAPI } from "@/lib/api-dps-leaderboard";
 import { LoadingState } from "@/components/common/LoadingState";
+import { RisingParticles } from "@/components/common/RisingParticles";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -212,29 +213,19 @@ const searchParams = useSearchParams();
       {/* 1.5 Floating Stardust Engine -- same light/dark blend-mode fix as
           the mock-exam leaderboard (screen-blend collapses to invisible
           against a light background; multiply is the light-mode analogue). */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden mix-blend-multiply dark:mix-blend-screen">
-        {[...Array(40)].map((_, i) => (
-           <motion.div key={i}
-             initial={{ y: "100vh", x: Math.random() * 100 + "vw", opacity: 0 }}
-             animate={{ y: "-10vh", opacity: [0, Math.random(), 0] }}
-             transition={{ duration: 10 + Math.random() * 20, repeat: Infinity, delay: Math.random() * 10 }}
-             className="absolute w-1 h-1 bg-emerald-400 dark:bg-white rounded-full shadow-[0_0_10px_rgba(16,185,129,0.7)] dark:shadow-[0_0_10px_#fff]"
-             style={{ filter: `blur(${Math.random() * 2}px)` }}
-           />
-        ))}
-      </div>
+      <RisingParticles seed={23} className="bg-emerald-400/90 dark:bg-white shadow-[0_0_8px_rgba(16,185,129,0.55)] dark:shadow-[0_0_8px_#fff]" />
 
       {/* 2. Dynamic Aurora Gradients -- emerald/teal accent distinguishes
           this from the mock-exam leaderboard's blue/indigo/orange/fuchsia
           scheme, matching this platform's DPS-badge colour family. */}
-      <div className={`absolute top-[-10%] left-[-10%] w-[60%] h-[80%] blur-[150px] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${activeHeroRank === 1 ? 'bg-yellow-500/20 dark:bg-yellow-600/30' : viewMode === 'OVERALL' ? 'bg-emerald-500/10 dark:bg-emerald-600/20' : 'bg-teal-500/10 dark:bg-teal-600/20'}`} />
-      <div className={`absolute bottom-[-10%] right-[-10%] w-[60%] h-[80%] blur-[150px] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${activeHeroRank === 1 ? 'bg-yellow-500/20 dark:bg-yellow-600/30' : viewMode === 'OVERALL' ? 'bg-green-500/10 dark:bg-green-600/20' : 'bg-cyan-500/10 dark:bg-cyan-600/20'}`} />
+      <div className={`absolute top-[-10%] left-[-10%] w-[60%] h-[80%] mp-soft-glow scale-[1.5] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${activeHeroRank === 1 ? 'bg-yellow-500/20 dark:bg-yellow-600/30' : viewMode === 'OVERALL' ? 'bg-emerald-500/10 dark:bg-emerald-600/20' : 'bg-teal-500/10 dark:bg-teal-600/20'}`} />
+      <div className={`absolute bottom-[-10%] right-[-10%] w-[60%] h-[80%] mp-soft-glow scale-[1.5] rounded-full pointer-events-none z-0 transition-colors duration-1000 ${activeHeroRank === 1 ? 'bg-yellow-500/20 dark:bg-yellow-600/30' : viewMode === 'OVERALL' ? 'bg-green-500/10 dark:bg-green-600/20' : 'bg-cyan-500/10 dark:bg-cyan-600/20'}`} />
 
       {/* 3. Deep Contrast Backdrop for the podium */}
-      <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px] bg-slate-900/10 dark:bg-black/80 blur-[120px] pointer-events-none rounded-[100%] z-0" />
+      <div className="absolute top-[60%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px] bg-slate-900/10 dark:bg-black/80 mp-soft-glow scale-[1.3] pointer-events-none rounded-[100%] z-0" />
 
       {/* 4. Volumetric Spotlight from above */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-white/60 dark:from-white/10 to-transparent blur-[80px] pointer-events-none z-0" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-white/60 dark:from-white/10 to-transparent mp-soft-fade pointer-events-none z-0" />
 
       <div className="relative z-10 w-full max-w-[1720px] mx-auto p-4 md:p-6 lg:p-8 space-y-8">
         <DpsPodiumHeroAnimation

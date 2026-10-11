@@ -7,9 +7,6 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { ResultSummary } from "@/components/student/ResultSummary";
 import { RewardEarnedModal, type RewardBreakdown } from "@/components/gamification/RewardEarnedModal";
-import { EpicCelebration } from "@/components/gamification/EpicCelebration";
-import { BadgeInspectionModal } from "@/components/gamification/BadgeInspectionModal";
-import { RankCinematicOverlay } from "@/components/gamification/RankCinematicOverlay";
 import { getBadgeVisualConfig } from "@/lib/gamification/badgeVisuals";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
@@ -19,6 +16,12 @@ import { AnimatePresence } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+
+// 2026-10-11 (performance): the 3D / celebration scenes load only when shown.
+const EpicCelebration = dynamic(() => import("@/components/gamification/EpicCelebration").then((Module) => Module.EpicCelebration), { ssr: false });
+const BadgeInspectionModal = dynamic(() => import("@/components/gamification/BadgeInspectionModal").then((Module) => Module.BadgeInspectionModal), { ssr: false });
+const RankCinematicOverlay = dynamic(() => import("@/components/gamification/RankCinematicOverlay").then((Module) => Module.RankCinematicOverlay), { ssr: false });
 
 // Rarity order used purely to sequence the post-submission badge reveal --
 // legendary badges are always shown last so the moment escalates rather than

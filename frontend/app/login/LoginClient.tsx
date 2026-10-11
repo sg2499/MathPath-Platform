@@ -1,10 +1,11 @@
 "use client";
 
-import { login, verifyTwoFactorLogin, warmupAuthApi } from "@/lib/api/auth";
+import { login, verifyTwoFactorLogin, waitForPendingSignOut, warmupAuthApi } from "@/lib/api/auth";
 import { apiErrorMessage } from "@/lib/api";
 import { defaultRouteForRole, setActiveRole, setSession } from "@/lib/auth";
 import { triggerLoginWelcome } from "@/lib/utils/particles";
 import { isTwoFactorChallenge } from "@/types/auth";
+import { OtpInput } from "./OtpInput";
 import type { CurrentUser, UserRole } from "@/types/auth";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -208,6 +209,8 @@ export default function LoginClient({
   // a code-entry step instead of the identifier/password fields.
   const [TwoFactorChallengeToken, SetTwoFactorChallengeToken] = useState<string | null>(null);
   const [TwoFactorCode, SetTwoFactorCode] = useState("");
+  const [UseBackupCode, SetUseBackupCode] = useState(false);
+  const [OtpResetKey, SetOtpResetKey] = useState(0);
 
   const StageRef = useRef<LoginStageHandle>(null);
   const FormShellRef = useRef<HTMLDivElement>(null);
@@ -352,6 +355,8 @@ export default function LoginClient({
     StageRef.current?.Signal("busy");
 
     try {
+      // A sign-out from a moment ago finishes first (see lib/api/auth.ts).
+      await waitForPendingSignOut();
       const Result = await login(CleanIdentifier, CleanPassword);
 
       if (isTwoFactorChallenge(Result)) {
@@ -372,13 +377,12 @@ export default function LoginClient({
     }
   }
 
-  async function HandleTwoFactorSubmit(Event: React.FormEvent) {
-    Event.preventDefault();
+  async function VerifyTwoFactorCode(Code: string) {
     if (Loading || !TwoFactorChallengeToken) return;
 
-    const CleanCode = TwoFactorCode.trim();
+    const CleanCode = Code.trim();
     if (!CleanCode) {
-      SetError("Enter the 6-digit code from your authenticator app.");
+      SetError(UseBackupCode ? "Enter one of your backup codes." : "Enter the 6-digit code from your authenticator app.");
       return;
     }
 
@@ -392,14 +396,25 @@ export default function LoginClient({
     } catch (Err) {
       StageRef.current?.Signal("error");
       SetError(apiErrorMessage(Err));
+      // A wrong six-digit code: clear the boxes and start again from the first.
+      if (!UseBackupCode) {
+        SetTwoFactorCode("");
+        SetOtpResetKey((Key) => Key + 1);
+      }
     } finally {
       SetLoading(false);
     }
   }
 
+  async function HandleTwoFactorSubmit(Event: React.FormEvent) {
+    Event.preventDefault();
+    await VerifyTwoFactorCode(TwoFactorCode);
+  }
+
   function CancelTwoFactorChallenge() {
     SetTwoFactorChallengeToken(null);
     SetTwoFactorCode("");
+    SetUseBackupCode(false);
     SetError("");
   }
 
@@ -497,30 +512,78 @@ export default function LoginClient({
                   onSubmit={HandleTwoFactorSubmit}
                   data-testid="two-factor-login-form"
                 >
-                  <label className="mp-si-label" htmlFor="mathpath-login-2fa-code">
-                    Authentication Code
-                  </label>
-                  <input
-                    id="mathpath-login-2fa-code"
-                    className="mp-si-in code"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    value={TwoFactorCode}
-                    onChange={(Event) => SetTwoFactorCode(Event.target.value)}
-                    placeholder="123456"
-                    autoFocus
-                    required
-                  />
-                  <p className="mp-si-note">
-                    Enter the 6-digit code from your authenticator app, or one of your backup codes.
-                  </p>
+                  {UseBackupCode ? (
+                    <>
+                      <label className="mp-si-label" htmlFor="mathpath-login-2fa-backup">
+                        Backup Code
+                      </label>
+                      <input
+                        id="mathpath-login-2fa-backup"
+                        className="mp-si-in code"
+                        type="text"
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        value={TwoFactorCode}
+                        onChange={(Event) => SetTwoFactorCode(Event.target.value)}
+                        placeholder="a1b2c3d4-e5f6"
+                        autoFocus
+                        required
+                      />
+                      <p className="mp-si-note">Enter one of the backup codes you saved when you turned on two-factor sign-in.</p>
 
-                  {ErrorBanner}
+                      {ErrorBanner}
 
-                  <button type="submit" className="mp-si-cta" disabled={Loading}>
-                    {Loading ? "Verifying..." : "Verify & Continue"}
-                  </button>
+                      <button type="submit" className="mp-si-cta" disabled={Loading}>
+                        {Loading ? "Verifying..." : "Verify & Continue"}
+                      </button>
+                      <button
+                        type="button"
+                        className="mp-si-linkbtn"
+                        onClick={() => {
+                          SetUseBackupCode(false);
+                          SetTwoFactorCode("");
+                          SetError("");
+                          SetOtpResetKey((Key) => Key + 1);
+                        }}
+                      >
+                        Use the 6-digit code instead
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <label className="mp-si-label" htmlFor="mathpath-login-2fa-code">
+                        Authentication Code
+                      </label>
+                      <OtpInput
+                        value={TwoFactorCode}
+                        onChange={(Next) => {
+                          SetTwoFactorCode(Next);
+                          if (Error) SetError("");
+                        }}
+                        onComplete={(Code) => void VerifyTwoFactorCode(Code)}
+                        disabled={Loading}
+                        resetKey={OtpResetKey}
+                      />
+                      <p className="mp-si-otp-status" aria-live="polite">
+                        {Loading ? "Verifying..." : "Enter the 6-digit code from your authenticator app."}
+                      </p>
+
+                      {ErrorBanner}
+
+                      <button
+                        type="button"
+                        className="mp-si-linkbtn"
+                        onClick={() => {
+                          SetUseBackupCode(true);
+                          SetTwoFactorCode("");
+                          SetError("");
+                        }}
+                      >
+                        Use a backup code instead
+                      </button>
+                    </>
+                  )}
 
                   <button type="button" onClick={CancelTwoFactorChallenge} className="mp-si-back">
                     Back to login

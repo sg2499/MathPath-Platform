@@ -3942,3 +3942,39 @@ html.dark .se-phone-bar {
     margin: 0;
   }
 }
+
+/* 2026-10-11: Current Level badge under "My Learning Workspace" */
+.se-level-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 10px;
+  margin: 2px 0 0;
+  padding: 5px 6px 5px 14px;
+  border: 1px solid var(--se-line);
+  border-radius: 9999px;
+  background: var(--se-surface-2);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 10px 24px -18px rgba(249, 115, 22, 0.35);
+}
+.se-level-badge-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--se-ink-soft, #64748b);
+}
+.se-level-badge-code {
+  padding: 3px 12px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #f97316, #fb7185);
+  color: #fff;
+  font-family: var(--se-display);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+html.dark .se-level-badge {
+  background: rgba(2, 6, 23, 0.55);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}

@@ -1,132 +1,98 @@
 "use client";
 
-import { useRef, useMemo, useEffect, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Sparkles as DreiSparkles, Stars } from "@react-three/drei";
-import { EffectComposer, Bloom } from "@react-three/postprocessing";
-import * as THREE from "three";
-import { motion } from "framer-motion";
+// 2026-10-11 (Shailesh, "the entire platform must have pristine optimization
+// and must feel seamless across any sort of device"): the student backdrop
+// keeps its look but is now cheap to draw.
+//
+// Before: light mode animated three 120-140px CSS blurs from JavaScript on
+// every frame, and dark mode ran a full WebGL scene (3,000 stars, sparkles,
+// floating shapes and a bloom pass) behind every student page. Measured on a
+// mid-range phone profile, student pages scrolled at 7-13 frames a second
+// (teacher and admin pages: 60).
+//
+// Now: the glows are radial gradients (painted once, no blur filter) and the
+// stars are one static SVG. The only motion is a slow drift done with
+// `transform` / `opacity`, which the GPU composites without repainting, and
+// it stops entirely for anyone who prefers reduced motion.
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 function useDarkMode() {
   const [isDark, setIsDark] = useState(false);
   useEffect(() => {
-    const checkDark = () => document.documentElement.classList.contains('dark');
+    const checkDark = () => document.documentElement.classList.contains("dark");
     setIsDark(checkDark());
     const observer = new MutationObserver(() => setIsDark(checkDark()));
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     return () => observer.disconnect();
   }, []);
   return isDark;
 }
 
-function FloatingDataNodes({ count, color, wireframe = true, opacity = 0.3 }: { count: number, color: string, wireframe?: boolean, opacity?: number }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  const particles = useMemo(() => {
-    const temp = [];
-    for (let i = 0; i < count; i++) {
-      const t = Math.random() * 100;
-      const factor = 20 + Math.random() * 100;
-      const speed = 0.01 + Math.random() / 200;
-      const xFactor = -50 + Math.random() * 100;
-      const yFactor = -50 + Math.random() * 100;
-      const zFactor = -50 + Math.random() * 100;
-      temp.push({ t, factor, speed, xFactor, yFactor, zFactor, mx: 0, my: 0 });
-    }
-    return temp;
-  }, [count]);
+// Deterministic star positions (same sky on every visit, no hydration drift).
+function Seeded(seed: number) {
+  let value = seed;
+  return () => {
+    value = (value * 16807) % 2147483647;
+    return (value - 1) / 2147483646;
+  };
+}
 
-  useFrame(() => {
-    if (!meshRef.current) return;
-    particles.forEach((particle, i) => {
-      let { t, factor, speed, xFactor, yFactor, zFactor } = particle;
-      t = particle.t += speed / 2;
-      const a = Math.cos(t) + Math.sin(t * 1) / 10;
-      const b = Math.sin(t) + Math.cos(t * 2) / 10;
-      const s = Math.cos(t);
-      dummy.position.set(
-        (particle.mx / 10) * a + xFactor + Math.cos((t / 10) * factor) + (Math.sin(t * 1) * factor) / 10,
-        (particle.my / 10) * b + yFactor + Math.sin((t / 10) * factor) + (Math.cos(t * 2) * factor) / 10,
-        (particle.my / 10) * b + zFactor + Math.cos((t / 10) * factor) + (Math.sin(t * 3) * factor) / 10
-      );
-      dummy.scale.set(s, s, s);
-      dummy.rotation.set(s * 5, s * 5, s * 5);
-      dummy.updateMatrix();
-      meshRef.current!.setMatrixAt(i, dummy.matrix);
-    });
-    meshRef.current.instanceMatrix.needsUpdate = true;
-  });
+function BuildStars(count: number, seed: number, minRadius: number, maxRadius: number) {
+  const random = Seeded(seed);
+  return Array.from({ length: count }, () => ({
+    x: random() * 100,
+    y: random() * 100,
+    r: minRadius + random() * (maxRadius - minRadius),
+    o: 0.25 + random() * 0.6,
+  }));
+}
 
+const FAINT_STARS = BuildStars(220, 7, 0.35, 0.9);
+const BRIGHT_STARS = BuildStars(36, 31, 0.9, 1.6);
+const VIOLET_SPARKS = BuildStars(28, 97, 1, 1.8);
+
+function StarLayer({ stars, color, className }: { stars: ReturnType<typeof BuildStars>; color: string; className?: string }) {
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
-      <icosahedronGeometry args={[0.2, 0]} />
-      {wireframe ? (
-        <meshBasicMaterial color={color} wireframe transparent opacity={opacity} />
-      ) : (
-        <meshStandardMaterial color={color} transparent opacity={opacity} roughness={0.2} metalness={0.6} />
-      )}
-    </instancedMesh>
+    <svg className={className} width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true">
+      {stars.map((star, index) => (
+        <circle key={index} cx={`${star.x}%`} cy={`${star.y}%`} r={star.r} fill={color} opacity={star.o} />
+      ))}
+    </svg>
   );
 }
 
-function GlobalDarkConstellation() {
+function LightAurora() {
   return (
-    <>
-      <ambientLight intensity={0.2} />
-      <Stars radius={50} depth={50} count={3000} factor={4} saturation={0} fade speed={1} />
-      <DreiSparkles count={300} scale={100} size={4} speed={0.2} opacity={0.3} color="#8b5cf6" />
-      <FloatingDataNodes count={150} color="#c084fc" wireframe={true} opacity={0.3} />
-      <EffectComposer multisampling={4}>
-         <Bloom luminanceThreshold={0.2} mipmapBlur intensity={1.5} />
-      </EffectComposer>
-    </>
+    <div className="se-bg-light fixed inset-0 z-[-10] overflow-hidden pointer-events-none" aria-hidden="true">
+      <div className="absolute inset-0 opacity-40 mix-blend-soft-light bg-[url('/noise.png')]" />
+      <div className="se-bg-orb se-bg-orb-a" />
+      <div className="se-bg-orb se-bg-orb-b" />
+      <div className="se-bg-orb se-bg-orb-c" />
+    </div>
   );
 }
 
-function GlobalLightAuroraMesh() {
+function DarkSky() {
   return (
-    <div className="fixed inset-0 z-[-10] overflow-hidden bg-slate-50 pointer-events-none">
-      <div className="absolute inset-0 opacity-40 mix-blend-soft-light bg-[url('/noise.png')]"></div>
-      
-      {/* Aurora Orbs - Slow CSS Animations */}
-      <motion.div 
-        animate={{ 
-          x: ['0%', '10%', '-10%', '0%'],
-          y: ['0%', '-10%', '10%', '0%'],
-          scale: [1, 1.1, 0.9, 1]
-        }}
-        transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] rounded-full bg-orange-300/40 blur-[120px]"
-      />
-      
-      <motion.div 
-        animate={{ 
-          x: ['0%', '-15%', '5%', '0%'],
-          y: ['0%', '15%', '-5%', '0%'],
-          scale: [1, 0.9, 1.1, 1]
-        }}
-        transition={{ duration: 30, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-        className="absolute top-[20%] right-[10%] w-[50%] h-[70%] rounded-full bg-sky-300/40 blur-[120px]"
-      />
-
-      <motion.div 
-        animate={{ 
-          x: ['0%', '5%', '-15%', '0%'],
-          y: ['0%', '-5%', '15%', '0%'],
-          scale: [1, 1.2, 0.8, 1]
-        }}
-        transition={{ duration: 35, repeat: Infinity, ease: "easeInOut", delay: 4 }}
-        className="absolute -bottom-[20%] left-[20%] w-[70%] h-[60%] rounded-full bg-violet-300/40 blur-[140px]"
-      />
+    <div className="se-bg-dark fixed inset-0 z-[-10] overflow-hidden pointer-events-none" aria-hidden="true">
+      <div className="se-bg-glow" />
+      <div className="se-bg-stars">
+        <StarLayer stars={FAINT_STARS} color="#e2e8f0" className="absolute inset-0" />
+      </div>
+      <div className="se-bg-stars se-bg-stars-slow">
+        <StarLayer stars={BRIGHT_STARS} color="#f8fafc" className="absolute inset-0" />
+      </div>
+      <div className="se-bg-sparks">
+        <StarLayer stars={VIOLET_SPARKS} color="#a78bfa" className="absolute inset-0" />
+      </div>
     </div>
   );
 }
 
 // Test-taking screens (practice sheets, assessments, mock exams, annual
 // practice and the official annual paper) get a plain, still backdrop: no
-// drifting colour, no 3D scene, nothing moving behind a question.
+// drifting colour, nothing moving behind a question.
 const TEST_ROUTE_PATTERN = /^\/student\/(attempt|assessment-attempt|competition\/mock-attempt|competition\/annual\/attempt)\//;
 
 export default function StudentGlobalBackground() {
@@ -137,19 +103,5 @@ export default function StudentGlobalBackground() {
     return <div className="se-test-backdrop fixed inset-0 z-[-10] pointer-events-none" aria-hidden="true" />;
   }
 
-  if (isDark) {
-    return (
-      <div className="fixed inset-0 z-[-10] pointer-events-none bg-slate-950 opacity-60 transition-opacity duration-1000">
-        <Canvas camera={{ position: [0, 0, 30], fov: 60 }} gl={{ antialias: true, alpha: true }}>
-          <GlobalDarkConstellation />
-        </Canvas>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed inset-0 z-[-10] pointer-events-none transition-opacity duration-1000">
-      <GlobalLightAuroraMesh />
-    </div>
-  );
+  return isDark ? <DarkSky /> : <LightAurora />;
 }
