@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/common/AppShell";
+import { ReviewCorrectAnswer, ReviewStudentAnswer } from "@/lib/assessmentReview";
 import { BackButton } from "@/components/student/BackButton";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -269,7 +270,7 @@ export default function StudentAssessmentResultPage() {
                 <div key={Question.questionId} className="math-student-panel">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <h3 className="text-xl font-black text-slate-950">Question {Question.questionNumber}</h3>
-                    <span className={`math-badge ${Question.isCorrect ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>{Question.isCorrect ? "Correct" : "Wrong"}</span>
+                    <span className={`math-badge ${Question.isCorrect ? "bg-emerald-50 text-emerald-700 border-emerald-200" : ReviewStudentAnswer(Question) ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>{Question.isCorrect ? "Correct" : ReviewStudentAnswer(Question) ? "Wrong" : "Unanswered"}</span>
                   </div>
 
                   <div className="mt-5 rounded-[28px] bg-slate-50/90 p-6">
@@ -277,13 +278,13 @@ export default function StudentAssessmentResultPage() {
                   </div>
 
                   <div className="mt-5 grid gap-3 xl:grid-cols-2">
-                    <div className={`rounded-[22px] p-4 ${Question.isCorrect ? "bg-emerald-50 text-emerald-900" : Question.selectedOption ? "bg-rose-50 text-rose-900" : "bg-amber-50 text-amber-900"}`}>
+                    <div className={`rounded-[22px] p-4 ${Question.isCorrect ? "bg-emerald-50 text-emerald-900" : ReviewStudentAnswer(Question) ? "bg-rose-50 text-rose-900" : "bg-amber-50 text-amber-900"}`}>
                       <p className="text-xs font-extrabold uppercase tracking-[0.14em]">Your Answer</p>
-                      <p className="mt-2 text-lg font-black">{Question.selectedOption ? `${Question.selectedOption.label}. ${Question.selectedOption.value}` : "Not Answered"}</p>
+                      <p className="mt-2 text-lg font-black">{ReviewStudentAnswer(Question) ?? "Not Answered"}</p>
                     </div>
                     <div className="rounded-[22px] bg-emerald-50 p-4 text-emerald-900">
                       <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-emerald-700">Correct Answer</p>
-                      <p className="mt-2 text-lg font-black">{Question.correctOption ? `${Question.correctOption.label}. ${Question.correctOption.value}` : "Hidden"}</p>
+                      <p className="mt-2 text-lg font-black">{ReviewCorrectAnswer(Question) ?? "Not Available"}</p>
                     </div>
                   </div>
                 </div>

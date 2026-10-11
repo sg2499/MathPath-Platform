@@ -2,7 +2,7 @@ import { api } from "@/lib/api";
 import type { Assignment, AttemptHistoryEntry } from "@/types/assignment";
 import type { AttemptPayload, DpsAttemptPayload } from "@/types/attempt";
 import type { AttemptResult } from "@/types/result";
-import type { McqOption } from "@/types/question";
+import type { DpsStudentQuestion } from "@/types/question";
 
 type AssignmentsResponse = { assignments: Assignment[] };
 
@@ -178,6 +178,19 @@ export async function getStudentAssessmentEligibility(): Promise<StudentAssessme
 }
 
 
+// One section of a level assessment, in question order (2026-10-11). Built by
+// the server from the questions themselves (AssessmentVersionSections).
+export type AssessmentSection = {
+  key: string;
+  sectionNumber: number;
+  title: string | null;
+  questionCount: number;
+  firstQuestionNumber: number;
+  lastQuestionNumber: number;
+  marks: number;
+  marksPerQuestion: number;
+};
+
 export type StudentAssessmentDetail = {
   assignmentId: string;
   assessmentVersionId: string;
@@ -191,6 +204,8 @@ export type StudentAssessmentDetail = {
   attemptId?: string | null;
   resultAttemptId?: string | null;
   action: string;
+  // The test account (MP-ST-001) may start the assessment again after a result.
+  canRetake?: boolean;
   details: {
     questions: number;
     totalMarks: number;
@@ -199,29 +214,17 @@ export type StudentAssessmentDetail = {
     marksPerQuestion: number;
     benchmarkPercentage: number;
     answerType: string;
-    optionsPerQuestion: number;
     navigationAllowed: boolean;
     autoSubmit: boolean;
   };
+  sections: AssessmentSection[];
   instructions: string[];
 };
 
-export type AssessmentOption = {
-  optionId: string;
-  label: string;
-  value: string;
-};
-
-export type AssessmentQuestion = {
-  questionId: string;
-  questionNumber: number;
-  displayType?: string;
-  questionText?: string | null;
-  operands: number[];
-  operators: string[];
-  savedOptionId?: string | null;
-  options: AssessmentOption[];
-};
+// Assessments are answered by typing since 2026-10-11, in the same answer box
+// as practice sheets and the Annual Competition: no options are sent, and a
+// saved answer comes back as its text.
+export type AssessmentQuestion = DpsStudentQuestion;
 
 export type AssessmentAttemptPayload = {
   attemptId: string;
@@ -238,6 +241,8 @@ export type AssessmentAttemptPayload = {
   totalQuestions: number;
   totalMarks: number;
   benchmarkPercentage: number;
+  answerMode?: "TYPED";
+  sections: AssessmentSection[];
   questions: AssessmentQuestion[];
   resultAvailable?: boolean;
 };
@@ -288,6 +293,14 @@ export type AssessmentResultPayload = {
     operands: number[];
     operators: string[];
     isCorrect: boolean;
+    displayType?: string | null;
+    // The student's answer and the right one, as text. answerMode is "OPTION"
+    // for a multiple-choice attempt made before typed answers.
+    selectedAnswer?: string | null;
+    correctAnswer?: string | null;
+    answerMode?: "OPTION" | "TYPED";
+    sectionNumber?: number | null;
+    sectionTitle?: string | null;
     selectedOption?: { id: string; label: string; value: string } | null;
     correctOption?: { id: string; label: string; value: string } | null;
   }>;
@@ -308,7 +321,7 @@ export async function resumeAssessmentAttempt(attemptId: string): Promise<Assess
   return data;
 }
 
-export async function saveAssessmentAnswer(attemptId: string, payload: { questionId: string; selectedOptionId: string }) {
+export async function saveAssessmentAnswer(attemptId: string, payload: { questionId: string; answerText: string }) {
   const { data } = await api.post(`/student/assessment-attempts/${attemptId}/answers`, payload);
   return data;
 }

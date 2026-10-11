@@ -34,6 +34,7 @@ from app.core.errors import api_error
 from app.models import Attempt, AttemptAnswer, GeneratedQuestion, DPS, DPSSection, Assignment, AssignmentReattemptPermission, Student, Lesson, Level, Module
 from app.services.assignment_service import validate_assignment_access, create_auto_retry_assignment_for_attempt
 from app.services.generation_service import build_attempt_question_seed, persist_question_set
+from app.services.student_question_safety import answer_format, student_safe_metadata
 from app.services.answer_matching import answers_match
 from app.services.audit_service import log_event
 from app.services.attempt_chain_service import (
@@ -240,7 +241,10 @@ def safe_questions_payload(db: Session, attempt: Attempt) -> list[dict]:
             "questionText": q.question_text,
             "operands": json.loads(q.operands_json or "[]"),
             "operators": json.loads(q.operators_json or "[]"),
-            "metadata": metadata,
+            # Only the question's text and section: the generator's notes can
+            # hold the answer (see student_question_safety.py).
+            "metadata": student_safe_metadata(metadata),
+            "answerFormat": answer_format(q.correct_answer),
             "savedAnswerText": answers.get(q.id) or None,
         })
     return payload

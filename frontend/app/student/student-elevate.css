@@ -3566,6 +3566,8 @@ html.dark .se-phone-bar-q {
 
   html .math-role-student .se-test .se-question-card > div:last-child > div:last-child > div:not(#se) {
     flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 0.75rem;
     height: auto;
     padding: 0.5rem 0.65rem 0.5rem 0.9rem;
@@ -3928,5 +3930,15 @@ html.dark .se-phone-bar {
 @media (min-width: 1024px) {
   .se-back-row.lg\:hidden {
     display: none !important;
+  }
+}
+
+/* 2026-10-11 (Shailesh): the answer box's extra keys (minus, comma) and the
+   "quotient, remainder" hint. On phones the box is one row (label and field,
+   see above); these wrap onto their own full-width lines under it. */
+@media (max-width: 639px) {
+  html .math-role-student .se-test .se-answer-extra:not(#se) {
+    flex: 0 0 100%;
+    margin: 0;
   }
 }
