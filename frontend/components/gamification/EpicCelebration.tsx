@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { triggerBlaze, triggerSurge, triggerCrystal, triggerMythic, resetParticles } from "@/lib/utils/particles";
+import { SupportsWebGl2 } from "@/components/competition/PodiumCutscenePlayer";
+import { getStoredUser } from "@/lib/auth";
 
 interface EpicCelebrationProps {
   accuracy: number;
@@ -223,9 +225,9 @@ function MeteorText({ text, extrusionColor }: { text: string; extrusionColor: st
 }
 
 
-// --- MAIN CELEBRATION COMPONENT ---
+// --- CLASSIC CELEBRATION (fallback when the 3D scene cannot play) ---
 
-export function EpicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebrationProps) {
+function ClassicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebrationProps) {
   const tier = Tiers.find((t) => accuracy >= t.min && accuracy <= t.max);
 
   useEffect(() => {
@@ -334,6 +336,158 @@ export function EpicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebra
           Skip Celebration <span className="text-base md:text-xl">⏭</span>
         </motion.button>
       )}
+    </motion.div>
+  );
+}
+
+// --- MAIN CELEBRATION: the 3D accuracy-band scenes ---
+//
+// 2026-10-12 (Phase 2 scene revamp). A result of 80% or more plays one of
+// the 12 scenes of its band (public/cutscenes/accuracy-<band>.html), each
+// 6.6-8 s with its own wording and music, Skip always available inside the
+// scene. A student sees every scene of a band once before any repeats
+// (remembered per student on this device). If the device cannot run the
+// scene (no WebGL2, a start error, or it takes over 12 s to load) the classic
+// celebration above plays instead, so the result page always continues.
+
+const ACCURACY_BANDS: { min: number; key: string; tier: string }[] = [
+  { min: 96, key: "apex", tier: "APEX" },
+  { min: 91, key: "immortal", tier: "IMMORTAL" },
+  { min: 86, key: "ascendant", tier: "ASCENDANT" },
+  { min: 80, key: "dominating", tier: "DOMINATING" },
+];
+const SCENES_PER_BAND = 12;
+const SCENE_VERSION = "3";
+const SCENE_LOAD_TIMEOUT_MS = 12000;
+// Longest scene is 8 s; if the scene never reports its end, close anyway.
+const SCENE_SAFETY_MS = 14000;
+
+function NextSceneNumber(band: string): number {
+  let who = "guest";
+  try {
+    const User = getStoredUser();
+    who = User?.student?.studentCode || User?.id || "guest";
+  } catch {
+    // no stored user: rotate under "guest"
+  }
+  const Key = `mp-accuracy-scenes:${who}:${band}`;
+  let Seen: number[] = [];
+  try {
+    const Raw = JSON.parse(localStorage.getItem(Key) || "[]");
+    if (Array.isArray(Raw)) Seen = Raw.filter((N) => Number.isInteger(N) && N >= 1 && N <= SCENES_PER_BAND);
+  } catch {
+    Seen = [];
+  }
+  // All 12 seen: start a new round, but never open it with the scene just played.
+  if (Seen.length >= SCENES_PER_BAND) Seen = Seen.slice(-1);
+  const Options = Array.from({ length: SCENES_PER_BAND }, (_, I) => I + 1).filter((N) => !Seen.includes(N));
+  const Pick = Options[Math.floor(Math.random() * Options.length)] || 1;
+  try {
+    localStorage.setItem(Key, JSON.stringify([...Seen, Pick]));
+  } catch {
+    // storage blocked: the pick is still random
+  }
+  return Pick;
+}
+
+type ScenePhase = "loading" | "playing" | "fallback";
+
+export function EpicCelebration({ accuracy, onComplete, allowSkip }: EpicCelebrationProps) {
+  const Rounded = Math.round(accuracy);
+  const Band = ACCURACY_BANDS.find((B) => Rounded >= B.min && Rounded <= 100) || null;
+  const [Source] = useState<string | null>(() =>
+    Band ? `/cutscenes/accuracy-${Band.key}.html?v=${SCENE_VERSION}&scene=${NextSceneNumber(Band.key)}&acc=${Rounded}` : null,
+  );
+  const [Phase, SetPhase] = useState<ScenePhase>(() => (typeof window !== "undefined" && !SupportsWebGl2() ? "fallback" : "loading"));
+  const FrameRef = useRef<HTMLIFrameElement | null>(null);
+  const DoneRef = useRef(false);
+
+  const Finish = useCallback(() => {
+    if (DoneRef.current) return;
+    DoneRef.current = true;
+    onComplete();
+  }, [onComplete]);
+
+  // Below 80% there is nothing to celebrate: hand straight back.
+  useEffect(() => {
+    if (!Band) Finish();
+  }, [Band, Finish]);
+
+  // Messages from this scene only.
+  useEffect(() => {
+    const HandleMessage = (Event: MessageEvent) => {
+      if (!FrameRef.current || Event.source !== FrameRef.current.contentWindow) return;
+      const Kind = Event?.data?.type;
+      if (Kind === "mathpath-cutscene-ended") Finish();
+      else if (Kind === "mathpath-cutscene-error") SetPhase("fallback");
+      else if (Kind === "mathpath-cutscene-ready") SetPhase((Current) => (Current === "loading" ? "playing" : Current));
+    };
+    window.addEventListener("message", HandleMessage);
+    return () => window.removeEventListener("message", HandleMessage);
+  }, [Finish]);
+
+  useEffect(() => {
+    if (Phase === "loading") {
+      const Timer = window.setTimeout(() => SetPhase((Current) => (Current === "loading" ? "fallback" : Current)), SCENE_LOAD_TIMEOUT_MS);
+      return () => window.clearTimeout(Timer);
+    }
+    if (Phase === "playing") {
+      const Timer = window.setTimeout(Finish, SCENE_SAFETY_MS);
+      return () => window.clearTimeout(Timer);
+    }
+    return undefined;
+  }, [Phase, Finish]);
+
+  // Keyboard skip when focus is on this page rather than inside the scene.
+  useEffect(() => {
+    if (Phase === "fallback") return;
+    const HandleKeyDown = (Event: KeyboardEvent) => {
+      if (Event.key === "Escape" || Event.key === "Enter" || Event.key === " ") {
+        Event.preventDefault();
+        Finish();
+      }
+    };
+    window.addEventListener("keydown", HandleKeyDown);
+    return () => window.removeEventListener("keydown", HandleKeyDown);
+  }, [Phase, Finish]);
+
+  if (!Band || !Source) return null;
+  if (Phase === "fallback") return <ClassicCelebration accuracy={accuracy} onComplete={Finish} allowSkip={allowSkip} />;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.5 } }}
+      className="fixed inset-0 z-[9999] bg-black"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${Band.tier.charAt(0)}${Band.tier.slice(1).toLowerCase()} celebration, ${Rounded}% accuracy`}
+    >
+      <iframe
+        ref={FrameRef}
+        src={Source}
+        title={`${Rounded}% accuracy celebration`}
+        className="h-full w-full border-0 transition-opacity duration-500"
+        style={{ opacity: Phase === "playing" ? 1 : 0 }}
+        allow="autoplay"
+        onLoad={() => SetPhase((Current) => (Current === "loading" ? "playing" : Current))}
+      />
+      {Phase === "loading" ? (
+        <>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 text-center" aria-live="polite">
+            <div className="h-14 w-14 animate-spin rounded-full border-4 border-white/10 border-t-white/80" style={{ animationDuration: "900ms" }} />
+            <p className="text-sm font-black uppercase tracking-[0.3em] text-white/85">Loading Your Moment</p>
+          </div>
+          <button
+            type="button"
+            onClick={Finish}
+            className="absolute bottom-6 right-5 z-10 rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-black uppercase tracking-[0.2em] text-white transition hover:bg-white/20 md:bottom-10 md:right-10"
+          >
+            Skip
+          </button>
+        </>
+      ) : null}
     </motion.div>
   );
 }
