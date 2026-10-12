@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
+import { PodiumCutscenePlayer } from '@/components/competition/PodiumCutscenePlayer';
 
 interface PodiumHeroAnimationProps {
   rank: 1 | 2 | 3 | null;
@@ -50,87 +51,35 @@ const PODIUM_CUTSCENE: Record<
   },
 };
 
+// The scene address for a podium place (the student's name is part of it).
+export function PodiumSceneSource(viewMode: 'CUMULATIVE' | 'INDIVIDUAL', rank: 1 | 2 | 3, student?: any): string | null {
+  const cutscene = PODIUM_CUTSCENE[viewMode]?.[rank];
+  if (!cutscene) return null;
+  const studentName = typeof student?.name === 'string' ? student.name.trim() : '';
+  return `${cutscene.src}?name=${encodeURIComponent(studentName || 'Champion')}`;
+}
+
+// 2026-10-12: played through the shared PodiumCutscenePlayer, which checks
+// the device can run the 3D scene, shows a loading screen, and falls back to
+// a non-3D podium scene instead of a black screen (see that file).
 export function PodiumHeroAnimation({ rank, viewMode = 'CUMULATIVE', student, onComplete }: PodiumHeroAnimationProps) {
   const [mounted, setMounted] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-
-  // Idempotency guard: the cutscene iframe's own Skip/Escape/Enter/Space
-  // handling (via postMessage) and the parent-level keydown fallback below
-  // can both race to call dismiss() for the same podium moment -- e.g. the
-  // viewer presses Escape while focus is on the parent document at the
-  // same instant the iframe's own key handler also fires. Without this,
-  // that would call onComplete() twice for the same rank.
-  const dismissedRef = useRef(false);
-
-  const dismiss = useCallback(() => {
-    if (dismissedRef.current) return;
-    dismissedRef.current = true;
-    setDismissed(true);
-    onComplete();
-  }, [onComplete]);
-
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Reset for a new hero moment. No auto-dismiss timer is armed here --
-  // the cutscene stays open (looping soundtrack, held idle crest) until
-  // the viewer explicitly skips.
-  useEffect(() => {
-    if (rank === null) return;
-    dismissedRef.current = false;
-    setDismissed(false);
-  }, [rank]);
-
-  // The cutscene iframe posts this the instant its own Skip button or
-  // Escape/Enter/Space/S fires -- this is the primary dismiss path.
-  useEffect(() => {
-    if (rank === null) return;
-    const handleMessage = (event: MessageEvent) => {
-      if (event?.data?.type === 'mathpath-cutscene-ended') {
-        dismiss();
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [rank, dismiss]);
-
-  // Fallback skip path for when keyboard focus is on the parent document
-  // rather than inside the cutscene iframe (e.g. the iframe hasn't finished
-  // loading yet, or the viewer never clicked into it). The iframe has its
-  // own identical key handling for when focus IS inside it.
-  useEffect(() => {
-    if (rank === null) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        dismiss();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [rank, dismiss]);
-
-  if (!mounted || dismissed || rank === null) return null;
-
-  const cutscene = PODIUM_CUTSCENE[viewMode]?.[rank];
-  if (!cutscene) return null;
-
-  const studentName = typeof student?.name === 'string' ? student.name.trim() : '';
-  const src = `${cutscene.src}?name=${encodeURIComponent(studentName || 'Champion')}`;
-
+  if (!mounted || rank === null) return null;
+  const src = PodiumSceneSource(viewMode, rank, student);
+  if (!src) return null;
+  const studentName = typeof student?.name === 'string' && student.name.trim() ? student.name.trim() : 'Champion';
   return (
-    <div className="fixed inset-0 z-[100] bg-black">
-      {/* Remounts on every new rank/tab so a second hero moment always gets
-          a fresh iframe -- its own fresh audio/render/timeline state -- rather
-          than reusing a stale one. */}
-      <iframe
-        key={`${viewMode}-${rank}`}
-        src={src}
-        title="Podium cutscene"
-        className="h-full w-full border-0"
-        allow="autoplay"
-      />
-    </div>
+    <PodiumCutscenePlayer
+      key={`${viewMode}-${rank}`}
+      Source={src}
+      Rank={rank}
+      StudentName={studentName}
+      Subtitle={viewMode === 'CUMULATIVE' ? 'Overall Journey' : 'Specific Exam'}
+      Title="Podium cutscene"
+      OnDismiss={onComplete}
+    />
   );
 }

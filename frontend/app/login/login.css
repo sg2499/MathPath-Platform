@@ -1067,3 +1067,15 @@ html.dark .mp-si {
   .mp-si-otp { gap: 7px; }
   .mp-si-otp-box { height: 52px; font-size: 1.4rem; }
 }
+
+/* 2026-10-12: neutral note, e.g. "signed out after 20 minutes of no activity" */
+.mp-si-note-box {
+  margin: 4px 0 0;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--si-focus) 35%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--si-focus) 8%, transparent);
+  color: var(--si-ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+}

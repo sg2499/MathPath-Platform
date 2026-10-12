@@ -921,7 +921,20 @@ def ListCompetitionEventResultsForAdmin(db: Session, *, EventId: str, Competitio
     if CompetitionLevelCode:
         Query = Query.filter(CompetitionEventResult.competition_level_code == CompetitionLevelCode)
     ResultRecords = Query.all()
-    ResultRecords.sort(key=lambda ResultRecord: (ResultRecord.rank if ResultRecord.rank is not None else 10**9, _DefaultRankingSortKey(db, ResultRecord)))
+    # 2026-10-12 (Shailesh): with every level shown, results read level by
+    # level in the platform's level sequence (Bloomers, Beginners, PM-1..4,
+    # IM-1..4, MM-1..2), ranked within each level -- not every #1 first.
+    from app.services.annual_competition_paper_registry import ANNUAL_COMPETITION_LEVEL_REGISTRY
+
+    LevelPosition = {LevelCode: Index for Index, LevelCode in enumerate(ANNUAL_COMPETITION_LEVEL_REGISTRY.keys())}
+    ResultRecords.sort(
+        key=lambda ResultRecord: (
+            LevelPosition.get(ResultRecord.competition_level_code, len(LevelPosition)),
+            ResultRecord.competition_level_code or "",
+            ResultRecord.rank if ResultRecord.rank is not None else 10**9,
+            _DefaultRankingSortKey(db, ResultRecord),
+        )
+    )
 
     Rows: list[dict[str, Any]] = []
     for ResultRecord in ResultRecords:

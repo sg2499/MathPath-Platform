@@ -13,6 +13,8 @@ USER_COLUMNS = {
     "totp_pending_secret": "TEXT",
     "totp_enabled": "BOOLEAN DEFAULT FALSE NOT NULL",
     "totp_backup_codes_json": "TEXT",
+    # 2026-10-12: last real interaction (idle sign-out for teachers/students).
+    "last_interaction_at": "TIMESTAMP",
 }
 
 

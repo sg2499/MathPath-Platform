@@ -13341,3 +13341,54 @@ html.dark .math-role-student .math-student-metric-card:hover {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
+
+/* 2026-10-12: podium fallback scene (components/competition/
+   PodiumCutscenePlayer.tsx) -- plays when a device can't run the 3D scene.
+   Transform and opacity only, so it is smooth on any phone. */
+.mp-podium-rays {
+  position: absolute; left: 50%; top: 45%;
+  width: 160vmax; height: 160vmax;
+  margin: -80vmax 0 0 -80vmax;
+  background: repeating-conic-gradient(from 0deg, var(--mp-ray) 0deg 4deg, transparent 4deg 18deg);
+  -webkit-mask-image: radial-gradient(closest-side, #000 0%, rgb(0 0 0 / 0.35) 45%, transparent 75%);
+  mask-image: radial-gradient(closest-side, #000 0%, rgb(0 0 0 / 0.35) 45%, transparent 75%);
+  opacity: 0;
+  animation: mpRaysIn 1.2s ease-out 0.5s forwards, mpRaysSpin 40s linear infinite;
+}
+@keyframes mpRaysIn { to { opacity: 0.55; } }
+@keyframes mpRaysSpin { to { transform: rotate(360deg); } }
+.mp-podium-crest {
+  display: grid; place-items: center;
+  width: clamp(130px, 30vmin, 210px); aspect-ratio: 1;
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  background:
+    radial-gradient(circle at 35% 30%, rgb(255 255 255 / 0.55), transparent 45%),
+    linear-gradient(145deg, var(--mp-ink), var(--mp-ring));
+  box-shadow: inset 0 0 0 6px rgb(255 255 255 / 0.25);
+  transform: scale(0.2) rotate(-25deg); opacity: 0;
+  animation: mpCrestIn 0.9s cubic-bezier(0.2, 1.4, 0.4, 1) 0.2s forwards;
+}
+.mp-podium-crest-num {
+  font-size: clamp(4rem, 14vmin, 7rem); font-weight: 900; line-height: 1;
+  color: #1c1917; text-shadow: 0 2px 0 rgb(255 255 255 / 0.5);
+}
+@keyframes mpCrestIn { to { transform: scale(1) rotate(0deg); opacity: 1; } }
+.mp-podium-label, .mp-podium-name {
+  opacity: 0; transform: translateY(24px);
+  animation: mpRiseIn 0.8s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+.mp-podium-label { animation-delay: 0.9s; }
+.mp-podium-name { animation-delay: 1.15s; text-shadow: 0 6px 40px rgb(0 0 0 / 0.6); }
+@keyframes mpRiseIn { to { opacity: 1; transform: translateY(0); } }
+.mp-podium-sweep {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 40%, rgb(255 255 255 / 0.16) 50%, transparent 60%);
+  transform: translateX(-100%);
+  animation: mpSweep 1.6s ease-in-out 1.6s forwards;
+}
+@keyframes mpSweep { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .mp-podium-rays { animation: mpRaysIn 0.01s forwards; }
+  .mp-podium-crest, .mp-podium-label, .mp-podium-name { animation-duration: 0.01s; animation-delay: 0s; }
+  .mp-podium-sweep { display: none; }
+}

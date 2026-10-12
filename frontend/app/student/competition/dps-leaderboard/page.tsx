@@ -15,6 +15,8 @@ import type {
 import type { ModuleSchema, LevelSchema } from "@/lib/schemas/leaderboard";
 import { z } from "zod";
 import { DpsPodiumHeroAnimation } from "./DpsPodiumHeroAnimation";
+import { DpsPodiumSceneSource } from "./DpsPodiumHeroAnimation";
+import { PreloadPodiumScenes } from "@/components/competition/PodiumCutscenePlayer";
 import { BadgeIconMap, getBadgeVisualConfig } from "@/lib/gamification/badgeVisuals";
 import { InitCaps } from "@/lib/initCaps";
 
@@ -175,6 +177,16 @@ const searchParams = useSearchParams();
     loadLeaderboard();
   }, [selectedModuleId, selectedLevelId, viewMode]);
 
+  // 2026-10-12: load the podium scenes while the leaderboard is open, so a
+  // tap on the podium plays at once (see PodiumCutscenePlayer).
+  useEffect(() => {
+    const Podium = (leaderboardData?.leaderboard || []).slice(0, 3);
+    const LevelCode = levels.find((Level) => Level.id === selectedLevelId)?.code;
+    PreloadPodiumScenes(
+      Podium.map((Student: any, Index: number) => DpsPodiumSceneSource(viewMode, (Index + 1) as 1 | 2 | 3, Student, LevelCode)).filter(Boolean) as string[]
+    );
+  }, [leaderboardData, viewMode, levels, selectedLevelId]);
+
   if (!Ready || (loading && !leaderboardData && modules.length === 0)) return <LoadingState />;
 
   if (error) {
@@ -324,6 +336,7 @@ const searchParams = useSearchParams();
           <div className="text-center p-12 bg-white dark:bg-slate-900 rounded-3xl border-2 border-slate-100 dark:border-slate-800">
             <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
             <p className="text-lg font-bold text-slate-500">No DPS attempts recorded yet for this {viewMode === "OVERALL" ? "module" : "level"}</p>
+            <p className="mt-2 text-sm font-semibold text-slate-400">The podium appears once students here complete DPS sheets. Complete one to claim your spot.</p>
           </div>
         )}
 

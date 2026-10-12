@@ -1,5 +1,6 @@
 "use client";
 
+import { IDLE_SIGN_OUT_EVENT } from "@/components/common/IdleSignOutWatcher";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { useAuthenticatedImage } from "@/lib/hooks/useAuthenticatedImage";
 import { NotificationsBell } from "@/components/common/NotificationsBell";
@@ -418,6 +419,22 @@ export function AppShell({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [AuthReady, IsStudent, IsTeacher, IsAdmin, pathname]);
+
+  // 2026-10-12: the app-wide idle watcher (IdleSignOutWatcher) asks this
+  // shell to sign out after 20 minutes idle, so it's the same instant
+  // sign-out as the button. Admins are never signed out this way.
+  const LogoutRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const HandleIdle = (Event: Event) => {
+      // Not signed in on this screen yet (still loading): let the watcher
+      // sign out by itself.
+      if (IsAdmin || !LogoutRef.current) return;
+      Event.preventDefault();
+      LogoutRef.current();
+    };
+    window.addEventListener(IDLE_SIGN_OUT_EVENT, HandleIdle);
+    return () => window.removeEventListener(IDLE_SIGN_OUT_EVENT, HandleIdle);
+  }, [IsAdmin]);
 
   if (!AuthReady && expectedRoleFromPath(pathname)) {
     return (
@@ -943,6 +960,8 @@ export function AppShell({
     clearSession();
   }
 
+  LogoutRef.current = logout;
+
   function toggleTheme() {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
@@ -1093,6 +1112,7 @@ export function AppShell({
 
   return (
     <div className={`min-h-screen ${RoleShellClass}`}>
+
       {RoleShellClass.includes("math-role-student") && <StudentGlobalBackground />}
       <div className="premium-backdrop" />
 
