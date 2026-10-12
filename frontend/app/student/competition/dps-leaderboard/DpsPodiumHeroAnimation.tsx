@@ -53,6 +53,7 @@ export function DpsPodiumSceneSource(viewMode: 'OVERALL' | 'SPECIFIC', rank: 1 |
   if (!cutscene) return null;
   const studentName = typeof student?.name === 'string' ? student.name.trim() : '';
   const params = new URLSearchParams();
+  params.set('v', '3');
   params.set('name', studentName || 'Champion');
   if (viewMode === 'SPECIFIC' && levelCode) params.set('level', levelCode);
   return `${cutscene.src}?${params.toString()}`;

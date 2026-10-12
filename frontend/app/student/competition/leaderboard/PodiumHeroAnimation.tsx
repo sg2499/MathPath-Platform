@@ -56,7 +56,7 @@ export function PodiumSceneSource(viewMode: 'CUMULATIVE' | 'INDIVIDUAL', rank: 1
   const cutscene = PODIUM_CUTSCENE[viewMode]?.[rank];
   if (!cutscene) return null;
   const studentName = typeof student?.name === 'string' ? student.name.trim() : '';
-  return `${cutscene.src}?name=${encodeURIComponent(studentName || 'Champion')}`;
+  return `${cutscene.src}?v=3&name=${encodeURIComponent(studentName || 'Champion')}`;
 }
 
 // 2026-10-12: played through the shared PodiumCutscenePlayer, which checks
