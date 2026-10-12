@@ -71,10 +71,12 @@ import {
   X,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   ANNUAL_LIVE_ALL_LEVELS,
   AnnualLiveLevelFilter,
+  AnnualLiveSlotFilter,
+  ANNUAL_LIVE_ALL_SLOTS,
   AnnualLiveMonitoringTable,
   AnnualLiveUpdatedAgo,
 } from "@/components/competition/AnnualLiveMonitoringTable";
@@ -444,9 +446,12 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     [ANNUAL_LIVE_ALL_LEVELS, ...ANNUAL_COMPETITION_LEVEL_CODES],
     ANNUAL_LIVE_ALL_LEVELS
   );
+  // 2026-10-12: Slot filter beside the Level filter (slots come from the
+  // server with the board, in time order).
+  const [LiveSlotFilter, SetLiveSlotFilter] = useState<string>(ANNUAL_LIVE_ALL_SLOTS);
   const LiveMonitoringQuery = useQuery({
-    queryKey: ["admin", "annual-competition", "monitoring-live", EventId, LiveLevelFilter],
-    queryFn: () => getAnnualCompetitionLiveMonitoring(EventId, null, LiveLevelFilter === ANNUAL_LIVE_ALL_LEVELS ? null : LiveLevelFilter),
+    queryKey: ["admin", "annual-competition", "monitoring-live", EventId, LiveLevelFilter, LiveSlotFilter],
+    queryFn: () => getAnnualCompetitionLiveMonitoring(EventId, LiveSlotFilter === ANNUAL_LIVE_ALL_SLOTS ? null : LiveSlotFilter, LiveLevelFilter === ANNUAL_LIVE_ALL_LEVELS ? null : LiveLevelFilter),
     enabled: Ready && Boolean(EventId) && ActiveTab === "MONITORING",
     // Changing the level keeps the rows on screen until the new ones arrive,
     // instead of flashing an empty board.
@@ -459,6 +464,15 @@ export default function AdminAnnualCompetitionEventDetailPage() {
     // and the Remaining column counts by itself between reads.
     refetchInterval: ActiveTab === "MONITORING" ? 5000 : false,
   });
+  // A slot that isn't in this board's list (another event's, or one that
+  // no longer has students) falls back to All Slots, so the dropdown and
+  // the board always agree.
+  const LiveSlotOptions = LiveMonitoringQuery.data?.slots;
+  useEffect(() => {
+    if (LiveSlotFilter !== ANNUAL_LIVE_ALL_SLOTS && LiveSlotOptions && !LiveSlotOptions.some((Slot) => Slot.slotId === LiveSlotFilter)) {
+      SetLiveSlotFilter(ANNUAL_LIVE_ALL_SLOTS);
+    }
+  }, [LiveSlotFilter, LiveSlotOptions]);
 
   const ResultsQuery = useQuery({
     queryKey: ["admin", "annual-competition", "results", EventId, ResultsLevelFilter],
@@ -2000,6 +2014,11 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                     LevelCodes={LiveMonitoringQuery.data?.levelCodes ?? []}
                     OnChange={SetLiveLevelFilter}
                   />
+                  <AnnualLiveSlotFilter
+                    Value={LiveSlotFilter}
+                    Slots={LiveMonitoringQuery.data?.slots ?? []}
+                    OnChange={SetLiveSlotFilter}
+                  />
                   <button
                     type="button"
                     disabled={LiveMonitoringQuery.isFetching}
@@ -2198,11 +2217,31 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ResultsQuery.data.rows.map((Row: AnnualCompetitionResultRow) => {
+                      {ResultsQuery.data.rows.map((Row: AnnualCompetitionResultRow, RowIndex: number, AllRows: AnnualCompetitionResultRow[]) => {
                         const HasPendingRetryGrant = PendingRetryGrantStudentIds.has(Row.studentId);
                         const IsGrantingThisRow = RetryMutation.isPending && RetryMutation.variables?.Row.attemptId === Row.attemptId;
+                        // 2026-10-12 (Shailesh): with every level shown, the
+                        // results read level by level (the server sends them
+                        // in the level sequence, ranked within each level),
+                        // each level opening with its own heading row.
+                        const StartsLevel =
+                          ResultsLevelFilter === "ALL" && (RowIndex === 0 || AllRows[RowIndex - 1].competitionLevelCode !== Row.competitionLevelCode);
+                        const LevelCount = StartsLevel ? AllRows.filter((Other) => Other.competitionLevelCode === Row.competitionLevelCode).length : 0;
                         return (
-                          <tr key={Row.resultId} className="border-t border-[color:var(--mp-role-border)]">
+                          <Fragment key={Row.resultId}>
+                          {StartsLevel ? (
+                            <tr className="border-t-2 border-[color:var(--mp-role-border)]">
+                              <td colSpan={10} className="px-2 pb-2 pt-4">
+                                <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[color:var(--mp-role-primary)]" style={{ background: "color-mix(in srgb, var(--mp-role-primary) 10%, transparent)" }}>
+                                  {FormatCompetitionLevelLabel(Row.competitionLevelCode)}
+                                  <span className="font-bold normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                                    {LevelCount} {LevelCount === 1 ? "Student" : "Students"}
+                                  </span>
+                                </span>
+                              </td>
+                            </tr>
+                          ) : null}
+                          <tr className="border-t border-[color:var(--mp-role-border)]">
                             <td className="px-2 py-2 truncate"><RankBadge Rank={Row.rank} /></td>
                             <td className="px-2 py-2 truncate text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
                             <td className="px-2 py-2 truncate">{FormatCompetitionLevelLabel(Row.competitionLevelCode)}</td>
@@ -2266,6 +2305,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                               </button>
                             </td>
                           </tr>
+                          </Fragment>
                         );
                       })}
                     </tbody>

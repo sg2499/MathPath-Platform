@@ -6,6 +6,7 @@ import { defaultRouteForRole, setActiveRole, setSession } from "@/lib/auth";
 import { triggerLoginWelcome } from "@/lib/utils/particles";
 import { isTwoFactorChallenge } from "@/types/auth";
 import { OtpInput } from "./OtpInput";
+import { SIGNED_OUT_REASON_KEY } from "@/lib/activity";
 import type { CurrentUser, UserRole } from "@/types/auth";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -210,6 +211,8 @@ export default function LoginClient({
   const [TwoFactorChallengeToken, SetTwoFactorChallengeToken] = useState<string | null>(null);
   const [TwoFactorCode, SetTwoFactorCode] = useState("");
   const [UseBackupCode, SetUseBackupCode] = useState(false);
+  // 2026-10-12: why the person landed here, when it wasn't their choice.
+  const [SignedOutNotice, SetSignedOutNotice] = useState("");
   const [OtpResetKey, SetOtpResetKey] = useState(0);
 
   const StageRef = useRef<LoginStageHandle>(null);
@@ -244,6 +247,14 @@ export default function LoginClient({
     SyncVisibleLoginTab(CorrectedTab);
     SetIdentifier(ReadRememberedLoginIdentifier(CorrectedTab));
     SetLoginReady(true);
+    try {
+      if (localStorage.getItem(SIGNED_OUT_REASON_KEY) === "idle") {
+        localStorage.removeItem(SIGNED_OUT_REASON_KEY);
+        SetSignedOutNotice("You were signed out after 20 minutes of no activity. Please sign in again.");
+      }
+    } catch {
+      // No storage: no notice.
+    }
     SetConnectionStatus("preparing");
 
     void warmupAuthApi().then((IsReady) => {
@@ -647,6 +658,11 @@ export default function LoginClient({
                     </button>
                   </div>
 
+                  {SignedOutNotice && !Error ? (
+                    <div role="status" className="mp-si-note-box">
+                      {SignedOutNotice}
+                    </div>
+                  ) : null}
                   {ErrorBanner}
 
                   <button type="submit" className="mp-si-cta" disabled={Loading || !LoginReady}>

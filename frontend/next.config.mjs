@@ -74,6 +74,13 @@ const nextConfig = {
             key: "X-Frame-Options",
             value: "SAMEORIGIN",
           },
+          // 2026-10-12: the scenes are 1-5 MB; let the browser keep them for
+          // a day (and use a cached copy while checking for a newer one for
+          // a week) instead of downloading them again on every podium tap.
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
         ],
       },
     ];

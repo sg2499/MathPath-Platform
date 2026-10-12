@@ -2107,6 +2107,8 @@ export type AnnualCompetitionLiveMonitoringRow = {
   clockHeld?: boolean;
 };
 
+export type AnnualLiveSlotOption = { slotId: string; slotLabel: string | null; scheduledStartAt: string | null };
+
 export type AnnualCompetitionLiveMonitoring = {
   eventId: string;
   eventName: string;
@@ -2118,6 +2120,10 @@ export type AnnualCompetitionLiveMonitoring = {
   // and the level this reply was filtered to (null = all levels).
   levelCodes: string[];
   competitionLevelCode: string | null;
+  // Every slot this viewer has students in, in time order (the Slot
+  // filter's options), and the slot this reply was filtered to.
+  slots?: AnnualLiveSlotOption[];
+  slotId?: string | null;
   summary: {
     totalCount: number;
     notStartedCount: number;

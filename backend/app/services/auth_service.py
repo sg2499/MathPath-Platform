@@ -124,6 +124,11 @@ def login(db: Session, identifier: str, password: str) -> dict:
             "tokenType": "Bearer",
         }
 
+    # 2026-10-12: signing in is fresh activity -- the idle clock (20 minutes
+    # for teachers and students, app/dependencies.py) starts now.
+    user.last_interaction_at = datetime.now(timezone.utc)
+    db.commit()
+
     token = create_access_token(user.id, user.role)
     return {
         "accessToken": token,

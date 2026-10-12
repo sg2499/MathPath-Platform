@@ -206,6 +206,39 @@ export function AnnualLiveLevelFilter({
   );
 }
 
+// 2026-10-12 (Shailesh): a Slot filter after the Level filter. Options are
+// the slots this viewer has students in, in time order (sent by the
+// server); the choice is applied on the server.
+export const ANNUAL_LIVE_ALL_SLOTS = "ALL";
+
+export function AnnualLiveSlotFilter({
+  Value,
+  Slots,
+  OnChange,
+}: {
+  Value: string;
+  Slots: { slotId: string; slotLabel: string | null }[];
+  OnChange: (Next: string) => void;
+}) {
+  const Known = Value === ANNUAL_LIVE_ALL_SLOTS || Slots.some((Slot) => Slot.slotId === Value);
+  return (
+    <select
+      value={Known ? Value : ANNUAL_LIVE_ALL_SLOTS}
+      onChange={(EventValue) => OnChange(EventValue.target.value)}
+      className="math-select text-xs font-black"
+      style={{ width: "auto", maxWidth: "100%", borderRadius: "9999px", padding: "0.5rem 0.9rem" }}
+      aria-label="Filter the live board by slot"
+    >
+      <option value={ANNUAL_LIVE_ALL_SLOTS}>All Slots</option>
+      {Slots.map((Slot) => (
+        <option key={Slot.slotId} value={Slot.slotId}>
+          {Slot.slotLabel || "Slot"}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 // "Updated 3s ago", next to the Refresh Now button: the board is live
 // without anything being pressed.
 export function AnnualLiveUpdatedAgo({ FetchedAtMs }: { FetchedAtMs: number }) {

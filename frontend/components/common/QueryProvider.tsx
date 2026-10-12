@@ -2,6 +2,8 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { StartActivityTracking } from "@/lib/activity";
+import { IdleSignOutWatcher } from "@/components/common/IdleSignOutWatcher";
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [client] = useState(() => new QueryClient({
@@ -44,5 +46,16 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("mathpath-auth-changed", HandleAuthChanged);
   }, [client]);
 
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  // 2026-10-12: track real interaction on every page (lib/activity.ts), for
+  // the 20-minute idle sign-out of teacher and student accounts.
+  useEffect(() => {
+    StartActivityTracking();
+  }, []);
+
+  return (
+    <QueryClientProvider client={client}>
+      {children}
+      <IdleSignOutWatcher />
+    </QueryClientProvider>
+  );
 }

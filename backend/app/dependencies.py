@@ -70,6 +70,61 @@ def _update_user_activity(user_id: str):
     finally:
         db.close()
 
+IDLE_SIGN_OUT_SECONDS = 20 * 60
+# A request reaching the server a little after the browser's own 20-minute
+# sign-out (slow network, a timer that fired late) is not refused for that.
+IDLE_SIGN_OUT_GRACE_SECONDS = 90
+IDLE_SIGN_OUT_ROLES = {"STUDENT", "TEACHER"}
+INTERACTION_WRITE_DEBOUNCE_SECONDS = 30
+interaction_cache = TTLCache(maxsize=10000, ttl=INTERACTION_WRITE_DEBOUNCE_SECONDS)
+
+
+def _update_user_interaction(user_id: str):
+    db = SessionLocal()
+    try:
+        db.execute(update(User).where(User.id == user_id).values(last_interaction_at=datetime.now(timezone.utc)))
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
+def _enforce_idle_sign_out(request: Request, user: User) -> None:
+    if user.role not in IDLE_SIGN_OUT_ROLES:
+        return
+    # Only enforced for the current app, which reports activity. A tab still
+    # running the app from before this release can't, so it is left alone
+    # (it updates itself on the next page load).
+    if not request.headers.get("X-MP-Client"):
+        return
+    # Signing out must always work (it clears the session cookie), even for
+    # a session that has already gone idle.
+    RequestPath = getattr(getattr(request, "url", None), "path", "") or ""
+    if RequestPath.endswith("/auth/logout"):
+        return
+    # A student on a test screen is never signed out (a tablet that slept
+    # mid-paper must still be able to save and submit), and it counts as
+    # activity.
+    OnTestScreen = request.headers.get("X-MP-Test") == "1"
+    Interacted = OnTestScreen or request.headers.get("X-MP-Active") == "1" or request.method in {"POST", "PUT", "PATCH", "DELETE"}
+    LastInteraction = user.last_interaction_at
+    IsIdle = False
+    if LastInteraction is not None:
+        try:
+            IdleSeconds = (datetime.now(timezone.utc) - _as_aware_utc(LastInteraction)).total_seconds()
+            IsIdle = IdleSeconds > IDLE_SIGN_OUT_SECONDS + IDLE_SIGN_OUT_GRACE_SECONDS
+        except Exception:
+            IsIdle = False
+    if IsIdle and not OnTestScreen:
+        api_error(401, "SESSION_IDLE", "You were signed out after 20 minutes of no activity. Please sign in again.")
+    # First request after this release (no record yet) or real interaction:
+    # record it, at most once every 30 seconds per user.
+    if (LastInteraction is None or Interacted) and user.id not in interaction_cache:
+        interaction_cache[user.id] = True
+        _update_user_interaction(user.id)
+
+
 def get_current_user(
     background_tasks: BackgroundTasks,
     request: Request,
@@ -194,6 +249,14 @@ def get_current_user(
                     set_session_cookie(response, user.role, new_token)
         except Exception:
             pass
+
+    # 2026-10-12 (Shailesh): teacher and student sessions end after 20
+    # minutes with no real activity (admins are exempt). The browser marks a
+    # request that follows recent interaction with X-MP-Active: 1 (and every
+    # request from the current app with X-MP-Client); change requests always
+    # count. Checked BEFORE recording this request's activity, so coming back
+    # to a laptop that slept for an hour still signs the user out.
+    _enforce_idle_sign_out(request, user)
 
     # MAANG-Tier Live Tracking: Debounce via LRU memory cache, update DB in background
     if user.id not in active_users_cache:

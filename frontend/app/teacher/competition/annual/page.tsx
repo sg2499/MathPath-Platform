@@ -34,6 +34,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ANNUAL_LIVE_ALL_LEVELS,
   AnnualLiveLevelFilter,
+  AnnualLiveSlotFilter,
+  ANNUAL_LIVE_ALL_SLOTS,
   AnnualLiveMonitoringTable,
   AnnualLiveUpdatedAgo,
 } from "@/components/competition/AnnualLiveMonitoringTable";
@@ -778,15 +780,31 @@ function TeacherAnnualCompetitionMonitorPageContent() {
     [ANNUAL_LIVE_ALL_LEVELS, ...ANNUAL_COMPETITION_LEVEL_CODES],
     ANNUAL_LIVE_ALL_LEVELS
   );
+  // 2026-10-12: Slot filter beside the Level filter (slots come from the
+  // server with the board, in time order).
+  const [LiveSlotFilter, SetLiveSlotFilter] = useState<string>(ANNUAL_LIVE_ALL_SLOTS);
   const LiveQuery = useQuery({
-    queryKey: ["teacher", "annual-competition", "live", SelectedEventId, LiveLevelFilter],
-    queryFn: () => getTeacherAnnualCompetitionLive(SelectedEventId, LiveLevelFilter === ANNUAL_LIVE_ALL_LEVELS ? null : LiveLevelFilter),
+    queryKey: ["teacher", "annual-competition", "live", SelectedEventId, LiveLevelFilter, LiveSlotFilter],
+    queryFn: () => getTeacherAnnualCompetitionLive(SelectedEventId, LiveLevelFilter === ANNUAL_LIVE_ALL_LEVELS ? null : LiveLevelFilter, LiveSlotFilter === ANNUAL_LIVE_ALL_SLOTS ? null : LiveSlotFilter),
     enabled: Ready && Boolean(SelectedEventId) && TopTab === "OFFICIAL" && ActiveTab === "LIVE",
     placeholderData: (Previous) => Previous,
     // Every 5 seconds (was 15) since 2026-10-07 -- see the admin event page's
     // identical query for why this is cheap enough.
     refetchInterval: TopTab === "OFFICIAL" && ActiveTab === "LIVE" ? 5000 : false,
   });
+  // Slots belong to one event: switching events starts from All Slots.
+  useEffect(() => {
+    SetLiveSlotFilter(ANNUAL_LIVE_ALL_SLOTS);
+  }, [SelectedEventId]);
+  // A slot that isn't in this board's list (another event's, or one that
+  // no longer has students) falls back to All Slots, so the dropdown and
+  // the board always agree.
+  const LiveSlotOptions = LiveQuery.data?.slots;
+  useEffect(() => {
+    if (LiveSlotFilter !== ANNUAL_LIVE_ALL_SLOTS && LiveSlotOptions && !LiveSlotOptions.some((Slot) => Slot.slotId === LiveSlotFilter)) {
+      SetLiveSlotFilter(ANNUAL_LIVE_ALL_SLOTS);
+    }
+  }, [LiveSlotFilter, LiveSlotOptions]);
 
   const ResultsQuery = useQuery({
     queryKey: ["teacher", "annual-competition", "results", SelectedEventId, ResultsLevelFilter],
@@ -1103,6 +1121,11 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                       LevelCodes={LiveQuery.data?.levelCodes ?? []}
                       OnChange={SetLiveLevelFilter}
                     />
+                  <AnnualLiveSlotFilter
+                    Value={LiveSlotFilter}
+                    Slots={LiveQuery.data?.slots ?? []}
+                    OnChange={SetLiveSlotFilter}
+                  />
                     <button
                       type="button"
                       disabled={LiveQuery.isFetching}

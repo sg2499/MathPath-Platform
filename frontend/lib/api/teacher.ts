@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import type { AnnualLiveSlotOption } from "@/lib/api/admin";
 import type { StudentCompetitionMockResult } from "@/lib/api/student";
 
 export type TeacherStudent = {
@@ -645,6 +646,10 @@ export type TeacherAnnualCompetitionLiveMonitoring = {
   // and the level this reply was filtered to (null = all levels).
   levelCodes: string[];
   competitionLevelCode: string | null;
+  // Every slot this viewer has students in, in time order (the Slot
+  // filter's options), and the slot this reply was filtered to.
+  slots?: AnnualLiveSlotOption[];
+  slotId?: string | null;
   summary: {
     totalCount: number;
     notStartedCount: number;
@@ -658,10 +663,14 @@ export type TeacherAnnualCompetitionLiveMonitoring = {
 
 export async function getTeacherAnnualCompetitionLive(
   eventId: string,
-  levelCode?: string | null
+  levelCode?: string | null,
+  slotId?: string | null
 ): Promise<TeacherAnnualCompetitionLiveMonitoring> {
+  const params: Record<string, string> = {};
+  if (levelCode) params.levelCode = levelCode;
+  if (slotId) params.slotId = slotId;
   const { data } = await api.get<TeacherAnnualCompetitionLiveMonitoring>(`/teacher/competition/annual/events/${eventId}/live`, {
-    params: levelCode ? { levelCode } : undefined,
+    params: Object.keys(params).length > 0 ? params : undefined,
   });
   return data;
 }

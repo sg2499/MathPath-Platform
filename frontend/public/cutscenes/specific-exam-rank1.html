@@ -1,3 +1,4 @@
+<script>/* 2026-10-12: tells the player if this scene cannot start (e.g. no WebGL2), so it can show the fallback instead of a black screen. */(function(){var t0=Date.now();function send(k,m){try{parent.postMessage({type:k,message:String(m||'')},'*')}catch(e){}}window.addEventListener('error',function(e){if(Date.now()-t0<6000)send('mathpath-cutscene-error',e&&e.message)});window.addEventListener('unhandledrejection',function(e){if(Date.now()-t0<6000)send('mathpath-cutscene-error',e&&e.reason)});window.addEventListener('load',function(){send('mathpath-cutscene-ready')});})();</script>
 <title>Flawless Construction</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

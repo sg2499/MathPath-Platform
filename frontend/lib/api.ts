@@ -1,4 +1,5 @@
 import axios from "axios";
+import { IsOnTestScreen, IsRecentlyActive, SIGNED_OUT_REASON_KEY } from "@/lib/activity";
 import { getActiveRoleHeaderValue, getCsrfToken, clearSession } from "./auth";
 
 // 2026-07-22 security hardening: relative, same-origin base URL. The actual
@@ -39,6 +40,14 @@ api.interceptors.request.use((config) => {
     const RoleHint = getActiveRoleHeaderValue();
     if (RoleHint) config.headers["X-Auth-Role"] = RoleHint;
   }
+
+  // 2026-10-12: idle sign-out (lib/activity.ts). The server only applies
+  // its 20-minute rule to requests from this app version (X-MP-Client), and
+  // counts a request as activity when the person interacted in the last
+  // minute (X-MP-Active) -- background polling from an idle tab does not.
+  config.headers["X-MP-Client"] = "1";
+  if (IsRecentlyActive()) config.headers["X-MP-Active"] = "1";
+  if (IsOnTestScreen()) config.headers["X-MP-Test"] = "1";
 
   // CSRF double-submit token, required on every mutating request once a
   // cookie session exists -- see get_current_user()'s CSRF check in
@@ -84,6 +93,20 @@ api.interceptors.response.use(
     // clear the stale client-side session so the next protected-page check
     // sends the user to a real login, which re-establishes both cookies.
     if ((Status === 401 || (Status === 403 && Code === "CSRF_VALIDATION_FAILED")) && typeof window !== "undefined") {
+      // Signed out by the server for 20 minutes without activity: the
+      // sign-in page says so.
+      if (Code === "SESSION_IDLE") {
+        try {
+          localStorage.setItem(SIGNED_OUT_REASON_KEY, "idle");
+        } catch {
+          // Only the explanation is lost.
+        }
+        clearSession();
+        const Path = window.location.pathname;
+        const Role = Path.startsWith("/teacher") ? "teacher" : Path.startsWith("/student") ? "student" : null;
+        if (Role) window.location.replace(`/login?role=${Role}`);
+        return Promise.reject(error);
+      }
       clearSession();
     }
     return Promise.reject(error);

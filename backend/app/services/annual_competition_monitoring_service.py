@@ -371,7 +371,23 @@ def GetAnnualCompetitionLiveMonitoring(
     EventRecord = _GetEventOr404(db, EventId)
     NowUtc = _NowUtc()
 
-    AssignmentRecords = _ResolveAssignmentsForRoster(db, EventId=EventId, StudentIdsFilter=StudentIdsFilter, SlotId=SlotId)
+    # Every assignment this viewer can see; the slot and level filters are
+    # applied below, after the lists of slots and levels to filter by are
+    # taken from the whole set (so picking one never empties the other).
+    AssignmentRecords = _ResolveAssignmentsForRoster(db, EventId=EventId, StudentIdsFilter=StudentIdsFilter)
+
+    # 2026-10-12 (Shailesh): a Slot filter beside the Level filter. Slots are
+    # offered in time order, every slot this viewer has students in.
+    SlotIdsPresent = {AssignmentRecord.slot_id for AssignmentRecord in AssignmentRecords if AssignmentRecord.slot_id}
+    SlotRecords = [db.get(CompetitionEventSlot, SlotIdValue) for SlotIdValue in SlotIdsPresent]
+    SlotRecords = sorted(
+        (SlotRecord for SlotRecord in SlotRecords if SlotRecord),
+        key=lambda SlotRecord: (SlotRecord.scheduled_start_at.isoformat() if SlotRecord.scheduled_start_at else "~", SlotRecord.slot_label or ""),
+    )
+    SlotOptions = [
+        {"slotId": SlotRecord.id, "slotLabel": SlotRecord.slot_label or SlotRecord.mode, "scheduledStartAt": SlotRecord.scheduled_start_at.isoformat() if SlotRecord.scheduled_start_at else None}
+        for SlotRecord in SlotRecords
+    ]
 
     # 2026-10-07 (Shailesh, level filter): "the different levels would be
     # allotted different slots so when one slot gets underway for one level
@@ -388,9 +404,21 @@ def GetAnnualCompetitionLiveMonitoring(
         AssignmentRecords = [
             AssignmentRecord for AssignmentRecord in AssignmentRecords if AssignmentRecord.assigned_level_code == CompetitionLevelCode
         ]
+    if SlotId:
+        AssignmentRecords = [AssignmentRecord for AssignmentRecord in AssignmentRecords if AssignmentRecord.slot_id == SlotId]
 
     Rows = _LiveStatusRows(db, AssignmentRecords, NowUtc)
-    Rows.sort(key=lambda Row: ((Row["slot"] or {}).get("scheduledStartAt") or "", Row["studentName"] or ""))
+    # Slot by slot in time order, then within a slot in the level sequence
+    # (Bloomers, Beginners, PM-1..4, IM-1..4, MM-1..2), then by name.
+    LevelPosition = {LevelCode: Index for Index, LevelCode in enumerate(RegistryOrder)}
+    Rows.sort(
+        key=lambda Row: (
+            (Row["slot"] or {}).get("scheduledStartAt") or "~",
+            LevelPosition.get(Row.get("assignedLevelCode") or "", len(LevelPosition)),
+            Row.get("assignedLevelCode") or "",
+            (Row["studentName"] or "").lower(),
+        )
+    )
 
     Summary = {
         "totalCount": len(Rows),
@@ -412,6 +440,8 @@ def GetAnnualCompetitionLiveMonitoring(
         # Levels this viewer can filter by, and the filter this reply used.
         "levelCodes": LevelCodes,
         "competitionLevelCode": CompetitionLevelCode or None,
+        "slots": SlotOptions,
+        "slotId": SlotId or None,
         "summary": Summary,
         "rows": Rows,
     }
@@ -510,7 +540,16 @@ def ListAnnualCompetitionResultsForRoster(
     # entirely, not just marked), so this only needs to sort by rank --
     # unranked rows (no rank yet even though released) sort after ranked
     # ones, by student name.
-    Rows.sort(key=lambda Row: (0, Row["result"]["rank"]) if Row["result"].get("rank") is not None else (1, Row["studentName"] or ""))
+    # 2026-10-12 (Shailesh): level by level in the platform's level
+    # sequence, then by rank within the level (as on the admin's Results).
+    LevelPosition = {LevelCode: Index for Index, LevelCode in enumerate(ANNUAL_COMPETITION_LEVEL_REGISTRY.keys())}
+    Rows.sort(
+        key=lambda Row: (
+            LevelPosition.get(Row.get("assignedLevelCode") or "", len(LevelPosition)),
+            Row.get("assignedLevelCode") or "",
+            (0, Row["result"]["rank"], "") if Row["result"].get("rank") is not None else (1, 0, (Row["studentName"] or "").lower()),
+        )
+    )
     return {"eventId": EventId, "competitionLevelCode": CompetitionLevelCode, "totalResults": len(Rows), "rows": Rows}
 
 

@@ -28,6 +28,11 @@ class User(Base):
     role = Column(String(30), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     last_active_at = Column(DateTime(timezone=True), nullable=True)
+    # 2026-10-12 (Shailesh): last REAL interaction (a click, key, scroll or
+    # touch reported by the browser, or any change request) -- unlike
+    # last_active_at, background polling never moves it. Teacher and student
+    # sessions end after 20 minutes without one (app/dependencies.py).
+    last_interaction_at = Column(DateTime(timezone=True), nullable=True)
     # Optional TOTP-based 2FA (2026-07-21 security audit, Phase 2), currently
     # gated to ADMIN/SUPER_ADMIN in the API layer. totp_secret is only set
     # once setup is confirmed via a correct code (see routes_auth.py); a
