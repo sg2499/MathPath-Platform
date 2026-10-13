@@ -468,16 +468,19 @@ def NotifyPracticeReattemptApprovalNeeded(
     student_name = context.get("student_name")
     attempt_number = int(getattr(attempt, "attempt_number", 0) or 0)
     next_attempt_number = max(attempt_number + 1, 1)
-    if attempt_number <= 3:
-        student_review_message = f"You have used all 3 available attempts for {dps_identity}. Your teacher will review your work and guide the next step before another attempt is opened."
-        teacher_review_message = f"{student_name} has used all 3 available attempts for {dps_identity}. Review the record and coordinate Admin approval before another attempt is opened."
-        admin_review_message = f"{student_name} has used all 3 available attempts for {dps_identity}. Admin approval is required before another attempt is opened."
+    # attempt_number: 0 = Original, 1 = Re-Attempt 1, ... The three included
+    # tries end at Re-Attempt 2; anything after is an admin-approved extra.
+    # (2026-10-13: these labels were one step behind.)
+    if attempt_number <= 2:
+        student_review_message = f"You have used all 3 tries for {dps_identity}. Your next re-attempt opens once an admin approves it."
+        teacher_review_message = f"{student_name} has used all 3 tries for {dps_identity}. Re-Attempt {next_attempt_number} opens after Admin approval."
+        admin_review_message = f"{student_name} has used all 3 tries for {dps_identity}. Approve Re-Attempt {next_attempt_number} to open the next sheet."
     else:
-        current_label = f"Re-Attempt {max(attempt_number - 1, 1)}"
-        next_label = f"Re-Attempt {max(next_attempt_number - 1, 1)}"
-        student_review_message = f"{current_label} for {dps_identity} needs teacher review. Your teacher will guide the next step before {next_label} is opened."
-        teacher_review_message = f"{student_name}'s {current_label} for {dps_identity} needs review. Coordinate Admin approval before {next_label} is opened."
-        admin_review_message = f"{student_name}'s {current_label} for {dps_identity} needs review. Admin approval is required before {next_label} is opened."
+        current_label = f"Approved Re-Attempt {attempt_number}"
+        next_label = f"Re-Attempt {next_attempt_number}"
+        student_review_message = f"{current_label} for {dps_identity} did not reach the benchmark. Your next re-attempt opens once an admin approves it."
+        teacher_review_message = f"{student_name}'s {current_label} for {dps_identity} did not reach the benchmark. {next_label} opens after Admin approval."
+        admin_review_message = f"{student_name}'s {current_label} for {dps_identity} did not reach the benchmark. Approve {next_label} to open the next sheet."
 
     if student_user:
         CreateNotification(
@@ -493,7 +496,7 @@ def NotifyPracticeReattemptApprovalNeeded(
             attempt_id=attempt.id,
             type="DPS_REATTEMPT_APPROVAL_NEEDED",
             category="PRACTICE",
-            title="Teacher Review Needed",
+            title="Next Re-Attempt Awaiting Approval",
             message=student_review_message,
             target_route=f"/student/result/{attempt.id}",
             target_tab="practice-result",

@@ -13,6 +13,7 @@ from app.services.assignment_service import create_assignment
 from app.services import leaderboard_service
 from app.services.attempt_chain_service import ATTEMPT_SOURCE_MANUAL_RETRY
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
+from app.services.dps_chain_state_service import BuildDpsChainIndex, HealExpiredPracticeAttempts, COMPLETED_STATUSES as DPS_COMPLETED_STATUSES
 from app.services.attempt_service import ensure_active_or_auto_submit, result_payload
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, NeedsReattemptAttempts
 from app.services.assessment_eligibility_service import assessment_eligibility_payload, eligibility_for_students
@@ -252,7 +253,9 @@ def _teacher_competition_tracker_payload(db: Session, teacher: Teacher):
 
 
 def benchmark_payload_for_attempt(attempt) -> dict:
-    if not attempt or attempt.accuracy_percentage is None:
+    # 2026-10-13: an attempt still in progress has accuracy 0 stored; it is
+    # not "below benchmark" until it is submitted.
+    if not attempt or attempt.accuracy_percentage is None or str(attempt.status or "").upper() not in DPS_COMPLETED_STATUSES:
         return {
             "benchmarkPercentage": BENCHMARK_PERCENTAGE,
             "benchmarkStatus": "PENDING",
@@ -1486,6 +1489,9 @@ def teacher_assignment_tracker(db: Session = Depends(get_db), teacher: Teacher =
         }
 
     student_ids = [student.id for student in own_students]
+    # Settle sheets whose timer ran out first, so the rows and the states
+    # below are read after any auto-submit (and the re-attempt it opens).
+    HealExpiredPracticeAttempts(db, student_ids)
     level_ids = sorted({student.current_level_id for student in own_students if student.current_level_id})
     students_by_id = {student.id: student for student in own_students}
     students_by_level: dict[str, list[Student]] = {}
@@ -1520,6 +1526,14 @@ def teacher_assignment_tracker(db: Session = Depends(get_db), teacher: Teacher =
     assignments = student_specific_assignments + level_assignments
     seen_assignment_ids = set()
     rows = []
+    # One shared state per student per DPS (dps_chain_state_service): every
+    # card, filter and chip on the tracker reads it.
+    chain_index = BuildDpsChainIndex(
+        db,
+        StudentIds=student_ids,
+        StudentsByLevel={level_id: [item.id for item in items] for level_id, items in students_by_level.items()},
+        Benchmark=BENCHMARK_PERCENTAGE,
+    )
 
     for assignment in assignments:
         seen_assignment_ids.add(assignment.id)
@@ -1577,9 +1591,13 @@ def teacher_assignment_tracker(db: Session = Depends(get_db), teacher: Teacher =
                 "reattemptStatus": "APPROVED" if reattempt_permission else "NONE",
                 "reattemptAllowedAt": reattempt_permission.allowed_at.isoformat() if reattempt_permission and reattempt_permission.allowed_at else None,
                 "createdAt": assignment.created_at.isoformat() if assignment.created_at else None,
-                "attemptHistory": attempt_history_for_assignment_student(db, assignment, student, dps_context),
+                "attemptHistory": [
+                    {**entry, **chain_index.attempt_fields(entry.get("attemptId"), assignment.id, student.id)}
+                    for entry in attempt_history_for_assignment_student(db, assignment, student, dps_context)
+                ],
                 **tracker_date_payload(attempt),
                 **dps_context,
+                **chain_index.row_fields(assignment.id, student.id),
             })
 
     rows = sorted(
@@ -2320,7 +2338,11 @@ def teacher_get_published_assessment_blueprint(
 def teacher_manual_intervention_queue(db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
     own_students = own_students_query(db, teacher).order_by(Student.student_code.asc()).all()
     student_ids = [student.id for student in own_students]
-    rows = BuildManualInterventionQueue(db, StudentIds=student_ids, BenchmarkPercentage=BENCHMARK_PERCENTAGE)
+    students_by_level: dict[str, list[str]] = {}
+    for student in own_students:
+        if student.current_level_id:
+            students_by_level.setdefault(student.current_level_id, []).append(student.id)
+    rows = BuildManualInterventionQueue(db, StudentIds=student_ids, BenchmarkPercentage=BENCHMARK_PERCENTAGE, StudentsByLevel=students_by_level)
     return {
         "summary": {
             "manualInterventionRows": len(rows),

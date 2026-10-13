@@ -489,6 +489,9 @@ function IsReAttemptRow(Row: AnyRecord) {
 }
 
 function AttemptDisplayStatus(Row: AnyRecord) {
+  // 2026-10-13: the server's shared DPS state names this attempt (current
+  // step, or history such as "Below Benchmark").
+  if (typeof Row.chainRowLabel === "string" && Row.chainRowLabel) return Row.chainRowLabel;
   const ExplicitDisplayStatus = PickFirstString(
     Row,
     ["__displayStatus", "displayStatus", "attemptDisplayStatus"],
@@ -535,11 +538,14 @@ function BuildCurrentAttemptGroups(Rows: AnyRecord[]) {
     const SortedRows = GroupRows.slice().sort(
       (A, B) => AttemptSortTime(B) - AttemptSortTime(A),
     );
-    const ResolvedRow = SortedRows.find(IsBenchmarkMetAttempt) || SortedRows[0];
+    const ChainCurrent = SortedRows.find((Row) => (Row as any).isCurrentChainRow === true);
+    const ResolvedRow = ChainCurrent || SortedRows.find(IsBenchmarkMetAttempt) || SortedRows[0];
+    const ChainRow = SortedRows.find((Row) => (Row as any).dpsChain && (Row as any).dpsChain.bucket) as any;
     return {
       Rows: GroupRows,
       CurrentRow: ResolvedRow,
-      Status: AttemptDisplayStatus(ResolvedRow),
+      Bucket: ChainRow ? String(ChainRow.dpsChain.bucket) : null,
+      Status: ChainRow ? String(ChainRow.dpsChain.label) : AttemptDisplayStatus(ResolvedRow),
     };
   });
 }
@@ -616,15 +622,16 @@ function BuildDisplayAttemptRows(Rows: AnyRecord[]) {
 
 function CurrentBenchmarkMetCount(Rows: AnyRecord[]) {
   return BuildCurrentAttemptGroups(Rows).filter((Group) =>
-    IsBenchmarkMetAttempt(Group.CurrentRow),
+    Group.Bucket ? Group.Bucket === "CLEARED" : IsBenchmarkMetAttempt(Group.CurrentRow),
   ).length;
 }
 
 function CurrentNeedsReAttemptCount(Rows: AnyRecord[]) {
   return BuildCurrentAttemptGroups(Rows).filter(
     (Group) =>
-      !IsBenchmarkMetAttempt(Group.CurrentRow) &&
-      IsCompletedAttempt(Group.CurrentRow),
+      Group.Bucket
+        ? Group.Bucket === "NEEDS_REATTEMPT"
+        : !IsBenchmarkMetAttempt(Group.CurrentRow) && IsCompletedAttempt(Group.CurrentRow),
   ).length;
 }
 
@@ -720,7 +727,7 @@ function CurrentClearedDpsCountForLevel(
     RowMatchesLevelScope(Row, LevelRow),
   );
   return BuildCurrentAttemptGroups(LevelAttemptRows).filter((Group) =>
-    IsBenchmarkMetAttempt(Group.CurrentRow),
+    Group.Bucket ? Group.Bucket === "CLEARED" : IsBenchmarkMetAttempt(Group.CurrentRow),
   ).length;
 }
 
@@ -3439,7 +3446,16 @@ function StatusChip({ Label }: { Label: string }) {
   );
   const UpperLabel = Label.toUpperCase();
   const ClassName =
-    UpperLabel.includes("NEEDS") ||
+    UpperLabel.includes("AWAITING") ||
+    UpperLabel.includes("NOT YET ASSIGNED")
+      ? "border-rose-200 bg-rose-50 text-rose-700"
+      : UpperLabel.includes("RE-ATTEMPT") && (UpperLabel.includes("OPEN") || UpperLabel.includes("IN PROGRESS"))
+        ? "border-violet-200 bg-violet-50 text-violet-700"
+        : UpperLabel === "IN PROGRESS" || UpperLabel === "NOT STARTED"
+          ? "border-amber-200 bg-amber-50 text-amber-700"
+        : UpperLabel === "BELOW BENCHMARK" || UpperLabel === "NOT SUBMITTED" || UpperLabel === "NOT ATTEMPTED"
+          ? "border-slate-200 bg-slate-50 text-slate-700"
+          : UpperLabel.includes("NEEDS") ||
     UpperLabel.includes("BELOW") ||
     UpperLabel.includes("FAIL")
       ? "border-rose-200 bg-rose-50 text-rose-700"

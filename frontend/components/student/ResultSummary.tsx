@@ -1,6 +1,7 @@
 import type { AttemptResult } from "@/types/result";
 import { formatSeconds, resultMessage } from "@/lib/utils";
-import { Award, BookOpenCheck, CheckCircle2, Clock3, Target, XCircle, AlertTriangle, ClipboardCheck } from "lucide-react";
+import { Award, BookOpenCheck, CheckCircle2, Clock3, Target, XCircle, AlertTriangle, ClipboardCheck, Hourglass, PlayCircle, RotateCcw, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { StudentPerformanceFeedback } from "@/components/common/PerformanceFeedback";
 import type { ReactNode } from "react";
 
@@ -19,7 +20,7 @@ function IsBenchmarkCleared(result: AttemptResult): boolean {
   return ExplicitCleared || FallbackCleared || Workflow?.state === "CLEARED";
 }
 
-function RetryWorkflowCard({ result }: { result: AttemptResult }) {
+function RetryWorkflowCard({ result, showStudentActions = false }: { result: AttemptResult; showStudentActions?: boolean }) {
   const Workflow = result.retryWorkflow;
   const Summary = result.summary;
   const IsCleared = IsBenchmarkCleared(result);
@@ -70,13 +71,49 @@ function RetryWorkflowCard({ result }: { result: AttemptResult }) {
           </div>
           <p className="mt-2 text-sm font-medium leading-6 sm:text-base opacity-95">{Message}</p>
           <p className="mt-1 text-sm font-medium leading-6 sm:text-base opacity-85">{Guidance}</p>
+          {showStudentActions && !IsCleared && Workflow?.action ? <ReattemptActionButton Action={Workflow.action} /> : null}
         </div>
       </div>
     </div>
   );
 }
 
-export function ResultSummary({ result }: { result: AttemptResult }) {
+// The next step on this sheet, straight from the result page (2026-10-13):
+// Start / Resume the re-attempt, "Re-Attempt N Completed" once it is done
+// (opens that attempt's review), or a disabled "Opens After Admin Approval"
+// when all 3 tries are used.
+function ReattemptActionButton({ Action }: { Action: NonNullable<NonNullable<AttemptResult["retryWorkflow"]>["action"]> }) {
+  const Router = useRouter();
+  const Icon =
+    Action.kind === "START" ? <PlayCircle size={18} /> :
+    Action.kind === "RESUME" ? <RotateCcw size={18} /> :
+    Action.kind === "USED" ? <CheckCircle2 size={18} /> :
+    <Hourglass size={18} />;
+  const ClassName = Action.kind === "USED" ? "se-btn se-btn-quiet" : "se-btn";
+  return (
+    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <button
+        type="button"
+        className={ClassName}
+        disabled={Action.disabled || !Action.href}
+        aria-disabled={Action.disabled || !Action.href}
+        title={Action.hint || (Action.kind === "USED" ? Action.linkLabel || undefined : undefined)}
+        onClick={() => {
+          if (Action.href && !Action.disabled) Router.push(Action.href);
+        }}
+      >
+        {Icon}
+        {Action.label}
+        {Action.kind === "USED" ? <ArrowRight size={16} /> : null}
+      </button>
+      {Action.kind === "USED" && Action.linkLabel ? (
+        <span className="text-xs font-bold opacity-75">{Action.linkLabel}</span>
+      ) : null}
+    </div>
+  );
+}
+
+export function ResultSummary({ result, showStudentActions = false }: { result: AttemptResult; showStudentActions?: boolean }) {
   const s = result.summary;
 
   return (
@@ -102,7 +139,7 @@ export function ResultSummary({ result }: { result: AttemptResult }) {
         </div>
       </div>
 
-      <RetryWorkflowCard result={result} />
+      <RetryWorkflowCard result={result} showStudentActions={showStudentActions} />
 
       <div className="se-result-tiles mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Metric icon={<Target size={18} />} label="Accuracy" value={`${s.accuracyPercentage}%`} />

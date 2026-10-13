@@ -211,7 +211,7 @@ export default function ResultPage() {
       {query.data ? (
         <div className="space-y-6">
           <BackButton href="/student/dashboard" label="Back To Dashboard" className="!mb-0" />
-          <ResultSummary result={query.data} />
+          <ResultSummary result={query.data} showStudentActions />
 
           <div className="flex flex-wrap items-center gap-3 px-2 sm:px-0">
             <div className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700">

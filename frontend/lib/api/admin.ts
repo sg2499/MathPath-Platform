@@ -649,6 +649,27 @@ export async function allowAdminAssignmentReattempt(
 }
 
 
+export type BulkReattemptApprovalResult = {
+  approved: number;
+  alreadyApproved: number;
+  failed: number;
+  message: string;
+  results: { assignmentId: string; studentId: string; approved: boolean; created?: boolean; message?: string; freshAssignmentTitle?: string | null }[];
+};
+
+// Approve several waiting re-attempts at once (2026-10-13). Each is
+// approved on its own; ones that cannot be approved are reported.
+export async function approveReattemptsInBulk(
+  items: { assignmentId: string; studentId: string }[],
+  reason?: string,
+): Promise<BulkReattemptApprovalResult> {
+  const { data } = await api.post<BulkReattemptApprovalResult>("/admin/assignments/reattempt-approvals", {
+    items,
+    reason: reason || null,
+  });
+  return data;
+}
+
 export async function createAssessment(payload: Record<string, unknown>) {
   const { data } = await api.post("/admin/assessments", payload);
   return data;
