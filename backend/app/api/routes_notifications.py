@@ -70,9 +70,16 @@ def list_my_notifications(
     unreadOnly: bool = False,
     limit: int = 20,
     offset: int = 0,
+    tab: str | None = None,
+    q: str | None = None,
+    dateFrom: str | None = None,
+    dateTo: str | None = None,
+    includeTabs: bool = False,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """2026-10-13: tabs (with total and unread per tab), search, a date range
+    and paging through the full history -- nothing is cut off any more."""
     _catch_up_missed_practice_unlocks(db, user)
     return ListNotifications(
         db,
@@ -80,6 +87,12 @@ def list_my_notifications(
         unread_only=unreadOnly,
         limit=limit,
         offset=offset,
+        role=user.role,
+        tab=tab,
+        search=q,
+        date_from=dateFrom,
+        date_to=dateTo,
+        include_tabs=includeTabs,
     )
 
 
@@ -94,12 +107,13 @@ def unread_count(
 
 @router.patch("/read-all")
 def mark_all_read(
+    tab: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    count = MarkAllNotificationsRead(db, recipient_user_id=user.id)
+    count = MarkAllNotificationsRead(db, recipient_user_id=user.id, role=user.role, tab=tab)
     db.commit()
-    return {"updatedCount": count, "unreadCount": 0}
+    return {"updatedCount": count, "unreadCount": UnreadNotificationCount(db, recipient_user_id=user.id)}
 
 
 @router.patch("/{notification_id}/read")

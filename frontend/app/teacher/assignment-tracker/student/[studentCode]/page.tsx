@@ -29,6 +29,13 @@ import {
   averageAccuracy,
   completedText,
   currentWorkRows,
+  chainBucketOf,
+  chainStatusOf,
+  ChainTriesPill,
+  hasDpsChain,
+  isAwaitingApproval,
+  isChainCurrentRow,
+  uniqueAwaitingApprovalCount,
   dpsLabel,
   isBelowBenchmark,
   isCompleted,
@@ -146,7 +153,7 @@ function ApplyDirection(Value: number, Direction: SortDirection) {
 
 type WorkspaceTab = "OVERVIEW" | "LESSON_INSIGHTS";
 type LessonFilter = string;
-type StatusFilter = "" | "ALL" | "PENDING" | "CLEARED" | "NEEDS_REATTEMPT";
+type StatusFilter = "" | "ALL" | "PENDING" | "CLEARED" | "NEEDS_REATTEMPT" | "AWAITING_APPROVAL";
 type PerformanceFilter =
   | ""
   | "ALL"
@@ -191,24 +198,39 @@ function NormalizeRows(RawData: unknown): AnyRow[] {
   return [];
 }
 
+// 2026-10-13: the shared DPS state decides; only the DPS's current row
+// counts, earlier attempts are history.
 function RowNeedsReattempt(Row: AnyRow) {
+  if (hasDpsChain(Row)) return isChainCurrentRow(Row) && chainBucketOf(Row) === "NEEDS_REATTEMPT";
   return (
     needsReattempt(Row) ||
     (isCompleted(Row) && (isBelowBenchmark(Row) || accuracy(Row) < 70))
   );
 }
 
+// Benchmark of this one attempt (not the DPS as a whole).
+function AttemptBelowBenchmark(Row: AnyRow) {
+  return isCompleted(Row) && (isBelowBenchmark(Row) || accuracy(Row) < 70);
+}
+
 function IsCleared(Row: AnyRow) {
+  if (hasDpsChain(Row)) return isChainCurrentRow(Row) && chainBucketOf(Row) === "CLEARED";
   return isCompleted(Row) && accuracy(Row) >= 70 && !RowNeedsReattempt(Row);
 }
 
-function StatusKey(Row: AnyRow): Exclude<StatusFilter, "" | "ALL"> {
+function StatusKey(Row: AnyRow): Exclude<StatusFilter, "" | "ALL" | "AWAITING_APPROVAL"> | "HISTORY" {
+  if (hasDpsChain(Row)) {
+    if (!isChainCurrentRow(Row)) return "HISTORY";
+    return chainBucketOf(Row) as "PENDING" | "CLEARED" | "NEEDS_REATTEMPT";
+  }
   if (!isCompleted(Row)) return "PENDING";
   if (RowNeedsReattempt(Row)) return "NEEDS_REATTEMPT";
   return "CLEARED";
 }
 
 function DisplayStatus(Row: AnyRow) {
+  const Chain = chainStatusOf(Row);
+  if (Chain) return Chain.label;
   const Key = StatusKey(Row);
   if (Key === "PENDING") return "Pending";
   if (Key === "NEEDS_REATTEMPT") return "Needs Re-Attempt";
@@ -227,12 +249,16 @@ function RowTimeTakenSeconds(Row: AnyRow) {
   return Number.isFinite(NumberValue) ? NumberValue : 0;
 }
 
+// Same split as the tracker: approvals waiting on an admin are not the
+// student's to-do (2026-10-13).
 function IsActionNeeded(Row: AnyRow) {
+  if (isAwaitingApproval(Row)) return false;
   return StatusKey(Row) === "PENDING" || StatusKey(Row) === "NEEDS_REATTEMPT";
 }
 
 function MatchesStatusFilter(Row: AnyRow, FilterValue: StatusFilter) {
   if (!FilterValue || FilterValue === "ALL") return true;
+  if (FilterValue === "AWAITING_APPROVAL") return isChainCurrentRow(Row) && isAwaitingApproval(Row);
   return StatusKey(Row) === FilterValue;
 }
 
@@ -335,7 +361,7 @@ function PerformanceBand(Rows: AnyRow[]) {
   const Average = ScopedAverageAccuracy(Rows);
   if (Average < 70) {
     return {
-      Label: "Needs Re-Attempt",
+      Label: "Below Benchmark",
       Tone: "red" as Tone,
       Guidance:
         "Overall average is below benchmark. Re-attempt work should be reviewed first.",
@@ -915,6 +941,7 @@ function TeacherStudentTrackerWorkspacePageContent() {
                 <option value="PENDING">Pending</option>
                 <option value="CLEARED">Cleared</option>
                 <option value="NEEDS_REATTEMPT">Needs Re-Attempt</option>
+                <option value="AWAITING_APPROVAL">Awaiting Admin Approval</option>
               </select>
               <select
                 className="math-input"
@@ -1265,11 +1292,12 @@ function CompactPracticeRow({
       <div className="flex items-center gap-2">
         <Chip
           tone={
-            StatusKey(Row) === "CLEARED"
+            chainStatusOf(Row)?.tone ??
+            (StatusKey(Row) === "CLEARED"
               ? "green"
               : StatusKey(Row) === "PENDING"
                 ? "amber"
-                : "red"
+                : "red")
           }
         >
           {DisplayStatus(Row)}
@@ -1280,7 +1308,8 @@ function CompactPracticeRow({
           </Chip>
         ) : null}
         {!isCompleted(Row) ? (
-          <Chip tone="amber">Pending</Chip>
+          // The status pill already says what is pending (2026-10-13).
+          hasDpsChain(Row) ? null : <Chip tone="amber">Pending</Chip>
         ) : (
           <StandardViewButton
             label="View Details"
@@ -1600,6 +1629,8 @@ function AttemptTypeLabel(Row: AnyRow, DpsAttemptIndex: number) {
 }
 
 function AttemptStatusLabel(Row: AnyRow, AttemptType: string) {
+  const Chain = chainStatusOf(Row);
+  if (Chain) return Chain.label;
   if (!AttemptType.startsWith("Re-Attempt")) return DisplayStatus(Row);
   if (!isCompleted(Row)) return "Re-Attempt Pending";
   return accuracy(Row) >= 70 && !isBelowBenchmark(Row)
@@ -1631,8 +1662,8 @@ function ComparePracticeDetailRows(FirstRow: AnyRow, SecondRow: AnyRow, SortStat
   if (SortState.Key === "score") Result = CompareText(scoreText(FirstRow), scoreText(SecondRow));
   if (SortState.Key === "accuracy") Result = CompareNumber(isCompleted(FirstRow) ? accuracy(FirstRow) : -1, isCompleted(SecondRow) ? accuracy(SecondRow) : -1);
   if (SortState.Key === "benchmark") {
-    const FirstBenchmark = isCompleted(FirstRow) ? (RowNeedsReattempt(FirstRow) ? "Benchmark Not Met" : "Benchmark Met") : "Pending";
-    const SecondBenchmark = isCompleted(SecondRow) ? (RowNeedsReattempt(SecondRow) ? "Benchmark Not Met" : "Benchmark Met") : "Pending";
+    const FirstBenchmark = isCompleted(FirstRow) ? (AttemptBelowBenchmark(FirstRow) ? "Benchmark Not Met" : "Benchmark Met") : "Pending";
+    const SecondBenchmark = isCompleted(SecondRow) ? (AttemptBelowBenchmark(SecondRow) ? "Benchmark Not Met" : "Benchmark Met") : "Pending";
     Result = CompareText(FirstBenchmark, SecondBenchmark);
   }
   if (SortState.Key === "timeTaken") Result = CompareNumber(RowTimeTakenSeconds(FirstRow), RowTimeTakenSeconds(SecondRow));
@@ -1690,7 +1721,7 @@ function PracticeRowsTable({
       {DisplayRows.map((Row, Index) => {
         const RowAccuracy = accuracy(Row);
         const BenchmarkText = isCompleted(Row)
-          ? RowNeedsReattempt(Row)
+          ? AttemptBelowBenchmark(Row)
             ? "Benchmark Not Met"
             : "Benchmark Met"
           : "Pending";
@@ -1699,7 +1730,8 @@ function PracticeRowsTable({
         DpsAttemptCounts.set(DpsKey, DpsAttemptIndex + 1);
         const AttemptType = AttemptTypeLabel(Row, DpsAttemptIndex);
         const DisplayStatus = AttemptStatusLabel(Row, AttemptType);
-        const StatusTone =
+        const ChainTone = chainStatusOf(Row)?.tone;
+        const StatusTone = ChainTone ? ChainTone :
           DisplayStatus === "Cleared" || DisplayStatus === "Re-Attempt Cleared"
             ? "green"
             : DisplayStatus === "Pending" || DisplayStatus.includes("Pending")
@@ -1723,8 +1755,9 @@ function PracticeRowsTable({
                 {AttemptType}
               </Chip>
             </div>
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center justify-center gap-1">
               <Chip tone={StatusTone}>{DisplayStatus}</Chip>
+              <ChainTriesPill row={Row} />
             </div>
             <div className="flex justify-center">
               {isCompleted(Row) ? (

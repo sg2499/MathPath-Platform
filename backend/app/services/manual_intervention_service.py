@@ -160,9 +160,9 @@ def ManualInterventionQueuePayload(Db: Session, AttemptItem: Attempt) -> dict:
     StudentUser = Db.get(User, StudentItem.user_id) if StudentItem and StudentItem.user_id else None
     AssignmentItem = Db.get(Assignment, AttemptItem.assignment_id) if AttemptItem.assignment_id else None
     Dps = Db.get(DPS, AttemptItem.dps_id) if AttemptItem.dps_id else None
-    Lesson = Db.get(Lesson, Dps.lesson_id) if Dps else None
-    Level = Db.get(Level, Lesson.level_id) if Lesson else None
-    Module = Db.get(Module, Level.module_id) if Level else None
+    LessonItem = Db.get(Lesson, Dps.lesson_id) if Dps else None
+    LevelItem = Db.get(Level, LessonItem.level_id) if LessonItem else None
+    ModuleItem = Db.get(Module, LevelItem.module_id) if LevelItem else None
     NextAttemptNumber = NextManualAttemptNumber(Db, AttemptItem)
     ActivityAt = AttemptActivityTimestamp(AttemptItem)
 
@@ -183,15 +183,15 @@ def ManualInterventionQueuePayload(Db: Session, AttemptItem: Attempt) -> dict:
         "dpsId": Dps.id if Dps else getattr(AttemptItem, "dps_id", None),
         "dpsNumber": Dps.dps_number if Dps else None,
         "dpsTitle": Dps.dps_title if Dps else None,
-        "lessonId": Lesson.id if Lesson else None,
-        "lessonNumber": Lesson.lesson_number if Lesson else None,
-        "lessonTitle": Lesson.lesson_title if Lesson else None,
-        "levelId": Level.id if Level else None,
-        "levelCode": Level.level_code if Level else None,
-        "levelName": Level.level_name if Level else None,
-        "moduleId": Module.id if Module else None,
-        "moduleCode": Module.module_code if Module else None,
-        "moduleName": Module.module_name if Module else None,
+        "lessonId": LessonItem.id if LessonItem else None,
+        "lessonNumber": LessonItem.lesson_number if LessonItem else None,
+        "lessonTitle": LessonItem.lesson_title if LessonItem else None,
+        "levelId": LevelItem.id if LevelItem else None,
+        "levelCode": LevelItem.level_code if LevelItem else None,
+        "levelName": LevelItem.level_name if LevelItem else None,
+        "moduleId": ModuleItem.id if ModuleItem else None,
+        "moduleCode": ModuleItem.module_code if ModuleItem else None,
+        "moduleName": ModuleItem.module_name if ModuleItem else None,
         "accuracy": AttemptItem.accuracy_percentage,
         "score": AttemptItem.total_score,
         "totalMarks": AttemptItem.max_score,
@@ -209,29 +209,38 @@ def BuildManualInterventionQueue(
     *,
     StudentIds: list[str] | None = None,
     BenchmarkPercentage: float = 70.0,
+    StudentsByLevel: dict[str, list[str]] | None = None,
 ) -> list[dict]:
-    Query = Db.query(Attempt).filter(Attempt.status.in_(["SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"]))
-    if StudentIds is not None:
-        if not StudentIds:
-            return []
-        Query = Query.filter(Attempt.student_id.in_(StudentIds))
+    """Every student DPS that has used all its tries and is waiting for an
+    admin to approve the next sheet. 2026-10-13: built on the shared
+    dps_chain_state_service, so this list, the "Awaiting Admin Approval"
+    chips and the counts on the trackers always agree. (The older version
+    mixed timestamps and empty strings when sorting and failed on live.)"""
+    from app.services.dps_chain_state_service import BuildDpsChainIndex
 
-    Attempts = Query.all()
-    QueueAttempts = ManualInterventionAttempts(Attempts, BenchmarkPercentage)
-    LatestQueueAttempts = []
-    for AttemptItem in QueueAttempts:
-        LatestAttempt = LatestAttemptInChain(Db, AttemptItem) or AttemptItem
-        if LatestAttempt.id == AttemptItem.id and IsManualInterventionAttempt(LatestAttempt):
-            LatestQueueAttempts.append(AttemptItem)
-
-    Rows = [ManualInterventionQueuePayload(Db, AttemptItem) for AttemptItem in LatestQueueAttempts]
+    if StudentIds is not None and not StudentIds:
+        return []
+    Index = BuildDpsChainIndex(Db, StudentIds=StudentIds, StudentsByLevel=StudentsByLevel, Benchmark=BenchmarkPercentage)
+    Rows = []
+    for Concept in Index.awaiting_approval():
+        AttemptItem = Db.get(Attempt, Concept.awaiting_approval_attempt_id) if Concept.awaiting_approval_attempt_id else None
+        if AttemptItem is None:
+            continue
+        Row = ManualInterventionQueuePayload(Db, AttemptItem)
+        Row["assignmentId"] = Concept.awaiting_approval_assignment_id or Row.get("assignmentId")
+        Row["dpsChain"] = Concept.payload()
+        Row["triesUsed"] = Concept.tries_used
+        Row["triesAllowed"] = Concept.tries_allowed
+        Row["approvedExtra"] = Concept.approved_extra
+        Row["nextAttemptLabel"] = BuildAttemptLabel(Row.get("nextAttemptNumber"))
+        Rows.append(Row)
     return sorted(
         Rows,
         key=lambda Row: (
-            Row.get("moduleCode") or "",
-            Row.get("levelCode") or "",
-            Row.get("lessonNumber") or 0,
-            Row.get("dpsNumber") or 0,
-            Row.get("studentName") or "",
+            str(Row.get("moduleCode") or ""),
+            str(Row.get("levelCode") or ""),
+            int(Row.get("lessonNumber") or 0),
+            int(Row.get("dpsNumber") or 0),
+            str(Row.get("studentName") or ""),
         ),
     )

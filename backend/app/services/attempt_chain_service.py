@@ -202,14 +202,27 @@ def BuildRetryWorkflowPayload(AttemptItem: Attempt, RetryAssignment: Assignment 
         }
 
     if RequiresManualIntervention or BenchmarkState == BENCHMARK_STATUS_MANUAL_INTERVENTION_REQUIRED:
+        # 2026-10-13: once an admin approves, the next sheet exists; say so
+        # instead of still asking the student to wait.
+        if RetryAssignment is not None:
+            return {
+                "state": "APPROVED_RETRY_PREPARED",
+                "attemptNumber": AttemptNumber,
+                "nextAssignmentId": getattr(RetryAssignment, "id", None),
+                "requiresManualIntervention": False,
+                "title": "Next Re-Attempt Approved",
+                "message": "Your next re-attempt for this practice sheet has been approved.",
+                "guidance": "Start it from the button below or from your Practice tab, and take your time to get every answer right.",
+                "showTeacherGuidance": False,
+            }
         return {
             "state": "MANUAL_REVIEW_REQUIRED",
             "attemptNumber": AttemptNumber,
             "nextAssignmentId": None,
             "requiresManualIntervention": True,
-            "title": "Additional Review Required",
-            "message": "This practice needs teacher review before another attempt can be opened.",
-            "guidance": "Your teacher will review your work and guide the next practice step.",
+            "title": "Waiting For Approval",
+            "message": "All 3 tries for this practice sheet have been used.",
+            "guidance": "Your next re-attempt opens as soon as an admin approves it. Meanwhile, go through the review below to see what to fix.",
             "showTeacherGuidance": True,
         }
 

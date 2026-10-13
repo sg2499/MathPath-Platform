@@ -10,7 +10,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
 from pydantic import BaseModel
@@ -73,6 +73,7 @@ from app.services.assessment_engine_service import (
 from app.services.assessment_notification_service import NotifyAssessmentReattemptDecision, NotifyStudentPromoted
 from app.services.practice_notification_service import NotifyPracticeFreshPracticeAssigned
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
+from app.services.dps_chain_state_service import BuildDpsChainIndex, HealExpiredPracticeAttempts
 from app.services.assessment_feedback_service import upsert_assessment_remark, delete_assessment_remark, assessment_feedback_payload, active_assessment_remark
 from app.services.parent_report_notification_service import (
     NotifyParentReportGenerated,
@@ -2596,7 +2597,9 @@ BENCHMARK_PERCENTAGE = 70.0
 
 
 def benchmark_payload_for_attempt(attempt: Attempt | None) -> dict:
-    if not attempt or attempt.accuracy_percentage is None:
+    # 2026-10-13: an attempt still in progress has accuracy 0 stored; it is
+    # not "below benchmark" until it is submitted.
+    if not attempt or attempt.accuracy_percentage is None or str(attempt.status or "").upper() not in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}:
         return {
             "benchmarkPercentage": BENCHMARK_PERCENTAGE,
             "benchmarkStatus": "PENDING",
@@ -3057,13 +3060,27 @@ def promote_assessment_assignment_route(
 
 @router.get("/assignments")
 def list_assignments_route(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    # Settle timed-out sheets first (see HealExpiredPracticeAttempts).
+    HealExpiredPracticeAttempts(db)
     rows = (
         db.query(Assignment)
         .filter(Assignment.assignment_type != "ASSESSMENT")
         .order_by(Assignment.created_at.desc())
         .all()
     )
-    return {"assignments": [assignment_payload(db, assignment) for assignment in rows]}
+    # One shared state per student per DPS (dps_chain_state_service).
+    chain_index = BuildDpsChainIndex(db, Benchmark=BENCHMARK_PERCENTAGE)
+    payloads = []
+    for assignment in rows:
+        payload = assignment_payload(db, assignment)
+        if assignment.assigned_to_type == "STUDENT" and assignment.assigned_to_id:
+            payload.update(chain_index.row_fields(assignment.id, assignment.assigned_to_id))
+            payload["attemptHistory"] = [
+                {**entry, **chain_index.attempt_fields(entry.get("attemptId"), assignment.id, assignment.assigned_to_id)}
+                for entry in payload.get("attemptHistory") or []
+            ]
+        payloads.append(payload)
+    return {"assignments": payloads}
 
 
 @router.get("/assignments/manual-intervention-queue")
@@ -3215,19 +3232,11 @@ def get_assignment_route(assignment_id: str, db: Session = Depends(get_db), user
 
 
 
-@router.post("/assignments/{assignment_id}/students/{student_id}/allow-reattempt")
-def allow_assignment_reattempt_route(
-    assignment_id: str,
-    student_id: str,
-    payload: AllowReattemptRequest,
-    db: Session = Depends(get_db),
-    user: User = Depends(admin_dep),
-):
-    assignment = db.get(Assignment, assignment_id)
+def _approve_next_reattempt(db: Session, assignment: Assignment | None, student: Student | None, user: User, reason: str | None) -> dict:
+    """Open the next sheet for a student DPS that has used all its tries.
+    Shared by the single and the bulk approval routes; commits on success."""
     if not assignment:
         api_error(404, "NOT_FOUND", "Assignment not found.")
-
-    student = db.get(Student, student_id)
     if not student:
         api_error(404, "NOT_FOUND", "Student not found.")
 
@@ -3262,7 +3271,7 @@ def allow_assignment_reattempt_route(
             dps_id=assignment.dps_id,
             student_id=student.id,
             allowed_by_user_id=user.id,
-            reason=payload.reason or "Additional re-attempt approved after all available attempts were used.",
+            reason=reason or "Additional re-attempt approved after all available attempts were used.",
             status="APPROVED",
         )
         db.add(permission)
@@ -3279,6 +3288,16 @@ def allow_assignment_reattempt_route(
     permission.used_at = datetime.now(datetime_timezone.utc)
     permission.used_assignment_id = fresh_assignment.id
     NotifyPracticeFreshPracticeAssigned(db, assignment_id=fresh_assignment.id, actor_user_id=user.id, source_attempt_id=latest_attempt.id)
+    # 2026-10-13: the "approval needed" notices for this student's DPS are
+    # done with; mark them read for everyone who got one so the Needs Action
+    # tab never shows an approval that has already been given.
+    now = datetime.now(datetime_timezone.utc)
+    db.query(Notification).filter(
+        Notification.type == "DPS_REATTEMPT_APPROVAL_NEEDED",
+        Notification.student_id == student.id,
+        Notification.dps_id == assignment.dps_id,
+        Notification.is_read == False,
+    ).update({Notification.is_read: True, Notification.read_at: now}, synchronize_session=False)
     db.commit()
     db.refresh(permission)
     db.refresh(fresh_assignment)
@@ -3290,6 +3309,60 @@ def allow_assignment_reattempt_route(
         "freshAssignmentId": fresh_assignment.id,
         "freshAssignmentTitle": fresh_assignment.title,
     }
+
+
+@router.post("/assignments/{assignment_id}/students/{student_id}/allow-reattempt")
+def allow_assignment_reattempt_route(
+    assignment_id: str,
+    student_id: str,
+    payload: AllowReattemptRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    return _approve_next_reattempt(db, db.get(Assignment, assignment_id), db.get(Student, student_id), user, payload.reason)
+
+
+class BulkReattemptApprovalItem(BaseModel):
+    assignmentId: str
+    studentId: str
+
+
+class BulkReattemptApprovalRequest(BaseModel):
+    items: list[BulkReattemptApprovalItem]
+    reason: str | None = None
+
+
+@router.post("/assignments/reattempt-approvals")
+def bulk_approve_reattempts_route(
+    payload: BulkReattemptApprovalRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_dep),
+):
+    """Approve several waiting re-attempts at once (Awaiting Approval tab).
+    Each one is approved on its own; one that cannot be approved is reported
+    and the rest still go through."""
+    if not payload.items:
+        api_error(400, "VALIDATION_ERROR", "Choose at least one re-attempt to approve.")
+    if len(payload.items) > 200:
+        api_error(400, "VALIDATION_ERROR", "Approve up to 200 re-attempts at a time.")
+    results = []
+    for item in payload.items:
+        try:
+            outcome = _approve_next_reattempt(db, db.get(Assignment, item.assignmentId), db.get(Student, item.studentId), user, payload.reason)
+            results.append({"assignmentId": item.assignmentId, "studentId": item.studentId, "approved": True, **outcome})
+        except HTTPException as error:
+            db.rollback()
+            detail = error.detail if isinstance(error.detail, dict) else {"message": str(error.detail)}
+            results.append({"assignmentId": item.assignmentId, "studentId": item.studentId, "approved": False, "message": detail.get("message") or "Could not be approved."})
+    approved = sum(1 for row in results if row["approved"] and row.get("created"))
+    already = sum(1 for row in results if row["approved"] and not row.get("created"))
+    failed = sum(1 for row in results if not row["approved"])
+    parts = [f"{approved} re-attempt{'' if approved == 1 else 's'} approved"]
+    if already:
+        parts.append(f"{already} already approved earlier")
+    if failed:
+        parts.append(f"{failed} could not be approved")
+    return {"approved": approved, "alreadyApproved": already, "failed": failed, "message": ", ".join(parts) + ".", "results": results}
 
 
 @router.patch("/assignments/{assignment_id}/status")
@@ -4387,7 +4460,18 @@ def _admin_student_export_filename(StudentValue: dict, db: Session, module_id: s
     return _admin_safe_filename_part("_".join(Parts)) + ".xlsx"
 
 
+def _students_by_level(db: Session, StudentIds) -> dict[str, list[str]]:
+    Ids = [Value for Value in StudentIds if Value]
+    Out: dict[str, list[str]] = {}
+    for Chunk in range(0, len(Ids), 900):
+        for StudentValue in db.query(Student).filter(Student.id.in_(Ids[Chunk:Chunk + 900])).all():
+            if StudentValue.current_level_id:
+                Out.setdefault(StudentValue.current_level_id, []).append(StudentValue.id)
+    return Out
+
+
 def _admin_learning_performance_payload(db: Session, teacher_id: str | None = None, module_id: str | None = None, level_id: str | None = None, lesson_id: str | None = None, dps_id: str | None = None) -> dict:
+    HealExpiredPracticeAttempts(db)
     FilteredAttempts = _admin_filter_attempts_for_learning_performance(db, teacher_id, module_id, level_id, lesson_id, dps_id)
     Rows = []
     CompletedRows = []
@@ -4444,6 +4528,15 @@ def _admin_learning_performance_payload(db: Session, teacher_id: str | None = No
             **BenchmarkPayload,
             **attempt_date_payload(AttemptValue),
         })
+    # 2026-10-13: each attempt also carries the shared state of its DPS, so
+    # the Results page labels history attempts as history and counts each
+    # DPS once, exactly as the trackers do.
+    ChainIndex = BuildDpsChainIndex(db, StudentIds=list(StudentIds), StudentsByLevel=_students_by_level(db, StudentIds), Benchmark=BENCHMARK_PERCENTAGE)
+    AttemptAssignments = {AttemptValue.id: AttemptValue.assignment_id for AttemptValue, _Scope in FilteredAttempts}
+    for Row in Rows:
+        AssignmentId = AttemptAssignments.get(Row["attemptId"])
+        if AssignmentId and Row.get("studentId"):
+            Row.update(ChainIndex.attempt_fields(Row["attemptId"], AssignmentId, Row["studentId"]))
     AverageAccuracy = round(sum(float(AttemptValue.accuracy_percentage or 0) for AttemptValue in CompletedRows) / len(CompletedRows)) if CompletedRows else 0
     AverageScore = round(sum(float(AttemptValue.total_score or 0) for AttemptValue in CompletedRows) / len(CompletedRows)) if CompletedRows else 0
     PromotionRecords = _admin_promotion_records_for_scope(
@@ -5759,6 +5852,22 @@ def admin_get_assessment_reattempt_approval(
     return AssessmentReattemptApprovalPayload(db, approval)
 
 
+def _close_assessment_request_notices(db: Session, approval) -> None:
+    """2026-10-13: once an assessment re-attempt request is decided, its
+    "needs approval" notices are done with -- mark them read for everyone so
+    the Needs Action tab never shows a request that is already handled."""
+    query = db.query(Notification).filter(
+        Notification.type == "ASSESSMENT_REATTEMPT_REQUEST_CREATED",
+        Notification.is_read == False,
+        Notification.student_id == approval.student_id,
+    )
+    if approval.assessment_attempt_id:
+        query = query.filter(Notification.attempt_id == approval.assessment_attempt_id)
+    else:
+        query = query.filter(Notification.assessment_id == approval.assessment_assignment_id)
+    query.update({Notification.is_read: True, Notification.read_at: datetime.now(datetime_timezone.utc)}, synchronize_session=False)
+
+
 @router.post("/assessment-reattempt-approvals/{approval_id}/approve")
 def admin_approve_assessment_reattempt(
     approval_id: str,
@@ -5768,6 +5877,7 @@ def admin_approve_assessment_reattempt(
 ):
     approval = ApproveAssessmentReattempt(db, approval_id, user.id, payload.adminNote if payload else None)
     NotifyAssessmentReattemptDecision(db, approval_id=approval.id, actor_user_id=user.id, decision="APPROVED")
+    _close_assessment_request_notices(db, approval)
     db.commit()
     return {
         "updated": True,
@@ -5785,6 +5895,7 @@ def admin_reject_assessment_reattempt(
 ):
     approval = RejectAssessmentReattempt(db, approval_id, user.id, payload.adminNote if payload else None)
     NotifyAssessmentReattemptDecision(db, approval_id=approval.id, actor_user_id=user.id, decision="REJECTED")
+    _close_assessment_request_notices(db, approval)
     db.commit()
     return {
         "updated": True,

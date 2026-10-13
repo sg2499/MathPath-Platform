@@ -54,6 +54,19 @@ export type NotificationRecord = {
   readAt?: string | null;
   createdAt?: string | null;
   metadata?: Record<string, unknown>;
+  // 2026-10-13: which tab it belongs to, and whether it is something this
+  // person is expected to act on.
+  tab?: NotificationTabKey | string;
+  needsAction?: boolean;
+};
+
+export type NotificationTabKey = "ALL" | "ACTION" | "DPS" | "ASSESSMENTS" | "ANNUAL" | "ACHIEVEMENTS" | "ACCOUNT" | "OTHER";
+
+export type NotificationTab = {
+  key: NotificationTabKey;
+  label: string;
+  total: number;
+  unread: number;
 };
 
 export type NotificationListResponse = {
@@ -62,29 +75,46 @@ export type NotificationListResponse = {
   unreadCount: number;
   limit: number;
   offset: number;
+  hasMore: boolean;
+  tabs: NotificationTab[];
 };
 
 export async function GetNotifications(params?: {
   unreadOnly?: boolean;
   limit?: number;
   offset?: number;
+  tab?: NotificationTabKey;
+  q?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  includeTabs?: boolean;
 }): Promise<NotificationListResponse> {
   const Response = await api.get("/notifications", {
     params: {
       unreadOnly: params?.unreadOnly ?? false,
       limit: params?.limit ?? 20,
       offset: params?.offset ?? 0,
+      tab: params?.tab && params.tab !== "ALL" ? params.tab : undefined,
+      q: params?.q?.trim() || undefined,
+      dateFrom: params?.dateFrom || undefined,
+      dateTo: params?.dateTo || undefined,
+      includeTabs: params?.includeTabs ?? false,
       ts: Date.now(),
     },
     headers: { "Cache-Control": "no-cache" },
   });
 
+  const Items: NotificationRecord[] = Response.data?.items || [];
+  const Total = Number(Response.data?.total || 0);
+  const Offset = Number(Response.data?.offset || params?.offset || 0);
   return {
-    items: Response.data?.items || [],
-    total: Number(Response.data?.total || 0),
+    items: Items,
+    total: Total,
     unreadCount: Number(Response.data?.unreadCount || 0),
     limit: Number(Response.data?.limit || params?.limit || 20),
-    offset: Number(Response.data?.offset || params?.offset || 0),
+    offset: Offset,
+    hasMore: typeof Response.data?.hasMore === "boolean" ? Response.data.hasMore : Offset + Items.length < Total,
+    tabs: Array.isArray(Response.data?.tabs) ? Response.data.tabs : [],
   };
 }
 
@@ -101,8 +131,10 @@ export async function MarkNotificationRead(notificationId: string): Promise<Noti
   return Response.data;
 }
 
-export async function MarkAllNotificationsRead(): Promise<{ updatedCount: number; unreadCount: number }> {
-  const Response = await api.patch("/notifications/read-all");
+export async function MarkAllNotificationsRead(tab?: NotificationTabKey): Promise<{ updatedCount: number; unreadCount: number }> {
+  const Response = await api.patch("/notifications/read-all", null, {
+    params: { tab: tab && tab !== "ALL" ? tab : undefined },
+  });
   return {
     updatedCount: Number(Response.data?.updatedCount || 0),
     unreadCount: Number(Response.data?.unreadCount || 0),

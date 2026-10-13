@@ -1,4 +1,16 @@
-export type RetryWorkflowState = "CLEARED" | "RETRY_PREPARED" | "RETRY_REQUIRED" | "MANUAL_REVIEW_REQUIRED";
+export type RetryWorkflowState = "CLEARED" | "RETRY_PREPARED" | "RETRY_REQUIRED" | "MANUAL_REVIEW_REQUIRED" | "APPROVED_RETRY_PREPARED";
+
+// 2026-10-13: the one button on a DPS result page, decided on the server
+// from the real next sheet and its attempt.
+export type ReattemptAction = {
+  kind: "START" | "RESUME" | "USED" | "AWAITING_APPROVAL";
+  label: string;
+  href: string | null;
+  disabled: boolean;
+  nextAttemptNumber: number;
+  linkLabel?: string | null;
+  hint?: string | null;
+};
 
 export type RetryWorkflow = {
   state: RetryWorkflowState;
@@ -12,6 +24,7 @@ export type RetryWorkflow = {
   previousAccuracyPercentage?: number | null;
   previousScore?: number | null;
   accuracyDelta?: number | null;
+  action?: ReattemptAction | null;
 };
 
 export type AttemptResult = {

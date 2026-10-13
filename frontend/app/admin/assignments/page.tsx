@@ -6,8 +6,14 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
-import { getAdminAssignments } from "@/lib/api/admin";
-import { useQuery } from "@tanstack/react-query";
+import { approveReattemptsInBulk, getAdminAssignments } from "@/lib/api/admin";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ApprovalAssignmentId,
+  ApprovalKey,
+  ApprovalStudentId,
+  ReattemptApprovalQueue,
+} from "@/components/common/ReattemptApprovalQueue";
 import { AlertTriangle, BarChart3, CheckCircle2, ClipboardList, ClipboardPlus, Clock3, FolderOpen, Plus, Search, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -19,6 +25,9 @@ import {
 import {
   AnyRow,
   buildStudents,
+  currentWorkRows,
+  isAwaitingApproval,
+  studentCodeOf,
   formatAccuracyPercent,
   hierarchyAverageAccuracy,
   isBelowBenchmark,
@@ -231,6 +240,9 @@ export default function AdminPracticeAssignmentsPage() {
   const [teacherFilter, setTeacherFilter] = useState("");
   const [moduleFilter, setModuleFilter] = useState("");
   const [levelFilter, setLevelFilter] = useState("");
+  const queryClient = useQueryClient();
+  const [approvalBusy, setApprovalBusy] = useState<Set<string>>(new Set());
+  const [approvalMessage, setApprovalMessage] = useState<{ tone: "green" | "red"; text: string } | null>(null);
 
   const query = useQuery({
     queryKey: ["admin-assignments"],
@@ -269,6 +281,31 @@ export default function AdminPracticeAssignmentsPage() {
   const clearedDps = uniqueClearedConceptCount(filteredRows);
   const pendingDps = uniquePendingConceptCount(filteredRows);
   const reattemptNeeded = uniqueNeedsReattemptCount(filteredRows);
+  // 2026-10-13: every DPS that has used all 3 tries, from the same shared
+  // state as the cards above, so the count here always matches.
+  const awaitingRows = useMemo(() => currentWorkRows(filteredRows).filter(isAwaitingApproval), [filteredRows]);
+
+  const approve = async (rowsToApprove: AnyRow[]) => {
+    if (!rowsToApprove.length) return;
+    const keys = new Set(rowsToApprove.map(ApprovalKey));
+    setApprovalBusy(keys);
+    setApprovalMessage(null);
+    try {
+      const result = await approveReattemptsInBulk(
+        rowsToApprove.map((row) => ({ assignmentId: ApprovalAssignmentId(row), studentId: ApprovalStudentId(row) })),
+      );
+      const failedLines = result.results.filter((item) => !item.approved).map((item) => item.message).filter(Boolean);
+      setApprovalMessage({
+        tone: result.failed ? "red" : "green",
+        text: result.message + (failedLines.length ? ` ${failedLines.join(" ")}` : ""),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["admin-assignments"] });
+    } catch (error) {
+      setApprovalMessage({ tone: "red", text: apiErrorMessage(error) });
+    } finally {
+      setApprovalBusy(new Set());
+    }
+  };
   const averageAccuracyValue = visibleStudentsAverageAccuracy(students);
 
   if (!ready || query.isLoading)
@@ -326,6 +363,25 @@ export default function AdminPracticeAssignmentsPage() {
             />
           </div>
         </div>
+
+        {approvalMessage ? (
+          <div
+            role="status"
+            className={`rounded-[20px] border px-4 py-3 text-sm font-bold ${approvalMessage.tone === "green" ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100" : "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-100"}`}
+          >
+            {approvalMessage.text}
+          </div>
+        ) : null}
+
+        {awaitingRows.length || approvalMessage ? (
+          <ReattemptApprovalQueue
+            Rows={awaitingRows}
+            Mode="admin"
+            BusyKeys={approvalBusy}
+            OnApprove={approve}
+            OnOpenStudent={(row) => router.push(`/admin/assignments/student/${encodeURIComponent(studentCodeOf(row))}`)}
+          />
+        ) : null}
 
         <div className="math-operation-panel">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">

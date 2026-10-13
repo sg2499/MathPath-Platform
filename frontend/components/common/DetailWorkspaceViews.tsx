@@ -174,14 +174,14 @@ export function levelProgressSummary(rows: AnyRow[]) {
   const levelSummaries = safeLevels.map((levelCode) => {
     const levelRows = SourceRows.filter((row) => levelCodeOf(row) === levelCode);
     const completed = levelRows.filter(
-      (row) => isCompleted(row) && !isBelowBenchmark(row),
+      isClearedRow,
     ).length;
     const required = requiredDpsForLevel(
       levelRows.length ? levelRows : SourceRows,
       levelCode,
     );
     const below = uniqueNeedsReattemptCount(levelRows);
-    const pending = levelRows.filter((row) => !isCompleted(row)).length;
+    const pending = levelRows.filter(isPendingRow).length;
     const status =
       below > 0
         ? "Needs Re-Attempt"
@@ -500,8 +500,67 @@ export function isBelowBenchmark(row: AnyRow) {
   );
 }
 
+// --- One shared state per student per DPS (2026-10-13) ---------------------
+// Practice-tracker rows from the server carry `dpsChain` (the state of that
+// student's DPS: Not Started, Re-Attempt 1 Open, Awaiting Admin Approval,
+// Cleared On Re-Attempt 2, ...), `isCurrentChainRow` (true only on the row
+// that is the DPS's current step) and `chainRowLabel` (what that row shows).
+// Every count below uses them when present, so a card and the list behind it
+// count each DPS once and always agree. Rows without them (assessments,
+// mocks, older payloads) keep the earlier rules.
+export type ChainTone = "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple";
+
+export function hasDpsChain(row: AnyRow): boolean {
+  return Boolean(row && row.dpsChain && row.dpsChain.state);
+}
+
+export function chainBucketOf(row: AnyRow): "PENDING" | "CLEARED" | "NEEDS_REATTEMPT" | null {
+  return hasDpsChain(row) ? (String(row.dpsChain.bucket) as "PENDING" | "CLEARED" | "NEEDS_REATTEMPT") : null;
+}
+
+export function isChainCurrentRow(row: AnyRow): boolean {
+  return hasDpsChain(row) && row.isCurrentChainRow === true;
+}
+
+export function isAwaitingApproval(row: AnyRow): boolean {
+  return hasDpsChain(row) && row.dpsChain.state === "AWAITING_APPROVAL";
+}
+
+export function chainStatusOf(row: AnyRow): { label: string; tone: ChainTone } | null {
+  if (!hasDpsChain(row)) return null;
+  const Tone = String(row.chainRowTone || row.dpsChain.tone || "slate");
+  const Allowed: ChainTone[] = ["slate", "green", "red", "amber", "blue", "cyan", "purple"];
+  return {
+    label: String(row.chainRowLabel || row.dpsChain.label),
+    tone: (Allowed.includes(Tone as ChainTone) ? Tone : "slate") as ChainTone,
+  };
+}
+
+export function chainTriesText(row: AnyRow): string {
+  return hasDpsChain(row) ? String(row.dpsChain.triesText || "") : "";
+}
+
+// Tries pill colour (2026-10-13, Shailesh): cleared green; 1 used neutral;
+// 2 of 3 amber (one included try left); all used and waiting red; on an
+// admin-approved extra try purple.
+export function chainTriesTone(row: AnyRow): ChainTone {
+  if (!hasDpsChain(row)) return "slate";
+  const Chain = row.dpsChain;
+  if (Chain.bucket === "CLEARED") return "green";
+  if (Chain.state === "AWAITING_APPROVAL") return "red";
+  if (Number(Chain.approvedExtra || 0) > 0) return "purple";
+  if (Number(Chain.triesUsed || 0) >= 2) return "amber";
+  return "slate";
+}
+
+export function ChainTriesPill({ row }: { row: AnyRow }) {
+  if (!hasDpsChain(row) || !isChainCurrentRow(row) || chainBucketOf(row) === "PENDING") return null;
+  return <Chip tone={chainTriesTone(row)}>{`Tries ${chainTriesText(row)}`}</Chip>;
+}
+
 export function needsReattempt(row: AnyRow) {
   if (row.isActive === false) return false;
+  if (hasDpsChain(row)) return Boolean(row.dpsChain.needsReattempt);
   const status = String(row.status ?? row.attemptStatus ?? "").toUpperCase();
   const normalizedStatus = status.replace(/[^A-Z]/g, "");
   if (normalizedStatus.includes("CLEARED")) return false;
@@ -643,6 +702,12 @@ export function currentWorkRows(rows: AnyRow[]) {
       CurrentRows.set(Key, Row);
       return;
     }
+    // The server marks the DPS's current step; it always wins.
+    if (isChainCurrentRow(Existing) && !isChainCurrentRow(Row)) return;
+    if (isChainCurrentRow(Row) && !isChainCurrentRow(Existing)) {
+      CurrentRows.set(Key, Row);
+      return;
+    }
     const ExistingAttempt = attemptNumber(Existing);
     const RowAttempt = attemptNumber(Row);
     const ExistingTime = rowTime(Existing);
@@ -663,15 +728,27 @@ export function uniqueAssignedConceptCount(rows: AnyRow[]) {
 }
 
 export function uniqueClearedConceptCount(rows: AnyRow[]) {
-  return currentWorkRows(rows).filter(
-    (Row) => isCompleted(Row) && !isBelowBenchmark(Row),
+  return currentWorkRows(rows).filter((Row) =>
+    hasDpsChain(Row) ? chainBucketOf(Row) === "CLEARED" : isCompleted(Row) && !isBelowBenchmark(Row),
   ).length;
 }
 
 export function uniquePendingConceptCount(rows: AnyRow[]) {
-  return currentWorkRows(rows).filter(
-    (Row) => !isCompleted(Row) && !needsReattempt(Row),
+  return currentWorkRows(rows).filter((Row) =>
+    hasDpsChain(Row) ? chainBucketOf(Row) === "PENDING" : !isCompleted(Row) && !needsReattempt(Row),
   ).length;
+}
+
+export function isClearedRow(row: AnyRow): boolean {
+  return hasDpsChain(row) ? chainBucketOf(row) === "CLEARED" : isCompleted(row) && !isBelowBenchmark(row);
+}
+
+export function isPendingRow(row: AnyRow): boolean {
+  return hasDpsChain(row) ? chainBucketOf(row) === "PENDING" : !isCompleted(row);
+}
+
+export function uniqueAwaitingApprovalCount(rows: AnyRow[]) {
+  return currentWorkRows(rows).filter(isAwaitingApproval).length;
 }
 
 export function uniqueNeedsReattemptCount(rows: AnyRow[]) {
@@ -680,6 +757,12 @@ export function uniqueNeedsReattemptCount(rows: AnyRow[]) {
 
   rowsWithAttemptHistory(rows).forEach((Row) => {
     const Key = workUnitKey(Row);
+    if (hasDpsChain(Row)) {
+      // The state is the whole DPS's, the same on each of its rows.
+      if (chainBucketOf(Row) === "NEEDS_REATTEMPT") Keys.add(Key);
+      else ClearedKeys.add(Key);
+      return;
+    }
     if (isCompleted(Row) && !isBelowBenchmark(Row)) {
       ClearedKeys.add(Key);
       Keys.delete(Key);
@@ -696,6 +779,8 @@ export function uniqueCompletedConceptCount(rows: AnyRow[]) {
 }
 
 export function statusLabel(row: AnyRow) {
+  const Chain = chainStatusOf(row);
+  if (Chain) return Chain.label;
   const text = String(row.status ?? "").toUpperCase();
   const isUnstartedReattempt =
     (text === "PENDING" || text === "NOT_STARTED" || text === "IN_PROGRESS" || !text) &&
@@ -712,6 +797,19 @@ export function statusLabel(row: AnyRow) {
   if (row.isActive === false) return "Archived";
   if (row.isActive === true) return "Active";
   return row.status ? String(row.status).replaceAll("_", " ") : "Pending";
+}
+
+// The status a filter matches. With the shared DPS state only the DPS's
+// current row matches, so a filtered list counts each DPS once, exactly like
+// the card above it; earlier attempts are history and match "All" only.
+export function statusFilterKey(row: AnyRow): string {
+  if (hasDpsChain(row)) {
+    if (!isChainCurrentRow(row)) return "HISTORY";
+    if (isAwaitingApproval(row)) return "AWAITING APPROVAL";
+    const Bucket = chainBucketOf(row);
+    return Bucket === "NEEDS_REATTEMPT" ? "NEEDS RE-ATTEMPT" : String(Bucket);
+  }
+  return statusLabel(row).toUpperCase();
 }
 
 export function rowDate(row: AnyRow, keys: string[]) {
@@ -1318,7 +1416,8 @@ export function RecordWorkspace({
       const statusOk =
         !statusFilter ||
         statusFilter === "ALL" ||
-        statusLabel(row).toUpperCase() === statusFilter;
+        statusFilterKey(row) === statusFilter ||
+        (statusFilter === "NEEDS RE-ATTEMPT" && statusFilterKey(row) === "AWAITING APPROVAL");
       const searchOk = !q || searchText(row).includes(q);
       return lessonOk && statusOk && searchOk;
     });
@@ -1619,6 +1718,7 @@ export function RecordWorkspace({
             <option value="PENDING">Pending</option>
             <option value="CLEARED">Cleared</option>
             <option value="NEEDS RE-ATTEMPT">Needs Re-Attempt</option>
+            <option value="AWAITING APPROVAL">Awaiting Admin Approval</option>
           </select>
         </div>
 
@@ -2029,7 +2129,7 @@ export function RecordWorkspace({
                                                         // never matched, so this admin Manage tab never showed the
                                                         // "Start Practice" quick action, unlike the Lessons/Records
                                                         // tabs elsewhere in this file which already do this correctly.
-                                                        const isPendingPractice = Issue.label === "Pending" || Issue.label === "Re-Attempt Pending";
+                                                        const isPendingPractice = hasDpsChain(row) ? !isCompleted(row) : Issue.label === "Pending" || Issue.label === "Re-Attempt Pending";
                                                         const actualViewLabel = isPendingPractice ? "Start Practice" : viewLabel;
                                                         const actualViewTip = isPendingPractice ? "Start your practice attempt" : viewTip;
                                                         const buttonIcon = isPendingPractice ? <PlayCircle size={16} className="shrink-0" /> : undefined;
@@ -2250,10 +2350,10 @@ function TeacherPracticeOverview({
 }) {
   const currentRows = currentWorkRows(rows);
   const priorityRows = priorityWorkRows(rows);
-  const pendingRows = currentRows.filter((row) => !isCompleted(row));
+  const pendingRows = currentRows.filter(isPendingRow);
   const reattemptRows = currentRows.filter(needsReattempt);
   const completedRows = currentRows.filter(
-    (row) => isCompleted(row) && !isBelowBenchmark(row),
+    isClearedRow,
   );
 
   return (
@@ -2870,6 +2970,7 @@ function priorityWorkRows(rows: AnyRow[]) {
   return currentWorkRows(rows)
     .filter(
       (row) =>
+        hasDpsChain(row) ? chainBucketOf(row) !== "CLEARED" :
         !isCompleted(row) ||
         isBelowBenchmark(row) ||
         row.isActive === false,
@@ -2882,6 +2983,7 @@ function priorityWorkRows(rows: AnyRow[]) {
 
 function priorityWeight(row: AnyRow) {
   let score = 0;
+  if (isAwaitingApproval(row)) score += 8;
   if (isBelowBenchmark(row)) score += 4;
   if (needsReattempt(row)) score += 3;
   if (!isCompleted(row)) score += 2;
@@ -2910,9 +3012,11 @@ function reattemptStatusLabel(row: AnyRow): {
 
 function issueLabel(row: AnyRow): {
   label: string;
-  tone: "slate" | "green" | "red" | "amber" | "blue" | "cyan";
+  tone: "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple";
 } {
   if (row.isActive === false) return { label: "Archived", tone: "slate" };
+  const Chain = chainStatusOf(row);
+  if (Chain) return { label: Chain.label, tone: Chain.tone };
   const ReattemptStatus = reattemptStatusLabel(row);
   if (ReattemptStatus) return ReattemptStatus;
   if (isBelowBenchmark(row)) return { label: "Needs Re-Attempt", tone: "red" };
@@ -3275,8 +3379,9 @@ export function CompactRecordTable({
                   <SemanticChipComponent tone={attemptTone(row)}>{attemptLabel(row)}</SemanticChipComponent>
                 </div>
               ) : null}
-              <div data-label="Status" className="flex justify-center">
+              <div data-label="Status" className="flex flex-col items-center justify-center gap-1">
                 <SemanticChipComponent tone={Issue.tone}>{Issue.label}</SemanticChipComponent>
+                <ChainTriesPill row={row} />
               </div>
               <div data-label="Score" className="flex justify-center">
                 <SemanticChipComponent tone={scoreText(row) === "—" ? "slate" : scoreTone(row)}>
@@ -3308,7 +3413,7 @@ export function CompactRecordTable({
                 {onView ? (
                   (() => {
                     const Issue = issueLabel(row);
-                    const isPendingPractice = Issue.label === "Pending" || Issue.label === "Re-Attempt Pending";
+                    const isPendingPractice = hasDpsChain(row) ? !isCompleted(row) : Issue.label === "Pending" || Issue.label === "Re-Attempt Pending";
                     
                     if (isPendingPractice) {
                       if (role === "student") {

@@ -729,6 +729,37 @@ def latest_retry_assignment_for_attempt(db: Session, attempt: Attempt):
     )
 
 
+def _reattempt_action(db: Session, attempt: Attempt, workflow: dict, retry_assignment) -> dict | None:
+    """The one button on a DPS result page (2026-10-13): what the student
+    can do next about this sheet, decided from the real next sheet and its
+    attempt -- never guessed on the page."""
+    State = str(workflow.get("state") or "")
+    if State == "CLEARED" or str(attempt.status or "").upper() not in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}:
+        return None
+    NextNumber = _safe_int(getattr(attempt, "attempt_number", 0), 0) + 1
+    if retry_assignment is None:
+        if State == "MANUAL_REVIEW_REQUIRED":
+            return {"kind": "AWAITING_APPROVAL", "label": "Opens After Admin Approval", "href": None, "disabled": True, "nextAttemptNumber": NextNumber,
+                    "hint": "All 3 tries are used. An admin needs to approve the next re-attempt."}
+        return None
+    Approved = str(getattr(retry_assignment, "assignment_source", "") or "").upper() == "MANUAL_RETRY"
+    Prefix = "Approved Re-Attempt" if Approved else "Re-Attempt"
+    NextAttempt = (
+        db.query(Attempt)
+        .filter(Attempt.assignment_id == retry_assignment.id, Attempt.student_id == attempt.student_id)
+        .order_by(Attempt.started_at.desc())
+        .first()
+    )
+    if NextAttempt is None:
+        return {"kind": "START", "label": f"Start {Prefix} {NextNumber}", "href": f"/student/dps/{retry_assignment.dps_id}?assignmentId={retry_assignment.id}",
+                "disabled": False, "nextAttemptNumber": NextNumber, "hint": None}
+    if str(NextAttempt.status or "").upper() not in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}:
+        return {"kind": "RESUME", "label": f"Resume {Prefix} {NextNumber}", "href": f"/student/attempt/{NextAttempt.id}",
+                "disabled": False, "nextAttemptNumber": NextNumber, "hint": None}
+    return {"kind": "USED", "label": f"{Prefix} {NextNumber} Completed", "href": f"/student/result/{NextAttempt.id}",
+            "disabled": False, "nextAttemptNumber": NextNumber, "linkLabel": f"View {Prefix} {NextNumber} Review", "hint": None}
+
+
 def _safe_float(value, fallback: float = 0.0) -> float:
     try:
         if value is None:
@@ -813,6 +844,15 @@ def result_payload(db: Session, attempt: Attempt, include_review: bool = True) -
         retry_workflow["previousAccuracyPercentage"] = previous_attempt.accuracy_percentage
         retry_workflow["previousScore"] = previous_attempt.total_score
         retry_workflow["accuracyDelta"] = round(float(attempt.accuracy_percentage or 0) - float(previous_attempt.accuracy_percentage or 0))
+
+    retry_workflow["action"] = _reattempt_action(db, attempt, retry_workflow, retry_assignment)
+    # The card's words follow what has actually happened since (2026-10-13).
+    Action = retry_workflow["action"] or {}
+    if Action.get("kind") == "USED":
+        retry_workflow["title"] = "Re-Attempt Completed"
+        retry_workflow["guidance"] = f"You have already completed Re-Attempt {Action.get('nextAttemptNumber')} for this sheet. Open its review to see how it went."
+    elif Action.get("kind") == "RESUME":
+        retry_workflow["guidance"] = f"Your Re-Attempt {Action.get('nextAttemptNumber')} is in progress. Resume it to finish the sheet."
 
     SummaryAccuracy = _safe_float(getattr(attempt, "accuracy_percentage", None), 0.0)
     SummaryScore = _safe_float(getattr(attempt, "total_score", None), 0.0)

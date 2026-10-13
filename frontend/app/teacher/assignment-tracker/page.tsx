@@ -18,6 +18,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { getTeacherAssignmentTracker } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
+import { ReattemptApprovalQueue } from "@/components/common/ReattemptApprovalQueue";
 import {
   BarChart3,
   ClipboardList,
@@ -51,6 +52,13 @@ import {
   averageAccuracy,
   buildStudents,
   currentWorkRows,
+  chainBucketOf,
+  chainStatusOf,
+  ChainTriesPill,
+  hasDpsChain,
+  isAwaitingApproval,
+  isChainCurrentRow,
+  uniqueAwaitingApprovalCount,
   isBelowBenchmark,
   isCompleted,
   latestActivity,
@@ -77,6 +85,7 @@ type StatusFilter =
   | "PENDING"
   | "CLEARED"
   | "NEEDS_REATTEMPT"
+  | "AWAITING_APPROVAL"
   | "ACTION_NEEDED";
 type PerformanceFilter =
   | ""
@@ -87,6 +96,7 @@ type PerformanceFilter =
 type TrackerTab =
   | "OVERVIEW"
   | "ACTION_QUEUE"
+  | "AWAITING_APPROVAL"
   | "STUDENT_REVIEW"
   | "EXCELLENCE_HIGHLIGHTS"
   | "RECENT_PRACTICE";
@@ -95,6 +105,7 @@ type Tone = "green" | "blue" | "amber" | "red" | "slate";
 const TrackerTabValues: TrackerTab[] = [
   "OVERVIEW",
   "ACTION_QUEUE",
+  "AWAITING_APPROVAL",
   "STUDENT_REVIEW",
   "EXCELLENCE_HIGHLIGHTS",
   "RECENT_PRACTICE",
@@ -224,7 +235,10 @@ function LessonOptions(Rows: AnyRow[]) {
   );
 }
 
+// 2026-10-13: with the shared DPS state from the server, only the DPS's
+// current row counts, so every list and card counts each DPS once.
 function RowNeedsReattempt(Row: AnyRow) {
+  if (hasDpsChain(Row)) return isChainCurrentRow(Row) && chainBucketOf(Row) === "NEEDS_REATTEMPT";
   return (
     needsReattempt(Row) ||
     (isCompleted(Row) && (isBelowBenchmark(Row) || accuracy(Row) < 70))
@@ -232,31 +246,44 @@ function RowNeedsReattempt(Row: AnyRow) {
 }
 
 function IsCleared(Row: AnyRow) {
+  if (hasDpsChain(Row)) return isChainCurrentRow(Row) && chainBucketOf(Row) === "CLEARED";
   return isCompleted(Row) && accuracy(Row) >= 70 && !RowNeedsReattempt(Row);
 }
 
 function StatusKey(
   Row: AnyRow,
-): Exclude<StatusFilter, "" | "ALL" | "ACTION_NEEDED"> {
+): Exclude<StatusFilter, "" | "ALL" | "ACTION_NEEDED" | "AWAITING_APPROVAL"> | "HISTORY" {
+  if (hasDpsChain(Row)) {
+    // Earlier attempts of a DPS are history: shown, never counted twice.
+    if (!isChainCurrentRow(Row)) return "HISTORY";
+    return chainBucketOf(Row) as "PENDING" | "CLEARED" | "NEEDS_REATTEMPT";
+  }
   if (!isCompleted(Row)) return "PENDING";
   if (RowNeedsReattempt(Row)) return "NEEDS_REATTEMPT";
   return "CLEARED";
 }
 
 function DisplayStatus(Row: AnyRow) {
+  const Chain = chainStatusOf(Row);
+  if (Chain) return Chain.label;
   const Key = StatusKey(Row);
   if (Key === "PENDING") return "Pending";
   if (Key === "NEEDS_REATTEMPT") return "Needs Re-Attempt";
   return "Cleared";
 }
 
+// The Action Queue is what students still have to do. DPS waiting for an
+// admin's approval live in their own tab (Awaiting Approval) instead, so the
+// two tabs never show the same row (2026-10-13).
 function IsActionNeeded(Row: AnyRow) {
+  if (isAwaitingApproval(Row)) return false;
   return StatusKey(Row) === "PENDING" || StatusKey(Row) === "NEEDS_REATTEMPT";
 }
 
 function MatchesStatusFilter(Row: AnyRow, FilterValue: StatusFilter) {
   if (!FilterValue || FilterValue === "ALL") return true;
   if (FilterValue === "ACTION_NEEDED") return IsActionNeeded(Row);
+  if (FilterValue === "AWAITING_APPROVAL") return isChainCurrentRow(Row) && isAwaitingApproval(Row);
   return StatusKey(Row) === FilterValue;
 }
 
@@ -315,7 +342,8 @@ function PerformanceBand(Rows: AnyRow[]) {
   // `value > 0` filter excludes them) -- which already belongs in the
   // "Needs Re-Attempt" band. `?? 0` preserves that exact behavior.
   const Average = averageAccuracy(ReviewedRows) ?? 0;
-  if (Average < 70) return { Label: "Needs Re-Attempt", Tone: "red" as Tone };
+  // Student's average below the benchmark (a performance band, not a DPS state).
+  if (Average < 70) return { Label: "Below Benchmark", Tone: "red" as Tone };
   if (Average >= 90) return { Label: "Excellence Zone", Tone: "green" as Tone };
   return { Label: "Growth Zone", Tone: "amber" as Tone };
 }
@@ -585,6 +613,10 @@ function TeacherPracticeTrackerContent() {
     () => FilteredRows.filter(IsActionNeeded).sort(SortRowsByPriority),
     [FilteredRows],
   );
+  const AwaitingRows = useMemo(
+    () => currentWorkRows(FilteredRows).filter(isAwaitingApproval),
+    [FilteredRows],
+  );
   const ExcellenceGroups = useMemo(
     () => BuildExcellenceHighlightGroups(FilteredRows),
     [FilteredRows],
@@ -684,7 +716,12 @@ function TeacherPracticeTrackerContent() {
           <InsightCard
             Title="Needs Re-Attempt"
             Value={uniqueNeedsReattemptCount(CurrentFilteredRows)}
-            Subtitle="DPS attempts requiring focused re-attempt."
+            Subtitle={(() => {
+              const Waiting = uniqueAwaitingApprovalCount(CurrentFilteredRows);
+              return Waiting
+                ? `DPS below the benchmark, ${Waiting} of them awaiting admin approval.`
+                : "DPS below the benchmark with a re-attempt to finish.";
+            })()}
             Tone="red"
             Icon={<Target size={20} />}
           />
@@ -771,6 +808,7 @@ function TeacherPracticeTrackerContent() {
               <option value="PENDING">Pending</option>
               <option value="CLEARED">Cleared</option>
               <option value="NEEDS_REATTEMPT">Needs Re-Attempt</option>
+              <option value="AWAITING_APPROVAL">Awaiting Admin Approval</option>
             </select>
             <select
               className="math-input"
@@ -807,6 +845,12 @@ function TeacherPracticeTrackerContent() {
               Action Queue
             </TabButton>
             <TabButton
+              Active={ActiveTab === "AWAITING_APPROVAL"}
+              OnClick={() => ChangeActiveTab("AWAITING_APPROVAL")}
+            >
+              Awaiting Approval{AwaitingRows.length ? ` (${AwaitingRows.length})` : ""}
+            </TabButton>
+            <TabButton
               Active={ActiveTab === "STUDENT_REVIEW"}
               OnClick={() => ChangeActiveTab("STUDENT_REVIEW")}
             >
@@ -831,6 +875,8 @@ function TeacherPracticeTrackerContent() {
               />
             ) : ActiveTab === "ACTION_QUEUE" ? (
               <ActionQueueTab Rows={ActionRows} OnOpenStudent={OpenStudent} />
+            ) : ActiveTab === "AWAITING_APPROVAL" ? (
+              <ReattemptApprovalQueue Rows={AwaitingRows} Mode="teacher" OnOpenStudent={(Row) => OpenStudent(studentCodeOf(Row))} />
             ) : ActiveTab === "STUDENT_REVIEW" ? (
               <StudentReviewTab
                 Students={Students}
@@ -1039,6 +1085,7 @@ function CompactPracticeRow({
   const StudentCode = studentCodeOf(Row);
   const RowAccuracy = accuracy(Row);
   const NeedsReattempt = RowNeedsReattempt(Row);
+  const ChainStatus = chainStatusOf(Row);
   return (
     <div className="rounded-[20px] border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/70">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -1053,19 +1100,26 @@ function CompactPracticeRow({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Chip
-            tone={
-              NeedsReattempt
-                ? "red"
-                : RowAccuracy >= 90
-                  ? "green"
-                  : RowAccuracy >= 70
-                    ? "blue"
-                    : "amber"
-            }
-          >
-            {isCompleted(Row) ? `${RowAccuracy}%` : "Pending"}
-          </Chip>
+          {ChainStatus && isChainCurrentRow(Row) && chainBucketOf(Row) !== "CLEARED" ? (
+            <>
+              {isCompleted(Row) ? <Chip tone="red">{RowAccuracy}%</Chip> : null}
+              <Chip tone={ChainStatus.tone}>{ChainStatus.label}</Chip>
+            </>
+          ) : (
+            <Chip
+              tone={
+                NeedsReattempt || (isCompleted(Row) && RowAccuracy < 70)
+                  ? "red"
+                  : RowAccuracy >= 90
+                    ? "green"
+                    : RowAccuracy >= 70
+                      ? "blue"
+                      : "amber"
+              }
+            >
+              {isCompleted(Row) ? `${RowAccuracy}%` : "Pending"}
+            </Chip>
+          )}
           <StandardViewButton
             label="Review"
             tooltip="Open student practice review"
@@ -1394,7 +1448,7 @@ function ActionQueueTab({
 
   if (!Rows.length)
     return (
-      <EmptyState message="No practice work currently needs teacher action." />
+      <EmptyState message="No practice work is waiting on students here. DPS waiting for admin approval are in the Awaiting Approval tab." />
     );
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
@@ -1409,7 +1463,7 @@ function ActionQueueTab({
       </div>
       <div className="w-full overflow-x-auto">
         <div className="min-w-[800px] xl:min-w-0">
-          <div className="math-teacher-practice-record-table-header grid grid-cols-[1.5fr_1.5fr_.8fr_.8fr_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+          <div className="math-teacher-practice-record-table-header grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_minmax(0,.6fr)_minmax(0,1.2fr)_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
             <SortableHeader Label="Student" SortKey="student" SortState={SortStateValue} OnSort={HandleSort} />
             <SortableHeader Label="DPS" SortKey="dps" SortState={SortStateValue} OnSort={HandleSort} />
             <SortableHeader Label="Accuracy" SortKey="accuracy" SortState={SortStateValue} OnSort={HandleSort} Align="center" />
@@ -1421,10 +1475,11 @@ function ActionQueueTab({
               const StudentCode = studentCodeOf(Row);
               const RowCompleted = isCompleted(Row);
               const StatusText = DisplayStatus(Row);
+              const ChainStatus = chainStatusOf(Row);
               return (
                 <div
                   key={`${Row.attemptId || Row.assignmentId || Row.id || Index}`}
-                  className="grid grid-cols-[1.5fr_1.5fr_.8fr_.8fr_120px] items-center gap-3 px-5 py-4 transition hover:bg-rose-50/40 dark:hover:bg-slate-900/70"
+                  className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_minmax(0,.6fr)_minmax(0,1.2fr)_120px] items-center gap-3 px-5 py-4 transition hover:bg-rose-50/40 dark:hover:bg-slate-900/70"
                 >
                   <div className="min-w-0">
                     <button
@@ -1459,18 +1514,21 @@ function ActionQueueTab({
                       {RowCompleted ? `${accuracy(Row)}%` : "—"}
                     </Chip>
                   </div>
-                  <div className="flex items-center justify-center">
+                  <div className="flex flex-col items-center justify-center gap-1">
                     <Chip
                       tone={
-                        StatusText === "Cleared"
-                          ? "green"
-                          : StatusText === "Pending"
-                            ? "amber"
-                            : "red"
+                        ChainStatus
+                          ? ChainStatus.tone
+                          : StatusText === "Cleared"
+                            ? "green"
+                            : StatusText === "Pending"
+                              ? "amber"
+                              : "red"
                       }
                     >
                       {StatusText}
                     </Chip>
+                    <ChainTriesPill row={Row} />
                   </div>
                   <div className="flex justify-end">
                     <StandardViewButton

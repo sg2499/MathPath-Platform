@@ -181,6 +181,40 @@ def CreateNotification(
     return notification
 
 
+def _ParseDay(Value: str | None, *, EndOfDay: bool = False) -> datetime | None:
+    """A yyyy-mm-dd date as an instant in India time (the platform's day)."""
+    if not Value:
+        return None
+    try:
+        from datetime import timedelta
+
+        Day = datetime.strptime(str(Value)[:10], "%Y-%m-%d")
+    except ValueError:
+        return None
+    Ist = timezone(timedelta(hours=5, minutes=30))
+    Start = Day.replace(tzinfo=Ist)
+    Instant = Start + timedelta(days=1) if EndOfDay else Start
+    return Instant.astimezone(timezone.utc)
+
+
+def NotificationTabCounts(db: Session, *, recipient_user_id: str, role: str | None) -> dict[str, dict[str, int]]:
+    """Total and unread per tab, straight from the database (2026-10-13)."""
+    from sqlalchemy import func as SqlFunc
+
+    from app.services.notification_tabs import TAB_ACTION, TAB_ALL, ActionCondition, TabExpression
+
+    Base = db.query(Notification).filter(Notification.recipient_user_id == recipient_user_id)
+    Tab = TabExpression().label("tab")
+    Unread = SqlFunc.sum(case((Notification.is_read.is_(False), 1), else_=0))
+    Counts: dict[str, dict[str, int]] = {}
+    for Key, Total, UnreadCount in Base.with_entities(Tab, SqlFunc.count(Notification.id), Unread).group_by(Tab).all():
+        Counts[str(Key)] = {"total": int(Total or 0), "unread": int(UnreadCount or 0)}
+    Counts[TAB_ALL] = {"total": sum(Value["total"] for Value in Counts.values()), "unread": sum(Value["unread"] for Value in Counts.values())}
+    ActionTotal, ActionUnread = Base.filter(ActionCondition(role)).with_entities(SqlFunc.count(Notification.id), Unread).one()
+    Counts[TAB_ACTION] = {"total": int(ActionTotal or 0), "unread": int(ActionUnread or 0)}
+    return Counts
+
+
 def ListNotifications(
     db: Session,
     *,
@@ -188,12 +222,35 @@ def ListNotifications(
     unread_only: bool = False,
     limit: int = 20,
     offset: int = 0,
+    role: str | None = None,
+    tab: str | None = None,
+    search: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    include_tabs: bool = False,
 ) -> dict[str, Any]:
+    from app.services.notification_tabs import TAB_ACTION, IsActionType, TabCondition, TabFor, TabList
+
     safe_limit = max(1, min(int(limit or 20), 100))
     safe_offset = max(0, int(offset or 0))
     query = db.query(Notification).filter(Notification.recipient_user_id == recipient_user_id)
     if unread_only:
         query = query.filter(Notification.is_read.is_(False))
+    Condition = TabCondition(tab, role)
+    if Condition is not None:
+        query = query.filter(Condition)
+    Term = str(search or "").strip()
+    if Term:
+        Like = f"%{Term.lower()}%"
+        from sqlalchemy import func as SqlFunc, or_
+
+        query = query.filter(or_(SqlFunc.lower(Notification.title).like(Like), SqlFunc.lower(func_coalesce(Notification.message)).like(Like)))
+    From = _ParseDay(date_from)
+    To = _ParseDay(date_to, EndOfDay=True)
+    if From is not None:
+        query = query.filter(Notification.created_at >= From)
+    if To is not None:
+        query = query.filter(Notification.created_at < To)
     total = query.count()
     unread_count = db.query(Notification).filter(
         Notification.recipient_user_id == recipient_user_id,
@@ -214,24 +271,40 @@ def ListNotifications(
         (Notification.title.ilike("%Needs Reattempt%"), 200),
         else_=0,
     )
-    rows = (
-        query.order_by(
-            Notification.created_at.desc(),
-            desc(PriorityExpression),
-            Notification.updated_at.desc(),
-            Notification.id.desc(),
-        )
-        .offset(safe_offset)
-        .limit(safe_limit)
-        .all()
-    )
-    return {
-        "items": [NotificationPayload(row) for row in rows],
+    Order = [
+        Notification.created_at.desc(),
+        desc(PriorityExpression),
+        Notification.updated_at.desc(),
+        Notification.id.desc(),
+    ]
+    if str(tab or "").upper() == TAB_ACTION:
+        # Things still to act on first.
+        Order.insert(0, Notification.is_read.asc())
+    rows = query.order_by(*Order).offset(safe_offset).limit(safe_limit).all()
+    Items = []
+    for row in rows:
+        Payload = NotificationPayload(row)
+        Payload["tab"] = TabFor(row.category, row.type)
+        Payload["needsAction"] = IsActionType(role, row.type)
+        Items.append(Payload)
+    Result: dict[str, Any] = {
+        "items": Items,
         "total": total,
         "unreadCount": unread_count,
         "limit": safe_limit,
         "offset": safe_offset,
+        "hasMore": safe_offset + len(Items) < total,
     }
+    if include_tabs:
+        Counts = NotificationTabCounts(db, recipient_user_id=recipient_user_id, role=role)
+        Result["tabs"] = TabList(role, Counts)
+    return Result
+
+
+def func_coalesce(Column):
+    from sqlalchemy import func as SqlFunc
+
+    return SqlFunc.coalesce(Column, "")
 
 
 def MarkNotificationRead(db: Session, *, notification_id: str, recipient_user_id: str) -> Notification | None:
@@ -248,11 +321,18 @@ def MarkNotificationRead(db: Session, *, notification_id: str, recipient_user_id
     return notification
 
 
-def MarkAllNotificationsRead(db: Session, *, recipient_user_id: str) -> int:
-    rows = db.query(Notification).filter(
+def MarkAllNotificationsRead(db: Session, *, recipient_user_id: str, role: str | None = None, tab: str | None = None) -> int:
+    """Mark everything read, or only one tab's notifications (2026-10-13)."""
+    from app.services.notification_tabs import TabCondition
+
+    query = db.query(Notification).filter(
         Notification.recipient_user_id == recipient_user_id,
         Notification.is_read.is_(False),
-    ).all()
+    )
+    Condition = TabCondition(tab, role)
+    if Condition is not None:
+        query = query.filter(Condition)
+    rows = query.all()
     now = datetime.now(timezone.utc)
     for row in rows:
         row.is_read = True
