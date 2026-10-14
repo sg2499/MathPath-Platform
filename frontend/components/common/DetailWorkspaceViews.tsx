@@ -1,5 +1,6 @@
 "use client";
 
+import { DemoTag } from "@/components/common/DemoAccounts";
 import {
   MATHPATH_ACTIVITY_TIMESTAMP_KEYS,
   MATHPATH_COMPLETION_TIMESTAMP_KEYS,
@@ -1471,6 +1472,7 @@ export function StudentSummaryTable({
                   <span className={`text-xs font-black uppercase tracking-[0.12em] ${studentCodeColor}`}>
                     ({student.studentCode})
                   </span>
+                  <DemoTag studentCode={student.studentCode} />
                 </button>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {stats.below ? (

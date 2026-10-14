@@ -1,5 +1,6 @@
 "use client";
 
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -609,7 +610,7 @@ function AdminCompetitionMockTrackerContent() {
                                 {StudentOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
                               </span>
                               <div className="min-w-0">
-                                <h3 className="truncate text-lg font-black text-slate-950 dark:text-white">{StudentGroup.student.studentName}</h3>
+                                <h3 className="truncate text-lg font-black text-slate-950 dark:text-white">{StudentGroup.student.studentName}<DemoTag studentId={StudentGroup.student.studentId} studentCode={StudentGroup.student.studentCode} /></h3>
                                 <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">{StudentGroup.student.studentCode}</p>
                               </div>
                             </div>

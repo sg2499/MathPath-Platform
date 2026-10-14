@@ -455,6 +455,12 @@ def _CreateDrafts(db: Session, Period: str, StudentIds: list[str] | None, Source
     """Drafts for active students with no draft and no live monthly invoice
     for the month. Caller holds the settings lock and commits."""
     Active = {Row.id for Row, _ in _ActiveStudents(db)}
+    if Source == "AUTO":
+        # The automatic run on the 1st never drafts demo accounts, whatever
+        # the switch says (app/services/demo_students.py).
+        from app.services.demo_students import AllDemoStudentIds
+
+        Active -= AllDemoStudentIds(db)
     Targets = Active if StudentIds is None else (Active & set(StudentIds))
     Targets -= {Id for Id, Mode in ModesFor(db, sorted(Targets)).items() if Mode == "EXEMPT"}
     if not Targets:

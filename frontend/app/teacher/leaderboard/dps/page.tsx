@@ -1,5 +1,6 @@
 "use client";
 
+import { DemoTag } from "@/components/common/DemoAccounts";
 import React, { useEffect, useRef, useState, Suspense } from "react";
 import { useWriteUrlParams } from "@/hooks/useUrlTabState";
 import { Trophy, Users, AlertCircle, ChevronDown, Medal, Star } from "lucide-react";
@@ -224,7 +225,7 @@ function TableRow({ row, isHighlighted, rowRef }: { row: TeacherLeaderboardEntry
             {row.photoUrl ? <img src={row.photoUrl} alt="avatar" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-black text-xs text-[var(--mp-role-primary)] dark:text-[var(--mp-role-accent)]">{getInitials(row.name)}</div>}
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">{row.name}</p>
+            <p className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">{row.name}<DemoTag studentId={row.studentId} /></p>
             {row.isOwnStudent && (
               <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-[var(--mp-role-primary)]">
                 <Star size={10} fill="currentColor" /> Your Student

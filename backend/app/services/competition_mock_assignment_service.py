@@ -103,9 +103,11 @@ def _StudentsForAssignment(
         Student.current_level_id == LevelId,
     )
     if AssignToAllInLevel:
-        # "Everyone in the level" means the real students; a demo account
-        # can still be picked by name (app/services/demo_students.py).
-        Students = Query.filter(Student.is_demo == False).order_by(Student.student_code.asc()).all()  # noqa: E712
+        # "Everyone in the level" leaves demo accounts out unless they are
+        # shown; one can always be picked by name (app/services/demo_students.py).
+        from app.services.demo_students import RealStudentsClause
+
+        Students = Query.filter(RealStudentsClause(db)).order_by(Student.student_code.asc()).all()
     else:
         UniqueStudentIds = [StudentId for StudentId in dict.fromkeys([str(Item or "").strip() for Item in (StudentIds or [])]) if StudentId]
         if not UniqueStudentIds:

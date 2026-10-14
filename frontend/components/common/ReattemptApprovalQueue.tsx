@@ -7,6 +7,7 @@
 // and this list are always the same number.
 //  - Admin: approve one at a time, or tick several and approve together.
 //  - Teacher: the same list, read-only, with a link to the student.
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { useMemo, useState } from "react";
 import { CheckCheck, Hourglass, ShieldCheck } from "lucide-react";
 import {
@@ -155,6 +156,7 @@ export function ReattemptApprovalQueue({
                       >
                         {studentNameOf(Row)}
                       </button>
+                      <DemoTag studentCode={studentCodeOf(Row)} />
                       <p className="mt-0.5 truncate text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
                         {studentCodeOf(Row)}
                       </p>

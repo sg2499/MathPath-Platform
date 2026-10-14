@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -92,8 +92,21 @@ from app.services.payments.setup_service import (
     UpdateFeeItem,
 )
 
-router = APIRouter(prefix="/api/admin/payments", tags=["admin-payments"])
 admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
+
+
+def _demo_payments_scope(request: Request, user: User = Depends(admin_dep), db: Session = Depends(get_db)) -> None:
+    """2026-10-14: with "Show Demo Accounts" off, a Payments screen leaves demo
+    accounts' invoices, payments, drafts, online orders and follow-ups out of
+    every list and total (app/services/demo_students.py). Reads only -- a
+    change (recording a payment, generating an invoice) is never filtered."""
+    from app.services.demo_students import HideDemoPaymentsForThisRequest
+
+    if request.method == "GET":
+        HideDemoPaymentsForThisRequest(db)
+
+
+router = APIRouter(prefix="/api/admin/payments", tags=["admin-payments"], dependencies=[Depends(_demo_payments_scope)])
 
 
 class FeeItemCreateRequest(BaseModel):

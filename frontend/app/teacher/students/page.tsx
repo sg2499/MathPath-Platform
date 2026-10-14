@@ -1,5 +1,6 @@
 "use client";
 
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { AppShell } from "@/components/common/AppShell";
 import { SortableHeader } from "@/components/common/SortableHeader";
 import { SortByDropdown } from "@/components/common/SortByDropdown";
@@ -513,7 +514,7 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
             className="math-record-avatar-student h-11 w-11 text-xs"
           />
           <div>
-            <p className="font-black text-slate-950 dark:text-white">{student.studentName}</p>
+            <p className="font-black text-slate-950 dark:text-white">{student.studentName}<DemoTag studentId={student.studentId} studentCode={student.studentCode} /></p>
             <p className="mt-0.5 text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</p>
           </div>
         </div>

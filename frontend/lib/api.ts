@@ -1,6 +1,7 @@
 import axios from "axios";
 import { IsOnTestScreen, IsRecentlyActive, SIGNED_OUT_REASON_KEY } from "@/lib/activity";
 import { getActiveRoleHeaderValue, getCsrfToken, clearSession } from "./auth";
+import { IsShowingDemo } from "@/lib/demoSwitch";
 
 // 2026-07-22 security hardening: relative, same-origin base URL. The actual
 // backend is reached via the Next.js rewrite in next.config.mjs, which
@@ -47,6 +48,11 @@ api.interceptors.request.use((config) => {
   // minute (X-MP-Active) -- background polling from an idle tab does not.
   config.headers["X-MP-Client"] = "1";
   if (IsRecentlyActive()) config.headers["X-MP-Active"] = "1";
+  // 2026-10-14: "Show Demo Accounts" (lib/demoSwitch.ts) -- admin/teacher only.
+  if (IsShowingDemo()) {
+    const DemoRole = String(config.headers["X-Auth-Role"] || config.headers["x-auth-role"] || "").toUpperCase();
+    if (DemoRole === "ADMIN" || DemoRole === "TEACHER") config.headers["X-MP-Show-Demo"] = "1";
+  }
   if (IsOnTestScreen()) config.headers["X-MP-Test"] = "1";
 
   // CSRF double-submit token, required on every mutating request once a

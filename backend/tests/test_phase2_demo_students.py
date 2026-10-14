@@ -93,26 +93,60 @@ def test_readiness_leaves_out_demo(world):
     assert reply["totalStudents"] == 1
 
 
-def test_staff_notices_about_demo_are_not_saved_but_student_ones_are(world):
+def test_staff_notices_about_demo_show_only_with_the_switch_on(world):
     from app.services.notification_service import CreateNotification, ListNotifications
 
     CreateNotification(world, recipient_user_id="tu", recipient_role="TEACHER", type="X", category="PRACTICE", title="demo did a thing", student_id="demo")
     CreateNotification(world, recipient_user_id="tu", recipient_role="TEACHER", type="X", category="PRACTICE", title="real did a thing", student_id="real")
     CreateNotification(world, recipient_user_id="u-demo", recipient_role="STUDENT", type="X", category="PRACTICE", title="your result", student_id="demo")
     world.commit()
-    assert {Row.title for Row in world.query(Notification).all()} == {"real did a thing", "your result"}
+    # Always saved, so the switch can show them.
+    assert {Row.title for Row in world.query(Notification).all()} == {"demo did a thing", "real did a thing", "your result"}
 
-    # An older staff notice about the demo account (saved before this change) is hidden.
-    world.add(Notification(recipient_user_id="tu", recipient_role="TEACHER", type="X", category="PRACTICE", title="old demo notice", student_id="demo"))
-    world.commit()
     Teacher = ListNotifications(world, recipient_user_id="tu", role="TEACHER")
     assert [Item["title"] for Item in Teacher["items"]] == ["real did a thing"]
     assert Teacher["unreadCount"] == 1
+    demo_students.SetIncludeDemo(world, True)
+    Teacher = ListNotifications(world, recipient_user_id="tu", role="TEACHER")
+    assert {Item["title"] for Item in Teacher["items"]} == {"demo did a thing", "real did a thing"}
+    demo_students.SetIncludeDemo(world, False)
+    # A student always sees their own notices.
     Student = ListNotifications(world, recipient_user_id="u-demo", role="STUDENT")
     assert [Item["title"] for Item in Student["items"]] == ["your result"]
 
 
-def test_demo_accounts_are_not_billed(world):
-    from app.services.payments.billing_service import _ActiveStudents
+def test_switch_on_shows_demo_everywhere(world):
+    from app.api.routes_teacher import teacher_assignment_tracker
+    from app.services.leaderboard_service import rank_dps_specific_level
+
+    demo_students.SetIncludeDemo(world, True)
+    reply = teacher_assignment_tracker(db=world, teacher=world.get(Teacher, "t1"))
+    assert {Row["studentId"] for Row in reply["rows"]} == {"real", "demo"}
+    board = rank_dps_specific_level(world, "l", with_badges=False)
+    assert [Row["studentId"] for Row in board] == ["demo", "real"]
+
+
+def test_demo_accounts_are_not_billed_unless_shown_and_never_auto_drafted(world):
+    from app.models import PaymentInvoiceDraft
+    from app.services.payments.billing_service import _ActiveStudents, _CreateDrafts
 
     assert [StudentRow.id for StudentRow, _ in _ActiveStudents(world)] == ["real"]
+    demo_students.SetIncludeDemo(world, True)
+    assert sorted(StudentRow.id for StudentRow, _ in _ActiveStudents(world)) == ["demo", "real"]
+    # The automatic run on the 1st skips demo accounts even with the switch on...
+    assert _CreateDrafts(world, "2026-11", None, "AUTO", None) == 1
+    assert [Row.student_id for Row in world.query(PaymentInvoiceDraft).all()] == ["real"]
+    # ...but a draft made by hand with the switch on can be for a demo account.
+    assert _CreateDrafts(world, "2026-11", ["demo"], "MANUAL", None) == 1
+
+
+def test_payments_reads_hide_demo_rows_only_when_scoped(world):
+    from app.models import PaymentInvoiceDraft
+
+    world.add(PaymentInvoiceDraft(student_id="real", billing_month=11, billing_year=2026, period_key="2026-11", status="DRAFT", source="MANUAL"))
+    world.add(PaymentInvoiceDraft(student_id="demo", billing_month=11, billing_year=2026, period_key="2026-11", status="DRAFT", source="MANUAL"))
+    world.commit()
+    assert world.query(PaymentInvoiceDraft).count() == 2
+    demo_students.HideDemoPaymentsForThisRequest(world)
+    assert [Row.student_id for Row in world.query(PaymentInvoiceDraft).all()] == ["real"]
+    assert world.query(PaymentInvoiceDraft).count() == 1

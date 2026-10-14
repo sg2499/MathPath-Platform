@@ -2,15 +2,15 @@
 """
 Mark demo / test student accounts (Phase 2, 2026-10-14).
 
-A demo account keeps working (it can sign in and practise) but is left out
-of every count, tracker, readiness view, leaderboard, mock list, staff
-notification and bill -- see app/services/demo_students.py.
+A demo account keeps working (it can sign in and practise). For admin and
+teachers it is left out of every count, tracker, readiness view,
+leaderboard, mock list, notification and payments screen unless they turn
+on "Show Demo Accounts" in the top bar -- see app/services/demo_students.py.
 
 By default this marks MP-ST-001 to MP-ST-009, the demo accounts created in
 May and June. It also marks as read the unread notices that admin and
-teachers already received about these accounts (they are hidden from the
-bell from now on anyway). Nothing is deleted: practice, results and any
-invoices stay in the database.
+teachers already received about these accounts. Nothing is deleted:
+practice, results and any invoices stay in the database.
 
 Usage (run from backend/, with the same DATABASE_URL the live backend uses):
     python scripts/mark_demo_students.py --dry-run

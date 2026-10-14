@@ -1290,6 +1290,14 @@ def _AsUtcIso(value):
     return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).isoformat()
 
 
+@router.get("/demo-students")
+def admin_demo_students(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    """2026-10-14: the demo / test accounts, so the screens can mark them
+    "Demo" while "Show Demo Accounts" is on (app/services/demo_students.py)."""
+    Rows = db.query(Student.id, Student.student_code).filter(Student.is_demo == True).all()  # noqa: E712
+    return {"students": [{"studentId": Row[0], "studentCode": Row[1]} for Row in Rows]}
+
+
 @router.get("/live-students")
 def get_live_students(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     from datetime import datetime, timezone, timedelta

@@ -6,6 +6,7 @@
 // each student's billing mode (India or International), set for many
 // students at once.
 
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Ban, CalendarClock, CheckCircle2, Globe2, IndianRupee, Loader2, Search, Settings2, UsersRound } from "lucide-react";
 import Link from "next/link";
@@ -273,7 +274,7 @@ function StudentModes() {
                 <tr key={row.studentId} className="cursor-pointer border-t border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/50" onClick={() => toggle(row.studentId)}>
                   <td className="px-3 py-2.5"><input type="checkbox" className="h-4 w-4" checked={selected.has(row.studentId)} onChange={() => toggle(row.studentId)} onClick={(event) => event.stopPropagation()} aria-label={`Select ${row.studentName}`} /></td>
                   <td className="px-3 py-2.5">
-                    <span className="block font-black text-slate-900 dark:text-white">{row.studentName}{row.isActive ? "" : " (inactive)"}</span>
+                    <span className="block font-black text-slate-900 dark:text-white">{row.studentName}{row.isActive ? "" : " (inactive)"}<DemoTag studentId={row.studentId} /></span>
                     <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{row.studentCode}</span>
                   </td>
                   <td className="px-3 py-2.5 font-semibold text-slate-600 dark:text-slate-300">{row.levelCode ?? "—"}</td>

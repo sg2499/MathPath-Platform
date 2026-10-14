@@ -7,6 +7,7 @@
 // their payments and invoices, and Record Payment.
 // ?studentId=... opens a student; &pay=<invoiceId> also opens Record Payment
 // with that invoice ticked.
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { useSearchParams } from "next/navigation";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -219,7 +220,7 @@ export function StudentFeesPanel() {
                   <li key={row.studentId} role="option" aria-selected={false}>
                     <button type="button" className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-900" onClick={() => choose(row.studentId)}>
                       <span className="min-w-0">
-                        <span className="block truncate font-black text-slate-900 dark:text-white">{row.studentName}{row.isActive ? "" : " (inactive)"}</span>
+                        <span className="block truncate font-black text-slate-900 dark:text-white">{row.studentName}{row.isActive ? "" : " (inactive)"}<DemoTag studentId={row.studentId} /></span>
                         <span className="block truncate text-xs font-semibold text-slate-500">{[row.studentCode, row.levelCode, row.centreName].filter(Boolean).join(" · ")}</span>
                       </span>
                     </button>

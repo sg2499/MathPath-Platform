@@ -5,6 +5,7 @@
 // 2026-10-08 (Payments Phase 2): Invoices -- every invoice, with filters,
 // totals, Excel export, a bulk PDF for printing, and a detail view where an
 // invoice can be downloaded or cancelled (with a reason; it stays on record).
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -347,7 +348,7 @@ export function InvoicesPanel() {
                           <div className="text-xs font-semibold text-slate-500">{FormatDate(invoice.invoiceDate)}</div>
                         </td>
                         <td className="max-w-[240px] px-2 py-3">
-                          <StudentLink studentId={invoice.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{invoice.studentName}</StudentLink>
+                          <StudentLink studentId={invoice.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{invoice.studentName}<DemoTag studentId={invoice.studentId} /></StudentLink>
                           <div className="truncate text-xs font-semibold text-slate-500">{[invoice.studentCode, invoice.levelCode, invoice.centreName].filter(Boolean).join(" · ")}</div>
                         </td>
                         <td className="max-w-[220px] px-2 py-3">

@@ -15,7 +15,7 @@ from app.services import leaderboard_service
 from app.services.attempt_chain_service import ATTEMPT_SOURCE_MANUAL_RETRY
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
 from app.services.dps_chain_state_service import BuildDpsChainIndex, HealExpiredPracticeAttempts, COMPLETED_STATUSES as DPS_COMPLETED_STATUSES
-from app.services.demo_students import DemoStudentIds, IsDemoStudent, IsDemoStudentId, RealStudents, WithoutDemo
+from app.services.demo_students import DemoStudentIds, IsDemoStudent, IsDemoStudentId, IsHiddenDemoStudent, RealStudents, WithoutDemo
 from app.services.request_cache import RequestCache, AttemptsForAssignment, AttemptsForAssignmentStudentInOrder, EnableRequestCache, LatestAttemptForAssignmentStudent, LevelDpsCount, OpenReattemptPermission, PinRows, PrimeAssignmentAttempts, PrimeOpenReattemptPermissions
 from app.services.attempt_service import ensure_active_or_auto_submit, result_payload
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, NeedsReattemptAttempts
@@ -430,6 +430,14 @@ def teacher_get_annual_competition_attempt_review(
 ):
     student_ids = [student.id for student in own_students_query(db, teacher, include_demo=True).filter(Student.is_active == True).all()]
     return GetCompetitionEventAttemptReviewForTeacher(db, attempt_id, StudentIdsFilter=student_ids)
+
+
+@router.get("/demo-students")
+def teacher_demo_students(db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    """2026-10-14: the demo / test accounts, so the screens can mark them
+    "Demo" while "Show Demo Accounts" is on (app/services/demo_students.py)."""
+    Rows = db.query(Student.id, Student.student_code).filter(Student.is_demo == True).all()  # noqa: E712
+    return {"students": [{"studentId": Row[0], "studentCode": Row[1]} for Row in Rows]}
 
 
 @router.get("/dashboard")
@@ -2083,7 +2091,7 @@ def teacher_available_assessments(
 ):
     own_students = own_students_query(db, teacher, include_demo=True).filter(Student.is_active == True).all()
     # Demo accounts don't widen the list, except the assessment test account.
-    own_students = [student for student in own_students if not IsDemoStudent(student) or IsAssessmentOpenAccessStudent(student)]
+    own_students = [student for student in own_students if not IsHiddenDemoStudent(db, student) or IsAssessmentOpenAccessStudent(student)]
     teacher_module_ids = {student.current_module_id for student in own_students if student.current_module_id}
     teacher_level_ids = {student.current_level_id for student in own_students if student.current_level_id}
     # A teacher with the test account (MP-ST-001) in class can give it any
@@ -2114,8 +2122,8 @@ def teacher_assign_assessment_options(
     teacher: Teacher = Depends(get_current_teacher),
 ):
     own_students = own_students_query(db, teacher, include_demo=True).filter(Student.is_active == True).order_by(Student.student_code.asc()).all()
-    # Demo accounts stay off this screen, except the assessment test account.
-    own_students = [StudentItem for StudentItem in own_students if not IsDemoStudent(StudentItem) or IsAssessmentOpenAccessStudent(StudentItem)]
+    # Hidden demo accounts stay off this screen, except the assessment test account.
+    own_students = [StudentItem for StudentItem in own_students if not IsHiddenDemoStudent(db, StudentItem) or IsAssessmentOpenAccessStudent(StudentItem)]
     rows = []
     HasTestAccount = False
     # One batched readiness load for every student on this screen instead

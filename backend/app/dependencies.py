@@ -283,7 +283,24 @@ def get_current_user(
     if _should_record_activity(user.id):
         background_tasks.add_task(_update_user_activity, user.id)
 
+    _set_demo_switch(request, user, db)
     return user
+
+
+def _set_demo_switch(request: Request, user: User, db: Session) -> None:
+    """2026-10-14 (app/services/demo_students.py): demo accounts are shown in
+    this request when an admin or teacher has "Show Demo Accounts" on, or
+    when the signed-in student is a demo account themselves."""
+    from app.services.demo_students import SHOW_DEMO_HEADER, SetIncludeDemo
+
+    role = str(user.role or "").upper()
+    if role in {"ADMIN", "SUPER_ADMIN", "TEACHER"}:
+        SetIncludeDemo(db, request.headers.get(SHOW_DEMO_HEADER) == "1")
+    elif role == "STUDENT":
+        is_demo = db.query(Student.is_demo).filter(Student.user_id == user.id).scalar()
+        SetIncludeDemo(db, bool(is_demo))
+    else:
+        SetIncludeDemo(db, False)
 
 
 def require_roles(*roles: str):

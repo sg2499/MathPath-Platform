@@ -1,5 +1,6 @@
 "use client";
 
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -607,6 +608,7 @@ export default function AdminAssessmentReadinessPage() {
                   <>
                     {row.studentName}{" "}
                     <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({row.studentCode})</span>
+                    <DemoTag studentId={row.studentId} studentCode={row.studentCode} />
                   </>
                 }
                 subtitle={undefined}

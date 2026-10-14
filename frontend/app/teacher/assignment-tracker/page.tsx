@@ -1,5 +1,6 @@
 "use client";
 
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -1630,6 +1631,7 @@ function StudentReviewTab({
                     >
                       {Student.studentName}
                     </button>
+                    <DemoTag studentCode={Student.studentCode} />
                     <p className="mt-0.5 truncate text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
                                     {Student.studentCode}
                                   </p>

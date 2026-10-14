@@ -125,13 +125,10 @@ def NotificationPayload(notification: Notification) -> dict[str, Any]:
     }
 
 
-STAFF_ROLES_FOR_DEMO_FILTER = {"ADMIN", "SUPER_ADMIN", "TEACHER"}
-
-
 def _VisibleTo(db: Session, Query, recipient_user_id: str):
-    """One person's notices, leaving out staff notices about demo accounts
-    written before 2026-10-14 (newer ones are never saved -- see
-    CreateNotification). A student always sees their own notices."""
+    """One person's notices. Admin and teacher notices about a demo account
+    (app/services/demo_students.py) are always saved but only shown while
+    "Show Demo Accounts" is on. A student always sees their own notices."""
     from app.services.demo_students import DemoStudentIds
 
     Query = Query.filter(Notification.recipient_user_id == recipient_user_id)
@@ -172,22 +169,6 @@ def CreateNotification(
     metadata: dict[str, Any] | None = None,
 ) -> Notification:
     normalized_category = (category or "SYSTEM").upper()
-    # 2026-10-14: nothing a demo / test account does is announced to admin
-    # or teachers (app/services/demo_students.py). The notice is built but
-    # not saved, so callers that read it keep working.
-    if student_id and (recipient_role or "").upper() in STAFF_ROLES_FOR_DEMO_FILTER:
-        from app.services.demo_students import IsDemoStudentId
-
-        if IsDemoStudentId(db, student_id):
-            return Notification(
-                recipient_user_id=recipient_user_id,
-                recipient_role=(recipient_role or "").upper(),
-                student_id=student_id,
-                type=(type or "SYSTEM_INFO").upper(),
-                category=normalized_category,
-                title=title,
-                message=message,
-            )
     notification = Notification(
         recipient_user_id=recipient_user_id,
         recipient_role=(recipient_role or "").upper(),
