@@ -61,6 +61,7 @@ from app.services.annual_competition_studio_service import (
     ListMyAnnualCompetitionPracticeScopes,
 )
 from app.services.student_activity_service import GetStudentActivityEventsInRange
+from app.services.dps_chain_state_service import BuildDpsChainIndex, HealExpiredPracticeAttempts
 from app.core.errors import api_error
 
 router = APIRouter(prefix="/api/student", tags=["student"])
@@ -877,6 +878,10 @@ def student_activity_range(start: str, end: str, db: Session = Depends(get_db), 
 
 @router.get("/results")
 def student_results(db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    # 2026-10-14: a sheet whose time ran out is settled before anything is
+    # read, exactly as the teacher and admin trackers do, so all three logins
+    # see the same state for this student's DPS.
+    HealExpiredPracticeAttempts(db, [student.id])
     attempts = (
         db.query(Attempt)
         .filter(
@@ -1014,6 +1019,24 @@ def student_results(db: Session = Depends(get_db), student: Student = Depends(ge
             "completedDate": None,
             "createdAt": assignment.created_at.isoformat() if assignment.created_at else None,
         })
+
+    # 2026-10-14 (Shailesh: the student's own Lesson Insights must match the
+    # teacher's and admin's): every row carries the shared state of its DPS
+    # (Re-Attempt 1 Open, Awaiting Admin Approval, Cleared On Re-Attempt 2,
+    # tries used), from the same index the trackers use.
+    chain_index = BuildDpsChainIndex(
+        db,
+        StudentIds=[student.id],
+        StudentsByLevel={student.current_level_id: [student.id]} if student.current_level_id else {},
+        Heal=False,
+    )
+    for row in rows:
+        if not row.get("assignmentId"):
+            continue
+        if row.get("attemptId"):
+            row.update(chain_index.attempt_fields(row["attemptId"], row["assignmentId"], student.id))
+        else:
+            row.update(chain_index.row_fields(row["assignmentId"], student.id))
 
     rows.extend(student_level_progress_rows(db, student))
     return {"results": rows}

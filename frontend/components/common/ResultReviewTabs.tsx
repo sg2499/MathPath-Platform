@@ -17,6 +17,7 @@
 // the same. The score, counts and time stay in each page's own summary cards
 // above the tabs; nothing here repeats them.
 
+import { useUrlTabState } from "@/hooks/useUrlTabState";
 import { MathQuestionDisplay } from "@/components/common/MathQuestionDisplay";
 import { formatAnswerValue } from "@/lib/utils";
 import { ChevronDown, ClipboardList, Layers3, ListChecks, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
@@ -65,6 +66,7 @@ type SectionSummary = {
 };
 
 type ReviewTab = "answers" | "scorecard";
+const REVIEW_TABS = ["answers", "scorecard"] as const;
 
 const SECTION_PREFIX_RE = /^\s*Section\s+\d+\s*[-:–—]\s*/i;
 
@@ -202,7 +204,9 @@ export function ResultReviewTabs({
   );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const Sections = useMemo(() => BuildSections(Questions, KnownSections), [Signature]);
-  const [Tab, SetTab] = useState<ReviewTab>("answers");
+  // 2026-10-14: the open tab lives in the page address (?review=scorecard),
+  // so a refresh keeps it.
+  const [Tab, SetTab] = useUrlTabState<ReviewTab>("review", REVIEW_TABS, "answers");
   const [OpenKey, SetOpenKey] = useState<string | null>(null);
   const BlockRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const ChosenRef = useRef(false);

@@ -41,8 +41,9 @@ import {
   FileCheck,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useUrlParamState } from "@/hooks/useUrlTabState";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type AnyRow = Record<string, any>;
 
@@ -553,9 +554,192 @@ export function chainTriesTone(row: AnyRow): ChainTone {
   return "slate";
 }
 
-export function ChainTriesPill({ row }: { row: AnyRow }) {
-  if (!hasDpsChain(row) || !isChainCurrentRow(row) || chainBucketOf(row) === "PENDING") return null;
-  return <Chip tone={chainTriesTone(row)}>{`Tries ${chainTriesText(row)}`}</Chip>;
+// 2026-10-14 (Shailesh: "the status column has values that flow out of the
+// pill"). Status and tries pills have their own look (mp-state-pill in
+// globals.css): the real colour of each state in every role's theme (the
+// role palette used to repaint purple and blue chips), and long values wrap
+// inside the pill instead of running out of it.
+export function StatePill({ tone = "slate", children, title }: { tone?: ChainTone; children: ReactNode; title?: string }) {
+  // "Re-Attempt" never splits at its hyphen when a pill has to wrap.
+  const Content =
+    typeof children === "string" && children.includes("-")
+      ? (
+          <span>
+            {children.split(" ").map((Word, Index) => (
+              <span key={Index}>
+                {Index ? " " : ""}
+                {Word.includes("-") ? <span className="whitespace-nowrap">{Word}</span> : Word}
+              </span>
+            ))}
+          </span>
+        )
+      : children;
+  return (
+    <span className="mp-state-pill" data-tone={tone} title={title}>
+      {Content}
+    </span>
+  );
+}
+
+export function showsChainTries(row: AnyRow): boolean {
+  return hasDpsChain(row) && isChainCurrentRow(row) && chainBucketOf(row) !== "PENDING" && Boolean(chainTriesText(row));
+}
+
+// --- Opening one DPS from a Review button or a notification (2026-10-14) ---
+// Every DPS row carries its ids, so a page opened for one DPS can scroll to
+// it and highlight it (Shailesh: Review must land on that lesson and DPS, not
+// the student's overview).
+export type DpsFocusTarget = { assignmentId?: string; attemptId?: string; dpsId?: string };
+
+export function dpsRowTargetProps(row: AnyRow) {
+  return {
+    "data-dps-id": String(row.dpsId || row.dps_id || ""),
+    "data-assignment-id": String(row.assignmentId || ""),
+    "data-attempt-id": String(row.attemptId || row.latestAttemptId || ""),
+  };
+}
+
+// The newest submitted attempt on a DPS for one student: the current step's
+// attempt when the shared state names one, else the latest by completion.
+export function latestAttemptIdForDps(Rows: AnyRow[], Target: AnyRow): string {
+  const DpsId = String(Target.dpsId || Target.dps_id || "");
+  const Entries = Rows.filter((Row) => String(Row.dpsId || Row.dps_id || "") === DpsId).flatMap((Row) => [
+    Row,
+    ...(Array.isArray(Row.attemptHistory) ? Row.attemptHistory : []),
+  ]);
+  const Completed = Entries.filter((Entry: AnyRow) => Entry && Entry.attemptId && isCompleted(Entry));
+  const Current = String(Target?.dpsChain?.currentAttemptId || "");
+  if (Current && Completed.some((Entry: AnyRow) => String(Entry.attemptId) === Current)) return Current;
+  const When = (Entry: AnyRow) => mathPathTimestampValue(getFirstMathPathTimestamp(Entry, MATHPATH_COMPLETION_TIMESTAMP_KEYS)) || 0;
+  Completed.sort((First: AnyRow, Second: AnyRow) => When(Second) - When(First));
+  return Completed[0] ? String(Completed[0].attemptId) : "";
+}
+
+// What the Review column says on a DPS with no submitted attempt yet.
+export function NotAttemptedText(row: AnyRow): string {
+  const State = hasDpsChain(row) ? String(row.dpsChain.state) : String(row.status || "").toUpperCase();
+  return State.includes("IN_PROGRESS") ? "In Progress" : "Not Attempted Yet";
+}
+
+function cssValue(Value: string) {
+  return Value.replace(/["\\]/g, "\\$&");
+}
+
+// Once the rows are on screen: scroll to the DPS and highlight all of its
+// rows for a few seconds. Runs once per target, so a later refetch or a click
+// elsewhere on the page never pulls the view back.
+export function useDpsFocusScroll(Target: DpsFocusTarget | null | undefined, Enabled: boolean) {
+  const DoneKey = useRef("");
+  const TargetRef = useRef(Target);
+  TargetRef.current = Target;
+  const Key = Target ? [Target.dpsId || "", Target.assignmentId || "", Target.attemptId || ""].join("|") : "";
+  useEffect(() => {
+    const Target = TargetRef.current;
+    if (!Enabled || !Target || Key === "||" || DoneKey.current === Key) return;
+    let Tries = 0;
+    let Timer = 0;
+    const Find = () => {
+      const Selectors: string[] = [];
+      if (Target.attemptId) Selectors.push(`[data-attempt-id="${cssValue(Target.attemptId)}"]`);
+      if (Target.assignmentId) Selectors.push(`[data-assignment-id="${cssValue(Target.assignmentId)}"]`);
+      if (Target.dpsId) Selectors.push(`[data-dps-id="${cssValue(Target.dpsId)}"]`);
+      for (const Selector of Selectors) {
+        const Found = document.querySelector<HTMLElement>(Selector);
+        if (Found) return Found;
+      }
+      return null;
+    };
+    const Run = () => {
+      const First = Find();
+      if (!First) {
+        Tries += 1;
+        if (Tries < 40) Timer = window.setTimeout(Run, 100);
+        return;
+      }
+      DoneKey.current = Key;
+      const DpsId = First.getAttribute("data-dps-id");
+      const Rows = DpsId
+        ? Array.from(document.querySelectorAll<HTMLElement>(`[data-dps-id="${cssValue(DpsId)}"]`)).filter((Row) => Row.closest(".mp-record-table, .math-teacher-practice-lesson-insights-table") === First.closest(".mp-record-table, .math-teacher-practice-lesson-insights-table"))
+        : [First];
+      const Middle = Rows[Math.floor((Rows.length - 1) / 2)] || First;
+      Middle.scrollIntoView({ behavior: "smooth", block: "center" });
+      Rows.forEach((Row) => Row.classList.add("mp-dps-row-focus"));
+      window.setTimeout(() => Rows.forEach((Row) => Row.classList.remove("mp-dps-row-focus")), 4200);
+    };
+    Timer = window.setTimeout(Run, 150);
+    return () => window.clearTimeout(Timer);
+  }, [Enabled, Key]);
+}
+
+// What a student's button says on a DPS still to be done, from the DPS's
+// shared state, in the same words as the result page's re-attempt button.
+export function studentPracticeAction(row: AnyRow): { label: string; tooltip: string } {
+  const State = hasDpsChain(row) ? String(row.dpsChain.state) : "";
+  const Step = hasDpsChain(row) ? Number(row.dpsChain.step || 0) : 0;
+  if (State === "IN_PROGRESS") return { label: "Resume Practice", tooltip: "Continue your practice sheet" };
+  if (State === "REATTEMPT_IN_PROGRESS" || State === "APPROVED_REATTEMPT_IN_PROGRESS") {
+    return { label: Step ? `Resume Re-Attempt ${Step}` : "Resume Re-Attempt", tooltip: "Continue your re-attempt" };
+  }
+  if (State === "REATTEMPT_OPEN" || State === "APPROVED_REATTEMPT_OPEN") {
+    return { label: Step ? `Start Re-Attempt ${Step}` : "Start Re-Attempt", tooltip: "Start your re-attempt" };
+  }
+  return { label: "Start Practice", tooltip: "Start your practice attempt" };
+}
+
+export function ChainTriesPill({ row, compact = false }: { row: AnyRow; compact?: boolean }) {
+  if (!showsChainTries(row)) return null;
+  // "Tries 4 of 5 used · 2 approved"; in a table squeezed onto a narrow
+  // screen the same facts as "Tries 4/5 · 2 approved", so it still fits on
+  // one line. If it ever has to wrap, it breaks after the dot.
+  const Chain = row.dpsChain;
+  const Extra = Number(Chain.approvedExtra || 0);
+  const [Used, Approved] = compact
+    ? [`${Number(Chain.triesUsed || 0)}/${Number(Chain.triesAllowed || 0)}`, Extra ? `${Extra} approved` : ""]
+    : chainTriesText(row).split(" · ");
+  return (
+    <StatePill tone={chainTriesTone(row)}>
+      <span>
+        <span className="whitespace-nowrap">{`Tries ${Used}${Approved ? " ·" : ""}`}</span>
+        {Approved ? <> <span className="whitespace-nowrap">{Approved}</span></> : null}
+      </span>
+    </StatePill>
+  );
+}
+
+// A row's status with its tries pill underneath. Both pills take the width
+// of the wider one, so they line up as one block; the block is centred in
+// its column and never wider than it.
+export function ChainStatusStack({ row, label, tone, align = "center", compact = false }: { row: AnyRow; label: string; tone: ChainTone; align?: "center" | "start" | "end"; compact?: boolean }) {
+  return (
+    <div className="mp-status-stack" data-align={align}>
+      <StatePill tone={tone}>{label}</StatePill>
+      <ChainTriesPill row={row} compact={compact} />
+    </div>
+  );
+}
+
+// A record table's columns at full size, or -- on a screen too narrow for
+// them -- with the Status column narrowed (its pills then use their short
+// form), so the table still fits its card.
+export function useFittedTableColumns(Specs: Array<[number, number]>, StatusIndex: number, Gaps: number) {
+  const Ref = useRef<HTMLDivElement | null>(null);
+  const [Width, SetWidth] = useState(0);
+  useEffect(() => {
+    const Node = Ref.current;
+    if (!Node || typeof ResizeObserver === "undefined") return;
+    const Observer = new ResizeObserver((Entries) => SetWidth(Entries[0]?.contentRect.width || 0));
+    Observer.observe(Node);
+    return () => Observer.disconnect();
+  }, []);
+  const FullWidth = Specs.reduce((Sum, [Min]) => Sum + Min, 0) + Gaps;
+  const Compact = Width > 0 && Width < FullWidth;
+  const Fitted = Specs.map(([Min, Share], Index) => (Index === StatusIndex && Compact ? [Math.max(184, Min - (FullWidth - Width)), Share] : [Min, Share]) as [number, number]);
+  return {
+    Ref,
+    Compact,
+    GridStyle: { gridTemplateColumns: Fitted.map(([Min, Share]) => `minmax(${Min}px, ${Share}fr)`).join(" ") },
+    MinWidth: Fitted.reduce((Sum, [Min]) => Sum + Min, 0) + Gaps,
+  };
 }
 
 export function needsReattempt(row: AnyRow) {
@@ -1351,6 +1535,22 @@ export function StudentSummaryTable({
   );
 }
 
+type WorkspaceTabKey = "overview" | "lessons" | "records" | "actions";
+const WORKSPACE_TAB_TO_URL: Record<WorkspaceTabKey, string> = {
+  overview: "overview",
+  lessons: "lesson-insights",
+  records: "records",
+  actions: "manage",
+};
+const WORKSPACE_TAB_FROM_URL: Record<string, WorkspaceTabKey> = {
+  overview: "overview",
+  "lesson-insights": "lessons",
+  lessons: "lessons",
+  records: "records",
+  manage: "actions",
+  actions: "actions",
+};
+
 export function RecordWorkspace({
   title,
   subtitle,
@@ -1391,12 +1591,15 @@ export function RecordWorkspace({
   void backLabel;
   void onBack;
   void accuracyRows;
-  const [tab, setTab] = useState<
-    "overview" | "lessons" | "records" | "actions"
-  >(initialTab);
-  const [lessonFilter, setLessonFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [search, setSearch] = useState("");
+  // 2026-10-14 (Shailesh: a refresh must reopen the same tab with the same
+  // filters): the tab and the filters live in the page address.
+  const [TabParam, SetTabParam] = useUrlParamState("tab", "");
+  const tab: WorkspaceTabKey = WORKSPACE_TAB_FROM_URL[TabParam] || initialTab;
+  const setTab = (Next: WorkspaceTabKey) => SetTabParam(WORKSPACE_TAB_TO_URL[Next]);
+  const [lessonFilter, setLessonFilter] = useUrlParamState("lesson", "");
+  const [statusFilter, setStatusFilter] = useUrlParamState("status", "");
+  const [search, setSearch] = useUrlParamState("q", "");
+  const FocusApplied = useRef("");
 
   const lessons = useMemo(() => {
     return Array.from(
@@ -1451,21 +1654,13 @@ export function RecordWorkspace({
       : null;
   const baseStats = studentStats(filteredRows);
   const AdminOverallAverage = role === "admin" ? hierarchyAverageAccuracy(filteredRows) : baseStats.avg;
-  const stats = progressSummary
-    ? {
-        ...baseStats,
-        total: progressSummary.currentRequired,
-        completed: progressSummary.currentCompleted,
-        pending: Math.max(
-          progressSummary.currentRequired - progressSummary.currentCompleted,
-          0,
-        ),
-        below: progressSummary.currentBelow,
-      }
-    : {
-        ...baseStats,
-        avg: AdminOverallAverage,
-      };
+  // 2026-10-14: the student's cards count exactly as the teacher's and
+  // admin's do (Assigned = Cleared + Pending + Needs Re-Attempt, each DPS
+  // once). "Pending" used to mean every DPS of the level not yet cleared, so
+  // it disagreed with the teacher's Pending for the same student; the size of
+  // the level stays on its own card, Total DPS.
+  void progressSummary;
+  const stats = role === "student" ? baseStats : { ...baseStats, avg: AdminOverallAverage };
   const [OpenModuleGroups, SetOpenModuleGroups] = useState<
     Record<string, boolean>
   >({});
@@ -1563,8 +1758,13 @@ export function RecordWorkspace({
       Action.includes("lesson-insights") ||
       Boolean(focusTarget?.assignmentId || focusTarget?.attemptId || focusTarget?.dpsId || focusTarget?.lessonId);
     if (!ShouldOpenLessons || !rows.length) return;
+    // Once per target: a later refetch, or the person moving to another tab,
+    // is never undone by this.
+    const FocusKey = [focusTarget?.assignmentId, focusTarget?.attemptId, focusTarget?.dpsId, focusTarget?.lessonId, focusTarget?.moduleCode, focusTarget?.levelCode, Action, initialTab].join("|");
+    if (FocusApplied.current === FocusKey) return;
+    FocusApplied.current = FocusKey;
 
-    setTab("lessons");
+    if (!TabParam) setTab("lessons");
 
     const TargetRow =
       rows.find((Row) => {
@@ -1595,6 +1795,11 @@ export function RecordWorkspace({
     initialTab,
     rows,
   ]);
+
+  useDpsFocusScroll(
+    focusTarget ? { assignmentId: focusTarget.assignmentId, attemptId: focusTarget.attemptId, dpsId: focusTarget.dpsId } : null,
+    tab === "lessons" && rows.length > 0,
+  );
 
   const viewLabel = role === "student" ? "View Result" : "View Details";
   const viewTip =
@@ -2113,7 +2318,8 @@ export function RecordWorkspace({
                                                         <h4 className="font-black text-slate-950 dark:text-white">
                                                           {CompactPracticeTitle(row)}
                                                         </h4>
-                                                        <Chip tone={Issue.tone}>{Issue.label}</Chip>
+                                                        <StatePill tone={Issue.tone}>{Issue.label}</StatePill>
+                                                        <ChainTriesPill row={row} />
                                                       </div>
                                                       <p className="mt-1 text-sm font-semibold text-slate-500">
                                                         {CompactModuleLevelLabel(row)}
@@ -2501,7 +2707,9 @@ function StudentProgressOverview({
             <Chip tone="blue">
               {Completed}/{Required} DPS Cleared
             </Chip>
-            <Chip tone={Pending ? "amber" : "green"}>{Pending} Pending</Chip>
+            {/* Not "Pending": that card counts assigned DPS not yet attempted;
+                this is every DPS of the level not cleared yet. */}
+            <Chip tone={Pending ? "amber" : "green"}>{Pending} Left To Clear</Chip>
             {(() => {
               const ScopeAverage = attemptHistoryAverageAccuracy(SourceRows);
               return (
@@ -2553,15 +2761,9 @@ function StudentProgressOverview({
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Chip
-                          tone={
-                            typeof LessonItem.avg === "number" && LessonItem.avg >= 90 && !LessonItem.below
-                              ? "green"
-                              : LessonItem.below
-                                ? "red"
-                                : "blue"
-                          }
-                        >
+                        {/* Coloured by the accuracy it shows, like every other
+                            accuracy on the page. */}
+                        <Chip tone={numericAccuracyTone(LessonItem.avg)}>
                           Average Accuracy: {formatAccuracyPercent(LessonItem.avg)}
                         </Chip>
                         <ChevronDown
@@ -2684,8 +2886,10 @@ function MiniInsight({
       <h4 className="mt-2 truncate text-base font-black text-slate-950 dark:text-white">
         {value}
       </h4>
-      <div className="mt-2">
-        <Chip tone={tone}>{description}</Chip>
+      {/* 2026-10-14: a sentence, so it wraps inside its pill instead of
+          running out of the card. */}
+      <div className="mt-2 flex">
+        <StatePill tone={tone}>{description}</StatePill>
       </div>
     </div>
   );
@@ -2770,27 +2974,27 @@ function WorkSignalRow({
   viewTip: string;
 }) {
   const issue = issueLabel(row);
+  // 2026-10-14: the status shows once (it used to show beside the title and
+  // again on the right); the accuracy chip only when there is a score.
   return (
     <div className="flex flex-col gap-3 rounded-[22px] border border-slate-100 bg-slate-50/75 p-4 dark:border-slate-800 dark:bg-slate-900/70 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <h4 className="font-black text-slate-950 dark:text-white">
-            {CompactPracticeTitle(row)}
-          </h4>
-          <Chip tone={issue.tone}>{issue.label}</Chip>
-        </div>
+        <h4 className="font-black text-slate-950 dark:text-white">
+          {CompactPracticeTitle(row)}
+        </h4>
         <p className="mt-1 text-sm font-semibold text-slate-500">
-          {CompactModuleLevelLabel(row)}
+          {moduleCodeOf(row)} · {levelCodeOf(row)}
         </p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <Chip
-          tone={
-            accuracy(row) >= 70 ? "green" : isCompleted(row) ? "red" : "amber"
-          }
-        >
-          {isCompleted(row) ? `${accuracy(row)}%` : statusLabel(row)}
-        </Chip>
+      <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
+        <div className="w-[14.5rem] max-w-full">
+          <ChainStatusStack row={row} label={issue.label} tone={issue.tone} align="end" compact />
+        </div>
+        <div className="flex w-[4.5rem] justify-center">
+          {isCompleted(row) ? (
+            <Chip tone={accuracy(row) >= 70 ? "green" : "red"}>{`${accuracy(row)}%`}</Chip>
+          ) : null}
+        </div>
         {onView ? (
           <StandardViewButton
             label={viewLabel}
@@ -3010,7 +3214,7 @@ function reattemptStatusLabel(row: AnyRow): {
   return { label: "Re-Attempt Cleared", tone: "green" };
 }
 
-function issueLabel(row: AnyRow): {
+export function issueLabel(row: AnyRow): {
   label: string;
   tone: "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple";
 } {
@@ -3270,14 +3474,32 @@ export function CompactRecordTable({
       compareCompactRecordRows(FirstRow, SecondRow, SortKey, SortDirection),
     );
   }, [SourceRows, SortDirection, SortKey]);
-  const SemanticChipComponent = StrongSemanticChip;
-  const GridColumns = hideLessonColumn
-    ? showAttemptColumn
-      ? "grid-cols-[minmax(130px,1fr)_minmax(130px,.6fr)_minmax(170px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(240px,.84fr)_minmax(136px,.64fr)_minmax(170px,.74fr)_minmax(118px,.54fr)]"
-      : "grid-cols-[minmax(130px,1fr)_minmax(170px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(240px,.84fr)_minmax(136px,.64fr)_minmax(170px,.74fr)_minmax(118px,.54fr)]"
-    : showAttemptColumn
-      ? "grid-cols-[minmax(132px,.74fr)_minmax(130px,1fr)_minmax(130px,.6fr)_minmax(170px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(240px,.84fr)_minmax(136px,.64fr)_minmax(170px,.74fr)_minmax(118px,.54fr)]"
-      : "grid-cols-[minmax(132px,.74fr)_minmax(130px,1fr)_minmax(170px,.6fr)_minmax(84px,.42fr)_minmax(94px,.48fr)_minmax(240px,.84fr)_minmax(136px,.64fr)_minmax(170px,.74fr)_minmax(118px,.54fr)]";
+  // 2026-10-14: every pill in the table is the same size and speaks the same
+  // colours in all three logins, so the columns line up and fit.
+  const SemanticChipComponent = StatePill;
+  // 2026-10-14: sized so every value fits its column (the Status column
+  // holds the longest status and tries values; Benchmark only needs "Benchmark
+  // Not Met"). On a screen narrower than the table, it scrolls sideways
+  // inside its card instead of cutting off the last column.
+  // Minimums measured from the widest value each column holds, so at 1366px
+  // and up the table fits its card with nothing wrapping out of a pill.
+  const ReviewWidth = role === "student" ? 176 : role === "teacher" ? 150 : 136;
+  const ColumnSpecs: Array<[number, number]> = [
+    ...(hideLessonColumn ? [] : [[118, 0.9] as [number, number]]),
+    [76, 0.7],
+    ...(showAttemptColumn ? [[120, 0.6] as [number, number]] : []),
+    [234, 1.1],
+    [76, 0.42],
+    [66, 0.42],
+    [164, 0.7],
+    [84, 0.55],
+    [100, 0.7],
+    [ReviewWidth, 0.6],
+  ];
+  // Column gaps (8px) + the 16px padding each side.
+  const Fit = useFittedTableColumns(ColumnSpecs, (hideLessonColumn ? 0 : 1) + 1 + (showAttemptColumn ? 1 : 0), (ColumnSpecs.length - 1) * 8 + 32);
+  const GridStyle = Fit.GridStyle;
+  const TableMinWidth = Fit.MinWidth;
 
   const ToggleSort = (Key: CompactRecordSortKey) => {
     if (SortKey !== Key) {
@@ -3326,14 +3548,16 @@ export function CompactRecordTable({
 
   return (
     <div
-      // mp-record-* are plain hooks (no styles of their own) so a role's own
-      // stylesheet can size this table's columns; the student look uses them
-      // to stop the last column being cut off (see student-elevate.css).
-      className="mp-record-table overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
+      // mp-record-* are plain hooks a role's own stylesheet can restyle (the
+      // student look). Column sizes live here, in one place, for every role.
+      ref={Fit.Ref}
+      className="mp-record-table overflow-x-auto overflow-y-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
       data-columns={(hideLessonColumn ? 0 : 1) + (showAttemptColumn ? 1 : 0) + 8}
     >
+      <div className="mp-record-inner" style={{ minWidth: TableMinWidth }}>
       <div
-        className={`mp-record-head math-admin-light-compact-record-header grid ${GridColumns} gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 font-black uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
+        style={GridStyle}
+        className={`mp-record-head math-admin-light-compact-record-header grid gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3 font-black uppercase text-slate-500 dark:border-slate-800 dark:bg-slate-900`}
       >
         {hideLessonColumn ? null : <SortHeader label="Lesson" sortKey="lesson" />}
         <SortHeader label="DPS" sortKey="dps" />
@@ -3342,8 +3566,8 @@ export function CompactRecordTable({
         <SortHeader label="Score" sortKey="score" align="center" />
         <SortHeader label="Accuracy" sortKey="accuracy" align="center" />
         <SortHeader label="Benchmark" sortKey="benchmark" align="center" />
-        <SortHeader label="Time Taken" sortKey="timeTaken" />
-        <SortHeader label="Completion Date" sortKey="completion" />
+        <SortHeader label="Time Taken" sortKey="timeTaken" align="center" />
+        <SortHeader label="Completion Date" sortKey="completion" align="center" />
         <div className={`${CompactHeaderTextClass} justify-center text-center`}>
           <span className={CompactHeaderLabelClass}>Review</span>
         </div>
@@ -3354,7 +3578,9 @@ export function CompactRecordTable({
           return (
             <div
               key={[row.assignmentId || "assignment", row.attemptId || "attempt", row.id || "row", row.attemptLabel || row.attempt || "entry", index].join("-")}
-              className={`mp-record-row grid ${GridColumns} items-center gap-3 px-4 ${dense ? "py-3" : "py-4"}`}
+              style={GridStyle}
+              {...dpsRowTargetProps(row)}
+              className={`mp-record-row grid items-center gap-2 px-4 ${dense ? "py-3" : "py-4"}`}
             >
               {hideLessonColumn ? null : (
                 <div data-label="Lesson" className="min-w-0">
@@ -3368,10 +3594,9 @@ export function CompactRecordTable({
               )}
               <div data-label="DPS" className="mp-record-title min-w-0">
                 <p className="text-sm font-black">{CompactDpsLabel(row)}</p>
+                {/* The lesson block above already names the module and level. */}
                 <p className="mt-1 text-xs font-semibold text-slate-500">
-                  {hideLessonColumn
-                    ? CompactModuleLevelLabel(row)
-                    : levelCodeOf(row)}
+                  {levelCodeOf(row)}
                 </p>
               </div>
               {showAttemptColumn ? (
@@ -3379,9 +3604,8 @@ export function CompactRecordTable({
                   <SemanticChipComponent tone={attemptTone(row)}>{attemptLabel(row)}</SemanticChipComponent>
                 </div>
               ) : null}
-              <div data-label="Status" className="flex flex-col items-center justify-center gap-1">
-                <SemanticChipComponent tone={Issue.tone}>{Issue.label}</SemanticChipComponent>
-                <ChainTriesPill row={row} />
+              <div data-label="Status" className="min-w-0">
+                <ChainStatusStack row={row} label={Issue.label} tone={Issue.tone} compact={Fit.Compact} />
               </div>
               <div data-label="Score" className="flex justify-center">
                 <SemanticChipComponent tone={scoreText(row) === "—" ? "slate" : scoreTone(row)}>
@@ -3403,10 +3627,10 @@ export function CompactRecordTable({
                   return <SemanticChipComponent tone={Benchmark.tone}>{Benchmark.label}</SemanticChipComponent>;
                 })()}
               </div>
-              <div data-label="Time Taken" className={role === "student" ? "text-sm font-black text-slate-950 dark:text-white" : "text-sm font-semibold text-slate-600 dark:text-slate-300"}>
+              <div data-label="Time Taken" className={`text-center ${role === "student" ? "text-sm font-black text-slate-950 dark:text-white" : "text-sm font-semibold text-slate-600 dark:text-slate-300"}`}>
                 {timeTakenText(row)}
               </div>
-              <div data-label="Completion Date" className={role === "student" ? "text-sm font-black text-slate-950 dark:text-white" : "text-sm font-semibold text-slate-600 dark:text-slate-300"}>
+              <div data-label="Completion Date" className={`text-center ${role === "student" ? "text-sm font-black text-slate-950 dark:text-white" : "text-sm font-semibold text-slate-600 dark:text-slate-300"}`}>
                 {completedText(row)}
               </div>
               <div data-label="Review" className="mp-record-action flex justify-center">
@@ -3417,10 +3641,11 @@ export function CompactRecordTable({
                     
                     if (isPendingPractice) {
                       if (role === "student") {
+                        const Action = studentPracticeAction(row);
                         return (
                           <StandardViewButton
-                            label="Start Practice"
-                            tooltip="Start your practice attempt"
+                            label={Action.label}
+                            tooltip={Action.tooltip}
                             icon={<PlayCircle size={16} className="shrink-0" />}
                             onClick={() => onView(row)}
                             compact
@@ -3428,11 +3653,7 @@ export function CompactRecordTable({
                         );
                       } else if (role === "teacher") {
                         return (
-                          <div className="flex h-full items-center">
-                            <SemanticChipComponent tone="amber">
-                              Pending
-                            </SemanticChipComponent>
-                          </div>
+                          <span className="text-xs font-black text-slate-400">{NotAttemptedText(row)}</span>
                         );
                       }
                     }
@@ -3451,6 +3672,7 @@ export function CompactRecordTable({
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

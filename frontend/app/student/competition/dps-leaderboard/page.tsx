@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
+import { useWriteUrlParams } from "@/hooks/useUrlTabState";
 import { Trophy, Users, AlertCircle, ChevronDown, ArrowLeft } from "lucide-react";
 import { DpsLeaderboardAPI } from "@/lib/api-dps-leaderboard";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -82,6 +83,10 @@ const searchParams = useSearchParams();
   // View Mode -- "Overall Journey" pools every level within the selected
   // module; "Specific Level" pools every DPS sheet within the selected level.
   const [viewMode, setViewMode] = useState<"OVERALL" | "SPECIFIC">("OVERALL");
+  // 2026-10-14: the board shown (view, module, level, exam) is written into
+  // the page address, which this page already reads when it opens, so a
+  // refresh reopens the same board.
+  useWriteUrlParams({ viewMode, moduleId: selectedModuleId, levelId: selectedLevelId }, levels.length > 0);
 
   const [leaderboardData, setLeaderboardData] = useState<DpsLeaderboardResponse | null>(null);
 

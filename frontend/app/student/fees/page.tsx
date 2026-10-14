@@ -8,7 +8,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Clock3, Download, FileText, IndianRupee, Loader2, PiggyBank, ReceiptText, Wallet } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useCallback, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
+import { useUrlTabState } from "@/hooks/useUrlTabState";
 
 import { AppShell } from "@/components/common/AppShell";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -68,11 +69,22 @@ function DownloadButton({ busy, onClick, label }: { busy: boolean; onClick: () =
   );
 }
 
+const FEES_TABS = ["invoices", "receipts"] as const;
+
 export default function StudentFeesPage() {
+  return (
+    <Suspense fallback={null}>
+      <StudentFeesPageContent />
+    </Suspense>
+  );
+}
+
+function StudentFeesPageContent() {
   const Ready = useProtectedPage(["STUDENT"]);
   const QueryClient = useQueryClient();
   const Fees = useQuery({ queryKey: ["student-fees"], queryFn: getStudentFees, enabled: Ready, retry: (Count, Error) => apiErrorDetail(Error)?.code !== "FEES_NOT_ENABLED" && Count < 1 });
-  const [Tab, SetTab] = useState<"invoices" | "receipts">("invoices");
+  // 2026-10-14: kept in the page address, so a refresh keeps the tab.
+  const [Tab, SetTab] = useUrlTabState<"invoices" | "receipts">("tab", FEES_TABS, "invoices");
   const [Downloading, SetDownloading] = useState<string | null>(null);
   const [DownloadError, SetDownloadError] = useState<string | null>(null);
   const [LastPick, SetLastPick] = useState<string[]>([]);

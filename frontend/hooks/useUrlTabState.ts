@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 // 2026-10-07 (Shailesh): "on hitting the [browser] refresh button it
@@ -53,4 +53,64 @@ export function useUrlTabState<T extends string>(
   );
 
   return [Value, SetAndRemember];
+}
+
+// 2026-10-14 (Shailesh: a refresh must open the same tab with the same
+// filters). The same idea for any one value -- a filter, a search, a view
+// mode: kept in the page address (?q=...&module=...), so a refresh, back /
+// forward and a copied link keep it. The fallback value is left out of the
+// address, so an untouched page keeps its clean address.
+//
+// The address can update a moment after typing; a value this hook wrote
+// itself in the last two seconds is never read back over newer typing.
+export function useUrlParamState(
+  Param: string,
+  Fallback = ""
+): [string, (Next: string) => void] {
+  const SearchParams = useSearchParams();
+  const FromUrl = SearchParams.get(Param);
+  const [Value, SetValue] = useState<string>(() => FromUrl ?? Fallback);
+  const Written = useRef(new Map<string, number>());
+
+  useEffect(() => {
+    const Next = FromUrl ?? Fallback;
+    const WrittenAt = Written.current.get(Next);
+    if (WrittenAt !== undefined && Date.now() - WrittenAt < 2000) return;
+    SetValue(Next);
+  }, [FromUrl, Fallback]);
+
+  const SetAndRemember = useCallback(
+    (Next: string) => {
+      SetValue(Next);
+      if (typeof window === "undefined") return;
+      Written.current.set(Next, Date.now());
+      const Url = new URL(window.location.href);
+      if (Next === Fallback || Next === "") Url.searchParams.delete(Param);
+      else Url.searchParams.set(Param, Next);
+      if (`${Url.pathname}${Url.search}` === `${window.location.pathname}${window.location.search}`) return;
+      window.history.replaceState(window.history.state, "", `${Url.pathname}${Url.search}${Url.hash}`);
+    },
+    [Param, Fallback]
+  );
+
+  return [Value, SetAndRemember];
+}
+
+// Writes a page's current choices into its address (empty values are left
+// out), for pages that already read these parameters when they open (the
+// leaderboards' deep links). Once Ready -- after the page has read them --
+// every change is written, so a refresh reopens the same board.
+export function useWriteUrlParams(Values: Record<string, string | null | undefined>, Ready: boolean): void {
+  const Serialized = JSON.stringify(Values);
+  useEffect(() => {
+    if (!Ready || typeof window === "undefined") return;
+    const Current = JSON.parse(Serialized) as Record<string, string | null>;
+    const Url = new URL(window.location.href);
+    Object.entries(Current).forEach(([Key, Value]) => {
+      if (Value) Url.searchParams.set(Key, Value);
+      else Url.searchParams.delete(Key);
+    });
+    if (`${Url.pathname}${Url.search}` === `${window.location.pathname}${window.location.search}`) return;
+    window.history.replaceState(window.history.state, "", `${Url.pathname}${Url.search}${Url.hash}`);
+  }, [Ready, Serialized]);
 }

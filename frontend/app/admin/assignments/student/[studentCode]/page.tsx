@@ -7,7 +7,11 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { NotificationTargetBanner } from "@/components/common/NotificationTargetBanner";
 import {
   AnyRow,
+  CompactDpsLabel,
+  CompactLessonLabel,
   RecordWorkspace,
+  chainStatusOf,
+  latestAttemptIdForDps,
   studentCodeOf,
   studentNameOf,
 } from "@/components/common/DetailWorkspaceViews";
@@ -106,6 +110,8 @@ function AdminStudentAssignmentsWorkspacePageContent() {
       );
     }) as AdminAssignment | undefined;
   }, [SearchParams, studentRows]);
+  const QuickTargetAttemptId = useMemo(() => (QuickTarget ? latestAttemptIdForDps(studentRows, QuickTarget as AnyRow) : ""), [QuickTarget, studentRows]);
+  const QuickTargetStatus = QuickTarget ? chainStatusOf(QuickTarget as AnyRow)?.label || "" : "";
   const TargetDpsCount = Number(SearchParams.get("dpsCount") || SearchParams.get("assignmentCount") || 0);
   const HasGroupedPracticeTarget = TargetDpsCount > 1 || SearchParams.get("isGrouped") === "true";
 
@@ -155,15 +161,12 @@ function AdminStudentAssignmentsWorkspacePageContent() {
               description={
                 HasGroupedPracticeTarget
                   ? `${studentName} · ${String(QuickTarget.moduleCode || "Module")} · ${String(QuickTarget.levelCode || "Level")} has ${TargetDpsCount} assigned DPS records in focus.`
-                  : `${studentName} · ${String(QuickTarget.moduleCode || "Module")} · ${String(QuickTarget.levelCode || "Level")} · ${String(QuickTarget.lessonTitle || (QuickTarget as any).lessonName || "Lesson")} · ${String(QuickTarget.dpsTitle || (QuickTarget as any).dpsName || "DPS")}`
+                  : `${studentName} · ${String(QuickTarget.moduleCode || "Module")} · ${String(QuickTarget.levelCode || "Level")} · ${CompactLessonLabel(QuickTarget as AnyRow)} · ${CompactDpsLabel(QuickTarget as AnyRow)}${QuickTargetStatus ? ` · ${QuickTargetStatus}` : ""}`
               }
-              actionLabel={QuickTarget.assignmentId ? "View Record" : undefined}
+              actionLabel={QuickTargetAttemptId ? "View Latest Attempt" : undefined}
               onAction={
-                QuickTarget.assignmentId
-                  ? () =>
-                      router.push(
-                        `/admin/assignments/${QuickTarget.assignmentId}`,
-                      )
+                QuickTargetAttemptId
+                  ? () => router.push(`/admin/results/${QuickTargetAttemptId}`)
                   : undefined
               }
             />

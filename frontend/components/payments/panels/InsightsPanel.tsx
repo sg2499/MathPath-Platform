@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, BarChart3, CalendarClock, Check, CheckCircle2, Clock3, ExternalLink, Loader2, RotateCcw, Settings2, ShieldAlert, TrendingUp, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { useUrlTabState } from "@/hooks/useUrlTabState";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { ErrorState } from "@/components/common/ErrorState";
@@ -258,9 +259,12 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
   );
 }
 
+const UNUSUAL_VIEWS = ["OPEN", "REVIEWED"] as const;
+
 function UnusualCard({ initial }: { initial: UnusualActivity }) {
   const [days, setDays] = useState(initial.days);
-  const [view, setView] = useState<"OPEN" | "REVIEWED">("OPEN");
+  // 2026-10-14: kept in the page address, so a refresh keeps it.
+  const [view, setView] = useUrlTabState<"OPEN" | "REVIEWED">("unusual", UNUSUAL_VIEWS, "OPEN");
   const query = useQuery({
     queryKey: ["admin", "payments", "insights", "unusual", days],
     queryFn: () => getUnusualActivity(days),

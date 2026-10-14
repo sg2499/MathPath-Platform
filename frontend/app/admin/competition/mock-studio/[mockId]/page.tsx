@@ -19,6 +19,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Archive, ArrowLeft, BadgeCheck, Calculator, CheckCircle2, Clock, Eye, FileText, Hash, Info, Layers3, Search, ShieldCheck, Target, Trash2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useUrlTabState } from "@/hooks/useUrlTabState";
 
 function formatDuration(secondsValue: number | null | undefined) {
   const safeSeconds = Math.max(0, Number(secondsValue || 0));
@@ -284,12 +285,14 @@ function describeMarksPerQuestion(questions: CompetitionMockQuestion[], fallback
   return `${distinctMarks[0]}–${distinctMarks[distinctMarks.length - 1]} (Weighted)`;
 }
 
+const MOCK_DETAIL_TABS = ["OVERVIEW", "PREVIEW", "COVERAGE"] as const;
+
 export default function AdminCompetitionMockDetailPage() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const params = useParams<{ mockId: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"OVERVIEW" | "PREVIEW" | "COVERAGE">("OVERVIEW");
+  const [activeTab, setActiveTab] = useUrlTabState<"OVERVIEW" | "PREVIEW" | "COVERAGE">("tab", MOCK_DETAIL_TABS, "OVERVIEW");
   const [showAnswers, setShowAnswers] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);

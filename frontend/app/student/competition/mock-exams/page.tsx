@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
+import { useUrlParamState } from "@/hooks/useUrlTabState";
 
 function FormatDuration(seconds?: number | null) {
   if (seconds === null || seconds === undefined) return "—";
@@ -223,10 +224,11 @@ function StudentCompetitionMockExamsContent() {
 
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [expandedLevels, setExpandedLevels] = useState<Record<string, boolean>>({});
-  const [searchTerm, setSearchTerm] = useState("");
-  const [moduleFilter, setModuleFilter] = useState("ALL");
-  const [levelFilter, setLevelFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  // 2026-10-14: the filters live in the page address, so a refresh keeps them.
+  const [searchTerm, setSearchTerm] = useUrlParamState("q", "");
+  const [moduleFilter, setModuleFilter] = useUrlParamState("module", "ALL");
+  const [levelFilter, setLevelFilter] = useUrlParamState("level", "ALL");
+  const [statusFilter, setStatusFilter] = useUrlParamState("status", "ALL");
 
   useEffect(() => {
     if (targetModuleCode) {

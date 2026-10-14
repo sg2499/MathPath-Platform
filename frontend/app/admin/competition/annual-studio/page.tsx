@@ -1402,7 +1402,8 @@ function AdminAnnualCompetitionStudioPageContent() {
   // look at rather than seeing one fixed chart per scope. One selected-chart
   // key per scope, each defaulting to that scope's first menu option.
   const VisualizationSubTabList = ["OVERVIEW", "LEVEL", "STUDENT"] as const;
-  const [VisualizationSubTab, SetVisualizationSubTab] = useState<(typeof VisualizationSubTabList)[number]>("OVERVIEW");
+  // 2026-10-14: kept in the page address like the other sub tabs here.
+  const [VisualizationSubTab, SetVisualizationSubTab] = useUrlTabState<(typeof VisualizationSubTabList)[number]>("vizTab", VisualizationSubTabList, "OVERVIEW");
   const [VisualizationOverviewChartKey, SetVisualizationOverviewChartKey] = useState<OverviewChartKey>(OVERVIEW_CHART_OPTIONS[0].Key);
   const [VisualizationLevelChartKey, SetVisualizationLevelChartKey] = useState<LevelChartKey>(LEVEL_CHART_OPTIONS[0].Key);
   const [VisualizationStudentChartKey, SetVisualizationStudentChartKey] = useState<StudentChartKey>(STUDENT_CHART_OPTIONS[0].Key);

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
+import { useWriteUrlParams } from "@/hooks/useUrlTabState";
 import { Award, Clock, Star, Trophy, Users, AlertCircle, ChevronDown, ArrowLeft } from "lucide-react";
 import { LeaderboardAPI } from "@/lib/api-leaderboard";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -83,6 +84,10 @@ const searchParams = useSearchParams();
   
   // View Mode
   const [viewMode, setViewMode] = useState<"CUMULATIVE" | "INDIVIDUAL">("CUMULATIVE");
+  // 2026-10-14: the board shown (view, module, level, exam) is written into
+  // the page address, which this page already reads when it opens, so a
+  // refresh reopens the same board.
+  useWriteUrlParams({ viewMode, levelId: selectedLevelId, examId: selectedExamId }, levels.length > 0);
   
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardResponse | null>(null);
   

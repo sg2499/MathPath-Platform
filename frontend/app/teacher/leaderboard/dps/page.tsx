@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, Suspense } from "react";
+import { useWriteUrlParams } from "@/hooks/useUrlTabState";
 import { Trophy, Users, AlertCircle, ChevronDown, Medal, Star } from "lucide-react";
 import { AppShell } from "@/components/common/AppShell";
 import { TeacherDpsLeaderboardAPI } from "@/lib/api-teacher-leaderboard";
@@ -254,6 +255,10 @@ function TeacherDpsLeaderboardPageInner() {
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [selectedLevelId, setSelectedLevelId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"OVERALL" | "SPECIFIC">("OVERALL");
+  // 2026-10-14: the board shown (view, module, level, exam) is written into
+  // the page address, which this page already reads when it opens, so a
+  // refresh reopens the same board.
+  useWriteUrlParams({ viewMode, moduleId: selectedModuleId, levelId: selectedLevelId }, levels.length > 0);
   const [leaderboardData, setLeaderboardData] = useState<TeacherLeaderboardResponse | null>(null);
 
   const highlightStudentId = searchParams.get("highlightStudentId");

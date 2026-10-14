@@ -26,6 +26,12 @@ import {
   XCircle,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import {
+  uniqueAssignedConceptCount,
+  uniqueClearedConceptCount,
+  uniqueNeedsReattemptCount,
+  uniquePendingConceptCount,
+} from "@/components/common/DetailWorkspaceViews";
 import { useRouter } from "next/navigation";
 
 // 2026-09-02 -- "latest" (Latest Activity) removed: the Students tab already
@@ -150,62 +156,26 @@ function trackerCompleted(row: Record<string, any>) {
   );
 }
 
-function trackerCleared(row: Record<string, any>) {
-  const status = normalizeTrackerStatus(row.status ?? row.attemptStatus ?? row.benchmarkStatus);
-  if (status.includes("CLEARED")) return true;
-  if (status.includes("NEEDSREATTEMPT") || status.includes("BELOWBENCHMARK") || status.includes("REATTEMPTAVAILABLE")) return false;
-  return trackerCompleted(row) && trackerAccuracy(row) >= 70;
-}
-
-function trackerNeedsReattempt(row: Record<string, any>) {
-  const status = normalizeTrackerStatus(row.status ?? row.attemptStatus ?? row.benchmarkStatus);
-  if (trackerCleared(row)) return false;
-  return (
-    status.includes("NEEDSREATTEMPT") ||
-    status.includes("BELOWBENCHMARK") ||
-    status.includes("REATTEMPTAVAILABLE") ||
-    (trackerCompleted(row) && trackerAccuracy(row) < 70)
-  );
-}
-
 function trackerAttemptRows(row: Record<string, any>) {
   const history = Array.isArray(row.attemptHistory) ? row.attemptHistory : [];
   if (!history.length) return [row];
   return history.map((attemptRow: Record<string, any>) => ({ ...row, ...attemptRow }));
 }
 
-function trackerWorkKey(row: Record<string, any>) {
-  return String(
-    [
-      row.moduleCode || row.moduleId || "module",
-      row.levelCode || row.levelId || "level",
-      row.lessonId || row.lessonNumber || row.lessonTitle || "lesson",
-      row.dpsId || row.dpsNumber || row.dpsTitle || row.title || "work",
-    ].join("::"),
-  );
-}
-
+// 2026-10-14 (Shailesh: the numbers must agree on every page): a student
+// needs a re-attempt when any of their DPS does, by the same shared DPS state
+// the Practice Tracker counts with.
 function buildCurrentNeedsReattemptStudents(rows: Record<string, any>[]) {
-  const workMap = new Map<string, Record<string, any>[]>();
-
+  const studentCodes = new Set<string>();
+  const byStudent = new Map<string, Record<string, any>[]>();
   rows.forEach((row) => {
     const studentCode = String(row.studentCode || "");
     if (!studentCode) return;
-    const key = `${studentCode}::${trackerWorkKey(row)}`;
-    if (!workMap.has(key)) workMap.set(key, []);
-    workMap.get(key)!.push(...trackerAttemptRows(row));
+    byStudent.set(studentCode, [...(byStudent.get(studentCode) || []), row]);
   });
-
-  const studentCodes = new Set<string>();
-  workMap.forEach((attemptRows) => {
-    const cleared = attemptRows.some(trackerCleared);
-    const needsReattempt = attemptRows.some(trackerNeedsReattempt);
-    if (!cleared && needsReattempt) {
-      const studentCode = String(attemptRows[0]?.studentCode || "");
-      if (studentCode) studentCodes.add(studentCode);
-    }
+  byStudent.forEach((studentRows, studentCode) => {
+    if (uniqueNeedsReattemptCount(studentRows) > 0) studentCodes.add(studentCode);
   });
-
   return studentCodes;
 }
 
@@ -218,63 +188,26 @@ type StudentPracticeMetric = {
   averageAccuracy: number | null;
 };
 
+// Assigned / Cleared / Pending / Needs Re-Attempt per student, counted
+// exactly as the Practice Tracker and its student page count them (each DPS
+// once, by its shared state), so this list and those pages always agree.
 function buildStudentPracticeMetrics(rows: Record<string, any>[]) {
-  const ConceptMap = new Map<string, Record<string, any>[]>();
-
-  rows.forEach((Row) => {
-    const StudentCode = String(Row.studentCode || "");
-    if (!StudentCode) return;
-    const Key = `${StudentCode}::${trackerWorkKey(Row)}`;
-    if (!ConceptMap.has(Key)) ConceptMap.set(Key, []);
-    ConceptMap.get(Key)!.push(...trackerAttemptRows(Row));
-  });
-
-  const Metrics = new Map<string, StudentPracticeMetric>();
   const StudentRows = new Map<string, Record<string, any>[]>();
-
   rows.forEach((Row) => {
     const StudentCode = String(Row.studentCode || "");
     if (!StudentCode) return;
-    const ExistingRows = StudentRows.get(StudentCode) || [];
-    ExistingRows.push(Row);
-    StudentRows.set(StudentCode, ExistingRows);
+    StudentRows.set(StudentCode, [...(StudentRows.get(StudentCode) || []), Row]);
   });
-
-  ConceptMap.forEach((AttemptRows) => {
-    const StudentCode = String(AttemptRows[0]?.studentCode || "");
-    if (!StudentCode) return;
-    const Metric = Metrics.get(StudentCode) || {
-      assigned: 0,
-      cleared: 0,
-      pending: 0,
-      needsReattempt: 0,
-      averageAccuracy: null,
-    };
-
-    const Cleared = AttemptRows.some(trackerCleared);
-    const Pending = AttemptRows.some((AttemptRow) => !trackerCompleted(AttemptRow));
-    const NeedsReattempt = !Cleared && AttemptRows.some(trackerNeedsReattempt);
-    Metric.assigned += 1;
-    if (Cleared) Metric.cleared += 1;
-    if (Pending) Metric.pending += 1;
-    if (NeedsReattempt) Metric.needsReattempt += 1;
-
-    Metrics.set(StudentCode, Metric);
-  });
-
+  const Metrics = new Map<string, StudentPracticeMetric>();
   StudentRows.forEach((Rows, StudentCode) => {
-    const Metric = Metrics.get(StudentCode) || {
-      assigned: 0,
-      cleared: 0,
-      pending: 0,
-      needsReattempt: 0,
-      averageAccuracy: null,
-    };
-
-    Metric.averageAccuracy = trackerHierarchyAverageAccuracy(Rows);
-    Metrics.set(StudentCode, Metric);
+    Metrics.set(StudentCode, {
+      assigned: uniqueAssignedConceptCount(Rows),
+      cleared: uniqueClearedConceptCount(Rows),
+      pending: uniquePendingConceptCount(Rows),
+      needsReattempt: uniqueNeedsReattemptCount(Rows),
+      averageAccuracy: trackerHierarchyAverageAccuracy(Rows),
+    });
   });
-
   return Metrics;
 }
 

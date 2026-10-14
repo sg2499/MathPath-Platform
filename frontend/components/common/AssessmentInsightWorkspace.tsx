@@ -1,5 +1,6 @@
 "use client";
 
+import { useUrlParamState, useUrlTabState } from "@/hooks/useUrlTabState";
 import { EmptyState } from "@/components/common/EmptyState";
 import {
   MATHPATH_ACTIVITY_TIMESTAMP_KEYS,
@@ -30,6 +31,8 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+
+const ASSESSMENT_WORKSPACE_TABS = ["overview", "insights", "manage"] as const;
 
 export type AssessmentRow = Record<string, any>;
 
@@ -320,11 +323,13 @@ export function AssessmentInsightWorkspace({
   onRestore?: (row: AssessmentRow) => void;
   onDelete?: (row: AssessmentRow) => void;
 }) {
-  const [Tab, SetTab] = useState<"overview" | "insights" | "manage">("overview");
-  const [SearchQuery, SetSearchQuery] = useState("");
-  const [ModuleFilter, SetModuleFilter] = useState("");
-  const [LevelFilter, SetLevelFilter] = useState("");
-  const [StatusFilter, SetStatusFilter] = useState("");
+  // 2026-10-14: the tab and the filters live in the page address, so a
+  // refresh reopens the same view.
+  const [Tab, SetTab] = useUrlTabState<"overview" | "insights" | "manage">("tab", ASSESSMENT_WORKSPACE_TABS, "overview");
+  const [SearchQuery, SetSearchQuery] = useUrlParamState("q", "");
+  const [ModuleFilter, SetModuleFilter] = useUrlParamState("module", "");
+  const [LevelFilter, SetLevelFilter] = useUrlParamState("level", "");
+  const [StatusFilter, SetStatusFilter] = useUrlParamState("status", "");
   const [OpenModules, SetOpenModules] = useState<Record<string, boolean>>({});
   const [OpenLevels, SetOpenLevels] = useState<Record<string, boolean>>({});
 

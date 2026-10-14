@@ -44,7 +44,9 @@ function StudentModuleProgressWorkspacePageContent() {
     lessonId: SearchParams.get("lessonId") || undefined,
     moduleCode: SearchParams.get("moduleCode") || ModuleCode || undefined,
     levelCode: SearchParams.get("levelCode") || SelectedLevel || undefined,
-    targetAction: SearchParams.get("targetAction") || "lesson-insights",
+    // Only what the address asks for: a plain visit opens Overview (it was
+    // forced onto Lesson Insights, so Overview never survived a refresh).
+    targetAction: SearchParams.get("targetAction") || undefined,
   };
 
   const Query = useQuery({ queryKey: ["student-results"], queryFn: getStudentResults, enabled: Ready, retry: 1 });

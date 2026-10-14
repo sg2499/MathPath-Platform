@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, Suspense } from "react";
+import { useWriteUrlParams } from "@/hooks/useUrlTabState";
 import { Trophy, Users, AlertCircle, ChevronDown, Star } from "lucide-react";
 import { AppShell } from "@/components/common/AppShell";
 import { TeacherMockLeaderboardAPI } from "@/lib/api-teacher-leaderboard";
@@ -253,6 +254,10 @@ function TeacherMockLeaderboardPageInner() {
   const [selectedLevelId, setSelectedLevelId] = useState<string | null>(null);
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"CUMULATIVE" | "INDIVIDUAL">("CUMULATIVE");
+  // 2026-10-14: the board shown (view, module, level, exam) is written into
+  // the page address, which this page already reads when it opens, so a
+  // refresh reopens the same board.
+  useWriteUrlParams({ viewMode, levelId: selectedLevelId, examId: selectedExamId }, levels.length > 0);
   const [leaderboardData, setLeaderboardData] = useState<TeacherLeaderboardResponse | null>(null);
 
   const highlightStudentId = searchParams.get("highlightStudentId");

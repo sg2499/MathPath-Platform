@@ -2137,61 +2137,11 @@ html .math-role-student .mp-record-table :is(.mp-record-head, .mp-record-row) {
   column-gap: 0.5rem;
 }
 
-html .math-role-student .mp-record-table[data-columns="9"] :is(.mp-record-head, .mp-record-row) {
-  grid-template-columns:
-    minmax(130px, 1.5fr) minmax(112px, 0.6fr) minmax(156px, 0.7fr) minmax(80px, 0.42fr) minmax(76px, 0.42fr)
-    minmax(156px, 0.7fr) minmax(110px, 0.55fr) minmax(176px, 0.8fr) minmax(150px, 0.6fr);
-  min-width: 1242px;
-}
-
-html .math-role-student .mp-record-table[data-columns="8"] :is(.mp-record-head, .mp-record-row) {
-  grid-template-columns:
-    minmax(130px, 1.5fr) minmax(156px, 0.7fr) minmax(80px, 0.42fr) minmax(76px, 0.42fr)
-    minmax(156px, 0.7fr) minmax(110px, 0.55fr) minmax(176px, 0.8fr) minmax(150px, 0.6fr);
-  min-width: 1122px;
-}
-
-html .math-role-student .mp-record-table[data-columns="10"] :is(.mp-record-head, .mp-record-row) {
-  grid-template-columns:
-    minmax(120px, 0.9fr) minmax(120px, 1.2fr) minmax(112px, 0.6fr) minmax(156px, 0.7fr) minmax(80px, 0.42fr)
-    minmax(76px, 0.42fr) minmax(156px, 0.7fr) minmax(110px, 0.55fr) minmax(176px, 0.8fr) minmax(150px, 0.6fr);
-  min-width: 1370px;
-}
-
-/* Laptops. On a 1366px screen the columns close up a little; on a 1280px
-   screen the completion date and its heading also take two lines, so the
-   Review button is on screen without scrolling sideways. */
-@media (max-width: 1379px) {
-  html .math-role-student .mp-record-table[data-columns="9"] :is(.mp-record-head, .mp-record-row) {
-    grid-template-columns:
-      minmax(130px, 1.5fr) minmax(112px, 0.6fr) minmax(156px, 0.7fr) minmax(70px, 0.42fr) minmax(76px, 0.42fr)
-      minmax(154px, 0.7fr) minmax(112px, 0.55fr) minmax(168px, 0.8fr) minmax(138px, 0.6fr);
-    min-width: 1212px;
-  }
-
-  html .math-role-student .mp-record-table[data-columns="8"] :is(.mp-record-head, .mp-record-row) {
-    grid-template-columns:
-      minmax(130px, 1.5fr) minmax(156px, 0.7fr) minmax(70px, 0.42fr) minmax(76px, 0.42fr)
-      minmax(154px, 0.7fr) minmax(112px, 0.55fr) minmax(168px, 0.8fr) minmax(138px, 0.6fr);
-    min-width: 1092px;
-  }
-}
-
+/* 2026-10-14: the record table's column sizes now live in the table itself
+   (CompactRecordTable), the same for every role, sized so the longest status
+   and tries values fit; the table scrolls sideways inside its card when the
+   screen is narrower than it. */
 @media (max-width: 1339px) {
-  html .math-role-student .mp-record-table[data-columns="9"] :is(.mp-record-head, .mp-record-row) {
-    grid-template-columns:
-      minmax(130px, 1.5fr) minmax(112px, 0.6fr) minmax(156px, 0.7fr) minmax(70px, 0.42fr) minmax(76px, 0.42fr)
-      minmax(154px, 0.7fr) minmax(112px, 0.55fr) minmax(92px, 0.5fr) minmax(138px, 0.6fr);
-    min-width: 1136px;
-  }
-
-  html .math-role-student .mp-record-table[data-columns="8"] :is(.mp-record-head, .mp-record-row) {
-    grid-template-columns:
-      minmax(130px, 1.5fr) minmax(156px, 0.7fr) minmax(70px, 0.42fr) minmax(76px, 0.42fr)
-      minmax(154px, 0.7fr) minmax(112px, 0.55fr) minmax(92px, 0.5fr) minmax(138px, 0.6fr);
-    min-width: 1016px;
-  }
-
   html .math-role-student .mp-record-table:is([data-columns="8"], [data-columns="9"]) :is(.mp-record-head, .mp-record-row) > :nth-last-child(2),
   html .math-role-student .mp-record-table:is([data-columns="8"], [data-columns="9"]) .mp-record-head > :nth-last-child(2) * {
     white-space: normal;
@@ -3247,7 +3197,7 @@ html .math-role-student div.math-table {
    colour. The small second line under a name: one lighter style. Headings:
    one style. Chips and buttons keep their own (already uniform) look. */
 html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .mp-record-row > div, .math-student-assessments-table-header + div > div > div, .se-ready-row > .se-ready-cell, .se-ready-row p.truncate):not(#se),
-html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .mp-record-row > div, .math-student-assessments-table-header + div > div > div, .se-ready-row > .se-ready-cell):not(#se) :is(p, span, div, h4, strong):not([class*="rounded-full"]):not([class*="rounded-full"] *):not(:is(button, a) *) {
+html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .mp-record-row > div, .math-student-assessments-table-header + div > div > div, .se-ready-row > .se-ready-cell):not(#se) :is(p, span, div, h4, strong):not([class*="rounded-full"]):not([class*="rounded-full"] *):not(.mp-state-pill):not(.mp-state-pill *):not(:is(button, a) *) {
   font-family: var(--se-display) !important;
   font-size: 0.9rem !important;
   font-weight: 600 !important;
@@ -3260,7 +3210,7 @@ html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .mp-record-row >
    their own smaller size so six columns and their headings fit a 360px screen */
 @media (min-width: 640px) {
   html .math-role-student .se-board-table tbody td:not(#se),
-  html .math-role-student .se-board-table tbody td:not(#se) :is(p, span, div, h4, strong):not([class*="rounded-full"]):not([class*="rounded-full"] *):not(:is(button, a) *) {
+  html .math-role-student .se-board-table tbody td:not(#se) :is(p, span, div, h4, strong):not([class*="rounded-full"]):not([class*="rounded-full"] *):not(.mp-state-pill):not(.mp-state-pill *):not(:is(button, a) *) {
     font-family: var(--se-display) !important;
     font-size: 0.9rem !important;
     font-weight: 600 !important;
@@ -3270,7 +3220,7 @@ html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .mp-record-row >
 }
 
 html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .mp-record-row > div, .math-student-assessments-table-header + div > div > div, .se-ready-row > .se-ready-cell, .se-ready-row p.truncate):not(#se),
-html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .mp-record-row > div, .math-student-assessments-table-header + div > div > div, .se-ready-row > .se-ready-cell):not(#se) :is(p, span, div, h4, strong):not([class*="rounded-full"]):not([class*="rounded-full"] *):not(:is(button, a) *) {
+html .math-role-student :is(.se-tbl tbody td, .se-tbl tfoot td, .mp-record-row > div, .math-student-assessments-table-header + div > div > div, .se-ready-row > .se-ready-cell):not(#se) :is(p, span, div, h4, strong):not([class*="rounded-full"]):not([class*="rounded-full"] *):not(.mp-state-pill):not(.mp-state-pill *):not(:is(button, a) *) {
   color: var(--se-ink) !important;
   -webkit-text-fill-color: currentColor;
 }
@@ -3350,7 +3300,8 @@ html .math-role-student .se-tbl-figures :is(th, td):not(:first-child) {
   html .math-role-student .mp-record-table .mp-record-row:not(#se),
   html .math-role-student .math-student-assessments-table-header + div > div:not(#se) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    /* !important: the record table sets its desktop columns inline */
+    grid-template-columns: minmax(0, 1fr) !important;
     gap: 0.55rem;
     min-width: 0;
     padding: 0.9rem 1rem;
@@ -3456,13 +3407,22 @@ html .math-role-student .se-tbl-figures :is(th, td):not(:first-child) {
     display: none !important;
   }
 
-  html .math-role-student .mp-record-table > div:last-child,
+  /* the table's inner box keeps its desktop minimum width off phones */
+  html .math-role-student .mp-record-table .mp-record-inner:not(#se) {
+    min-width: 0 !important;
+  }
+
+  html .math-role-student .mp-record-table .mp-record-row .mp-status-stack {
+    margin-inline: auto 0;
+  }
+
+  html .math-role-student .mp-record-table .mp-record-inner > div:last-child,
   html .math-role-student .math-student-assessments-table-header + div {
     display: grid;
     gap: 0.75rem;
   }
 
-  html .math-role-student .mp-record-table > div:last-child > *,
+  html .math-role-student .mp-record-table .mp-record-inner > div:last-child > *,
   html .math-role-student .math-student-assessments-table-header + div > * {
     border-top-width: 1px !important;
   }

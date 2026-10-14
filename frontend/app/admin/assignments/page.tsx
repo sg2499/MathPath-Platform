@@ -14,8 +14,9 @@ import {
   ApprovalStudentId,
   ReattemptApprovalQueue,
 } from "@/components/common/ReattemptApprovalQueue";
-import { AlertTriangle, BarChart3, CheckCircle2, ClipboardList, ClipboardPlus, Clock3, FolderOpen, Plus, Search, UsersRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertTriangle, BarChart3, CheckCircle2, ClipboardList, ClipboardPlus, Clock3, FolderOpen, Hourglass, Plus, Search, UsersRound } from "lucide-react";
+import { Suspense, useMemo, useState } from "react";
+import { useUrlParamState, useUrlTabState } from "@/hooks/useUrlTabState";
 import { useRouter } from "next/navigation";
 import {
   MATHPATH_ACTIVITY_TIMESTAMP_KEYS,
@@ -233,13 +234,33 @@ function visibleStudentsAverageAccuracy(students: ReturnType<typeof buildStudent
 }
 
 export default function AdminPracticeAssignmentsPage() {
+  return (
+    <Suspense fallback={<LoadingState label="Loading practice assignments..." />}>
+      <AdminPracticeAssignmentsContent />
+    </Suspense>
+  );
+}
+
+const PRACTICE_CONTROL_TABS = ["overview", "awaiting-approval"] as const;
+type PracticeControlTab = (typeof PRACTICE_CONTROL_TABS)[number];
+
+function AdminPracticeAssignmentsContent() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
-  const [teacherFilter, setTeacherFilter] = useState("");
-  const [moduleFilter, setModuleFilter] = useState("");
-  const [levelFilter, setLevelFilter] = useState("");
+  // 2026-10-14 (Shailesh): Overview | Awaiting Approval sub tabs; the tab and
+  // every filter live in the page address, so a refresh reopens this view.
+  const [activeTab, setActiveTab] = useUrlTabState<PracticeControlTab>("tab", PRACTICE_CONTROL_TABS, "overview");
+  const [search, setSearch] = useUrlParamState("q", "");
+  const [statusFilterRaw, setStatusFilterRaw] = useUrlParamState("status", "");
+  const statusFilter = statusFilterRaw as StatusFilter;
+  const setStatusFilter = (next: StatusFilter) => setStatusFilterRaw(next);
+  const [teacherFilter, setTeacherFilter] = useUrlParamState("teacher", "");
+  const [moduleFilter, setModuleFilter] = useUrlParamState("module", "");
+  const [levelFilter, setLevelFilter] = useUrlParamState("level", "");
+  const [approvalSearch, setApprovalSearch] = useUrlParamState("aq", "");
+  const [approvalTeacher, setApprovalTeacher] = useUrlParamState("ateacher", "");
+  const [approvalModule, setApprovalModule] = useUrlParamState("amodule", "");
+  const [approvalLevel, setApprovalLevel] = useUrlParamState("alevel", "");
   const queryClient = useQueryClient();
   const [approvalBusy, setApprovalBusy] = useState<Set<string>>(new Set());
   const [approvalMessage, setApprovalMessage] = useState<{ tone: "green" | "red"; text: string } | null>(null);
@@ -281,9 +302,35 @@ export default function AdminPracticeAssignmentsPage() {
   const clearedDps = uniqueClearedConceptCount(filteredRows);
   const pendingDps = uniquePendingConceptCount(filteredRows);
   const reattemptNeeded = uniqueNeedsReattemptCount(filteredRows);
-  // 2026-10-13: every DPS that has used all 3 tries, from the same shared
-  // state as the cards above, so the count here always matches.
-  const awaitingRows = useMemo(() => currentWorkRows(filteredRows).filter(isAwaitingApproval), [filteredRows]);
+  // Every DPS that has used all its tries and waits for an admin, from the
+  // same shared state as the cards and the teacher's Awaiting Approval tab.
+  // The tab's number is all of them; the list below can be narrowed.
+  const allAwaitingRows = useMemo(() => currentWorkRows(rows).filter((row) => row.isActive !== false && isAwaitingApproval(row)), [rows]);
+  const approvalTeacherOptions = useMemo(() => uniqueTeacherOptions(allAwaitingRows), [allAwaitingRows]);
+  const approvalModuleOptions = useMemo(() => uniqueModuleOptions(allAwaitingRows), [allAwaitingRows]);
+  const approvalLevelOptions = useMemo(() => uniqueLevelOptions(allAwaitingRows, approvalModule), [allAwaitingRows, approvalModule]);
+  const awaitingRows = useMemo(() => {
+    const q = approvalSearch.trim().toLowerCase();
+    return allAwaitingRows.filter(
+      (row) =>
+        (!approvalTeacher || approvalTeacher === "ALL" || rowTeacherKey(row) === approvalTeacher) &&
+        (!approvalModule || approvalModule === "ALL" || rowModuleCode(row) === approvalModule) &&
+        (!approvalLevel || approvalLevel === "ALL" || rowLevelCode(row) === approvalLevel) &&
+        (!q || searchText(row).includes(q)),
+    );
+  }, [allAwaitingRows, approvalSearch, approvalTeacher, approvalModule, approvalLevel]);
+  const approvalFiltered = Boolean(approvalSearch || (approvalTeacher && approvalTeacher !== "ALL") || (approvalModule && approvalModule !== "ALL") || (approvalLevel && approvalLevel !== "ALL"));
+  const openStudentAtDps = (row: AnyRow) => {
+    const params = new URLSearchParams();
+    const dpsId = String(row.dpsId || row.dps_id || "");
+    const assignmentId = String(row.assignmentId || "");
+    const attemptId = String(row?.dpsChain?.awaitingApprovalAttemptId || row.attemptId || row.latestAttemptId || "");
+    if (dpsId) params.set("dpsId", dpsId);
+    if (assignmentId) params.set("assignmentId", assignmentId);
+    if (attemptId) params.set("attemptId", attemptId);
+    params.set("tab", "lesson-insights");
+    router.push(`/admin/assignments/student/${encodeURIComponent(studentCodeOf(row))}?${params.toString()}`);
+  };
 
   const approve = async (rowsToApprove: AnyRow[]) => {
     if (!rowsToApprove.length) return;
@@ -373,16 +420,98 @@ export default function AdminPracticeAssignmentsPage() {
           </div>
         ) : null}
 
-        {awaitingRows.length || approvalMessage ? (
-          <ReattemptApprovalQueue
-            Rows={awaitingRows}
-            Mode="admin"
-            BusyKeys={approvalBusy}
-            OnApprove={approve}
-            OnOpenStudent={(row) => router.push(`/admin/assignments/student/${encodeURIComponent(studentCodeOf(row))}`)}
-          />
-        ) : null}
+        <div className="math-tab-strip" role="tablist" aria-label="Practice Control sections">
+          <button
+            type="button"
+            role="tab"
+            className={`math-role-tab math-admin-tab-force ${activeTab === "overview" ? "math-role-tab-active math-admin-tab-force-selected" : ""}`}
+            aria-selected={activeTab === "overview"}
+            data-active={activeTab === "overview" ? "true" : "false"}
+            onClick={() => setActiveTab("overview")}
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={`math-role-tab math-admin-tab-force ${activeTab === "awaiting-approval" ? "math-role-tab-active math-admin-tab-force-selected" : ""}`}
+            aria-selected={activeTab === "awaiting-approval"}
+            data-active={activeTab === "awaiting-approval" ? "true" : "false"}
+            onClick={() => setActiveTab("awaiting-approval")}
+          >
+            Awaiting Approval ({allAwaitingRows.length})
+          </button>
+        </div>
 
+        {activeTab === "awaiting-approval" ? (
+          <>
+            <div className="math-operation-panel">
+              <div>
+                <p className="math-block-header"><Hourglass size={14} />Re-Attempt Approvals</p>
+                <h2 className="text-2xl font-black">Awaiting Approval</h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {approvalFiltered
+                    ? `Showing ${awaitingRows.length} of ${allAwaitingRows.length} DPS waiting for approval.`
+                    : `${allAwaitingRows.length} DPS waiting for approval.`}
+                </p>
+              </div>
+              <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_210px_180px_180px]">
+                <div className="relative">
+                  <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    className="math-input pl-11"
+                    value={approvalSearch}
+                    onChange={(e) => setApprovalSearch(e.target.value)}
+                    placeholder="Search Students Or DPS"
+                    aria-label="Search waiting re-attempts"
+                  />
+                </div>
+                <select className="math-input" value={approvalTeacher} onChange={(e) => setApprovalTeacher(e.target.value)} title="Filter by teacher" aria-label="Filter waiting re-attempts by teacher">
+                  <option value="" disabled>Choose Teacher</option>
+                  <option value="ALL">All Teachers</option>
+                  {approvalTeacherOptions.map(([teacherKey, teacherLabel]) => (
+                    <option key={teacherKey} value={teacherKey}>{teacherLabel}</option>
+                  ))}
+                </select>
+                <select
+                  className="math-input"
+                  value={approvalModule}
+                  onChange={(e) => {
+                    setApprovalModule(e.target.value);
+                    setApprovalLevel("");
+                  }}
+                  title="Filter by module"
+                  aria-label="Filter waiting re-attempts by module"
+                >
+                  <option value="" disabled>Choose Module</option>
+                  <option value="ALL">All Modules</option>
+                  {approvalModuleOptions.map((moduleCode) => (
+                    <option key={moduleCode} value={moduleCode}>{moduleCode}</option>
+                  ))}
+                </select>
+                <select className="math-input" value={approvalLevel} onChange={(e) => setApprovalLevel(e.target.value)} title="Filter by level" aria-label="Filter waiting re-attempts by level">
+                  <option value="" disabled>Choose Level</option>
+                  <option value="ALL">All Levels</option>
+                  {approvalLevelOptions.map((levelCode) => (
+                    <option key={levelCode} value={levelCode}>{levelCode}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {awaitingRows.length || !approvalFiltered ? (
+              <ReattemptApprovalQueue
+                Rows={awaitingRows}
+                Mode="admin"
+                BusyKeys={approvalBusy}
+                OnApprove={approve}
+                OnOpenStudent={openStudentAtDps}
+              />
+            ) : (
+              <EmptyState message="No waiting re-attempts match these filters." />
+            )}
+          </>
+        ) : (
+        <>
         <div className="math-operation-panel">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -509,6 +638,8 @@ export default function AdminPracticeAssignmentsPage() {
             <EmptyState message="Adjust the search or filters to find student records." />
           )}
         </div>
+        </>
+        )}
       </section>
     </AppShell>
   );
