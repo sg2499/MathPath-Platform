@@ -9679,24 +9679,27 @@ html.dark .math-role-admin .math-admin-parent-report-grid-header :is(div, span) 
      name/code stack. SortableHeader's truncate+tooltip is still the
      fallback below that ~1220px line -- clean degradation, never the old
      raw-overflow collision -- not the primary plan. */
+  /* 2026-10-14: Attention and Lesson were cutting off their pills ("Needs
+     Re-Attempt", "Lesson 22 · 0/5 Cleared"); the room came from Student
+     and the three small number columns. */
   .math-teacher-students-directory-table th:nth-child(1),
-  .math-teacher-students-directory-table td:nth-child(1) { width: 20%; }
+  .math-teacher-students-directory-table td:nth-child(1) { width: 18%; }
   .math-teacher-students-directory-table th:nth-child(2),
   .math-teacher-students-directory-table td:nth-child(2) { width: 7%; }
   .math-teacher-students-directory-table th:nth-child(3),
-  .math-teacher-students-directory-table td:nth-child(3) { width: 12%; }
+  .math-teacher-students-directory-table td:nth-child(3) { width: 15%; }
   .math-teacher-students-directory-table th:nth-child(4),
-  .math-teacher-students-directory-table td:nth-child(4) { width: 9%; }
+  .math-teacher-students-directory-table td:nth-child(4) { width: 8%; }
   .math-teacher-students-directory-table th:nth-child(5),
-  .math-teacher-students-directory-table td:nth-child(5) { width: 9%; }
+  .math-teacher-students-directory-table td:nth-child(5) { width: 8%; }
   .math-teacher-students-directory-table th:nth-child(6),
-  .math-teacher-students-directory-table td:nth-child(6) { width: 9%; }
+  .math-teacher-students-directory-table td:nth-child(6) { width: 8%; }
   .math-teacher-students-directory-table th:nth-child(7),
-  .math-teacher-students-directory-table td:nth-child(7) { width: 13%; }
+  .math-teacher-students-directory-table td:nth-child(7) { width: 12%; }
   .math-teacher-students-directory-table th:nth-child(8),
   .math-teacher-students-directory-table td:nth-child(8) { width: 10%; }
   .math-teacher-students-directory-table th:nth-child(9),
-  .math-teacher-students-directory-table td:nth-child(9) { width: 11%; }
+  .math-teacher-students-directory-table td:nth-child(9) { width: 14%; }
 
   .math-teacher-students-directory-table .math-badge {
     padding-left: 0.55rem;
@@ -13392,3 +13395,83 @@ html.dark .math-role-student .math-student-metric-card:hover {
   .mp-podium-crest, .mp-podium-label, .mp-podium-name { animation-duration: 0.01s; animation-delay: 0s; }
   .mp-podium-sweep { display: none; }
 }
+
+/* === DPS status and tries pills (2026-10-14) ===
+   One look in every role: the colour of the state itself (green cleared,
+   purple re-attempt open or approved, blue in progress, red awaiting
+   approval, amber not started or 2 of 3 tries used, grey history), in light
+   and dark mode alike (the platform keeps chips light on dark pages). Long
+   values wrap inside the pill, centred, so nothing runs out of it. */
+.mp-status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.375rem;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+}
+.mp-status-stack[data-align="start"] { margin-inline: 0 auto; }
+.mp-status-stack[data-align="end"] { margin-inline: auto 0; }
+html .mp-state-pill:not(#mp-state) {
+  -webkit-text-fill-color: currentColor !important;
+  font-size: 0.75rem !important;
+  font-weight: 900 !important;
+  line-height: 1.2 !important;
+  font-family: inherit;
+}
+html .mp-state-pill:not(#mp-state) * {
+  font: inherit !important;
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html .mp-state-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: 1.625rem;
+  padding: 0.3125rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.8125rem;
+  background: #f8fafc;
+  color: #475569;
+}
+html .mp-state-pill[data-tone="slate"]:not(#mp-state) {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+html .mp-state-pill {
+  -webkit-text-fill-color: currentColor;
+  font-size: 0.75rem;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  text-align: center;
+  white-space: normal;
+  text-wrap: balance;
+  overflow-wrap: normal;
+  word-break: normal;
+  box-shadow: none;
+}
+.mp-status-stack > .mp-state-pill { width: 100%; }
+html .mp-state-pill[data-tone="green"]:not(#mp-state) { background: #ecfdf5 !important; border-color: #a7f3d0 !important; color: #047857 !important; }
+html .mp-state-pill[data-tone="red"]:not(#mp-state) { background: #fff1f2 !important; border-color: #fecdd3 !important; color: #be123c !important; }
+html .mp-state-pill[data-tone="amber"]:not(#mp-state) { background: #fffbeb !important; border-color: #fde68a !important; color: #b45309 !important; }
+html .mp-state-pill[data-tone="blue"]:not(#mp-state),
+html .mp-state-pill[data-tone="cyan"]:not(#mp-state) { background: #eff6ff !important; border-color: #bfdbfe !important; color: #1d4ed8 !important; }
+html .mp-state-pill[data-tone="purple"]:not(#mp-state) { background: #f5f3ff !important; border-color: #ddd6fe !important; color: #6d28d9 !important; }
+html.dark .mp-state-pill { box-shadow: 0 0 0 1px rgb(255 255 255 / 0.04); }
+
+/* The DPS a Review button or notification opened (2026-10-14): a soft
+   highlight for a few seconds after the page scrolls to it. */
+.mp-dps-row-focus {
+  position: relative;
+  background-color: rgb(250 204 21 / 0.16) !important;
+  box-shadow: inset 4px 0 0 #eab308;
+  transition: background-color 600ms ease, box-shadow 600ms ease;
+}
+html.dark .mp-dps-row-focus { background-color: rgb(250 204 21 / 0.12) !important; }

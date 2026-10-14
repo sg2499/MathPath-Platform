@@ -97,7 +97,9 @@ export function StudentFeesPanel() {
     if (id && id !== openStudent.current) {
       openStudent.current = id;
       setStudentId(id);
-      setTab("unpaid");
+      // 2026-10-14: the open view (?view=) survives a refresh.
+      const view = searchParams.get("view");
+      setTab(view === "statement" || view === "payments" || view === "invoices" ? view : "unpaid");
       setSaved(null);
       setNotice(null);
     }
@@ -304,7 +306,7 @@ export function StudentFeesPanel() {
                 ["payments", `Payments (${account.payments.length})`],
                 ["invoices", `All invoices (${account.invoices.length})`],
               ] as [Tab, string][]).map(([key, label]) => (
-                <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${tab === key ? "is-active math-admin-tab-force-selected" : ""}`}>
+                <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => { setTab(key); ReplaceAddressKeepingTab({ studentId, view: key === "unpaid" ? null : key }); }} className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${tab === key ? "is-active math-admin-tab-force-selected" : ""}`}>
                   {label}
                 </button>
               ))}

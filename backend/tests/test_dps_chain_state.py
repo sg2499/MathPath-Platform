@@ -263,3 +263,42 @@ def test_timed_out_sheet_is_settled_before_the_state_is_read(db, world, monkeypa
     monkeypatch.setattr(attempt_service, "submit_attempt", fake_submit)
     s = _state(db)
     assert (s.state, s.label, s.tries_used) == (chain.REATTEMPT_OPEN, "Re-Attempt 1 Open", 1)
+
+
+def test_student_results_carry_the_same_state_as_the_trackers(db, world):
+    """2026-10-14: the student's own Lesson Insights reads the same shared
+    state: one current row per DPS with its real status, history rows as
+    history, and the same buckets the teacher and admin count."""
+    from app.api import routes_student
+
+    _chain(db, "s1", "d1", [40, 50, 60], manual_last=True)  # awaiting approval
+    _chain(db, "s1", "d2", [40, None])  # Re-Attempt 1 open
+    _chain(db, "s1", "d3", [40, 85])  # cleared on Re-Attempt 1
+    approved = _chain(db, "s1", "d4", [40, 50, 60], manual_last=True)
+    _assign(db, "s1", "d4", 3, "MANUAL_RETRY", approved[0].id, minutes=200)  # approved extra, open
+    _chain(db, "s1", "d5", [])  # not started
+    db.commit()
+
+    student = db.get(Student, "s1")
+    rows = [row for row in routes_student.student_results(db=db, student=student)["results"] if row.get("dpsId")]
+    by_dps: dict[str, list[dict]] = {}
+    for row in rows:
+        by_dps.setdefault(row["dpsId"], []).append(row)
+
+    def current(dps):
+        found = [row for row in by_dps[dps] if row.get("isCurrentChainRow")]
+        assert len(found) == 1, (dps, by_dps[dps])
+        return found[0]
+
+    assert current("d1")["chainRowLabel"] == "Awaiting Admin Approval"
+    assert current("d1")["attemptId"]  # the third try's result row
+    assert current("d1")["dpsChain"]["triesText"] == "3 of 3 used"
+    assert current("d2")["chainRowLabel"] == "Re-Attempt 1 Open" and current("d2")["attemptId"] is None
+    assert current("d3")["chainRowLabel"] == "Cleared On Re-Attempt 1"
+    assert current("d4")["chainRowLabel"] == "Approved Re-Attempt 3 Open"
+    assert current("d4")["dpsChain"]["triesText"] == "3 of 4 used · 1 approved"
+    assert current("d5")["chainRowLabel"] == "Not Started"
+    history = [row for row in by_dps["d1"] if not row.get("isCurrentChainRow")]
+    assert [row["chainRowLabel"] for row in history] == ["Below Benchmark", "Below Benchmark"]
+    buckets = {dps: current(dps)["dpsChain"]["bucket"] for dps in by_dps}
+    assert buckets == {"d1": "NEEDS_REATTEMPT", "d2": "NEEDS_REATTEMPT", "d3": "CLEARED", "d4": "NEEDS_REATTEMPT", "d5": "PENDING"}

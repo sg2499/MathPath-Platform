@@ -23,7 +23,8 @@ import type { LevelItem, ModuleItem } from "@/types/curriculum";
 import type { AdminStudent } from "@/types/student";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Archive, CheckCircle2, Eye, FilePenLine, FilePlus, Loader2, PackageOpen, Plus, Search, Send, Settings2, ShieldCheck, SlidersHorizontal, Target, Trash2, UserCheck, UsersRound } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useUrlTabState } from "@/hooks/useUrlTabState";
 import type { ReactNode } from "react";
 
 const DefaultQuestionCount = 40;
@@ -102,7 +103,17 @@ function SectionTitle({ kicker, title, description, icon }: { kicker: string; ti
   );
 }
 
+const STUDIO_TABS = ["CREATE", "MANAGE"] as const;
+
 export default function AdminCompetitionMockStudioPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminCompetitionMockStudioPageContent />
+    </Suspense>
+  );
+}
+
+function AdminCompetitionMockStudioPageContent() {
   const Ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const QueryClient = useQueryClient();
 
@@ -124,7 +135,8 @@ export default function AdminCompetitionMockStudioPage() {
   const [AssignmentInstructions, SetAssignmentInstructions] = useState("");
   const [DeleteMockId, SetDeleteMockId] = useState<string | null>(null);
   const [ArchiveMockId, SetArchiveMockId] = useState<string | null>(null);
-  const [ActiveStudioTab, SetActiveStudioTab] = useState<"CREATE" | "MANAGE">("CREATE");
+  // 2026-10-14: the tab lives in the page address, so a refresh keeps it.
+  const [ActiveStudioTab, SetActiveStudioTab] = useUrlTabState<"CREATE" | "MANAGE">("tab", STUDIO_TABS, "CREATE");
   const [ManageSearch, SetManageSearch] = useState("");
   const [ManageStatusFilter, SetManageStatusFilter] = useState("ALL");
   // ManageLevelFilterId is deliberately independent from SelectedLevelId

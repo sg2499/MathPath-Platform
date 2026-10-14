@@ -448,7 +448,7 @@ export default function StudentResultsPage() {
                           key={`${ModuleItem.moduleCode}-${LevelCode}`}
                           type="button"
                           className={`w-full rounded-[24px] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${IsCurrentLevel ? "border-blue-200 bg-blue-50/60" : "border-slate-100 bg-slate-50/75 dark:border-slate-800 dark:bg-slate-900/70"}`}
-                          onClick={() => Router.push(`/student/results/module/${encodeURIComponent(ModuleItem.moduleCode)}?level=${encodeURIComponent(LevelCode)}`)}
+                          onClick={() => Router.push(`/student/results/module/${encodeURIComponent(ModuleItem.moduleCode)}?level=${encodeURIComponent(LevelCode)}&tab=lesson-insights`)}
                           title="Open level progress details"
                         >
                           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

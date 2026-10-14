@@ -21,24 +21,41 @@ import { BuildTargetUrl } from "@/components/common/notificationDisplay";
 import { CountText, GroupNotificationsByDay, NotificationListItem, NotificationTabBar } from "@/components/common/NotificationParts";
 import { BellRing, CheckCheck, Inbox, Loader2, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useUrlParamState } from "@/hooks/useUrlTabState";
 
 const PAGE_SIZE = 30;
 
-export function NotificationCenterPage({ Roles }: { Roles: ("ADMIN" | "SUPER_ADMIN" | "TEACHER" | "STUDENT")[] }) {
+type CenterRole = "ADMIN" | "SUPER_ADMIN" | "TEACHER" | "STUDENT";
+
+export function NotificationCenterPage({ Roles }: { Roles: CenterRole[] }) {
+  return (
+    <Suspense fallback={null}>
+      <NotificationCenterContent Roles={Roles} />
+    </Suspense>
+  );
+}
+
+function NotificationCenterContent({ Roles }: { Roles: CenterRole[] }) {
   const Ready = useProtectedPage(Roles);
   const Router = useRouter();
   const User = getStoredUser();
-  const [Tab, SetTab] = useState<NotificationTabKey>("ALL");
+  // 2026-10-14: the tab and every filter live in the page address, so a
+  // refresh (or Back from a notification) reopens the same view.
+  const [TabParam, SetTabParam] = useUrlParamState("tab", "ALL");
+  const Tab = (TabParam || "ALL") as NotificationTabKey;
+  const SetTab = (Next: NotificationTabKey) => SetTabParam(Next);
   const [Tabs, SetTabs] = useState<NotificationTab[]>([]);
   const [Items, SetItems] = useState<NotificationRecord[]>([]);
   const [Total, SetTotal] = useState(0);
   const [HasMore, SetHasMore] = useState(false);
-  const [UnreadOnly, SetUnreadOnly] = useState(false);
-  const [SearchInput, SetSearchInput] = useState("");
-  const [SearchTerm, SetSearchTerm] = useState("");
-  const [DateFrom, SetDateFrom] = useState("");
-  const [DateTo, SetDateTo] = useState("");
+  const [UnreadParam, SetUnreadParam] = useUrlParamState("unread", "");
+  const UnreadOnly = UnreadParam === "1";
+  const SetUnreadOnly = (Next: boolean) => SetUnreadParam(Next ? "1" : "");
+  const [SearchTerm, SetSearchTerm] = useUrlParamState("q", "");
+  const [SearchInput, SetSearchInput] = useState(SearchTerm);
+  const [DateFrom, SetDateFrom] = useUrlParamState("from", "");
+  const [DateTo, SetDateTo] = useUrlParamState("to", "");
   const [Loading, SetLoading] = useState(false);
   const [LoadError, SetLoadError] = useState("");
   const [Marking, SetMarking] = useState(false);
@@ -46,8 +63,11 @@ export function NotificationCenterPage({ Roles }: { Roles: ("ADMIN" | "SUPER_ADM
   const SentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const Timer = window.setTimeout(() => SetSearchTerm(SearchInput.trim()), 350);
+    const Timer = window.setTimeout(() => {
+      if (SearchInput.trim() !== SearchTerm) SetSearchTerm(SearchInput.trim());
+    }, 350);
     return () => window.clearTimeout(Timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [SearchInput]);
 
   const Load = useCallback(

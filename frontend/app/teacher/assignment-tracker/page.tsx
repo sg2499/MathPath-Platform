@@ -15,6 +15,7 @@ import {
   type SortState as SharedSortState,
 } from "@/lib/sortable";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
+import { useUrlParamState } from "@/hooks/useUrlTabState";
 import { apiErrorMessage } from "@/lib/api";
 import { getTeacherAssignmentTracker } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
@@ -30,7 +31,7 @@ import {
   Trophy,
   UsersRound,
 } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   MATHPATH_ACTIVITY_TIMESTAMP_KEYS,
   getFirstMathPathTimestamp,
@@ -54,7 +55,8 @@ import {
   currentWorkRows,
   chainBucketOf,
   chainStatusOf,
-  ChainTriesPill,
+  ChainStatusStack,
+  StatePill,
   hasDpsChain,
   isAwaitingApproval,
   isChainCurrentRow,
@@ -506,35 +508,31 @@ export default function TeacherPracticeTrackerPage() {
 function TeacherPracticeTrackerContent() {
   const Ready = useProtectedPage(["TEACHER"]);
   const Router = useRouter();
-  const Pathname = usePathname();
-  const SearchParams = useSearchParams();
-  const [SearchValue, SetSearchValue] = useState("");
-  const [StudentFilterValue, SetStudentFilterValue] =
-    useState<StudentFilter>("");
-  const [ModuleFilterValue, SetModuleFilterValue] = useState<ModuleFilter>("");
-  const [StatusFilterValue, SetStatusFilterValue] = useState<StatusFilter>("");
-  const [LevelFilterValue, SetLevelFilterValue] = useState<LevelFilter>("");
-  const [PerformanceFilterValue, SetPerformanceFilterValue] =
-    useState<PerformanceFilter>("");
-  const [ActiveTab, SetActiveTab] = useState<TrackerTab>(() =>
-    NormalizeTrackerTab(SearchParams.get("tab")),
-  );
-  const [ExpandedViewLessonFilterValue, SetExpandedViewLessonFilterValue] =
-    useState<string>("");
+  // 2026-10-14 (Shailesh: a refresh must reopen the same tab with the same
+  // filters): the tab and every filter live in the page address.
+  const [SearchValue, SetSearchValue] = useUrlParamState("q", "");
+  const [StudentFilterRaw, SetStudentFilterRaw] = useUrlParamState("student", "");
+  const [ModuleFilterRaw, SetModuleFilterRaw] = useUrlParamState("module", "");
+  const [StatusFilterRaw, SetStatusFilterRaw] = useUrlParamState("status", "");
+  const [LevelFilterRaw, SetLevelFilterRaw] = useUrlParamState("level", "");
+  const [PerformanceFilterRaw, SetPerformanceFilterRaw] = useUrlParamState("performance", "");
+  const StudentFilterValue = StudentFilterRaw as StudentFilter;
+  const ModuleFilterValue = ModuleFilterRaw as ModuleFilter;
+  const StatusFilterValue = StatusFilterRaw as StatusFilter;
+  const LevelFilterValue = LevelFilterRaw as LevelFilter;
+  const PerformanceFilterValue = PerformanceFilterRaw as PerformanceFilter;
+  const SetStudentFilterValue = (Next: StudentFilter) => SetStudentFilterRaw(String(Next));
+  const SetModuleFilterValue = (Next: ModuleFilter) => SetModuleFilterRaw(String(Next));
+  const SetStatusFilterValue = (Next: StatusFilter) => SetStatusFilterRaw(String(Next));
+  const SetLevelFilterValue = (Next: LevelFilter) => SetLevelFilterRaw(String(Next));
+  const SetPerformanceFilterValue = (Next: PerformanceFilter) => SetPerformanceFilterRaw(String(Next));
+  const [TabParam, SetTabParam] = useUrlParamState("tab", "");
+  const ActiveTab = NormalizeTrackerTab(TabParam);
+  const [ExpandedViewLessonFilterValue, SetExpandedViewLessonFilterValue] = useUrlParamState("lesson", "");
 
   const ChangeActiveTab = useCallback((NextTab: TrackerTab) => {
-    SetActiveTab(NextTab);
-
-    const NextParams = new URLSearchParams(SearchParams.toString());
-    if (NextTab === "OVERVIEW") {
-      NextParams.delete("tab");
-    } else {
-      NextParams.set("tab", TabUrlValue(NextTab));
-    }
-
-    const NextQuery = NextParams.toString();
-    Router.replace(`${Pathname}${NextQuery ? `?${NextQuery}` : ""}`, { scroll: false });
-  }, [Pathname, Router, SearchParams]);
+    SetTabParam(NextTab === "OVERVIEW" ? "" : TabUrlValue(NextTab));
+  }, [SetTabParam]);
 
   const Query = useQuery({
     queryKey: ["teacher-tracker"],
@@ -635,13 +633,26 @@ function TeacherPracticeTrackerContent() {
       ),
     [Students],
   );
-  const OpenStudent = (StudentCode: string) => {
+  // 2026-10-14 (Shailesh: Review must land on that lesson and DPS, not the
+  // student's overview): a row's Review opens the student's Lesson Insights
+  // at that DPS (scrolled to and highlighted); a student-level Review still
+  // opens the overview.
+  const OpenStudent = (StudentCode: string, Row?: AnyRow) => {
     const Params = new URLSearchParams();
     if (ModuleFilterValue && ModuleFilterValue !== "ALL") {
       Params.set("moduleCode", ModuleFilterValue);
     }
     if (LevelFilterValue && LevelFilterValue !== "ALL") {
       Params.set("levelCode", LevelFilterValue);
+    }
+    if (Row) {
+      const DpsId = String(Row.dpsId || Row.dps_id || "");
+      const AssignmentId = String(Row.assignmentId || "");
+      const AttemptId = String(Row.attemptId || Row.latestAttemptId || "");
+      if (DpsId) Params.set("dpsId", DpsId);
+      if (AssignmentId) Params.set("assignmentId", AssignmentId);
+      if (AttemptId) Params.set("attemptId", AttemptId);
+      Params.set("tab", "lesson-insights");
     }
     const QueryString = Params.toString();
     Router.push(
@@ -876,7 +887,7 @@ function TeacherPracticeTrackerContent() {
             ) : ActiveTab === "ACTION_QUEUE" ? (
               <ActionQueueTab Rows={ActionRows} OnOpenStudent={OpenStudent} />
             ) : ActiveTab === "AWAITING_APPROVAL" ? (
-              <ReattemptApprovalQueue Rows={AwaitingRows} Mode="teacher" OnOpenStudent={(Row) => OpenStudent(studentCodeOf(Row))} />
+              <ReattemptApprovalQueue Rows={AwaitingRows} Mode="teacher" OnOpenStudent={(Row) => OpenStudent(studentCodeOf(Row), Row)} />
             ) : ActiveTab === "STUDENT_REVIEW" ? (
               <StudentReviewTab
                 Students={Students}
@@ -958,7 +969,7 @@ function OverviewTab({
   Rows: AnyRow[];
   ActionRows: AnyRow[];
   ExcellenceGroups: ExcellenceHighlightGroup[];
-  OnOpenStudent: (StudentCode: string) => void;
+  OnOpenStudent: (StudentCode: string, Row?: AnyRow) => void;
   OnOpenActionQueue: () => void;
   OnOpenExcellenceHighlights: () => void;
   OnOpenRecentPractice: () => void;
@@ -1029,7 +1040,7 @@ function CompactPracticeList({
   Empty: string;
   Count: number;
   Tone: "blue" | "red";
-  OnOpenStudent: (StudentCode: string) => void;
+  OnOpenStudent: (StudentCode: string, Row?: AnyRow) => void;
   OnViewAll?: () => void;
 }) {
   return (
@@ -1080,7 +1091,7 @@ function CompactPracticeRow({
   OnOpenStudent,
 }: {
   Row: AnyRow;
-  OnOpenStudent: (StudentCode: string) => void;
+  OnOpenStudent: (StudentCode: string, Row?: AnyRow) => void;
 }) {
   const StudentCode = studentCodeOf(Row);
   const RowAccuracy = accuracy(Row);
@@ -1103,7 +1114,7 @@ function CompactPracticeRow({
           {ChainStatus && isChainCurrentRow(Row) && chainBucketOf(Row) !== "CLEARED" ? (
             <>
               {isCompleted(Row) ? <Chip tone="red">{RowAccuracy}%</Chip> : null}
-              <Chip tone={ChainStatus.tone}>{ChainStatus.label}</Chip>
+              <StatePill tone={ChainStatus.tone}>{ChainStatus.label}</StatePill>
             </>
           ) : (
             <Chip
@@ -1123,7 +1134,7 @@ function CompactPracticeRow({
           <StandardViewButton
             label="Review"
             tooltip="Open student practice review"
-            onClick={() => OnOpenStudent(StudentCode)}
+            onClick={() => OnOpenStudent(StudentCode, Row)}
             compact
           />
         </div>
@@ -1140,7 +1151,7 @@ function ExcellenceHighlightsList({
 }: {
   Groups: ExcellenceHighlightGroup[];
   TotalCount: number;
-  OnOpenStudent: (StudentCode: string) => void;
+  OnOpenStudent: (StudentCode: string, Row?: AnyRow) => void;
   OnViewAll?: () => void;
 }) {
   return (
@@ -1205,7 +1216,7 @@ function ExcellenceHighlightsList({
                       <StandardViewButton
                         label="Review"
                         tooltip="Open student practice review"
-                        onClick={() => OnOpenStudent(studentCodeOf(Row))}
+                        onClick={() => OnOpenStudent(studentCodeOf(Row), Row)}
                         compact
                       />
                     </div>
@@ -1298,7 +1309,7 @@ function ExpandedExcellenceHighlightsView({
   LessonFilterValue: string;
   OnLessonFilterChange: (Value: string) => void;
   OnBack: () => void;
-  OnOpenStudent: (StudentCode: string) => void;
+  OnOpenStudent: (StudentCode: string, Row?: AnyRow) => void;
 }) {
   return (
     <div>
@@ -1335,7 +1346,7 @@ function ExpandedRecentPracticeView({
   LessonFilterValue: string;
   OnLessonFilterChange: (Value: string) => void;
   OnBack: () => void;
-  OnOpenStudent: (StudentCode: string) => void;
+  OnOpenStudent: (StudentCode: string, Row?: AnyRow) => void;
 }) {
   const OrderedRecentRows = [...Rows].sort(
     (FirstRow, SecondRow) =>
@@ -1435,7 +1446,7 @@ function ActionQueueTab({
   OnOpenStudent,
 }: {
   Rows: AnyRow[];
-  OnOpenStudent: (StudentCode: string) => void;
+  OnOpenStudent: (StudentCode: string, Row?: AnyRow) => void;
 }) {
   const [SortStateValue, SetSortStateValue] = useState<SortState<TeacherActionQueueSortKey>>(null);
   const SortedRows = useMemo(
@@ -1485,7 +1496,7 @@ function ActionQueueTab({
                     <button
                       type="button"
                       className="truncate text-left text-sm font-black !text-slate-950 transition hover:!text-blue-700 dark:!text-white"
-                      onClick={() => OnOpenStudent(StudentCode)}
+                      onClick={() => OnOpenStudent(StudentCode, Row)}
                     >
                       {studentNameOf(Row)}
                     </button>
@@ -1514,8 +1525,10 @@ function ActionQueueTab({
                       {RowCompleted ? `${accuracy(Row)}%` : "—"}
                     </Chip>
                   </div>
-                  <div className="flex flex-col items-center justify-center gap-1">
-                    <Chip
+                  <div className="min-w-0">
+                    <ChainStatusStack
+                      row={Row}
+                      label={StatusText}
                       tone={
                         ChainStatus
                           ? ChainStatus.tone
@@ -1525,16 +1538,13 @@ function ActionQueueTab({
                               ? "amber"
                               : "red"
                       }
-                    >
-                      {StatusText}
-                    </Chip>
-                    <ChainTriesPill row={Row} />
+                    />
                   </div>
                   <div className="flex justify-end">
                     <StandardViewButton
                       label="Review"
                       tooltip="Open student practice review"
-                      onClick={() => OnOpenStudent(StudentCode)}
+                      onClick={() => OnOpenStudent(StudentCode, Row)}
                       compact
                     />
                   </div>
@@ -1553,7 +1563,7 @@ function StudentReviewTab({
   OnOpenStudent,
 }: {
   Students: StudentNode[];
-  OnOpenStudent: (StudentCode: string) => void;
+  OnOpenStudent: (StudentCode: string, Row?: AnyRow) => void;
 }) {
   const [SortStateValue, SetSortStateValue] = useState<SortState<TeacherStudentReviewSortKey>>(null);
   const SortedStudents = useMemo(

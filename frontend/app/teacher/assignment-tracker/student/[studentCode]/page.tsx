@@ -32,6 +32,13 @@ import {
   chainBucketOf,
   chainStatusOf,
   ChainTriesPill,
+  ChainStatusStack,
+  useFittedTableColumns,
+  StatePill,
+  NotAttemptedText,
+  dpsRowTargetProps,
+  useDpsFocusScroll,
+  latestAttemptIdForDps,
   hasDpsChain,
   isAwaitingApproval,
   isChainCurrentRow,
@@ -55,6 +62,7 @@ import {
   uniquePendingConceptCount,
 } from "@/components/common/DetailWorkspaceViews";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
+import { useUrlParamState } from "@/hooks/useUrlTabState";
 import { apiErrorMessage } from "@/lib/api";
 import { getTeacherAssignmentTracker } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
@@ -76,14 +84,14 @@ import {
   Trophy,
   UserRound,
 } from "lucide-react";
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   MATHPATH_ACTIVITY_TIMESTAMP_KEYS,
   getFirstMathPathTimestamp,
   mathPathTimestampValue,
 } from "@/lib/date";
 import type { ReactNode } from "react";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 
 
@@ -559,16 +567,23 @@ export default function TeacherStudentTrackerWorkspacePage() {
 function TeacherStudentTrackerWorkspacePageContent() {
   const Ready = useProtectedPage(["TEACHER"]);
   const Router = useRouter();
-  const Pathname = usePathname();
   const Params = useParams();
   const SearchParams = useSearchParams();
   const StudentCode = decodeURIComponent(String(Params.studentCode || ""));
-  const [ActiveTab, SetActiveTab] = useState<WorkspaceTab>(() => SearchParams.get("tab") === "lesson-insights" ? "LESSON_INSIGHTS" : "OVERVIEW");
-  const [SearchValue, SetSearchValue] = useState("");
-  const [LessonFilterValue, SetLessonFilterValue] = useState<LessonFilter>("");
-  const [StatusFilterValue, SetStatusFilterValue] = useState<StatusFilter>("");
-  const [PerformanceFilterValue, SetPerformanceFilterValue] =
-    useState<PerformanceFilter>("");
+  // 2026-10-14: the tab and every filter live in the page address, so a
+  // refresh reopens exactly this view.
+  const [TabParam, SetTabParam] = useUrlParamState("tab", "");
+  const ActiveTab: WorkspaceTab = TabParam === "lesson-insights" ? "LESSON_INSIGHTS" : "OVERVIEW";
+  const [SearchValue, SetSearchValue] = useUrlParamState("q", "");
+  const [LessonFilterRaw, SetLessonFilterValue] = useUrlParamState("lesson", "");
+  const [StatusFilterRaw, SetStatusFilterRaw] = useUrlParamState("status", "");
+  const [PerformanceFilterRaw, SetPerformanceFilterRaw] = useUrlParamState("performance", "");
+  const LessonFilterValue = LessonFilterRaw as LessonFilter;
+  const StatusFilterValue = StatusFilterRaw as StatusFilter;
+  const PerformanceFilterValue = PerformanceFilterRaw as PerformanceFilter;
+  const SetStatusFilterValue = (Next: StatusFilter) => SetStatusFilterRaw(String(Next));
+  const SetPerformanceFilterValue = (Next: PerformanceFilter) => SetPerformanceFilterRaw(String(Next));
+  const FocusApplied = useRef("");
   const [ExpandedModuleKeys, SetExpandedModuleKeys] = useState<Set<string>>(
     new Set(),
   );
@@ -581,13 +596,8 @@ function TeacherStudentTrackerWorkspacePageContent() {
 
 
   const ChangeWorkspaceTab = useCallback((NextTab: WorkspaceTab) => {
-    SetActiveTab(NextTab);
-    const NextParams = new URLSearchParams(SearchParams.toString());
-    if (NextTab === "OVERVIEW") NextParams.delete("tab");
-    else NextParams.set("tab", "lesson-insights");
-    const NextQuery = NextParams.toString();
-    Router.replace(`${Pathname}${NextQuery ? `?${NextQuery}` : ""}`, { scroll: false });
-  }, [Pathname, Router, SearchParams]);
+    SetTabParam(NextTab === "OVERVIEW" ? "overview" : "lesson-insights");
+  }, [SetTabParam]);
 
   const Query = useQuery({
     queryKey: ["teacher-tracker"],
@@ -641,6 +651,20 @@ function TeacherStudentTrackerWorkspacePageContent() {
       );
     });
   }, [SearchParams, StudentRows]);
+  // The DPS's latest submitted attempt (the one its status is about), and
+  // its status, for the banner.
+  const QuickTargetAttemptId = useMemo(() => (QuickTarget ? latestAttemptIdForDps(StudentRows, QuickTarget) : ""), [QuickTarget, StudentRows]);
+  const QuickTargetStatus = QuickTarget ? chainStatusOf(QuickTarget)?.label || "" : "";
+  useDpsFocusScroll(
+    QuickTarget || SearchParams.get("dpsId") || SearchParams.get("assignmentId") || SearchParams.get("attemptId")
+      ? {
+          dpsId: SearchParams.get("dpsId") || String(QuickTarget?.dpsId || ""),
+          assignmentId: SearchParams.get("assignmentId") || "",
+          attemptId: SearchParams.get("attemptId") || "",
+        }
+      : null,
+    ActiveTab === "LESSON_INSIGHTS" && StudentRows.length > 0,
+  );
   const TargetDpsCount = Number(
     SearchParams.get("dpsCount") || SearchParams.get("assignmentCount") || 0,
   );
@@ -713,8 +737,13 @@ function TeacherStudentTrackerWorkspacePageContent() {
       SearchParams.has("assignmentId") ||
       SearchParams.has("attemptId");
     if (!ShouldOpenLessonInsights) return;
+    // Once per target: moving to Overview afterwards, or a refetch, is never
+    // undone by this.
+    const FocusKey = ["lessonId", "dpsId", "assignmentId", "attemptId", "moduleCode", "levelCode"].map((Key) => SearchParams.get(Key) || "").join("|") + `|${TargetAction}`;
+    if (FocusApplied.current === FocusKey) return;
+    FocusApplied.current = FocusKey;
 
-    ChangeWorkspaceTab("LESSON_INSIGHTS");
+    if (!SearchParams.get("tab")) ChangeWorkspaceTab("LESSON_INSIGHTS");
 
     const AssignmentId = SearchParams.get("assignmentId") || "";
     const AttemptId = SearchParams.get("attemptId") || "";
@@ -854,13 +883,12 @@ function TeacherStudentTrackerWorkspacePageContent() {
               description={
                 HasGroupedPracticeTarget
                   ? `${StudentName} · ${String(QuickTarget.moduleCode || "Module")} · ${String(QuickTarget.levelCode || "Level")} has ${TargetDpsCount} assigned DPS records in focus.`
-                  : `${StudentName} · ${String(QuickTarget.moduleCode || "Module")} · ${String(QuickTarget.levelCode || "Level")} · ${String(QuickTarget.lessonTitle || (QuickTarget as any).lessonName || "Lesson")} · ${String(QuickTarget.dpsTitle || (QuickTarget as any).dpsName || "DPS")}`
+                  : `${StudentName} · ${String(QuickTarget.moduleCode || "Module")} · ${String(QuickTarget.levelCode || "Level")} · ${CompactLessonLabel(QuickTarget)} · ${CompactDpsLabel(QuickTarget)}${QuickTargetStatus ? ` · ${QuickTargetStatus}` : ""}`
               }
-              actionLabel={QuickTarget.attemptId ? "View Attempt" : undefined}
+              actionLabel={QuickTargetAttemptId ? "View Latest Attempt" : undefined}
               onAction={
-                QuickTarget.attemptId
-                  ? () =>
-                      Router.push(`/teacher/result/${QuickTarget.attemptId}`)
+                QuickTargetAttemptId
+                  ? () => Router.push(`/teacher/result/${QuickTargetAttemptId}`)
                   : undefined
               }
             />
@@ -1289,35 +1317,44 @@ function CompactPracticeRow({
           {moduleCodeOf(Row)} · {levelCodeOf(Row)}
         </p>
       </div>
-      <div className="flex items-center gap-2">
-        <Chip
-          tone={
-            chainStatusOf(Row)?.tone ??
-            (StatusKey(Row) === "CLEARED"
-              ? "green"
-              : StatusKey(Row) === "PENDING"
-                ? "amber"
-                : "red")
-          }
-        >
-          {DisplayStatus(Row)}
-        </Chip>
-        {isCompleted(Row) ? (
-          <Chip tone={accuracy(Row) >= 70 ? "green" : "red"}>
-            {accuracy(Row)}%
-          </Chip>
-        ) : null}
-        {!isCompleted(Row) ? (
-          // The status pill already says what is pending (2026-10-13).
-          hasDpsChain(Row) ? null : <Chip tone="amber">Pending</Chip>
-        ) : (
-          <StandardViewButton
-            label="View Details"
-            tooltip="Open attempt detail"
-            onClick={() => OnView(Row)}
+      {/* 2026-10-14: fixed slots (status, accuracy, button), so every row
+          lines up; the status shows once, with its tries underneath. */}
+      <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:justify-end">
+        <div className="w-[14.5rem] max-w-full">
+          <ChainStatusStack
+            row={Row}
+            align="end"
             compact
+            label={DisplayStatus(Row)}
+            tone={
+              chainStatusOf(Row)?.tone ??
+              (StatusKey(Row) === "CLEARED"
+                ? "green"
+                : StatusKey(Row) === "PENDING"
+                  ? "amber"
+                  : "red")
+            }
           />
-        )}
+        </div>
+        <div className="flex w-[4.5rem] justify-center">
+          {isCompleted(Row) ? (
+            <Chip tone={accuracy(Row) >= 70 ? "green" : "red"}>
+              {accuracy(Row)}%
+            </Chip>
+          ) : null}
+        </div>
+        <div className="flex w-[8.75rem] justify-center">
+          {isCompleted(Row) && Row.attemptId ? (
+            <StandardViewButton
+              label="View Details"
+              tooltip="Open attempt detail"
+              onClick={() => OnView(Row)}
+              compact
+            />
+          ) : (
+            <span className="whitespace-nowrap text-xs font-black text-slate-400">{NotAttemptedText(Row)}</span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1690,12 +1727,28 @@ function PracticeRowsTable({
     SetSortStateValue((Current) => NextSortState(Current, Key));
   }, []);
   const DpsAttemptCounts = new Map<string, number>();
-  const GridColumns = ShowBenchmark
-    ? "grid-cols-[minmax(124px,.96fr)_minmax(130px,.6fr)_minmax(170px,.58fr)_minmax(82px,.4fr)_minmax(90px,.44fr)_minmax(240px,.84fr)_minmax(136px,.64fr)_minmax(170px,.74fr)_136px]"
-    : "grid-cols-[minmax(124px,1fr)_minmax(130px,.62fr)_minmax(170px,.62fr)_minmax(82px,.42fr)_minmax(90px,.46fr)_minmax(136px,.64fr)_minmax(170px,.74fr)_136px]";
+  // 2026-10-14: the same column sizes as the admin and student tables, so the
+  // longest status and tries values fit; narrower screens scroll sideways
+  // inside the card instead of squeezing the Status column.
+  const ColumnSpecs: Array<[number, number]> = [
+    [76, 0.7],
+    [120, 0.6],
+    [234, 1.1],
+    [76, 0.42],
+    [76, 0.42],
+    ...(ShowBenchmark ? [[164, 0.7] as [number, number]] : []),
+    [84, 0.55],
+    [112, 0.7],
+    [150, 0.6],
+  ];
+  // Column gaps (8px) + the 16px padding each side.
+  const Fit = useFittedTableColumns(ColumnSpecs, 2, (ColumnSpecs.length - 1) * 8 + 32);
+  const GridStyle = Fit.GridStyle;
+  const TableMinWidth = Fit.MinWidth;
 
   return (
-    <div className="math-teacher-practice-lesson-insights-table mt-4 overflow-hidden rounded-[20px] border border-slate-200 dark:border-slate-800">
+    <div ref={Fit.Ref} className="math-teacher-practice-lesson-insights-table mt-4 overflow-x-auto overflow-y-hidden rounded-[20px] border border-slate-200 dark:border-slate-800">
+      <div style={{ minWidth: TableMinWidth }}>
       <div className="flex justify-end bg-slate-50 px-5 py-3 dark:bg-slate-900/70">
         <SortByDropdown
           className="w-full sm:w-auto sm:min-w-[240px]"
@@ -1706,7 +1759,8 @@ function PracticeRowsTable({
         />
       </div>
       <div
-        className={`math-teacher-practice-lesson-insights-table-header grid ${GridColumns} gap-3 bg-slate-50 px-5 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70`}
+        style={GridStyle}
+        className={`math-teacher-practice-lesson-insights-table-header grid items-center gap-2 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900/70 [&_.math-sortable-header]:tracking-[0.08em] [&_.math-sortable-header>span]:overflow-visible [&_.math-sortable-header>span]:whitespace-normal [&_.math-sortable-header>span]:leading-[1.2]`}
       >
         <SortableHeader Label="DPS" SortKey="dps" SortState={SortStateValue} OnSort={HandleSort} />
         <SortableHeader Label="Attempt" SortKey="attempt" SortState={SortStateValue} OnSort={HandleSort} align="center" />
@@ -1714,8 +1768,8 @@ function PracticeRowsTable({
         <SortableHeader Label="Score" SortKey="score" SortState={SortStateValue} OnSort={HandleSort} align="center" />
         <SortableHeader Label="Accuracy" SortKey="accuracy" SortState={SortStateValue} OnSort={HandleSort} align="center" />
         {ShowBenchmark ? <SortableHeader Label="Benchmark" SortKey="benchmark" SortState={SortStateValue} OnSort={HandleSort} align="center" /> : null}
-        <SortableHeader Label="Time Taken" SortKey="timeTaken" SortState={SortStateValue} OnSort={HandleSort} />
-        <SortableHeader Label="Completion Date" SortKey="completionDate" SortState={SortStateValue} OnSort={HandleSort} />
+        <SortableHeader Label="Time Taken" SortKey="timeTaken" SortState={SortStateValue} OnSort={HandleSort} align="center" />
+        <SortableHeader Label="Completion Date" SortKey="completionDate" SortState={SortStateValue} OnSort={HandleSort} align="center" />
         <div className="text-center">Review</div>
       </div>
       {DisplayRows.map((Row, Index) => {
@@ -1740,44 +1794,42 @@ function PracticeRowsTable({
         return (
           <div
             key={`${Row.attemptId || Row.assignmentId || Row.id || Index}`}
-            className={`grid ${GridColumns} items-center gap-3 border-t border-slate-100 px-5 py-3 dark:border-slate-800`}
+            style={GridStyle}
+            {...dpsRowTargetProps(Row)}
+            className="mp-dps-row grid items-center gap-2 border-t border-slate-100 px-4 py-3 dark:border-slate-800"
           >
-            <div>
+            <div className="min-w-0">
               <p className="font-black text-slate-950 dark:text-white">
                 {CompactDpsLabel(Row)}
               </p>
+              {/* The lesson block above already names the module and level. */}
               <p className="text-xs font-semibold text-slate-500">
-                {CompactModuleLevelLabel(Row)}
+                {levelCodeOf(Row)}
               </p>
             </div>
             <div className="flex justify-center">
-              <Chip tone="blue">
-                {AttemptType}
-              </Chip>
+              <StatePill tone="blue">{AttemptType}</StatePill>
             </div>
-            <div className="flex flex-col items-center justify-center gap-1">
-              <Chip tone={StatusTone}>{DisplayStatus}</Chip>
-              <ChainTriesPill row={Row} />
+            <div className="min-w-0">
+              <ChainStatusStack row={Row} label={DisplayStatus} tone={StatusTone} compact={Fit.Compact} />
             </div>
             <div className="flex justify-center">
               {isCompleted(Row) ? (
-                <Chip tone={isBelowBenchmark(Row) ? "red" : "green"}>{scoreText(Row)}</Chip>
+                <StatePill tone={isBelowBenchmark(Row) ? "red" : "green"}>{scoreText(Row)}</StatePill>
               ) : (
-                <Chip tone="slate">—</Chip>
+                <StatePill tone="slate">—</StatePill>
               )}
             </div>
             <div className="flex justify-center">
               {isCompleted(Row) ? (
-                <Chip tone={isBelowBenchmark(Row) ? "red" : "green"}>
-                  {RowAccuracy}%
-                </Chip>
+                <StatePill tone={isBelowBenchmark(Row) ? "red" : "green"}>{`${RowAccuracy}%`}</StatePill>
               ) : (
-                <span className="font-black text-slate-400">—</span>
+                <StatePill tone="slate">—</StatePill>
               )}
             </div>
             {ShowBenchmark ? (
               <div className="flex justify-center">
-                <Chip
+                <StatePill
                   tone={
                     BenchmarkText === "Benchmark Met"
                       ? "green"
@@ -1787,18 +1839,18 @@ function PracticeRowsTable({
                   }
                 >
                   {BenchmarkText}
-                </Chip>
+                </StatePill>
               </div>
             ) : null}
-            <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
+            <div className="text-center text-sm font-bold text-slate-600 dark:text-slate-300">
               {timeTakenText(Row)}
             </div>
-            <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
+            <div className="text-center text-sm font-bold text-slate-600 dark:text-slate-300">
               {isCompleted(Row) ? completedText(Row) : "Pending"}
             </div>
-            <div className="flex justify-start">
+            <div className="flex justify-center">
               {!isCompleted(Row) ? (
-                <Chip tone="amber">Pending</Chip>
+                <span className="text-xs font-black text-slate-400">{NotAttemptedText(Row)}</span>
               ) : (
                 <StandardViewButton
                   label="View Details"
@@ -1811,6 +1863,7 @@ function PracticeRowsTable({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

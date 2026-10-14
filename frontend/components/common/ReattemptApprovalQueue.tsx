@@ -12,6 +12,7 @@ import { CheckCheck, Hourglass, ShieldCheck } from "lucide-react";
 import {
   AnyRow,
   Chip,
+  StatePill,
   CompactDpsLabel,
   CompactLessonLabel,
   NaturalCompare,
@@ -80,7 +81,7 @@ export function ReattemptApprovalQueue({
     });
 
   const Columns = IsAdmin
-    ? "grid-cols-[44px_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,.6fr)_minmax(0,1.1fr)_minmax(0,1fr)_200px]"
+    ? "grid-cols-[44px_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,.6fr)_minmax(0,1.1fr)_minmax(0,1fr)_292px]"
     : "grid-cols-[minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,.6fr)_minmax(0,1.1fr)_minmax(0,1fr)_120px]";
 
   return (
@@ -170,20 +171,23 @@ export function ReattemptApprovalQueue({
                       <Chip tone="red">{accuracy(Row)}%</Chip>
                     </div>
                     <div className="flex justify-center text-center">
-                      <Chip tone={chainTriesTone(Row)}>{chainTriesText(Row)}</Chip>
+                      <StatePill tone={chainTriesTone(Row)}>{chainTriesText(Row)}</StatePill>
                     </div>
                     <div className="text-xs font-bold text-slate-600 dark:text-slate-300">{completedText(Row)}</div>
                     <div className="flex justify-end">
                       {IsAdmin ? (
+                        <div className="flex items-center justify-end gap-2">
+                        <StandardViewButton label="Review" tooltip="Open this DPS in the student's Lesson Insights" onClick={() => OnOpenStudent(Row)} compact />
                         <button
                           type="button"
                           className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100"
                           disabled={Busy(Row) || AnyBusy}
                           onClick={() => OnApprove?.([Row])}
                         >
-                          <ShieldCheck size={14} />
+                          <ShieldCheck size={14} className="shrink-0" />
                           {Busy(Row) ? "Approving..." : `Approve Re-Attempt ${Number(Row?.dpsChain?.step ?? 0) + 1}`}
                         </button>
+                        </div>
                       ) : (
                         <StandardViewButton label="Review" tooltip="Open student practice review" onClick={() => OnOpenStudent(Row)} compact />
                       )}

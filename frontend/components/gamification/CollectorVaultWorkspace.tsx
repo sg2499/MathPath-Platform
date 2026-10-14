@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useUrlTabState } from '@/hooks/useUrlTabState';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PackageOpen, Sparkles, Lock, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -25,8 +26,11 @@ const MY_INVENTORY: VaultItem[] = [
   { id: '4', name: 'Newton\'s Apple', rarity: 'RARE', isUnopenedPack: false },
 ];
 
+const VAULT_TABS = ['COLLECTION', 'UNBOX'] as const;
+
 export function CollectorVaultWorkspace() {
-  const [activeTab, setActiveTab] = useState<'COLLECTION' | 'UNBOX'>('UNBOX');
+  // 2026-10-14: kept in the page address, so a refresh keeps the tab.
+  const [activeTab, setActiveTab] = useUrlTabState<'COLLECTION' | 'UNBOX'>('tab', VAULT_TABS, 'UNBOX');
   const [unboxingPack, setUnboxingPack] = useState<VaultItem | null>(null);
 
   const packs = MY_INVENTORY.filter(i => i.isUnopenedPack);
