@@ -115,6 +115,7 @@ def rank_mock_specific_exam(
         .join(User, Student.user_id == User.id)
         .filter(CompetitionMockResultSummary.mock_exam_id == exam_id)
         .filter(Student.current_level_id == level_id)
+        .filter(Student.is_demo == False)  # noqa: E712 -- demo accounts never take a place
     )
     if exclude_attempt_id:
         query = query.filter(CompetitionMockResultSummary.mock_attempt_id != exclude_attempt_id)
@@ -181,6 +182,7 @@ def rank_mock_overall_journey(
         .join(CompetitionMockAssignment, CompetitionMockAttempt.mock_assignment_id == CompetitionMockAssignment.id)
         .filter(CompetitionMockExam.level_id == level_id)
         .filter(CompetitionMockAssignment.is_active == True)  # noqa: E712
+        .filter(Student.is_demo == False)  # noqa: E712 -- demo accounts never take a place
     )
     if exclude_attempt_id:
         query = query.filter(CompetitionMockAttempt.id != exclude_attempt_id)
@@ -249,6 +251,7 @@ def _dps_pooled_query(db: Session, *, exclude_attempt_id: str | None = None):
         .join(Level, Lesson.level_id == Level.id)
         .filter(Attempt.status.in_(DPS_LEADERBOARD_COMPLETED_STATUSES))
         .filter(Attempt.submitted_at.isnot(None))
+        .filter(Student.is_demo == False)  # noqa: E712 -- demo accounts never take a place
     )
     if exclude_attempt_id:
         query = query.filter(Attempt.id != exclude_attempt_id)

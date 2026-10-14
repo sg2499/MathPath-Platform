@@ -103,7 +103,9 @@ def _StudentsForAssignment(
         Student.current_level_id == LevelId,
     )
     if AssignToAllInLevel:
-        Students = Query.order_by(Student.student_code.asc()).all()
+        # "Everyone in the level" means the real students; a demo account
+        # can still be picked by name (app/services/demo_students.py).
+        Students = Query.filter(Student.is_demo == False).order_by(Student.student_code.asc()).all()  # noqa: E712
     else:
         UniqueStudentIds = [StudentId for StudentId in dict.fromkeys([str(Item or "").strip() for Item in (StudentIds or [])]) if StudentId]
         if not UniqueStudentIds:
@@ -291,6 +293,11 @@ def ListCompetitionMockAssignments(
         Query = Query.filter(CompetitionMockAssignment.mock_exam_id == MockExamId)
     if StudentId:
         Query = Query.filter(CompetitionMockAssignment.student_id == StudentId)
+    else:
+        # Demo accounts are left out of the lists (app/services/demo_students.py).
+        from app.services.demo_students import WithoutDemoColumn
+
+        Query = WithoutDemoColumn(db, Query, CompetitionMockAssignment.student_id)
     if Status:
         Query = Query.filter(CompetitionMockAssignment.status == Status)
 

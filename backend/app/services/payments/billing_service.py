@@ -181,8 +181,12 @@ def _FeePayload(Item: FeeItem | None) -> dict[str, Any] | None:
 
 
 def _ActiveStudents(db: Session) -> list[tuple[Student, User]]:
+    # Demo accounts are never billed (app/services/demo_students.py): no
+    # monthly drafts, and not listed as "not billed".
+    from app.services.demo_students import RealStudents
+
     return (
-        db.query(Student, User)
+        RealStudents(db.query(Student, User))
         .join(User, Student.user_id == User.id)
         .filter(Student.is_active == True, User.is_active == True)  # noqa: E712
         .order_by(User.full_name.asc(), Student.student_code.asc())
@@ -268,7 +272,9 @@ def UpdateBillingSettings(db: Session, *, Request: dict[str, Any], Actor: User |
 
 def ListStudentModes(db: Session) -> list[dict[str, Any]]:
     EnsureBillingSettings(db)
-    Rows = db.query(Student, User).join(User, Student.user_id == User.id).order_by(User.full_name.asc()).all()
+    from app.services.demo_students import RealStudents
+
+    Rows = RealStudents(db.query(Student, User)).join(User, Student.user_id == User.id).order_by(User.full_name.asc()).all()
     Modes = ModesFor(db)
     Levels = {Row.id: Row.level_code for Row in db.query(Level).all()}
     Centres = {Row.id: Row.name for Row in db.query(PaymentCentre).all()}

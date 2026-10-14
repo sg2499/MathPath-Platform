@@ -730,7 +730,10 @@ def InvoicesForExport(db: Session, *, Filters: dict[str, Any]) -> list[dict[str,
 # --------------------------------------------------------------------------
 
 def ListStudentsForInvoicing(db: Session) -> list[dict[str, Any]]:
-    Rows = db.query(Student, User).join(User, Student.user_id == User.id).order_by(User.full_name.asc()).all()
+    from app.services.demo_students import RealStudents
+
+    # Demo accounts are never billed.
+    Rows = RealStudents(db.query(Student, User)).join(User, Student.user_id == User.id).order_by(User.full_name.asc()).all()
     Levels = {Row.id: Row for Row in db.query(Level).all()}
     Modules = {Row.id: Row for Row in db.query(Module).all()}
     TeacherNames = {TeacherRow.id: TeacherUser.full_name for TeacherRow, TeacherUser in db.query(Teacher, User).join(User, Teacher.user_id == User.id).all()}

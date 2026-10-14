@@ -262,7 +262,10 @@ def _ResultRowsForLevel(
 ) -> list[CompetitionEventResult]:
     if StudentIdsFilter is not None and not StudentIdsFilter:
         return []
-    Query = db.query(CompetitionEventResult).filter(
+    from app.services.demo_students import WithoutDemoColumn
+
+    # Demo accounts are left out of level reports and boards.
+    Query = WithoutDemoColumn(db, db.query(CompetitionEventResult), CompetitionEventResult.student_id).filter(
         CompetitionEventResult.attempt_type == "PRACTICE",
         CompetitionEventResult.is_voided == False,  # noqa: E712
         CompetitionEventResult.competition_level_code == CompetitionLevelCode,
@@ -843,8 +846,10 @@ def GetAnnualCompetitionPracticeReportOverview(db: Session) -> dict[str, Any]:
     """The cross-level Practice Reports overview -- see the comment above
     this function for the full design (why avgPercentage is rebased per
     level, why every level is always included, why this is one query)."""
+    from app.services.demo_students import WithoutDemoColumn
+
     AllResultRecords = (
-        db.query(CompetitionEventResult)
+        WithoutDemoColumn(db, db.query(CompetitionEventResult), CompetitionEventResult.student_id)
         .filter(
             CompetitionEventResult.attempt_type == "PRACTICE",
             CompetitionEventResult.is_voided == False,  # noqa: E712

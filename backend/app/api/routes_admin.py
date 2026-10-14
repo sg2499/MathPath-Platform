@@ -75,6 +75,7 @@ from app.services.assessment_notification_service import NotifyAssessmentReattem
 from app.services.practice_notification_service import NotifyPracticeFreshPracticeAssigned
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
 from app.services.dps_chain_state_service import BuildDpsChainIndex, HealExpiredPracticeAttempts
+from app.services.demo_students import DemoStudentIds, IsDemoStudent, IsDemoStudentId, RealStudents, WithoutDemo, WithoutDemoColumn
 from app.services.request_cache import RequestCache, AttemptsForAssignment, AttemptsForAssignmentStudentInOrder, EnableRequestCache, LatestAttemptForAssignmentStudent, LevelDpsCount, OpenReattemptPermission, PinRows, PrimeAssignmentAttempts, PrimeOpenReattemptPermissions
 from app.services.assessment_feedback_service import upsert_assessment_remark, delete_assessment_remark, assessment_feedback_payload, active_assessment_remark
 from app.services.parent_report_notification_service import (
@@ -877,6 +878,9 @@ def student_payload(db: Session, student: Student) -> dict:
     return {
         "studentId": student.id,
         "userId": student.user_id,
+        # Demo / test account: listed here (marked Demo) but left out of
+        # every count elsewhere -- app/services/demo_students.py.
+        "isDemo": bool(getattr(student, "is_demo", False)),
         "customId": student.custom_id,
         "teacher": student.teacher,
         "teacherId": getattr(student, "teacher_id", None),
@@ -1292,7 +1296,7 @@ def get_live_students(db: Session = Depends(get_db), user: User = Depends(admin_
     live_since = datetime.now(timezone.utc) - timedelta(seconds=LIVE_STUDENT_WINDOW_SECONDS)
 
     live_rows = (
-        db.query(Student, User)
+        RealStudents(db.query(Student, User))
         .join(User, Student.user_id == User.id)
         .filter(User.last_active_at >= live_since)
         .order_by(User.last_active_at.desc())
@@ -2903,8 +2907,9 @@ def admin_delete_assessment_attempt_remark(
 
 @router.get("/assessments")
 def list_assessments_route(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    # Demo accounts are left out (app/services/demo_students.py).
     engine_assignments = (
-        db.query(AssessmentAssignment)
+        WithoutDemoColumn(db, db.query(AssessmentAssignment), AssessmentAssignment.student_id)
         .filter(AssessmentAssignment.is_active == True)
         .order_by(AssessmentAssignment.assigned_at.desc())
         .all()
@@ -2917,6 +2922,7 @@ def list_assessments_route(db: Session = Depends(get_db), user: User = Depends(a
         .order_by(Assignment.created_at.desc())
         .all()
     )
+    legacy_rows = [row for row in legacy_rows if not (row.assigned_to_type == "STUDENT" and IsDemoStudentId(db, row.assigned_to_id))]
     legacy_payload = [assignment_payload(db, assignment) for assignment in legacy_rows]
 
     rows = engine_rows + legacy_payload
@@ -3077,13 +3083,15 @@ def list_assignments_route(db: Session = Depends(get_db), user: User = Depends(a
         .order_by(Assignment.created_at.desc())
         .all()
     )
+    # Demo accounts are left out (app/services/demo_students.py).
+    rows = [row for row in rows if not (row.assigned_to_type == "STUDENT" and IsDemoStudentId(db, row.assigned_to_id))]
     # One shared state per student per DPS (dps_chain_state_service).
     chain_index = BuildDpsChainIndex(db, Benchmark=BENCHMARK_PERCENTAGE)
     # Read everything the rows need up front (see request_cache.py): this
     # screen used to run ~13 queries per assignment.
     EnableRequestCache(db)
     PinRows(db, DPS, Lesson, Level, Module, Student, User, Teacher)
-    PrimeAssignmentAttempts(db, [assignment.id for assignment in rows])
+    PrimeAssignmentAttempts(db, [assignment.id for assignment in rows], ExcludeStudentIds=DemoStudentIds(db))
     payloads = []
     for assignment in rows:
         payload = assignment_payload(db, assignment)
@@ -4373,7 +4381,8 @@ def _admin_filter_attempts_for_learning_performance(db: Session, teacher_id: str
     # separate lookup per attempt for its assignment / DPS / student / user.
     EnableRequestCache(db)
     PinRows(db, Assignment, DPS, Lesson, Level, Module, Student, User, Teacher)
-    Attempts = db.query(Attempt).all()
+    # Demo accounts are left out (app/services/demo_students.py).
+    Attempts = WithoutDemoColumn(db, db.query(Attempt), Attempt.student_id).all()
     # 2026-09-17 (Shailesh: "never ever anywhere"): this Learning Performance
     # report reads score/accuracy fields off every one of these attempts
     # below -- self-heal each one first. Cheap relative to the rest of this
@@ -5799,7 +5808,7 @@ def admin_deactivate_assessment_testing_override(
 
 @router.get("/assessment-eligibility")
 def admin_assessment_eligibility(levelId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
-    students = db.query(Student).filter(Student.is_active == True).all()
+    students = RealStudents(db.query(Student)).filter(Student.is_active == True).all()
     rows = eligibility_for_students(db, students, levelId)
     ready = [row for row in rows if row.get("eligible")]
     return {
@@ -5814,7 +5823,7 @@ def admin_assessment_eligibility(levelId: str | None = None, db: Session = Depen
 
 @router.get("/assessment-eligibility/levels/{level_id}")
 def admin_assessment_eligibility_by_level(level_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
-    students = db.query(Student).filter(Student.is_active == True, Student.current_level_id == level_id).all()
+    students = RealStudents(db.query(Student)).filter(Student.is_active == True, Student.current_level_id == level_id).all()
     rows = eligibility_for_students(db, students, level_id)
     ready = [row for row in rows if row.get("eligible")]
     return {
@@ -6732,8 +6741,9 @@ def admin_competition_mock_tracker(db: Session = Depends(get_db), user: User = D
     # Read the rows' students / users / exams / levels once (request_cache.py).
     EnableRequestCache(db)
     PinRows(db, Student, User, Teacher, Level, Module, CompetitionMockExam)
+    # Demo accounts are left out (app/services/demo_students.py).
     assignments = (
-        db.query(CompetitionMockAssignment)
+        WithoutDemoColumn(db, db.query(CompetitionMockAssignment), CompetitionMockAssignment.student_id)
         .join(CompetitionMockExam, CompetitionMockAssignment.mock_exam_id == CompetitionMockExam.id)
         .filter(
             CompetitionMockAssignment.is_active == True,

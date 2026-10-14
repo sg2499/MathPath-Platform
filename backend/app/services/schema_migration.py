@@ -35,6 +35,8 @@ def ensure_user_columns() -> None:
 
 
 STUDENT_COLUMNS = {
+    # 2026-10-14: demo / test accounts (see app/services/demo_students.py).
+    "is_demo": "BOOLEAN DEFAULT FALSE NOT NULL",
     "custom_id": "VARCHAR(80)",
     "teacher": "VARCHAR(150)",
     "admission_date": "VARCHAR(30)",

@@ -1,6 +1,8 @@
 export type AdminStudent = {
   studentId: string;
   userId: string;
+  // Demo / test account: listed here, left out of every count elsewhere.
+  isDemo?: boolean;
   customId: string | null;
   teacher: string | null;
   teacherId: string | null;

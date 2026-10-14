@@ -76,8 +76,9 @@ def _Chunks(Values: list, Size: int = 1000) -> Iterable[list]:
         yield Values[Index:Index + Size]
 
 
-def PrimeAssignmentAttempts(Db: Session, AssignmentIds: Iterable[str]) -> None:
-    """Load every attempt of these assignments in a few queries."""
+def PrimeAssignmentAttempts(Db: Session, AssignmentIds: Iterable[str], ExcludeStudentIds: set[str] | None = None) -> None:
+    """Load every attempt of these assignments in a few queries (leaving out
+    attempts by ExcludeStudentIds, e.g. demo accounts on a level-wide sheet)."""
     Cache = EnableRequestCache(Db)
     ByAssignment: dict[str, list[Attempt]] = Cache.setdefault("attempts_by_assignment", {})
     Wanted = sorted({Value for Value in AssignmentIds if Value} - set(ByAssignment.keys()))
@@ -85,6 +86,8 @@ def PrimeAssignmentAttempts(Db: Session, AssignmentIds: Iterable[str]) -> None:
         ByAssignment[AssignmentId] = []
     for Chunk in _Chunks(Wanted):
         for AttemptRow in Db.query(Attempt).filter(Attempt.assignment_id.in_(Chunk)).all():
+            if ExcludeStudentIds and AttemptRow.student_id in ExcludeStudentIds:
+                continue
             ByAssignment.setdefault(AttemptRow.assignment_id, []).append(AttemptRow)
 
 

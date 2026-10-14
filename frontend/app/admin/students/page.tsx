@@ -66,8 +66,10 @@ import {
   Wallet,
   X,
   XCircle,
+  FlaskConical,
 } from "lucide-react";
 import Link from "next/link";
+import { StatePill } from "@/components/common/DetailWorkspaceViews";
 import { useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
@@ -375,8 +377,12 @@ export default function AdminStudentsPage() {
   });
 
   const students = studentsQuery.data ?? [];
-  const activeCount = students.filter((s) => s.isActive).length;
-  const inactiveCount = students.length - activeCount;
+  // 2026-10-14: demo / test accounts are listed (marked Demo) but not
+  // counted, the same as everywhere else on the platform.
+  const realStudents = students.filter((s) => !s.isDemo);
+  const demoCount = students.length - realStudents.length;
+  const activeCount = realStudents.filter((s) => s.isActive).length;
+  const inactiveCount = realStudents.length - activeCount;
 
   const teacherOptions = useMemo(() => {
     const names = students
@@ -646,10 +652,10 @@ export default function AdminStudentsPage() {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className={`grid gap-3 ${demoCount ? "grid-cols-2 sm:grid-cols-[repeat(4,minmax(8.5rem,1fr))]" : "sm:grid-cols-3"}`}>
             <Metric
               label="Students"
-              value={students.length}
+              value={realStudents.length}
               icon={<UsersRound size={18} />}
             />
             <Metric
@@ -662,6 +668,13 @@ export default function AdminStudentsPage() {
               value={inactiveCount}
               icon={<XCircle size={18} />}
             />
+            {demoCount ? (
+              <Metric
+                label="Demo"
+                value={demoCount}
+                icon={<FlaskConical size={18} />}
+              />
+            ) : null}
           </div>
         </div>
       </section>
@@ -980,8 +993,13 @@ export default function AdminStudentsPage() {
                           />
 
                           <div>
-                            <p className="font-black text-slate-950 dark:text-white">
+                            <p className="flex flex-wrap items-center gap-2 font-black text-slate-950 dark:text-white">
                               {s.studentName}
+                              {s.isDemo ? (
+                                <span title="Demo account: left out of every count, leaderboard and bill">
+                                  <StatePill tone="purple">Demo</StatePill>
+                                </span>
+                              ) : null}
                             </p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
                               {s.studentCode}
