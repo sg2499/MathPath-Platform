@@ -1,6 +1,7 @@
 import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -94,6 +95,11 @@ class RequestConcurrencyLimitMiddleware:
 
 app.add_middleware(RequestConcurrencyLimitMiddleware, limit=REQUEST_CONCURRENCY_LIMIT)
 
+# Compress replies over 1 KB (2026-10-14 speed work). The big list screens
+# (readiness, Practice Control, trackers) send 1-20 MB of JSON, which
+# compresses about 15x; browsers unpack it automatically.
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
+
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -159,8 +165,42 @@ def _StartMonthlyDraftsCheck() -> None:
     threading.Thread(target=_Loop, name="monthly-billing-drafts", daemon=True).start()
 
 
-@app.on_event("startup")
-def on_startup():
+class _StartupSchemaLock:
+    """2026-10-14: gunicorn starts several workers at the same moment and
+    each one runs the schema steps below. Two workers creating the same
+    table or adding the same column at once made one of them fail
+    ("duplicate key ... pg_type_typname_nsp_index", "column ... already
+    exists"), and a failed worker stops the whole backend until systemd
+    restarts it -- seen in the server log on 9, 10 and 12 Oct, right after
+    deploys. A Postgres advisory lock lets one worker do the schema steps
+    while the others wait; when their turn comes everything already exists
+    and the steps are no-ops. Other databases (SQLite in tests) skip it."""
+
+    _KEY = 742019001  # any fixed number unique to this lock
+
+    def __enter__(self):
+        self._connection = None
+        if engine.dialect.name != "postgresql":
+            return self
+        from sqlalchemy import text as _text
+
+        self._connection = engine.connect()
+        self._connection.execute(_text("SELECT pg_advisory_lock(:key)"), {"key": self._KEY})
+        return self
+
+    def __exit__(self, *_exc):
+        if self._connection is None:
+            return False
+        from sqlalchemy import text as _text
+
+        try:
+            self._connection.execute(_text("SELECT pg_advisory_unlock(:key)"), {"key": self._KEY})
+        finally:
+            self._connection.close()
+        return False
+
+
+def _EnsureSchema():
     Base.metadata.create_all(bind=engine)
     from app.services.schema_migration import ensure_student_profile_columns, ensure_teacher_columns, ensure_student_teacher_id_column, ensure_user_columns, ensure_dps_publication_columns, ensure_dps_section_marks_column, ensure_assessment_reattempt_columns, ensure_assessment_questions_lesson_id_nullable, ensure_student_level_promotions_table, ensure_assignment_attempt_chain_columns, ensure_parent_report_email_logs_table, ensure_assessment_readiness_testing_overrides_table, ensure_notifications_table, ensure_competition_mock_tables, ensure_mock_notifications_fixed, ensure_mock_gamification_tables, ensure_mock_accuracy_fixed, ensure_user_economy_columns, ensure_competition_mock_attempt_gamification_column, ensure_attempt_notification_processed_column, ensure_assessment_attempt_notification_processed_column, ensure_attempt_gamification_processed_column, ensure_assessment_attempt_gamification_processed_column, ensure_level_next_level_id_column, ensure_assignment_notified_at_column, ensure_assignments_assigned_to_id_indexed, ensure_attempt_punctuality_status_column, ensure_annual_competition_tables, ensure_annual_competition_go_live_columns, ensure_annual_competition_answer_text_column, ensure_annual_competition_practice_bank_columns, ensure_annual_competition_practice_event_decoupling
     ensure_user_columns()
@@ -220,6 +260,12 @@ def on_startup():
     # centres, business details and number sequences (created once).
     from app.services.schema_migration import ensure_payments_foundation
     ensure_payments_foundation()
+
+
+@app.on_event("startup")
+def on_startup():
+    with _StartupSchemaLock():
+        _EnsureSchema()
     # 2026-10-09 (Payments revamp R3): the monthly-fee drafts on the 1st.
     # A light check every 30 minutes (and once shortly after start), safe to
     # run from every worker: the month is drafted once, under a row lock.

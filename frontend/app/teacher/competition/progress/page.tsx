@@ -371,7 +371,7 @@ function TeacherCompetitionProgressContent() {
   const [ExpandedLevels, SetExpandedLevels] = useState<Set<string>>(() => new Set());
     const router = useRouter();
 
-  const Query = useQuery({ queryKey: ["teacher", "competition", "progress"], queryFn: getTeacherCompetitionMockTracker });
+  const Query = useQuery({ queryKey: ["teacher", "competition", "mock-tracker"], queryFn: getTeacherCompetitionMockTracker });
 
   const Rows = Query.data?.rows || [];
 

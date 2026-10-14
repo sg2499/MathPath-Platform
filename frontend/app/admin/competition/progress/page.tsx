@@ -374,7 +374,7 @@ function AdminCompetitionProgressContent() {
   const [ExpandedLevels, SetExpandedLevels] = useState<Set<string>>(() => new Set());
     const router = useRouter();
 
-  const Query = useQuery({ queryKey: ["admin", "competition", "progress"], queryFn: getAdminCompetitionMockTracker });
+  const Query = useQuery({ queryKey: ["admin", "competition", "mock-tracker"], queryFn: getAdminCompetitionMockTracker });
 
   const Rows = Query.data?.rows || [];
 

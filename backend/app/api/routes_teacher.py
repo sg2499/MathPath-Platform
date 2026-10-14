@@ -14,9 +14,10 @@ from app.services import leaderboard_service
 from app.services.attempt_chain_service import ATTEMPT_SOURCE_MANUAL_RETRY
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
 from app.services.dps_chain_state_service import BuildDpsChainIndex, HealExpiredPracticeAttempts, COMPLETED_STATUSES as DPS_COMPLETED_STATUSES
+from app.services.request_cache import RequestCache, AttemptsForAssignment, AttemptsForAssignmentStudentInOrder, EnableRequestCache, LatestAttemptForAssignmentStudent, LevelDpsCount, OpenReattemptPermission, PinRows, PrimeAssignmentAttempts, PrimeOpenReattemptPermissions
 from app.services.attempt_service import ensure_active_or_auto_submit, result_payload
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, NeedsReattemptAttempts
-from app.services.assessment_eligibility_service import assessment_eligibility_payload, eligibility_for_students
+from app.services.assessment_eligibility_service import EligibilityPrefetch, assessment_eligibility_payload, eligibility_for_students
 from app.services.assessment_blueprint_service import blueprint_payload, teacher_visible_blueprints
 from app.services.assessment_engine_service import AvailablePublishedVersions, AssessmentVersionOptionPayload, ExistingAssessmentAssignmentForLevel, AssessmentAssignmentPayload, AssessmentResultPayload, AssessmentProgressionPayload, StudentLevelPromotionPayload, EnsureAssessmentAttemptActiveOrAutoSubmit, IsAssessmentOpenAccessStudent
 from app.services.assessment_notification_service import NotifyAssessmentAssignmentsCreated
@@ -295,6 +296,9 @@ def own_students_query(db: Session, teacher: Teacher):
 
 @router.get("/competition/mock-tracker")
 def teacher_competition_mock_tracker(db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    # Read the rows' students / users / exams / levels once (request_cache.py).
+    EnableRequestCache(db)
+    PinRows(db, Student, User, Teacher, Level, Module, CompetitionMockExam)
     return _teacher_competition_tracker_payload(db, teacher)
 
 
@@ -815,6 +819,11 @@ def available_dps(
     if not level_ids:
         return EmptyTeacherDpsOptionsResponse(moduleId, levelId)
 
+    # Each DPS row used to look up its module and count its level's DPS on
+    # its own (see request_cache.py).
+    EnableRequestCache(db)
+    PinRows(db, Module, Level, Lesson, User)
+
     levels = db.query(Level).filter(Level.id.in_(level_ids)).all()
     lessons = db.query(Lesson).filter(Lesson.level_id.in_(level_ids)).order_by(Lesson.lesson_number.asc()).all()
     lesson_ids = [lesson.id for lesson in lessons]
@@ -1320,6 +1329,9 @@ def schedule_lesson_dps_to_students(
 def teacher_level_total_dps_count(db: Session, level_id: str | None) -> int:
     if not level_id:
         return 0
+    CachedCount = LevelDpsCount(db, level_id)
+    if CachedCount is not None:
+        return CachedCount
     return (
         db.query(DPS)
         .join(Lesson, DPS.lesson_id == Lesson.id)
@@ -1358,6 +1370,9 @@ def assignment_dps_context(db: Session, assignment: Assignment) -> dict:
 
 
 def active_reattempt_permission_for_assignment(db: Session, assignment_id: str, student_id: str):
+    FoundInCache, CachedPermission = OpenReattemptPermission(db, assignment_id, student_id)
+    if FoundInCache:
+        return CachedPermission
     return (
         db.query(AssignmentReattemptPermission)
         .filter(
@@ -1372,12 +1387,14 @@ def active_reattempt_permission_for_assignment(db: Session, assignment_id: str, 
 
 
 def latest_attempt_for_assignment(db: Session, assignment_id: str, student_id: str) -> Attempt | None:
-    attempt = (
-        db.query(Attempt)
-        .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
-        .order_by(Attempt.started_at.desc())
-        .first()
-    )
+    FoundInCache, attempt = LatestAttemptForAssignmentStudent(db, assignment_id, student_id)
+    if not FoundInCache:
+        attempt = (
+            db.query(Attempt)
+            .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
+            .order_by(Attempt.started_at.desc())
+            .first()
+        )
     if attempt is None:
         return None
     # 2026-09-17 (Shailesh: "never ever anywhere"): single choke point for
@@ -1389,12 +1406,14 @@ def latest_attempt_for_assignment(db: Session, assignment_id: str, student_id: s
 
 
 def all_attempts_for_assignment_student(db: Session, assignment_id: str, student_id: str) -> list[Attempt]:
-    attempts = (
-        db.query(Attempt)
-        .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
-        .order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
-        .all()
-    )
+    attempts = AttemptsForAssignmentStudentInOrder(db, assignment_id, student_id)
+    if attempts is None:
+        attempts = (
+            db.query(Attempt)
+            .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
+            .order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
+            .all()
+        )
     # 2026-09-17 (Shailesh: "never ever anywhere"): backs the teacher
     # attempt-history display -- self-heal before status/score are read.
     return [ensure_active_or_auto_submit(db, attempt) for attempt in attempts]
@@ -1538,6 +1557,13 @@ def teacher_assignment_tracker(db: Session = Depends(get_db), teacher: Teacher =
         StudentsByLevel={level_id: [item.id for item in items] for level_id, items in students_by_level.items()},
         Benchmark=BENCHMARK_PERCENTAGE,
     )
+
+    # Read everything the rows need up front (see request_cache.py): this
+    # screen used to run ~8 queries per row.
+    EnableRequestCache(db)
+    PinRows(db, DPS, Lesson, Level, Module, User)
+    PrimeAssignmentAttempts(db, [assignment.id for assignment in assignments])
+    PrimeOpenReattemptPermissions(db, [assignment.id for assignment in assignments])
 
     for assignment in assignments:
         seen_assignment_ids.add(assignment.id)
@@ -1875,6 +1901,12 @@ def teacher_results(db: Session = Depends(get_db), teacher: Teacher = Depends(ge
     # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal before
     # attempt_payload() below reads score/status for this list.
     attempts = [ensure_active_or_auto_submit(db, attempt) for attempt in attempts]
+    # Read the rows' assignments / DPS / users once (see request_cache.py).
+    EnableRequestCache(db)
+    PinRows(db, DPS, Lesson, Level, Module, User)
+    AssignmentIds = sorted({attempt.assignment_id for attempt in attempts if attempt.assignment_id})
+    if AssignmentIds:
+        RequestCache(db)["pinned"].extend(db.query(Assignment).filter(Assignment.id.in_(AssignmentIds)).all())
     return {"attempts": [attempt_payload(db, attempt) for attempt in attempts]}
 
 
@@ -2074,6 +2106,9 @@ def teacher_assign_assessment_options(
     own_students = own_students_query(db, teacher).filter(Student.is_active == True).order_by(Student.student_code.asc()).all()
     rows = []
     HasTestAccount = False
+    # One batched readiness load for every student on this screen instead
+    # of ~50 queries per student (2026-10-14 speed work).
+    EligibilityCache = EligibilityPrefetch(db, own_students, [StudentItem.current_level_id for StudentItem in own_students])
     for StudentItem in own_students:
         IsTestAccount = IsAssessmentOpenAccessStudent(StudentItem)
         HasTestAccount = HasTestAccount or IsTestAccount
@@ -2081,7 +2116,11 @@ def teacher_assign_assessment_options(
             continue
         if levelId and StudentItem.current_level_id != levelId and not IsTestAccount:
             continue
-        Eligibility = assessment_eligibility_payload(db, StudentItem, StudentItem.current_level_id) if StudentItem.current_level_id else None
+        Eligibility = assessment_eligibility_payload(db, StudentItem, StudentItem.current_level_id, EligibilityCache, compact=True) if StudentItem.current_level_id else None
+        if Eligibility:
+            # This screen only shows the counts; the per-sheet breakdown
+            # lives on the readiness page.
+            Eligibility.pop("lessons", None)
         ExistingAssignment = ExistingAssessmentAssignmentForLevel(db, StudentItem.id, StudentItem.current_level_id) if StudentItem.current_level_id else None
         ApprovedReattemptAccess = ApprovedAssessmentReattemptAccessForLevel(db, StudentItem.id, StudentItem.current_level_id) if StudentItem.current_level_id else None
         ReattemptNeeded = AssessmentRequiresReattempt(ExistingAssignment)

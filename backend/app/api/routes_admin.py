@@ -74,6 +74,7 @@ from app.services.assessment_notification_service import NotifyAssessmentReattem
 from app.services.practice_notification_service import NotifyPracticeFreshPracticeAssigned
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
 from app.services.dps_chain_state_service import BuildDpsChainIndex, HealExpiredPracticeAttempts
+from app.services.request_cache import RequestCache, AttemptsForAssignment, AttemptsForAssignmentStudentInOrder, EnableRequestCache, LatestAttemptForAssignmentStudent, LevelDpsCount, OpenReattemptPermission, PinRows, PrimeAssignmentAttempts, PrimeOpenReattemptPermissions
 from app.services.assessment_feedback_service import upsert_assessment_remark, delete_assessment_remark, assessment_feedback_payload, active_assessment_remark
 from app.services.parent_report_notification_service import (
     NotifyParentReportGenerated,
@@ -2678,12 +2679,14 @@ def _admin_attempt_metadata(db: Session, attempt: Attempt | None) -> dict:
 
 
 def all_attempts_for_student_assignment(db: Session, assignment_id: str, student_id: str) -> list[Attempt]:
-    attempts = (
-        db.query(Attempt)
-        .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
-        .order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
-        .all()
-    )
+    attempts = AttemptsForAssignmentStudentInOrder(db, assignment_id, student_id)
+    if attempts is None:
+        attempts = (
+            db.query(Attempt)
+            .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
+            .order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
+            .all()
+        )
     # 2026-09-17 (Shailesh: "never ever anywhere"): sole caller is the
     # admin attempt-history display (admin_attempt_history_for_assignment_student)
     # -- self-heal here so that history never shows a stuck IN_PROGRESS
@@ -2743,6 +2746,9 @@ def admin_attempt_history_for_assignment_student(db: Session, assignment: Assign
 def admin_level_total_dps_count(db: Session, level_id: str | None) -> int:
     if not level_id:
         return 0
+    CachedCount = LevelDpsCount(db, level_id)
+    if CachedCount is not None:
+        return CachedCount
     return (
         db.query(DPS)
         .join(Lesson, DPS.lesson_id == Lesson.id)
@@ -2759,7 +2765,9 @@ def assignment_payload(db: Session, assignment: Assignment) -> dict:
     required_dps_count = admin_level_total_dps_count(db, level.id if level else None)
     assigned_by = db.get(User, assignment.assigned_by_user_id) if assignment.assigned_by_user_id else None
 
-    attempts = db.query(Attempt).filter(Attempt.assignment_id == assignment.id).all()
+    attempts = AttemptsForAssignment(db, assignment.id)
+    if attempts is None:
+        attempts = db.query(Attempt).filter(Attempt.assignment_id == assignment.id).all()
     # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal any attempt
     # that's sat IN_PROGRESS past its own expiry before splitting into
     # completed/in-progress buckets below -- otherwise an abandoned attempt
@@ -3070,6 +3078,11 @@ def list_assignments_route(db: Session = Depends(get_db), user: User = Depends(a
     )
     # One shared state per student per DPS (dps_chain_state_service).
     chain_index = BuildDpsChainIndex(db, Benchmark=BENCHMARK_PERCENTAGE)
+    # Read everything the rows need up front (see request_cache.py): this
+    # screen used to run ~13 queries per assignment.
+    EnableRequestCache(db)
+    PinRows(db, DPS, Lesson, Level, Module, Student, User, Teacher)
+    PrimeAssignmentAttempts(db, [assignment.id for assignment in rows])
     payloads = []
     for assignment in rows:
         payload = assignment_payload(db, assignment)
@@ -3471,6 +3484,16 @@ def _admin_teacher_context_for_student(db: Session, student: Student | None) -> 
     teacher_name = clean_text(getattr(student, "teacher", None))
     if not teacher_name:
         return {"teacherId": None, "teacherName": None, "teacherCode": None}
+    Cache = RequestCache(db)
+    if Cache is not None:
+        ByName = Cache.setdefault("teacher_context_by_name", {})
+        if teacher_name not in ByName:
+            ByName[teacher_name] = _admin_teacher_context_by_name(db, teacher_name)
+        return dict(ByName[teacher_name])
+    return _admin_teacher_context_by_name(db, teacher_name)
+
+
+def _admin_teacher_context_by_name(db: Session, teacher_name: str) -> dict:
     teacher = (
         db.query(Teacher)
         .join(User, Teacher.user_id == User.id)
@@ -4345,6 +4368,10 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
 
 
 def _admin_filter_attempts_for_learning_performance(db: Session, teacher_id: str | None = None, module_id: str | None = None, level_id: str | None = None, lesson_id: str | None = None, dps_id: str | None = None) -> list[tuple[Attempt, dict]]:
+    # Read the reference rows once (see request_cache.py) instead of a
+    # separate lookup per attempt for its assignment / DPS / student / user.
+    EnableRequestCache(db)
+    PinRows(db, Assignment, DPS, Lesson, Level, Module, Student, User, Teacher)
     Attempts = db.query(Attempt).all()
     # 2026-09-17 (Shailesh: "never ever anywhere"): this Learning Performance
     # report reads score/accuracy fields off every one of these attempts
@@ -6701,6 +6728,9 @@ from app.services.competition_mock_attempt_service import GetCompetitionMockResu
 @router.get("/competition/mock-tracker")
 def admin_competition_mock_tracker(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     from app.api.routes_admin import clean_text
+    # Read the rows' students / users / exams / levels once (request_cache.py).
+    EnableRequestCache(db)
+    PinRows(db, Student, User, Teacher, Level, Module, CompetitionMockExam)
     assignments = (
         db.query(CompetitionMockAssignment)
         .join(CompetitionMockExam, CompetitionMockAssignment.mock_exam_id == CompetitionMockExam.id)
