@@ -47,6 +47,13 @@ export type Assignment = {
   attemptId: string | null;
   reattemptAvailable?: boolean;
   reattemptPermissionId?: string | null;
+  // The DPS's shared state (dps_chain_state_service), same as the trackers
+  // and Lesson Insights -- 2026-10-14.
+  retryAttemptNumber?: number;
+  dpsChain?: Record<string, any> | null;
+  isCurrentChainRow?: boolean;
+  chainRowLabel?: string;
+  chainRowTone?: string;
 
   assessmentTitle?: string | null;
   assignmentTitle?: string | null;

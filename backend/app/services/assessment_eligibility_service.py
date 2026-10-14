@@ -333,7 +333,9 @@ def assessment_eligibility_payload(
         lesson_payload["belowBenchmarkDpsCount"] += 1 if payload["status"] == "BELOW_BENCHMARK" else 0
         lesson_payload["dps"].append(payload)
 
-    progress = round((len(passed) / required) * 100, 2) if required else 0
+    # Whole percent, rounded half up like every other page (was 2 decimals,
+    # e.g. "6.67%" here against "7%" on Progress) -- 2026-10-14.
+    progress = int((len(passed) / required) * 100 + 0.5) if required else 0
 
     payload_out = {
         "studentId": student.id,

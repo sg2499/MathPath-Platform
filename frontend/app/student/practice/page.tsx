@@ -6,8 +6,8 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import {
   AnyRow,
-  averageAccuracy,
   currentWorkRows,
+  everyTryAverageAccuracy,
   isBelowBenchmark,
   isCompleted,
   levelCodeOf,
@@ -162,7 +162,10 @@ function BuildPracticeHeroMetrics(Results: AnyRow[], Assignments: AnyRow[]) {
     ).length;
     const NeedsReattempt = uniqueNeedsReattemptCount(CurrentRows);
     const Pending = uniquePendingConceptCount(CurrentRows);
-    const AverageAccuracy = averageAccuracy(CurrentRows);
+    // Rule A (2026-10-14): every submitted try, every level -- the same
+    // number as Progress, Lesson Insights and the teacher/admin views. This
+    // used to be the latest try per DPS with 0% tries left out.
+    const AverageAccuracy = everyTryAverageAccuracy(Results.filter(IsPracticeResultRow));
 
     return {
       Total: Required,

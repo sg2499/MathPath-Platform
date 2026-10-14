@@ -16,6 +16,7 @@ from openpyxl import Workbook, load_workbook
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.rounding import round_half_up
 from app.core.errors import api_error
 from app.core.config import (
     TEMPORARY_ASSESSMENT_READINESS_BYPASS,
@@ -2779,7 +2780,7 @@ def assignment_payload(db: Session, assignment: Assignment) -> dict:
     in_progress_attempts = [attempt for attempt in attempts if attempt.status == "IN_PROGRESS"]
 
     average_accuracy = (
-        round(sum([attempt.accuracy_percentage or 0 for attempt in completed_attempts]) / len(completed_attempts))
+        round_half_up(sum([attempt.accuracy_percentage or 0 for attempt in completed_attempts]) / len(completed_attempts))
         if completed_attempts
         else 0
     )
@@ -3555,7 +3556,7 @@ def dps_results(dps_id: str, teacherId: str | None = None, db: Session = Depends
         })
     avg_acc = sum(r["accuracyPercentage"] for r in results) / len(results) if results else 0
     avg_score = sum(r["score"] for r in results) / len(results) if results else 0
-    return {"dpsId": dps_id, "summary": {"totalAttempts": len(results), "averageScore": round(avg_score), "averageAccuracy": round(avg_acc)}, "results": results}
+    return {"dpsId": dps_id, "summary": {"totalAttempts": len(results), "averageScore": round_half_up(avg_score), "averageAccuracy": round_half_up(avg_acc)}, "results": results}
 
 
 @router.get("/results/level")
@@ -3612,8 +3613,8 @@ def level_results(levelId: str, moduleId: str | None = None, teacherId: str | No
         assigned_dps = len({attempt.dps_id for attempt in student_attempts})
         completed_dps = len({attempt.dps_id for attempt in completed_attempts})
         pending_dps = max(required_dps - completed_dps, 0)
-        avg_score = round(sum(float(attempt.total_score or 0) for attempt in completed_attempts) / len(completed_attempts)) if completed_attempts else 0
-        avg_accuracy = round(sum(float(attempt.accuracy_percentage or 0) for attempt in completed_attempts) / len(completed_attempts)) if completed_attempts else 0
+        avg_score = round_half_up(sum(float(attempt.total_score or 0) for attempt in completed_attempts) / len(completed_attempts)) if completed_attempts else 0
+        avg_accuracy = round_half_up(sum(float(attempt.accuracy_percentage or 0) for attempt in completed_attempts) / len(completed_attempts)) if completed_attempts else 0
         if avg_accuracy >= 90:
             performance_zone = "Excellence Zone"
         elif avg_accuracy >= 70:
@@ -3646,7 +3647,7 @@ def level_results(levelId: str, moduleId: str | None = None, teacherId: str | No
             "lastActivity": last_activity.isoformat() if last_activity else None,
         })
 
-    avg_accuracy = round(sum(float(row["averageAccuracy"] or 0) for row in rows) / len(rows)) if rows else 0
+    avg_accuracy = round_half_up(sum(float(row["averageAccuracy"] or 0) for row in rows) / len(rows)) if rows else 0
     ready_count = len([row for row in rows if row["assessmentReadiness"] == "Ready"])
     return {
         "moduleId": module.id if module else None,
@@ -4177,8 +4178,8 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
         completed = [attempt for attempt in latest_by_dps.values() if (attempt.status or "").upper() in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}]
         passed = ClearedConceptAttempts(completed, BENCHMARK_PERCENTAGE)
         needs_reattempt = NeedsReattemptAttempts(completed, BENCHMARK_PERCENTAGE)
-        avg_accuracy = round(sum(float(attempt.accuracy_percentage or 0) for attempt in completed) / len(completed)) if completed else 0
-        avg_score = round(sum(float(attempt.total_score or 0) for attempt in completed) / len(completed)) if completed else 0
+        avg_accuracy = round_half_up(sum(float(attempt.accuracy_percentage or 0) for attempt in completed) / len(completed)) if completed else 0
+        avg_score = round_half_up(sum(float(attempt.total_score or 0) for attempt in completed) / len(completed)) if completed else 0
         performance_zone = "Excellence Zone" if avg_accuracy >= 90 else "Growth Zone" if avg_accuracy >= 70 else "Needs Improvement" if completed else "Not Started"
         required_dps = len(dps_items)
         completed_dps = len({attempt.dps_id for attempt in completed})
@@ -4564,7 +4565,7 @@ def _admin_learning_performance_payload(db: Session, teacher_id: str | None = No
         AssignmentId = AttemptAssignments.get(Row["attemptId"])
         if AssignmentId and Row.get("studentId"):
             Row.update(ChainIndex.attempt_fields(Row["attemptId"], AssignmentId, Row["studentId"]))
-    AverageAccuracy = round(sum(float(AttemptValue.accuracy_percentage or 0) for AttemptValue in CompletedRows) / len(CompletedRows)) if CompletedRows else 0
+    AverageAccuracy = round_half_up(sum(float(AttemptValue.accuracy_percentage or 0) for AttemptValue in CompletedRows) / len(CompletedRows)) if CompletedRows else 0
     AverageScore = round(sum(float(AttemptValue.total_score or 0) for AttemptValue in CompletedRows) / len(CompletedRows)) if CompletedRows else 0
     PromotionRecords = _admin_promotion_records_for_scope(
         db,
@@ -6774,8 +6775,8 @@ def admin_competition_mock_tracker(db: Session = Depends(get_db), user: User = D
     completed = [row for row in rows if row.get("status") == "COMPLETED"]
     pending = [row for row in rows if row.get("status") in {"ASSIGNED", "PENDING"}]
     in_progress = [row for row in rows if row.get("status") == "IN_PROGRESS"]
-    avg_score = round(sum(float(row.get("percentage") or 0) for row in completed) / len(completed)) if completed else 0
-    avg_accuracy = round(sum(float(row.get("accuracyPercentage") or 0) for row in completed) / len(completed)) if completed else 0
+    avg_score = round_half_up(sum(float(row.get("percentage") or 0) for row in completed) / len(completed)) if completed else 0
+    avg_accuracy = round_half_up(sum(float(row.get("accuracyPercentage") or 0) for row in completed) / len(completed)) if completed else 0
     time_values = [int(row.get("timeTakenSeconds") or 0) for row in completed if row.get("timeTakenSeconds") is not None]
     avg_time = round(sum(time_values) / len(time_values)) if time_values else None
     return {

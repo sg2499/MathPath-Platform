@@ -107,22 +107,11 @@ function AttemptAverageForRows(Rows: AnyRow[]): number | null {
   return AverageValues(Values);
 }
 
+// Rule A (2026-10-14): every submitted try counts once, across every level
+// -- not the average of each level's average. Same number as every other
+// page (see everyTryAverageAccuracy in DetailWorkspaceViews).
 function HierarchyAverageForRows(Rows: AnyRow[]): number | null {
-  const AccuracyRows = Rows.filter((Row) => IsPracticeResultRow(Row) && isCompleted(Row) && HasAccuracyValue(Row));
-  if (!AccuracyRows.length) return null;
-
-  const LevelCodes = SortLevelCodes(Array.from(new Set(AccuracyRows.map(levelCodeOf).filter(Boolean))));
-  if (!LevelCodes.length) return AttemptAverageForRows(AccuracyRows);
-
-  // Filtering by "!== null" (not the old "> 0") so a level that genuinely
-  // averaged 0% still counts toward the cross-level average instead of
-  // being silently dropped — only levels with zero completed attempts
-  // (null) are excluded.
-  const LevelAverages = LevelCodes
-    .map((LevelCode) => AttemptAverageForRows(AccuracyRows.filter((Row) => levelCodeOf(Row) === LevelCode)))
-    .filter((Value): Value is number => Value !== null);
-
-  return AverageValues(LevelAverages);
+  return AttemptAverageForRows(Rows);
 }
 
 function CurrentPracticeRows(Rows: AnyRow[]) {

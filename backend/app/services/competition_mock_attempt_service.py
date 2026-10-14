@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.rounding import round_half_up
 from app.core.errors import api_error
 from app.services.competition_mock_generation_service import _MmCompetitionPadVisualAddLessRows
 from app.services.student_question_safety import student_safe_metadata
@@ -1481,7 +1482,10 @@ def GetCompetitionMockProgressInsightsForStudent(db: Session, student: Student) 
 
     return {
         "overallScore": round((total_score_earned / total_max_score) * 100) if total_max_score > 0 else 0,
-        "overallAccuracy": round((total_correct / total_questions_all) * 100) if total_questions_all > 0 else 0,
+        # Rule A (2026-10-14): the plain average of every mock's accuracy, the
+        # same rule as practice and the mock tracker (was correct/questions
+        # pooled across mocks).
+        "overallAccuracy": round_half_up(sum(float(item.accuracy_percentage or 0) for item in summaries) / len(summaries)) if summaries else 0,
         "overallTimeUtilization": round(total_time_utilization / n) if n > 0 else 0,
         "totalMocksAttempted": n,
         "averageTimePerQuestion": round(total_time_taken / total_questions, 2) if total_questions > 0 else 0,

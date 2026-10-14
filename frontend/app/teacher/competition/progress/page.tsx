@@ -121,45 +121,33 @@ function PercentValue(Value?: number | null) {
   return Value != null ? `${Value}%` : "-";
 }
 
+// Rule A (2026-10-14): the plain average of each completed mock's accuracy
+// and score %, the same numbers the server summary sends (it was correct /
+// questions pooled, so the cards showed 68% against the summary's 67%).
 function AverageAccuracyValue(Rows: TeacherCompetitionTrackerRow[]) {
-  const CompletedRows = Rows.filter((Row) => IsCompleted(Row) && Row.accuracyPercentage != null);
-  if (CompletedRows.length === 0) return null;
-  let totalCorrect = 0;
-  let totalQ = 0;
-  CompletedRows.forEach((Row) => {
-    const anyR = Row as any;
-    if (anyR.mockExam?.totalQuestions !== undefined && anyR.correctCount !== undefined) {
-      const qs = anyR.mockExam.totalQuestions > 0 ? anyR.mockExam.totalQuestions : ((anyR.attemptedCount ?? 0) + (anyR.unansweredCount ?? 0));
-      if (qs > 0) {
-        totalCorrect += anyR.correctCount;
-        totalQ += qs;
-      }
-    } else {
-      totalCorrect += Number(anyR.accuracyPercentage || 0);
-      totalQ += 100;
-    }
-  });
-  if (totalQ === 0) return null;
-  return Math.round((totalCorrect / totalQ) * 100);
+  const Values = Rows
+    .filter((Row) => IsCompleted(Row) && Row.accuracyPercentage != null && Number.isFinite(Number(Row.accuracyPercentage)))
+    .map((Row) => Number(Row.accuracyPercentage));
+  if (Values.length === 0) return null;
+  return Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length);
 }
 
+function RowScorePercent(Row: TeacherCompetitionTrackerRow): number | null {
+  const AnyRow = Row as any;
+  const Direct = Number(AnyRow.percentage);
+  if (AnyRow.percentage != null && Number.isFinite(Direct)) return Direct;
+  const Score = Number(AnyRow.score);
+  const Max = Number(AnyRow.maxScore);
+  return Number.isFinite(Score) && Number.isFinite(Max) && Max > 0 ? (Score / Max) * 100 : null;
+}
 
 function AverageScoreValue(Rows: TeacherCompetitionTrackerRow[]) {
-  const CompletedRows = Rows.filter((Row) => IsCompleted(Row) && Row.score != null);
-  if (CompletedRows.length === 0) return 0;
-  let totalScore = 0;
-  let totalMax = 0;
-  CompletedRows.forEach((Row) => {
-    const anyR = Row as any;
-    const s = Number(anyR.score || 0);
-    const m = Number(anyR.maxScore || 0);
-    if (m > 0) {
-      totalScore += s;
-      totalMax += m;
-    }
-  });
-  if (totalMax === 0) return 0;
-  return Math.round((totalScore / totalMax) * 100);
+  const Values = Rows
+    .filter((Row) => IsCompleted(Row))
+    .map(RowScorePercent)
+    .filter((Value): Value is number => Value !== null);
+  if (Values.length === 0) return 0;
+  return Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length);
 }
 
 function AverageOfStudentAccuracyValues(Rows: TeacherCompetitionTrackerRow[]) {
