@@ -302,3 +302,31 @@ def test_student_results_carry_the_same_state_as_the_trackers(db, world):
     assert [row["chainRowLabel"] for row in history] == ["Below Benchmark", "Below Benchmark"]
     buckets = {dps: current(dps)["dpsChain"]["bucket"] for dps in by_dps}
     assert buckets == {"d1": "NEEDS_REATTEMPT", "d2": "NEEDS_REATTEMPT", "d3": "CLEARED", "d4": "NEEDS_REATTEMPT", "d5": "PENDING"}
+
+
+def test_bulk_approval_sends_one_combined_notice_per_person(db, world):
+    """2026-10-14: approving several sheets at once sends each person one
+    notice listing them all, not one notice per DPS."""
+    from app.api import routes_admin
+
+    waiting = [_chain(db, "s1", dps, [40, 50, 60], manual_last=True) for dps in ("d1", "d2", "d3")]
+    other = _chain(db, "s2", "d1", [40, 50, 60], manual_last=True)
+    db.commit()
+    before = {Row.id for Row in db.query(Notification).all()}
+    payload = routes_admin.BulkReattemptApprovalRequest(items=[
+        *({"assignmentId": rows[-1].id, "studentId": "s1"} for rows in waiting),
+        {"assignmentId": other[-1].id, "studentId": "s2"},
+    ])
+    result = routes_admin.bulk_approve_reattempts_route(payload, db=db, user=world)
+    assert result["approved"] == 4
+    fresh = [Row for Row in db.query(Notification).all() if Row.id not in before and Row.type == "DPS_FRESH_PRACTICE_ASSIGNED"]
+    by_recipient: dict[str, list] = {}
+    for Row in fresh:
+        by_recipient.setdefault(Row.recipient_user_id, []).append(Row)
+    # One each: student 1, student 2 and the admin.
+    assert sorted(len(Rows) for Rows in by_recipient.values()) == [1, 1, 1]
+    assert by_recipient["u-s1"][0].title == "3 Re-Attempts Assigned"
+    assert by_recipient["u-s2"][0].title == "Re-Attempt 3 Assigned"
+    admin_notice = by_recipient["admin"][0]
+    assert admin_notice.title == "4 Re-Attempts Assigned After Approval"
+    assert "Student s1" in admin_notice.message and "Student s2" in admin_notice.message

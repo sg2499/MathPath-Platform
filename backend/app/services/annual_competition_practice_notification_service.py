@@ -239,41 +239,46 @@ def NotifyAnnualCompetitionPracticeSubmitted(db: Session, *, attempt_id: str) ->
             metadata=metadata,
         )
 
+    # 2026-10-14 (Phase 2 part 4, Shailesh: Option 1): admin and the teacher
+    # get ONE notice per day listing every paper, instead of one per paper
+    # (annual_practice_digest_service.py).
+    from app.services.annual_competition_studio_service import ComputePracticePaperOrdinals
+    from app.services.annual_practice_digest_service import AddToDailyPracticeDigest
+
+    Ordinals = ComputePracticePaperOrdinals(db, {(student.id, level_code)}) if attempt.level_paper_id else {}
+    Ordinal = Ordinals.get(attempt.level_paper_id)
+    entry = {
+        "attemptId": attempt.id,
+        "studentId": student.id,
+        "studentCode": student.student_code,
+        "studentName": student_name,
+        "levelCode": level_code,
+        "levelLabel": level_label,
+        "paperLabel": f"Practice Paper {Ordinal}" if Ordinal else "Practice Paper",
+        "score": score_label,
+        "accuracy": accuracy,
+        "submittedAt": attempt.submitted_at.isoformat() if attempt.submitted_at else None,
+    }
+    is_demo = bool(getattr(student, "is_demo", False))
+
     if teacher_user:
-        CreateNotification(
+        AddToDailyPracticeDigest(
             db,
             recipient_user_id=teacher_user.id,
             recipient_role="TEACHER",
-            actor_user_id=student_user.id if student_user else None,
-            actor_role="STUDENT",
-            student_id=student.id,
-            teacher_id=teacher.id if teacher else None,
-            attempt_id=attempt.id,
-            type="ANNUAL_PRACTICE_SUBMITTED_BY_STUDENT",
-            category=ANNUAL_COMPETITION_PRACTICE_CATEGORY,
-            title=f"{student_name} Submitted A Practice Paper",
-            message=f"{student_name} completed a {level_label} practice paper. Score: {score_label} ({accuracy}%).",
+            entry=entry,
+            submitted_at=attempt.submitted_at,
+            is_demo=is_demo,
             target_route="/teacher/competition/annual",
-            target_tab="PRACTICE",
-            metadata=metadata,
         )
 
     for AdminUser in ActiveAdminUsers(db):
-        CreateNotification(
+        AddToDailyPracticeDigest(
             db,
             recipient_user_id=AdminUser.id,
             recipient_role=AdminUser.role,
-            actor_user_id=student_user.id if student_user else None,
-            actor_role="STUDENT",
-            student_id=student.id,
-            teacher_id=teacher.id if teacher else None,
-            attempt_id=attempt.id,
-            type="ANNUAL_PRACTICE_SUBMITTED_BY_STUDENT",
-            category=ANNUAL_COMPETITION_PRACTICE_CATEGORY,
-            title=f"{student_name} Submitted A Practice Paper",
-            message=f"{student_name} completed a {level_label} practice paper. Score: {score_label} ({accuracy}%).",
+            entry=entry,
+            submitted_at=attempt.submitted_at,
+            is_demo=is_demo,
             target_route="/admin/competition/annual-studio",
-            target_tab="PRACTICE",
-            target_sub_tab="RESULTS",
-            metadata=metadata,
         )

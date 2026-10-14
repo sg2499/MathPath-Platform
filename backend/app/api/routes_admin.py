@@ -72,7 +72,7 @@ from app.services.assessment_engine_service import (
 )
 
 from app.services.assessment_notification_service import NotifyAssessmentReattemptDecision, NotifyStudentPromoted
-from app.services.practice_notification_service import NotifyPracticeFreshPracticeAssigned
+from app.services.practice_notification_service import NotifyBulkFreshPracticeAssigned, NotifyPracticeFreshPracticeAssigned
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
 from app.services.dps_chain_state_service import BuildDpsChainIndex, HealExpiredPracticeAttempts
 from app.services.demo_students import DemoStudentIds, IsDemoStudent, IsDemoStudentId, RealStudents, WithoutDemo, WithoutDemoColumn
@@ -3262,7 +3262,7 @@ def get_assignment_route(assignment_id: str, db: Session = Depends(get_db), user
 
 
 
-def _approve_next_reattempt(db: Session, assignment: Assignment | None, student: Student | None, user: User, reason: str | None) -> dict:
+def _approve_next_reattempt(db: Session, assignment: Assignment | None, student: Student | None, user: User, reason: str | None, notice_collector: list | None = None) -> dict:
     """Open the next sheet for a student DPS that has used all its tries.
     Shared by the single and the bulk approval routes; commits on success."""
     if not assignment:
@@ -3317,7 +3317,7 @@ def _approve_next_reattempt(db: Session, assignment: Assignment | None, student:
     permission.status = "APPROVED"
     permission.used_at = datetime.now(datetime_timezone.utc)
     permission.used_assignment_id = fresh_assignment.id
-    NotifyPracticeFreshPracticeAssigned(db, assignment_id=fresh_assignment.id, actor_user_id=user.id, source_attempt_id=latest_attempt.id)
+    NotifyPracticeFreshPracticeAssigned(db, assignment_id=fresh_assignment.id, actor_user_id=user.id, source_attempt_id=latest_attempt.id, collector=notice_collector)
     # 2026-10-13: the "approval needed" notices for this student's DPS are
     # done with; mark them read for everyone who got one so the Needs Action
     # tab never shows an approval that has already been given.
@@ -3376,14 +3376,19 @@ def bulk_approve_reattempts_route(
     if len(payload.items) > 200:
         api_error(400, "VALIDATION_ERROR", "Approve up to 200 re-attempts at a time.")
     results = []
+    # One combined notice per person after the whole batch (2026-10-14).
+    collected_notices: list = []
     for item in payload.items:
         try:
-            outcome = _approve_next_reattempt(db, db.get(Assignment, item.assignmentId), db.get(Student, item.studentId), user, payload.reason)
+            outcome = _approve_next_reattempt(db, db.get(Assignment, item.assignmentId), db.get(Student, item.studentId), user, payload.reason, notice_collector=collected_notices)
             results.append({"assignmentId": item.assignmentId, "studentId": item.studentId, "approved": True, **outcome})
         except HTTPException as error:
             db.rollback()
             detail = error.detail if isinstance(error.detail, dict) else {"message": str(error.detail)}
             results.append({"assignmentId": item.assignmentId, "studentId": item.studentId, "approved": False, "message": detail.get("message") or "Could not be approved."})
+    if collected_notices:
+        NotifyBulkFreshPracticeAssigned(db, collected=collected_notices, actor_user_id=user.id)
+        db.commit()
     approved = sum(1 for row in results if row["approved"] and row.get("created"))
     already = sum(1 for row in results if row["approved"] and not row.get("created"))
     failed = sum(1 for row in results if not row["approved"])
