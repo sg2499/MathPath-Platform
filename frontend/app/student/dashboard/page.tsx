@@ -109,7 +109,7 @@ function parseLocalDateKey(key: string): Date {
 // it inherits the same local-timezone-safe parsing as the rest of the
 // calendar.
 function formatCalendarDetailDate(dateKey: string): string {
-  return parseLocalDateKey(dateKey).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return parseLocalDateKey(dateKey).toLocaleDateString("en-IN", { day: "numeric", month: "short" }); // "14 Oct", the platform style
 }
 
 // The Grind Heatmap's per-day scoring formula (pace ratio, Flow State,

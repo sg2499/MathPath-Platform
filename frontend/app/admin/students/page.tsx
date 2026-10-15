@@ -1,5 +1,6 @@
 "use client";
 
+import { Plural } from "@/lib/plural";
 import { AppShell } from "@/components/common/AppShell";
 import { SortableHeader } from "@/components/common/SortableHeader";
 import { SortByDropdown } from "@/components/common/SortByDropdown";
@@ -867,7 +868,7 @@ export default function AdminStudentsPage() {
               </p>
 
               <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                {filtered.length} Students · {DirectoryScopeLabel}
+                {Plural(filtered.length, "Student")} · {DirectoryScopeLabel}
               </p>
             </div>
 
@@ -1118,7 +1119,7 @@ export default function AdminStudentsPage() {
 
             <div className="flex items-center justify-between gap-4 border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-700">
               <p className="text-slate-600 dark:text-slate-300">
-                Showing {pageItems.length} of {filtered.length} students · {DirectoryScopeLabel}
+                Showing {pageItems.length} of {Plural(filtered.length, "student")} · {DirectoryScopeLabel}
               </p>
 
               <div className="flex items-center gap-2">

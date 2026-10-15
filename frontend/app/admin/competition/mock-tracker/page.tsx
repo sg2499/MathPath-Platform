@@ -1,11 +1,12 @@
 "use client";
 
+import { formatMathPathDate } from "@/lib/date";
 import { DemoTag } from "@/components/common/DemoAccounts";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { StandardViewButton } from "@/components/common/DetailWorkspaceViews";
+import { StandardViewButton, numericAccuracyTone } from "@/components/common/DetailWorkspaceViews";
 import { SortableHeader } from "@/components/common/SortableHeader";
 import { SortByDropdown } from "@/components/common/SortByDropdown";
 import {
@@ -49,10 +50,7 @@ const MOCK_SORT_FIELDS: SortFieldOption<SortKey>[] = MockTableColumns
   .map((Column) => ({ key: Column.key, label: Column.label }));
 
 function FormatDate(Value?: string | null) {
-  if (!Value) return "-";
-  const DateValue = new Date(Value);
-  if (Number.isNaN(DateValue.getTime())) return "-";
-  return DateValue.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return Value ? formatMathPathDate(Value) : "-";
 }
 
 function StatusLabel(Status?: string | null) {
@@ -112,11 +110,9 @@ function AverageOfStudentAccuracyValues(Rows: AdminCompetitionTrackerRow[]) {
 import { Chip } from "@/components/common/DetailWorkspaceViews";
 
 function AccuracyBandTone(Value: number | null): "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple" {
-  if (Value == null) return "slate";
-  if (Value < 60) return "red";
-  if (Value < 80) return "amber";
-  if (Value < 90) return "purple";
-  return "green";
+  // 2026-10-14: the same colours as practice -- green at the 70% benchmark
+  // or above, red below (was four bands: red / amber / purple / green).
+  return numericAccuracyTone(Value);
 }
 
 function AverageAccuracyChip(Rows: AdminCompetitionTrackerRow[]) {
@@ -521,7 +517,9 @@ function AdminCompetitionMockTrackerContent() {
 
             <div className="grid gap-5">
               <article className="math-card p-5 sm:p-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                {/* 2026-10-14: heading above the filters, so the search box gets
+                    real width (it was squeezed to a 40px box beside the heading). */}
+                <div className="flex flex-col gap-4">
                   <div>
                     <p className="math-block-header"><Radar size={14} />Monitor</p>
                     <h2 className="text-2xl font-black text-slate-950 dark:text-white">Student Mock Outcomes</h2>
@@ -529,7 +527,7 @@ function AdminCompetitionMockTrackerContent() {
                       Review completion status, score, accuracy, and time taken for your students.
                     </p>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_210px_180px_180px_180px_220px] xl:w-[1200px]">
+                  <div className="grid w-full gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[minmax(220px,1fr)_200px_170px_170px_170px_220px]">
                     <label className="tc-dark-filter flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[#2563eb] focus-within:border-[#2563eb] focus-within:ring-2 focus-within:ring-[#2563eb]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-cyan-200/90 dark:hover:bg-cyan-500/20 dark:focus-within:border-cyan-300 dark:focus-within:bg-cyan-500/20 dark:focus-within:ring-cyan-300/25">
                       <Search size={16} className="text-[#2563eb] dark:text-cyan-100" />
                       <input

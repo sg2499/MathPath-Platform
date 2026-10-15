@@ -1,5 +1,6 @@
 "use client";
 
+import { Plural } from "@/lib/plural";
 import { DemoTag } from "@/components/common/DemoAccounts";
 import {
   MATHPATH_ACTIVITY_TIMESTAMP_KEYS,
@@ -2726,7 +2727,7 @@ function StudentProgressOverview({
                 Expand a lesson to review strength and practice focus.
               </p>
             </div>
-            <Chip tone="blue">{LessonInsights.length} Lessons</Chip>
+            <Chip tone="blue">{Plural(LessonInsights.length, "Lesson")}</Chip>
           </div>
 
           <div className="mt-4 space-y-3">

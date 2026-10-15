@@ -8,6 +8,7 @@
 // change later, the day says so. The day-close PDF carries the count and the
 // sign-off. The last 30 days are listed below.
 
+import { formatMathPathDateTimeCompact } from "@/lib/date";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CalendarCheck, CheckCircle2, Download, History, Loader2, LockOpen, Scale, Wallet } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -43,7 +44,7 @@ function LongDay(iso: string): string {
 
 function When(iso: string | null): string {
   if (!iso) return "";
-  return new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
+  return formatMathPathDateTimeCompact(iso);
 }
 
 /** "" -> null; "1,100.5" -> 110050; invalid -> NaN. */

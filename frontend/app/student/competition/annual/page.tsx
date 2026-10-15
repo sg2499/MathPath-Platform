@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMathPathDateTime, formatMathPathTime } from "@/lib/date";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -35,10 +36,7 @@ function FormatLongDay(value?: string | null) {
 }
 
 function FormatClock(value?: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+  return value ? formatMathPathTime(value) : "—";
 }
 
 const SLOT_MODE_LABELS: Record<string, string> = {
@@ -48,10 +46,7 @@ const SLOT_MODE_LABELS: Record<string, string> = {
 };
 
 function FormatDateTime(value?: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return value ? formatMathPathDateTime(value) : "—";
 }
 
 // Reused verbatim from app/student/competition/mock-exams/page.tsx's own

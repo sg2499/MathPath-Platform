@@ -5,6 +5,7 @@
 // 2026-10-08 (Payments Phase 2): Invoices -- every invoice, with filters,
 // totals, Excel export, a bulk PDF for printing, and a detail view where an
 // invoice can be downloaded or cancelled (with a reason; it stays on record).
+import { formatMathPathDateTime } from "@/lib/date";
 import { DemoTag } from "@/components/common/DemoAccounts";
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -60,7 +61,7 @@ const STATUS_TABS: { key: string; label: string }[] = [
 function FormatDate(isoDate: string | null | undefined): string {
   if (!isoDate) return "—";
   const [year, month, day] = isoDate.slice(0, 10).split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 function InvoiceStatusChip({ invoice }: { invoice: Invoice }) {
@@ -458,7 +459,7 @@ export function InvoicesPanel() {
             </div>
             {opened.status === "CANCELLED" ? (
               <p className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300">
-                Cancelled {opened.cancelledAt ? new Date(opened.cancelledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : ""}
+                Cancelled {opened.cancelledAt ? formatMathPathDateTime(opened.cancelledAt) : ""}
                 {opened.cancelledByName ? ` by ${opened.cancelledByName}` : ""}. Reason: {opened.cancelReason}
               </p>
             ) : null}

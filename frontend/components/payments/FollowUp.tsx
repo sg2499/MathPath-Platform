@@ -10,6 +10,7 @@
 //     reminded in the last 24 hours is skipped.
 // No WhatsApp: it comes with the official integration, built last.
 
+import { Plural } from "@/lib/plural";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellRing, CalendarCheck, Check, CheckCircle2, Copy, Loader2, MessageSquarePlus } from "lucide-react";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
@@ -277,7 +278,7 @@ function BulkRemindDialog({ students, onClose }: { students: FollowUpTarget[]; o
   return (
     <PaymentsDialog
       open
-      kicker={`Remind in app · ${students.length} students`}
+      kicker={`Remind in app · ${Plural(students.length, "student")}`}
       title={result ? `${result.sent} reminder${result.sent === 1 ? "" : "s"} sent` : "Each gets their own reminder"}
       onClose={() => { if (!send.isPending) onClose(); }}
       footer={result ? <button type="button" className="math-button-primary" onClick={onClose}>Done</button> : (

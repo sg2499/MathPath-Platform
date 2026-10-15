@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMathPathDate } from "@/lib/date";
 import { DemoTag } from "@/components/common/DemoAccounts";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -48,10 +49,7 @@ const MOCK_SORT_FIELDS: SortFieldOption<SortKey>[] = MockTableColumns
   .map((Column) => ({ key: Column.key, label: Column.label }));
 
 function FormatDate(Value?: string | null) {
-  if (!Value) return "-";
-  const DateValue = new Date(Value);
-  if (Number.isNaN(DateValue.getTime())) return "-";
-  return DateValue.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return Value ? formatMathPathDate(Value) : "-";
 }
 
 function StatusLabel(Status?: string | null) {
@@ -108,14 +106,12 @@ function AverageOfStudentAccuracyValues(Rows: TeacherCompetitionTrackerRow[]) {
   return AverageAccuracyValue(Rows) || 0;
 }
 
-import { Chip } from "@/components/common/DetailWorkspaceViews";
+import { Chip, numericAccuracyTone } from "@/components/common/DetailWorkspaceViews";
 
 function AccuracyBandTone(Value: number | null): "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple" {
-  if (Value == null) return "slate";
-  if (Value < 60) return "red";
-  if (Value < 80) return "amber";
-  if (Value < 90) return "purple";
-  return "green";
+  // 2026-10-14: the same colours as practice -- green at the 70% benchmark
+  // or above, red below (was four bands: red / amber / purple / green).
+  return numericAccuracyTone(Value);
 }
 
 function AverageAccuracyChip(Rows: TeacherCompetitionTrackerRow[]) {
@@ -488,7 +484,7 @@ function TeacherCompetitionMockTrackerContent() {
 
             <div className="grid gap-5">
               <article className="math-card p-5 sm:p-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="flex flex-col gap-4">
                   <div>
                     <p className="math-block-header">
                       <Radar size={14} />
@@ -499,7 +495,7 @@ function TeacherCompetitionMockTrackerContent() {
                       Review completion status, score, accuracy, and time taken for your students.
                     </p>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.35fr_180px_180px_180px_220px] xl:w-[1040px]">
+                  <div className="grid gap-3 sm:grid-cols-2 w-full xl:grid-cols-[minmax(240px,1.35fr)_180px_180px_180px_220px]">
                     <label className="tc-dark-filter flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[#7a1f58] focus-within:border-[#7a1f58] focus-within:ring-2 focus-within:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus-within:border-rose-300 dark:focus-within:bg-rose-500/20 dark:focus-within:ring-rose-300/25">
                       <Search size={16} className="text-[#7a1f58] dark:text-rose-100" />
                       <input

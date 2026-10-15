@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMathPathDateTime } from "@/lib/date";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -116,12 +117,8 @@ function TodayInIst(): string {
 // this repo's existing Competition Mock Tracker for teachers).
 
 function FormatEventDate(Value: string | null) {
-  if (!Value) return "Not set";
-  try {
-    return new Date(Value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return Value;
-  }
+  // One platform date style (lib/date.ts, 2026-10-14).
+  return Value ? formatMathPathDateTime(String(Value)) : "Not set";
 }
 
 function FormatSecondsAsMinSec(Value: number | null): string {

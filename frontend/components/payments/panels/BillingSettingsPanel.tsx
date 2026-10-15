@@ -6,6 +6,7 @@
 // each student's billing mode (India or International), set for many
 // students at once.
 
+import { formatMathPathDateTime } from "@/lib/date";
 import { DemoTag } from "@/components/common/DemoAccounts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Ban, CalendarClock, CheckCircle2, Globe2, IndianRupee, Loader2, Search, Settings2, UsersRound } from "lucide-react";
@@ -28,7 +29,7 @@ import {
 
 function When(iso: string | null): string {
   if (!iso) return "";
-  return new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
+  return formatMathPathDateTime(iso);
 }
 
 function Card({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {

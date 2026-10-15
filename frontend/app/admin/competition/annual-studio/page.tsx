@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMathPathDateTime } from "@/lib/date";
 import { AppShell } from "@/components/common/AppShell";
 import Link from "next/link";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -181,12 +182,8 @@ function StatusChip({ status }: { status: string }) {
 }
 
 function FormatEventDate(Value: string | null) {
-  if (!Value) return "Not set";
-  try {
-    return new Date(Value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return Value;
-  }
+  // One platform date style (lib/date.ts, 2026-10-14).
+  return Value ? formatMathPathDateTime(String(Value)) : "Not set";
 }
 
 function FormatSecondsAsMinSec(Value: number | null): string {
@@ -1604,39 +1601,6 @@ function AdminAnnualCompetitionStudioPageContent() {
           </div>
         )}
 
-        {/* 2026-09-14 batch: one-time (and repeatable) accuracy backfill
-            trigger -- see the mutations above for what this actually calls.
-            Safe to click more than once; only refreshes already-finalized
-            results under the current formula, never touches release/rank
-            state. */}
-        <div className="math-card p-5">
-          <p className="math-block-header"><RefreshCcw size={14} />Accuracy Backfill</p>
-          <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
-            Recomputes score/accuracy/correct/wrong/unanswered for every already-finalized result under the current
-            formula. Never touches release status, rank, or certificates — safe to run again anytime.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => RecomputeOfficialMutation.mutate()}
-              disabled={RecomputeOfficialMutation.isPending}
-              className="math-button-secondary inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-60"
-            >
-              <RefreshCcw size={14} className={RecomputeOfficialMutation.isPending ? "animate-spin" : ""} />
-              {RecomputeOfficialMutation.isPending ? "Recomputing..." : "Recompute Official Results"}
-            </button>
-            <button
-              type="button"
-              onClick={() => RecomputePracticeMutation.mutate()}
-              disabled={RecomputePracticeMutation.isPending}
-              className="math-button-secondary inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-60"
-            >
-              <RefreshCcw size={14} className={RecomputePracticeMutation.isPending ? "animate-spin" : ""} />
-              {RecomputePracticeMutation.isPending ? "Recomputing..." : "Recompute Practice Results"}
-            </button>
-          </div>
-        </div>
-
         <div className="math-card p-3">
           <div className="flex flex-wrap gap-3">
             {TopTabList.map((Tab) => (
@@ -2889,6 +2853,43 @@ function AdminAnnualCompetitionStudioPageContent() {
             )}
           </div>
         )}
+        {/* 2026-10-14 (Phase 2 part 5): the accuracy backfill buttons are a
+            maintenance tool, not everyday work -- moved here from the top of
+            the page into a collapsed section. What they do is unchanged:
+            recompute already-finalized results under the current formula,
+            never touching release status, rank or certificates. */}
+        <details className="math-card group p-5">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+            <span className="math-block-header"><RefreshCcw size={14} />Maintenance</span>
+            <span className="text-xs font-black text-slate-500 group-open:hidden dark:text-slate-400">Show</span>
+            <span className="hidden text-xs font-black text-slate-500 group-open:inline dark:text-slate-400">Hide</span>
+          </summary>
+          <p className="mt-3 text-sm font-black text-slate-900 dark:text-white">Accuracy Backfill</p>
+          <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+            Recomputes score/accuracy/correct/wrong/unanswered for every already-finalized result under the current
+            formula. Never touches release status, rank, or certificates — safe to run again anytime.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => RecomputeOfficialMutation.mutate()}
+              disabled={RecomputeOfficialMutation.isPending}
+              className="math-button-secondary inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-60"
+            >
+              <RefreshCcw size={14} className={RecomputeOfficialMutation.isPending ? "animate-spin" : ""} />
+              {RecomputeOfficialMutation.isPending ? "Recomputing..." : "Recompute Official Results"}
+            </button>
+            <button
+              type="button"
+              onClick={() => RecomputePracticeMutation.mutate()}
+              disabled={RecomputePracticeMutation.isPending}
+              className="math-button-secondary inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-60"
+            >
+              <RefreshCcw size={14} className={RecomputePracticeMutation.isPending ? "animate-spin" : ""} />
+              {RecomputePracticeMutation.isPending ? "Recomputing..." : "Recompute Practice Results"}
+            </button>
+          </div>
+        </details>
       </section>
       {ModalStudentRow ? (
         <StudentAnalyticsModal Row={ModalStudentRow} OnClose={() => SetModalStudentRow(null)} />

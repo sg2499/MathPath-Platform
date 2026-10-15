@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMathPathDateTime } from "@/lib/date";
 import { AppShell } from "@/components/common/AppShell";
 import Link from "next/link";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -206,12 +207,8 @@ function StatusChip({ status }: { status: string }) {
 }
 
 function FormatDateTime(Value: string | null) {
-  if (!Value) return "Not set";
-  try {
-    return new Date(Value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return Value;
-  }
+  // One platform date style (lib/date.ts, 2026-10-14).
+  return Value ? formatMathPathDateTime(String(Value)) : "Not set";
 }
 
 function ToLocalInputValue(IsoValue: string | null): string {

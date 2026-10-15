@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { MarkNotificationRead, type NotificationRecord, type NotificationTab, type NotificationTabKey } from "@/lib/api/notifications";
 import { getStoredUser } from "@/lib/auth";
+import { formatMathPathTime } from "@/lib/date";
 import { IconFor, NormalizeTone, ToneClasses } from "@/components/common/notificationDisplay";
 
 // 2026-10-14 (Phase 2 part 4): one notice per day for annual practice papers
@@ -113,7 +114,7 @@ function DigestNotificationItem({
                       {Entry.score} <span className={AccuracyClass(Entry.accuracy)}>({Entry.accuracy ?? "—"}%)</span>
                     </span>
                     <span className="block text-[11px] font-bold tabular-nums text-slate-500 dark:text-slate-400">
-                      {Entry.submittedAt ? TimeFormat.format(new Date(Entry.submittedAt)) : ""}
+                      {Entry.submittedAt ? formatMathPathTime(Entry.submittedAt) : ""}
                     </span>
                   </span>
                 </button>
@@ -136,7 +137,6 @@ function DigestNotificationItem({
 const IST = "Asia/Kolkata";
 const DayKeyFormat = new Intl.DateTimeFormat("en-CA", { timeZone: IST, year: "numeric", month: "2-digit", day: "2-digit" });
 const DayLabelFormat = new Intl.DateTimeFormat("en-IN", { timeZone: IST, weekday: "long", day: "numeric", month: "long", year: "numeric" });
-const TimeFormat = new Intl.DateTimeFormat("en-IN", { timeZone: IST, hour: "numeric", minute: "2-digit", hour12: true });
 
 function DayKey(Value: Date) {
   return DayKeyFormat.format(Value);
@@ -159,9 +159,7 @@ export function GroupNotificationsByDay(Items: NotificationRecord[]) {
 }
 
 export function NotificationTime(Item: NotificationRecord) {
-  if (!Item.createdAt) return "";
-  const Created = new Date(Item.createdAt);
-  return Number.isNaN(Created.getTime()) ? "" : TimeFormat.format(Created);
+  return Item.createdAt ? formatMathPathTime(Item.createdAt) : "";
 }
 
 export function CountText(Value: number) {
