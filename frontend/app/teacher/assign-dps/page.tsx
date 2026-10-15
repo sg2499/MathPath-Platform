@@ -3,13 +3,14 @@
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { LessonProgressBadge } from "@/components/common/LessonProgressBadge";
+import { LessonAssignmentPill, LessonStatusState } from "@/components/common/LessonAssignmentStatus";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
-import { getTeacherAvailableDps, getTeacherStudents, teacherAssignAllSheetsForLesson, teacherAssignDps, teacherScheduleDpsForLesson } from "@/lib/api/teacher";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardPlus, Layers, Send, UserCheck, Users, X } from "lucide-react";
+import { getTeacherAvailableDps, getTeacherStudents, teacherAssignAllSheetsForLesson, teacherAssignDps, teacherScheduleDpsForLesson, type LessonAssignmentStateValue, type TeacherLessonStatus, type TeacherStudent } from "@/lib/api/teacher";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, CalendarDays, CheckCircle2, ChevronDown, ClipboardPlus, Layers, Send, UserCheck, Users, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 
@@ -107,6 +108,23 @@ function NextWeekdaySequence(count: number, startFrom: Date = new Date()): strin
   return dates;
 }
 
+// 2026-10-15: Assign Practice filter chips. A week scheduled ahead counts as
+// Assigned -- it has been given, it just hasn't opened yet.
+type LessonStateFilter = "ALL" | "NOT_ASSIGNED" | "ASSIGNED" | "PARTLY";
+const LESSON_STATE_FILTERS: Array<{ key: LessonStateFilter; label: string }> = [
+  { key: "ALL", label: "All" },
+  { key: "NOT_ASSIGNED", label: "Not Assigned" },
+  { key: "ASSIGNED", label: "Assigned" },
+  { key: "PARTLY", label: "Partly Assigned" },
+];
+const STATE_ORDER: Record<LessonAssignmentStateValue, number> = { NOT_ASSIGNED: 0, PARTLY: 1, SCHEDULED: 2, ASSIGNED: 3 };
+
+function MatchesLessonStateFilter(State: LessonAssignmentStateValue, Filter: LessonStateFilter) {
+  if (Filter === "ALL") return true;
+  if (Filter === "ASSIGNED") return State === "ASSIGNED" || State === "SCHEDULED";
+  return State === Filter;
+}
+
 export default function TeacherAssignDpsPage() {
   const ready = useProtectedPage(["TEACHER"]);
   const AssignDpsStateKey = CreatePersistedUiStateKey("teacher", "assign-dps");
@@ -120,6 +138,8 @@ export default function TeacherAssignDpsPage() {
   const [showAssignAllSheetsConfirm, setShowAssignAllSheetsConfirm] = useState(false);
   const [showScheduleConfirm, setShowScheduleConfirm] = useState(false);
   const [scheduleDates, setScheduleDates] = useState<Record<string, string>>({});
+  const [lessonStateFilter, setLessonStateFilter] = usePersistentUiState<LessonStateFilter>(CreatePersistedUiStateKey(AssignDpsStateKey, "lesson-state-filter"), "ALL");
+  const queryClient = useQueryClient();
 
   const studentsQuery = useQuery({ queryKey: ["teacher-students"], queryFn: getTeacherStudents, enabled: ready });
   const dpsQuery = useQuery({ queryKey: ["teacher-available-dps"], queryFn: getTeacherAvailableDps, enabled: ready });
@@ -239,7 +259,38 @@ export default function TeacherAssignDpsPage() {
     if (dpsId) return AssignableIds.includes(dpsId);
     return dpsForLesson.some((dps) => AssignableIds.includes(dps.dpsId));
   });
+
+  // 2026-10-15: every card says whether the picked lesson has been given to
+  // that student (Not Assigned / Assigned / Scheduled / Partly Assigned).
+  // Students who already have every sheet used to vanish from the list
+  // without a word; they now sit in a collapsed "Already Assigned" section.
+  const lessonStatusFor = (student: TeacherStudent) => (selectedLesson ? student.lessonStatus?.[selectedLesson.lessonId] : undefined);
+  const lessonStateFor = (student: TeacherStudent) => LessonStatusState(lessonStatusFor(student));
+  const byLessonState = (a: TeacherStudent, b: TeacherStudent) =>
+    STATE_ORDER[lessonStateFor(a)] - STATE_ORDER[lessonStateFor(b)] || a.studentName.localeCompare(b.studentName);
+  const eligibleIdSet = new Set(eligibleStudents.map((student) => student.studentId));
+  const alreadyAssignedStudents = studentsInLevel.filter((student) => !eligibleIdSet.has(student.studentId));
+  const lessonStateCounts: Record<LessonStateFilter, number> = {
+    ALL: studentsInLevel.length,
+    NOT_ASSIGNED: studentsInLevel.filter((student) => MatchesLessonStateFilter(lessonStateFor(student), "NOT_ASSIGNED")).length,
+    ASSIGNED: studentsInLevel.filter((student) => MatchesLessonStateFilter(lessonStateFor(student), "ASSIGNED")).length,
+    PARTLY: studentsInLevel.filter((student) => MatchesLessonStateFilter(lessonStateFor(student), "PARTLY")).length,
+  };
+  const visibleEligibleStudents = eligibleStudents
+    .filter((student) => MatchesLessonStateFilter(lessonStateFor(student), lessonStateFilter))
+    .sort(byLessonState);
+  const visibleAlreadyAssigned = alreadyAssignedStudents
+    .filter((student) => MatchesLessonStateFilter(lessonStateFor(student), lessonStateFilter))
+    .sort(byLessonState);
   const eligibleStudentIds = useMemo(() => eligibleStudents.map((student) => student.studentId), [eligibleStudents]);
+  const visibleEligibleIds = visibleEligibleStudents.map((student) => student.studentId);
+
+  // A successful assign/schedule changes who has what -- reload the roster
+  // so the cards and counts update straight away (they used to stay stale
+  // until the page was refreshed).
+  const refreshRoster = () => {
+    queryClient.invalidateQueries({ queryKey: ["teacher-students"] });
+  };
 
   const mutation = useMutation({
     mutationFn: (payload: { studentIds: string[]; mode: "selected" | "all" }) => teacherAssignDps({
@@ -253,6 +304,7 @@ export default function TeacherAssignDpsPage() {
       setSelectedStudentIds([]);
       setAssignMode("selected");
       setShowAssignAllConfirm(false);
+      refreshRoster();
     },
   });
 
@@ -266,6 +318,7 @@ export default function TeacherAssignDpsPage() {
       setMessage(data.message);
       setSelectedStudentIds([]);
       setShowAssignAllSheetsConfirm(false);
+      refreshRoster();
     },
   });
 
@@ -280,6 +333,7 @@ export default function TeacherAssignDpsPage() {
       setMessage(data.warnings?.length ? `${data.message} ${data.warnings.join(" ")}` : data.message);
       setSelectedStudentIds([]);
       setShowScheduleConfirm(false);
+      refreshRoster();
     },
   });
 
@@ -288,14 +342,15 @@ export default function TeacherAssignDpsPage() {
   const loading = studentsQuery.isLoading || dpsQuery.isLoading;
   const error = studentsQuery.error || dpsQuery.error || mutation.error || bulkLessonMutation.error || scheduleMutation.error;
 
-  const allEligibleSelected = eligibleStudentIds.length > 0 && eligibleStudentIds.every((id) => selectedStudentIds.includes(id));
+  const allEligibleSelected = visibleEligibleIds.length > 0 && visibleEligibleIds.every((id) => selectedStudentIds.includes(id));
 
   function toggleStudent(studentId: string) {
     setSelectedStudentIds((prev) => prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]);
   }
 
   function toggleSelectAllStudents() {
-    setSelectedStudentIds(allEligibleSelected ? [] : eligibleStudentIds);
+    // Selects the students showing under the current filter chip.
+    setSelectedStudentIds(allEligibleSelected ? selectedStudentIds.filter((id) => !visibleEligibleIds.includes(id)) : Array.from(new Set([...selectedStudentIds, ...visibleEligibleIds])));
   }
 
   function assignSelectedStudents() {
@@ -452,7 +507,7 @@ export default function TeacherAssignDpsPage() {
                       totalInCurrentLesson={student.totalInCurrentLesson}
                       levelComplete={student.levelComplete}
                       previousLessonNumber={student.previousLessonNumber}
-                      nextEligibleLessonNumber={student.nextEligibleLessonNumber}
+                      currentLessonStatus={student.currentLessonStatus}
                     />
                   </div>
                 </div>
@@ -484,7 +539,7 @@ export default function TeacherAssignDpsPage() {
                 <button
                   type="button"
                   className="math-button-secondary w-full justify-center whitespace-nowrap"
-                  disabled={!eligibleStudentIds.length}
+                  disabled={!visibleEligibleIds.length}
                   onClick={toggleSelectAllStudents}
                 >
                   <Users size={18} />
@@ -545,39 +600,76 @@ export default function TeacherAssignDpsPage() {
               </button>
             </div>
 
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {eligibleStudents.map((student) => (
-                <label key={student.studentId} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4 transition hover:border-blue-300 hover:bg-blue-50">
+            <div className="mt-5 flex flex-wrap items-center gap-2" role="group" aria-label="Filter by lesson status">
+              {LESSON_STATE_FILTERS.map((Filter) => {
+                const Active = lessonStateFilter === Filter.key;
+                return (
+                  <button
+                    key={Filter.key}
+                    type="button"
+                    aria-pressed={Active}
+                    data-lesson-filter={Filter.key}
+                    onClick={() => setLessonStateFilter(Filter.key)}
+                    className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-black transition ${
+                      Active
+                        ? "border-[#7a1f58] bg-[#7a1f58] text-white shadow-sm dark:border-rose-200 dark:bg-rose-100 dark:text-[#4a1236]"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200"
+                    }`}
+                  >
+                    {Filter.label}
+                    <span className={`rounded-full px-2 text-xs ${Active ? "bg-white/25 dark:bg-[#7a1f58]/15" : "bg-slate-100 dark:bg-white/10"}`}>{lessonStateCounts[Filter.key]}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {visibleEligibleStudents.map((student) => (
+                <label key={student.studentId} data-student-card={student.studentCode} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4 transition hover:border-blue-300 hover:bg-blue-50">
                   <input type="checkbox" checked={selectedStudentIds.includes(student.studentId)} onChange={() => toggleStudent(student.studentId)} />
-                  <div className="min-w-0">
-                    <p className="font-black text-slate-950">{student.studentName}</p>
-                    <p className="text-sm text-slate-500"><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</span> · Class {student.className || "-"} {student.section || ""}</p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <LessonProgressBadge
-                        currentLessonNumber={student.currentLessonNumber}
-                        clearedInCurrentLesson={student.clearedInCurrentLesson}
-                        totalInCurrentLesson={student.totalInCurrentLesson}
-                        levelComplete={student.levelComplete}
-                        previousLessonNumber={student.previousLessonNumber}
-                        nextEligibleLessonNumber={student.nextEligibleLessonNumber}
-                      />
-                      {student.isNewToLevel && (!selectedLesson || selectedLesson.lessonNumber !== student.currentLessonNumber) ? (
-                        <span className="math-badge border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-                          New to this level — starting on Lesson {selectedLesson?.lessonNumber ?? "?"}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
+                  <StudentLessonCard student={student} selectedLessonNumber={selectedLesson.lessonNumber} status={lessonStatusFor(student)} lessonTotal={dpsForLesson.length} />
                 </label>
               ))}
             </div>
 
-            {!eligibleStudents.length ? (
+            {!visibleEligibleStudents.length ? (
               <p className="mt-5 text-sm font-bold text-slate-500">
                 {!studentsInLevel.length
                   ? "No eligible active students for this DPS level."
-                  : "Every active student in this level has already been assigned or completed every sheet in this one."}
+                  : !eligibleStudents.length
+                    ? `Every active student in this level already has ${selectedDps ? "this sheet" : `every sheet in Lesson ${selectedLesson.lessonNumber}`} — see Already Assigned below.`
+                    : "No students to assign under this filter."}
               </p>
+            ) : null}
+
+            {visibleAlreadyAssigned.length ? (
+              <details
+                key={`already-${lessonStateFilter}-${lessonId}-${dpsId}`}
+                open={lessonStateFilter === "ASSIGNED" || lessonStateFilter === "PARTLY"}
+                className="group mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-slate-950/30"
+                data-already-assigned
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-black text-slate-800 dark:text-slate-100">
+                  <span className="inline-flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-300" />
+                    {selectedDps ? "Already Have This Sheet" : "Already Assigned"} ({visibleAlreadyAssigned.length})
+                  </span>
+                  <ChevronDown size={18} className="transition group-open:rotate-180" />
+                </summary>
+                <p className="mt-2 text-sm text-slate-500">
+                  {selectedDps
+                    ? "These students already have this sheet, so they can't be picked again."
+                    : `These students already have every sheet in Lesson ${selectedLesson.lessonNumber}, so they can't be picked again.`}
+                </p>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {visibleAlreadyAssigned.map((student) => (
+                    <div key={student.studentId} data-student-card={student.studentCode} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/60 p-4 opacity-80 dark:border-white/10 dark:bg-slate-950/40">
+                      <CheckCircle2 size={16} className="shrink-0 text-slate-400" />
+                      <StudentLessonCard student={student} selectedLessonNumber={selectedLesson.lessonNumber} status={lessonStatusFor(student)} lessonTotal={dpsForLesson.length} />
+                    </div>
+                  ))}
+                </div>
+              </details>
             ) : null}
           </section>
         ) : null}
@@ -824,5 +916,55 @@ export default function TeacherAssignDpsPage() {
         </div>
       ) : null}
     </AppShell>
+  );
+}
+
+
+// One student on Assign Practice: the picked lesson's status first (what
+// the teacher is deciding about), then where the student is now.
+function StudentLessonCard({
+  student,
+  selectedLessonNumber,
+  status,
+  lessonTotal,
+}: {
+  student: TeacherStudent;
+  selectedLessonNumber: number;
+  status?: TeacherLessonStatus;
+  lessonTotal: number;
+}) {
+  const SameLesson = !student.levelComplete && student.currentLessonNumber === selectedLessonNumber;
+  return (
+    <div className="min-w-0">
+      <p className="font-black text-slate-950">{student.studentName}</p>
+      <p className="text-sm text-slate-500"><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</span> · Class {student.className || "-"} {student.section || ""}</p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <LessonAssignmentPill Status={status} TotalFallback={lessonTotal} />
+      </div>
+      {!SameLesson ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <LessonProgressBadge
+            nowOn
+            currentLessonNumber={student.currentLessonNumber}
+            clearedInCurrentLesson={student.clearedInCurrentLesson}
+            totalInCurrentLesson={student.totalInCurrentLesson}
+            levelComplete={student.levelComplete}
+            previousLessonNumber={student.previousLessonNumber}
+          />
+          {student.isNewToLevel ? (
+            <span className="math-badge border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+              New to this level — starting on Lesson {selectedLessonNumber}
+            </span>
+          ) : null}
+        </div>
+      ) : student.previousLessonNumber && !student.clearedInCurrentLesson ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <span className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
+            <CheckCircle2 size={12} />
+            Lesson {student.previousLessonNumber} Cleared
+          </span>
+        </div>
+      ) : null}
+    </div>
   );
 }

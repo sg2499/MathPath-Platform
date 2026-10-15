@@ -620,6 +620,10 @@ def student_payload(db: Session, student: Student, lesson_progress: dict | None 
         "levelComplete": lesson_progress.get("levelComplete", False),
         "previousLessonNumber": lesson_progress.get("previousLessonNumber"),
         "previousLessonTitle": lesson_progress.get("previousLessonTitle"),
+        # 2026-10-15: whether each lesson has been given to this student
+        # (Assign Practice and My Students show "Not Assigned" / "Assigned").
+        "currentLessonStatus": lesson_progress.get("currentLessonStatus"),
+        "lessonStatus": lesson_progress.get("lessonStatus", {}),
     }
 
 

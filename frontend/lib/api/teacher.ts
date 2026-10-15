@@ -2,6 +2,26 @@ import { api } from "@/lib/api";
 import type { AnnualLiveSlotOption } from "@/lib/api/admin";
 import type { StudentCompetitionMockResult } from "@/lib/api/student";
 
+// 2026-10-15: has a lesson been given to this student? See
+// lesson_progress_service.py's _LessonStatus. A whole week scheduled at
+// once is ASSIGNED; PARTLY is only single sheets handed out one at a time.
+export type LessonAssignmentStateValue = "NOT_ASSIGNED" | "PARTLY" | "SCHEDULED" | "ASSIGNED";
+
+export type TeacherLessonStatus = {
+  lessonId: string;
+  lessonNumber: number;
+  state: LessonAssignmentStateValue;
+  total: number;
+  assignableTotal: number;
+  given: number;
+  done: number;
+  cleared: number;
+  firstOpensAt?: string | null;
+  lastOpensAt?: string | null;
+  nextOpensAt?: string | null;
+  reattemptOpen?: boolean;
+};
+
 export type TeacherStudent = {
   studentId: string;
   userId: string;
@@ -70,6 +90,10 @@ export type TeacherStudent = {
   // final lesson already. See lesson_progress_service.py.
   nextEligibleLessonNumber?: number | null;
   nextEligibleLessonTitle?: string | null;
+  // Status of the current lesson above, and of every lesson in the level
+  // the student has been given something in (missing = not assigned).
+  currentLessonStatus?: TeacherLessonStatus | null;
+  lessonStatus?: Record<string, TeacherLessonStatus>;
 };
 
 export type TeacherDashboardSummary = {

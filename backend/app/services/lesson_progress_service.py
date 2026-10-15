@@ -18,6 +18,8 @@ sheet".
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from sqlalchemy.orm import Session
 
 from app.models import Assignment, AssignmentReattemptPermission, Attempt, DPS, Lesson, Student
@@ -52,6 +54,30 @@ def active_reattempt_permission_for_teacher(db: Session, student_id: str, dps_id
     )
 
 
+def _Aware(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+
+def LessonAssignmentState(given: int, assignable_total: int, scheduled_only: bool) -> str:
+    """One word for "has this lesson been given to this student?" (Shailesh,
+    2026-10-15). A whole week scheduled at once counts as ASSIGNED even
+    though later days have not opened yet; PARTLY is only the rare case of
+    single sheets handed out one at a time.
+
+      NOT_ASSIGNED  no sheet of the lesson given (assigned or done)
+      SCHEDULED     every sheet given, none open yet
+      ASSIGNED      every sheet given
+      PARTLY        some sheets given, some still to give
+    """
+    if given <= 0:
+        return "NOT_ASSIGNED"
+    if given >= max(assignable_total, 1):
+        return "SCHEDULED" if scheduled_only else "ASSIGNED"
+    return "PARTLY"
+
+
 def _EmptyProgress() -> dict:
     return {
         "currentLessonId": None,
@@ -74,6 +100,10 @@ def _EmptyProgress() -> dict:
         # is a separate field rather than a change to currentLessonNumber.
         "nextEligibleLessonNumber": None,
         "nextEligibleLessonTitle": None,
+        # Per-lesson "given / done / cleared" for every lesson in the level,
+        # keyed by lesson id -- see _LessonStatus below.
+        "lessonStatus": {},
+        "currentLessonStatus": None,
     }
 
 
@@ -171,18 +201,26 @@ def ComputeLessonProgressForStudents(db: Session, students: list[Student], level
         .distinct()
         .all()
     }
-    assigned_pairs = {
-        (row[0], row[1])
-        for row in db.query(Assignment.assigned_to_id, Assignment.dps_id)
+    # One row per active STUDENT assignment, with when it opens -- the
+    # opening day feeds the per-lesson status below ("Assigned · Mon 20 -
+    # Fri 24 Oct", "Scheduled · starts Mon 20 Oct").
+    assigned_pairs: set[tuple[str, str]] = set()
+    opens_at_by_pair: dict[tuple[str, str], datetime] = {}
+    for row in (
+        db.query(Assignment.assigned_to_id, Assignment.dps_id, Assignment.start_time, Assignment.created_at)
         .filter(
             Assignment.assigned_to_type == "STUDENT",
             Assignment.assigned_to_id.in_(student_ids),
             Assignment.dps_id.in_(all_dps_ids),
             Assignment.is_active == True,
         )
-        .distinct()
         .all()
-    }
+    ):
+        pair = (row[0], row[1])
+        assigned_pairs.add(pair)
+        opens_at = _Aware(row[2] or row[3])
+        if opens_at is not None and (pair not in opens_at_by_pair or opens_at < opens_at_by_pair[pair]):
+            opens_at_by_pair[pair] = opens_at
     open_reattempt_pairs = {
         (row[0], row[1])
         for row in db.query(AssignmentReattemptPermission.student_id, AssignmentReattemptPermission.dps_id)
@@ -239,6 +277,51 @@ def ComputeLessonProgressForStudents(db: Session, students: list[Student], level
         for student in students
     }
 
+    now_utc = datetime.now(timezone.utc)
+
+    def _LessonStatus(student_id: str, lesson: Lesson) -> dict:
+        """Has this lesson been given to this student, and how far are they?
+        (Shailesh, 2026-10-15: "for a teacher it is very difficult to
+        understand which students have been assigned the next lesson".)
+        "Given" = an active assignment exists or the sheet was already done."""
+        lesson_dps = dps_by_lesson[lesson.id]
+        given_ids = [
+            dps.id for dps in lesson_dps
+            if (student_id, dps.id) in assigned_pairs or (student_id, dps.id) in completed_pairs
+        ]
+        done = sum(1 for dps in lesson_dps if (student_id, dps.id) in completed_pairs)
+        cleared = sum(1 for dps in lesson_dps if (student_id, dps.id) in cleared_pairs)
+        opens = sorted(opens_at_by_pair[(student_id, dps_id)] for dps_id in given_ids if (student_id, dps_id) in opens_at_by_pair)
+        open_now = done > 0 or any(moment <= now_utc for moment in opens) or len(opens) < len(given_ids)
+        upcoming = [moment for moment in opens if moment > now_utc]
+        assignable_total = sum(1 for dps in lesson_dps if dps.id in published_dps_ids) or len(lesson_dps)
+        return {
+            "lessonId": lesson.id,
+            "lessonNumber": lesson.lesson_number,
+            "state": LessonAssignmentState(len(given_ids), assignable_total, bool(given_ids) and not open_now),
+            "total": len(lesson_dps),
+            "assignableTotal": assignable_total,
+            "given": len(given_ids),
+            "done": done,
+            "cleared": cleared,
+            "firstOpensAt": opens[0].isoformat() if opens else None,
+            "lastOpensAt": opens[-1].isoformat() if opens else None,
+            "nextOpensAt": upcoming[0].isoformat() if upcoming else None,
+            "reattemptOpen": any((student_id, dps.id) in open_reattempt_pairs for dps in lesson_dps),
+        }
+
+    def _LessonStatusMap(student_id: str) -> dict[str, dict]:
+        # Only lessons the student has been given something in -- anything
+        # missing is NOT_ASSIGNED, which keeps the roster payload small.
+        result_map: dict[str, dict] = {}
+        for lesson in ordered_lessons:
+            if any(
+                (student_id, dps.id) in assigned_pairs or (student_id, dps.id) in completed_pairs
+                for dps in dps_by_lesson[lesson.id]
+            ):
+                result_map[lesson.id] = _LessonStatus(student_id, lesson)
+        return result_map
+
     def lesson_progress(student_id: str, lesson_idx: int) -> tuple[int, int, bool]:
         lesson = ordered_lessons[lesson_idx]
         lesson_dps = dps_by_lesson[lesson.id]
@@ -281,6 +364,7 @@ def ComputeLessonProgressForStudents(db: Session, students: list[Student], level
                 "previousLessonTitle": finished_lesson.lesson_title,
                 "isNewToLevel": anchor_idx is None,
                 "assignableDpsIds": assignable_dps_ids_by_student.get(student.id, []),
+                "lessonStatus": _LessonStatusMap(student.id),
             }
             continue
 
@@ -314,6 +398,8 @@ def ComputeLessonProgressForStudents(db: Session, students: list[Student], level
             "assignableDpsIds": assignable_dps_ids_by_student.get(student.id, []),
             "nextEligibleLessonNumber": next_eligible_lesson.lesson_number if next_eligible_lesson else None,
             "nextEligibleLessonTitle": next_eligible_lesson.lesson_title if next_eligible_lesson else None,
+            "lessonStatus": _LessonStatusMap(student.id),
+            "currentLessonStatus": _LessonStatus(student.id, lesson),
         }
 
     return result
