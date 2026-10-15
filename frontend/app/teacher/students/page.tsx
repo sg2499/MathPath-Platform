@@ -547,6 +547,7 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
           levelComplete={student.levelComplete}
           previousLessonNumber={student.previousLessonNumber}
           currentLessonStatus={student.currentLessonStatus}
+          isNewToLevel={student.isNewToLevel}
         />
       </td>
       <td>

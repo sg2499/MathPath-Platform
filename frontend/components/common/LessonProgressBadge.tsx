@@ -1,6 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 import type { TeacherLessonStatus } from "@/lib/api/teacher";
-import { LessonDayLabel } from "@/components/common/LessonAssignmentStatus";
+import { StudentJourney } from "@/components/common/LessonAssignmentStatus";
 
 export interface LessonProgressBadgeProps {
   currentLessonNumber?: number | null;
@@ -19,9 +19,8 @@ export interface LessonProgressBadgeProps {
   // Without it, "Lesson 5 · 0/5 Cleared" read the same before and after the
   // teacher assigned Lesson 5.
   currentLessonStatus?: TeacherLessonStatus | null;
-  // "Now On Lesson 1 · ..." -- used on Assign Practice, where the card's
-  // main pill is about the lesson the teacher picked, not this one.
-  nowOn?: boolean;
+  // No assignment history in this level yet ("New To This Level").
+  isNewToLevel?: boolean;
   className?: string;
 }
 
@@ -55,7 +54,7 @@ export function LessonProgressBadge({
   levelComplete = false,
   previousLessonNumber,
   currentLessonStatus,
-  nowOn = false,
+  isNewToLevel = false,
   className = "",
 }: LessonProgressBadgeProps) {
   if (levelComplete) {
@@ -72,31 +71,39 @@ export function LessonProgressBadge({
   }
 
   const showJustAdvancedChip = clearedInCurrentLesson === 0 && Boolean(previousLessonNumber);
-  const Lesson = `${nowOn ? "Now On " : ""}Lesson ${currentLessonNumber}`;
-  const Cleared = `${clearedInCurrentLesson}/${totalInCurrentLesson} Cleared`;
-  const State = currentLessonStatus?.state;
-  let Text = `${Lesson} · ${Cleared}`;
-  let Tone = "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200";
-  if (currentLessonStatus !== undefined) {
-    if (!State || State === "NOT_ASSIGNED") {
-      Text = `${Lesson} · Not Assigned Yet`;
-      Tone = "border-dashed border-amber-400 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200";
-    } else if (State === "SCHEDULED") {
-      const Day = LessonDayLabel(currentLessonStatus?.nextOpensAt || currentLessonStatus?.firstOpensAt);
-      Text = `${Lesson} · Scheduled${Day ? ` from ${Day}` : ""}`;
-      Tone = "border-teal-300 bg-teal-50 text-teal-800 dark:border-teal-700 dark:bg-teal-950 dark:text-teal-200";
-    } else if (State === "PARTLY") {
-      Text = `${Lesson} · ${currentLessonStatus?.given ?? 0} of ${currentLessonStatus?.assignableTotal || totalInCurrentLesson} Assigned · ${Cleared}`;
-    } else {
-      Text = `${Lesson} · Assigned · ${Cleared}`;
-    }
+
+  // Without the per-lesson status (older callers) keep the plain pill.
+  if (currentLessonStatus === undefined) {
+    return (
+      <span className={`inline-flex flex-wrap items-center gap-1.5 ${className}`}>
+        <span className="math-badge border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200" data-current-lesson-state="UNKNOWN">
+          Lesson {currentLessonNumber} · {clearedInCurrentLesson}/{totalInCurrentLesson} Cleared
+        </span>
+      </span>
+    );
   }
+
+  // 2026-10-15: one status about the student -- Needs Lesson N / Working On
+  // Lesson N / Lesson N Scheduled / New To This Level (see StudentJourney).
+  const Journey = StudentJourney({
+    currentLessonNumber,
+    clearedInCurrentLesson,
+    totalInCurrentLesson,
+    levelComplete,
+    isNewToLevel,
+    currentLessonStatus,
+  });
 
   return (
     <span className={`inline-flex flex-wrap items-center gap-1.5 ${className}`}>
-      <span className={`math-badge ${Tone}`} data-current-lesson-state={State || (currentLessonStatus !== undefined ? "NOT_ASSIGNED" : "UNKNOWN")}>
-        {Text}
+      <span className={`math-badge ${Journey.tone}`} data-current-lesson-state={Journey.kind} data-needs-assigning={Journey.needsAssigning ? "1" : "0"}>
+        {Journey.label}
       </span>
+      {Journey.detail ? (
+        <span className={`math-badge font-bold ${Journey.tone}`} data-current-lesson-detail>
+          {Journey.detail}
+        </span>
+      ) : null}
       {showJustAdvancedChip ? (
         <span className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
           <CheckCircle2 size={12} />

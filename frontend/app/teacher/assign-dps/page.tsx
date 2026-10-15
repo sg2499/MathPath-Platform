@@ -3,14 +3,14 @@
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { LessonProgressBadge } from "@/components/common/LessonProgressBadge";
-import { LessonAssignmentPill, LessonStatusState } from "@/components/common/LessonAssignmentStatus";
+import { LessonStatusState, StudentJourney } from "@/components/common/LessonAssignmentStatus";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
-import { getTeacherAvailableDps, getTeacherStudents, teacherAssignAllSheetsForLesson, teacherAssignDps, teacherScheduleDpsForLesson, type LessonAssignmentStateValue, type TeacherLessonStatus, type TeacherStudent } from "@/lib/api/teacher";
+import { getTeacherAvailableDps, getTeacherStudents, teacherAssignAllSheetsForLesson, teacherAssignDps, teacherScheduleDpsForLesson, type TeacherLessonStatus, type TeacherStudent } from "@/lib/api/teacher";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarDays, CheckCircle2, ChevronDown, ClipboardPlus, Layers, Send, UserCheck, Users, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CalendarDays, CheckCircle2, ClipboardPlus, Layers, Send, UserCheck, Users, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 
@@ -108,22 +108,26 @@ function NextWeekdaySequence(count: number, startFrom: Date = new Date()): strin
   return dates;
 }
 
-// 2026-10-15: Assign Practice filter chips. A week scheduled ahead counts as
-// Assigned -- it has been given, it just hasn't opened yet.
-type LessonStateFilter = "ALL" | "NOT_ASSIGNED" | "ASSIGNED" | "PARTLY";
+// 2026-10-15 (second pass): Assign Practice filter chips are about what the
+// teacher has to do, not about the lesson picked in the dropdown.
+//   Needs Assigning  the student's own next lesson isn't given yet (or they
+//                    are new to the level with nothing given)
+//   Has Work         their current lesson is assigned or scheduled
+//   Has This Lesson  they already have every sheet of the picked lesson
+type LessonStateFilter = "ALL" | "NEEDS" | "HAS_WORK" | "HAS_THIS";
 const LESSON_STATE_FILTERS: Array<{ key: LessonStateFilter; label: string }> = [
+  { key: "NEEDS", label: "Needs Assigning" },
+  { key: "HAS_WORK", label: "Has Work" },
+  { key: "HAS_THIS", label: "Has This Lesson" },
   { key: "ALL", label: "All" },
-  { key: "NOT_ASSIGNED", label: "Not Assigned" },
-  { key: "ASSIGNED", label: "Assigned" },
-  { key: "PARTLY", label: "Partly Assigned" },
 ];
-const STATE_ORDER: Record<LessonAssignmentStateValue, number> = { NOT_ASSIGNED: 0, PARTLY: 1, SCHEDULED: 2, ASSIGNED: 3 };
 
-function MatchesLessonStateFilter(State: LessonAssignmentStateValue, Filter: LessonStateFilter) {
-  if (Filter === "ALL") return true;
-  if (Filter === "ASSIGNED") return State === "ASSIGNED" || State === "SCHEDULED";
-  return State === Filter;
-}
+const FILTER_DOTS: Record<LessonStateFilter, string> = {
+  NEEDS: "bg-amber-500",
+  HAS_WORK: "bg-emerald-500",
+  HAS_THIS: "bg-teal-500",
+  ALL: "bg-slate-400",
+};
 
 export default function TeacherAssignDpsPage() {
   const ready = useProtectedPage(["TEACHER"]);
@@ -138,7 +142,7 @@ export default function TeacherAssignDpsPage() {
   const [showAssignAllSheetsConfirm, setShowAssignAllSheetsConfirm] = useState(false);
   const [showScheduleConfirm, setShowScheduleConfirm] = useState(false);
   const [scheduleDates, setScheduleDates] = useState<Record<string, string>>({});
-  const [lessonStateFilter, setLessonStateFilter] = usePersistentUiState<LessonStateFilter>(CreatePersistedUiStateKey(AssignDpsStateKey, "lesson-state-filter"), "ALL");
+  const [lessonStateFilter, setLessonStateFilter] = usePersistentUiState<LessonStateFilter>(CreatePersistedUiStateKey(AssignDpsStateKey, "student-filter"), "ALL");
   const queryClient = useQueryClient();
 
   const studentsQuery = useQuery({ queryKey: ["teacher-students"], queryFn: getTeacherStudents, enabled: ready });
@@ -260,30 +264,37 @@ export default function TeacherAssignDpsPage() {
     return dpsForLesson.some((dps) => AssignableIds.includes(dps.dpsId));
   });
 
-  // 2026-10-15: every card says whether the picked lesson has been given to
-  // that student (Not Assigned / Assigned / Scheduled / Partly Assigned).
-  // Students who already have every sheet used to vanish from the list
-  // without a word; they now sit in a collapsed "Already Assigned" section.
+  // 2026-10-15: each card leads with ONE status about the student (Needs
+  // Lesson N / Working On Lesson N / Scheduled / New To This Level); the
+  // picked lesson only adds a small tag ("This Lesson" / "Has This Lesson").
+  // Everyone stays selectable except students who already have the picked
+  // lesson (or sheet) -- the server refuses a duplicate anyway.
   const lessonStatusFor = (student: TeacherStudent) => (selectedLesson ? student.lessonStatus?.[selectedLesson.lessonId] : undefined);
-  const lessonStateFor = (student: TeacherStudent) => LessonStatusState(lessonStatusFor(student));
-  const byLessonState = (a: TeacherStudent, b: TeacherStudent) =>
-    STATE_ORDER[lessonStateFor(a)] - STATE_ORDER[lessonStateFor(b)] || a.studentName.localeCompare(b.studentName);
   const eligibleIdSet = new Set(eligibleStudents.map((student) => student.studentId));
-  const alreadyAssignedStudents = studentsInLevel.filter((student) => !eligibleIdSet.has(student.studentId));
+  const needsAssigning = (student: TeacherStudent) => StudentJourney(student).needsAssigning;
+  const hasThis = (student: TeacherStudent) => !eligibleIdSet.has(student.studentId);
+  const matchesFilter = (student: TeacherStudent, Filter: LessonStateFilter) => {
+    if (Filter === "NEEDS") return needsAssigning(student);
+    if (Filter === "HAS_WORK") return !needsAssigning(student);
+    if (Filter === "HAS_THIS") return hasThis(student);
+    return true;
+  };
   const lessonStateCounts: Record<LessonStateFilter, number> = {
     ALL: studentsInLevel.length,
-    NOT_ASSIGNED: studentsInLevel.filter((student) => MatchesLessonStateFilter(lessonStateFor(student), "NOT_ASSIGNED")).length,
-    ASSIGNED: studentsInLevel.filter((student) => MatchesLessonStateFilter(lessonStateFor(student), "ASSIGNED")).length,
-    PARTLY: studentsInLevel.filter((student) => MatchesLessonStateFilter(lessonStateFor(student), "PARTLY")).length,
+    NEEDS: studentsInLevel.filter((student) => matchesFilter(student, "NEEDS")).length,
+    HAS_WORK: studentsInLevel.filter((student) => matchesFilter(student, "HAS_WORK")).length,
+    HAS_THIS: studentsInLevel.filter((student) => matchesFilter(student, "HAS_THIS")).length,
   };
-  const visibleEligibleStudents = eligibleStudents
-    .filter((student) => MatchesLessonStateFilter(lessonStateFor(student), lessonStateFilter))
-    .sort(byLessonState);
-  const visibleAlreadyAssigned = alreadyAssignedStudents
-    .filter((student) => MatchesLessonStateFilter(lessonStateFor(student), lessonStateFilter))
-    .sort(byLessonState);
+  // Needs Assigning first -- and within it, the students whose next lesson
+  // is exactly the picked one -- then everyone else; already-have-it last.
+  const sortRank = (student: TeacherStudent) =>
+    (hasThis(student) ? 4 : 0) +
+    (needsAssigning(student) ? (selectedLesson && !student.isNewToLevel && student.currentLessonNumber === selectedLesson.lessonNumber ? 0 : 1) : 2);
+  const visibleStudents = studentsInLevel
+    .filter((student) => matchesFilter(student, lessonStateFilter))
+    .sort((a, b) => sortRank(a) - sortRank(b) || a.studentName.localeCompare(b.studentName));
   const eligibleStudentIds = useMemo(() => eligibleStudents.map((student) => student.studentId), [eligibleStudents]);
-  const visibleEligibleIds = visibleEligibleStudents.map((student) => student.studentId);
+  const visibleEligibleIds = visibleStudents.filter((student) => eligibleIdSet.has(student.studentId)).map((student) => student.studentId);
 
   // A successful assign/schedule changes who has what -- reload the roster
   // so the cards and counts update straight away (they used to stay stale
@@ -508,6 +519,7 @@ export default function TeacherAssignDpsPage() {
                       levelComplete={student.levelComplete}
                       previousLessonNumber={student.previousLessonNumber}
                       currentLessonStatus={student.currentLessonStatus}
+                      isNewToLevel={student.isNewToLevel}
                     />
                   </div>
                 </div>
@@ -600,7 +612,11 @@ export default function TeacherAssignDpsPage() {
               </button>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-center gap-2" role="group" aria-label="Filter by lesson status">
+            <div
+              className="mt-6 flex w-full flex-wrap gap-1 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:w-auto sm:inline-flex dark:border-white/10 dark:bg-slate-900/70"
+              role="group"
+              aria-label="Filter students"
+            >
               {LESSON_STATE_FILTERS.map((Filter) => {
                 const Active = lessonStateFilter === Filter.key;
                 return (
@@ -610,66 +626,70 @@ export default function TeacherAssignDpsPage() {
                     aria-pressed={Active}
                     data-lesson-filter={Filter.key}
                     onClick={() => setLessonStateFilter(Filter.key)}
-                    className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-black transition ${
+                    className={`inline-flex h-10 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-black transition sm:flex-none ${
                       Active
-                        ? "border-[#7a1f58] bg-[#7a1f58] text-white shadow-sm dark:border-rose-200 dark:bg-rose-100 dark:text-[#4a1236]"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200"
+                        ? "bg-white text-slate-950 shadow-[0_1px_2px_rgba(15,23,42,0.08),0_4px_12px_rgba(15,23,42,0.06)] ring-1 ring-slate-200 dark:bg-slate-800 dark:text-white dark:ring-white/10"
+                        : "text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
                     }`}
                   >
+                    <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${FILTER_DOTS[Filter.key]}`} />
                     {Filter.label}
-                    <span className={`rounded-full px-2 text-xs ${Active ? "bg-white/25 dark:bg-[#7a1f58]/15" : "bg-slate-100 dark:bg-white/10"}`}>{lessonStateCounts[Filter.key]}</span>
+                    <span
+                      className={`inline-flex h-6 min-w-[1.75rem] items-center justify-center rounded-lg px-1.5 text-xs font-black tabular-nums ${
+                        Active
+                          ? Filter.key === "NEEDS" && lessonStateCounts.NEEDS > 0
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-100"
+                            : "bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-950"
+                          : "bg-slate-200/80 text-slate-700 dark:bg-white/10 dark:text-slate-200"
+                      }`}
+                    >
+                      {lessonStateCounts[Filter.key]}
+                    </span>
                   </button>
                 );
               })}
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {visibleEligibleStudents.map((student) => (
-                <label key={student.studentId} data-student-card={student.studentCode} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4 transition hover:border-blue-300 hover:bg-blue-50">
-                  <input type="checkbox" checked={selectedStudentIds.includes(student.studentId)} onChange={() => toggleStudent(student.studentId)} />
-                  <StudentLessonCard student={student} selectedLessonNumber={selectedLesson.lessonNumber} status={lessonStatusFor(student)} lessonTotal={dpsForLesson.length} />
-                </label>
-              ))}
+              {visibleStudents.map((student) => {
+                const Selectable = eligibleIdSet.has(student.studentId);
+                const Body = (
+                  <StudentLessonCard
+                    student={student}
+                    selectedLessonNumber={selectedLesson.lessonNumber}
+                    status={lessonStatusFor(student)}
+                    hasThis={!Selectable}
+                    singleSheet={Boolean(selectedDps)}
+                  />
+                );
+                return Selectable ? (
+                  <label
+                    key={student.studentId}
+                    data-student-card={student.studentCode}
+                    className={`grid cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-2xl border bg-white/80 p-4 transition hover:border-slate-300 hover:shadow-sm dark:bg-slate-950/40 ${
+                      selectedStudentIds.includes(student.studentId) ? "border-[#7a1f58]/60 ring-1 ring-[#7a1f58]/30 dark:border-rose-200/60" : "border-slate-200 dark:border-white/10"
+                    }`}
+                  >
+                    <input type="checkbox" className="mt-1 h-4 w-4 accent-[#7a1f58]" checked={selectedStudentIds.includes(student.studentId)} onChange={() => toggleStudent(student.studentId)} />
+                    {Body}
+                  </label>
+                ) : (
+                  <div key={student.studentId} data-student-card={student.studentCode} data-has-this-lesson className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-900/40">
+                    <CheckCircle2 size={16} className="mt-1 text-emerald-600 dark:text-emerald-300" aria-label="Already has this lesson" />
+                    {Body}
+                  </div>
+                );
+              })}
             </div>
 
-            {!visibleEligibleStudents.length ? (
+            {!visibleStudents.length ? (
               <p className="mt-5 text-sm font-bold text-slate-500">
                 {!studentsInLevel.length
                   ? "No eligible active students for this DPS level."
-                  : !eligibleStudents.length
-                    ? `Every active student in this level already has ${selectedDps ? "this sheet" : `every sheet in Lesson ${selectedLesson.lessonNumber}`} — see Already Assigned below.`
-                    : "No students to assign under this filter."}
+                  : lessonStateFilter === "NEEDS"
+                    ? "Every student in this level has their current lesson assigned."
+                    : "No students under this filter."}
               </p>
-            ) : null}
-
-            {visibleAlreadyAssigned.length ? (
-              <details
-                key={`already-${lessonStateFilter}-${lessonId}-${dpsId}`}
-                open={lessonStateFilter === "ASSIGNED" || lessonStateFilter === "PARTLY"}
-                className="group mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-slate-950/30"
-                data-already-assigned
-              >
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-black text-slate-800 dark:text-slate-100">
-                  <span className="inline-flex items-center gap-2">
-                    <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-300" />
-                    {selectedDps ? "Already Have This Sheet" : "Already Assigned"} ({visibleAlreadyAssigned.length})
-                  </span>
-                  <ChevronDown size={18} className="transition group-open:rotate-180" />
-                </summary>
-                <p className="mt-2 text-sm text-slate-500">
-                  {selectedDps
-                    ? "These students already have this sheet, so they can't be picked again."
-                    : `These students already have every sheet in Lesson ${selectedLesson.lessonNumber}, so they can't be picked again.`}
-                </p>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  {visibleAlreadyAssigned.map((student) => (
-                    <div key={student.studentId} data-student-card={student.studentCode} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/60 p-4 opacity-80 dark:border-white/10 dark:bg-slate-950/40">
-                      <CheckCircle2 size={16} className="shrink-0 text-slate-400" />
-                      <StudentLessonCard student={student} selectedLessonNumber={selectedLesson.lessonNumber} status={lessonStatusFor(student)} lessonTotal={dpsForLesson.length} />
-                    </div>
-                  ))}
-                </div>
-              </details>
             ) : null}
           </section>
         ) : null}
@@ -920,51 +940,62 @@ export default function TeacherAssignDpsPage() {
 }
 
 
-// One student on Assign Practice: the picked lesson's status first (what
-// the teacher is deciding about), then where the student is now.
+// One student on Assign Practice: one status about the student first,
+// then a small tag for how the picked lesson relates to them.
 function StudentLessonCard({
   student,
   selectedLessonNumber,
   status,
-  lessonTotal,
+  hasThis,
+  singleSheet,
 }: {
   student: TeacherStudent;
   selectedLessonNumber: number;
   status?: TeacherLessonStatus;
-  lessonTotal: number;
+  hasThis: boolean;
+  singleSheet: boolean;
 }) {
-  const SameLesson = !student.levelComplete && student.currentLessonNumber === selectedLessonNumber;
+  const Journey = StudentJourney(student);
+  // Not for a student new to the level: their "Lesson 1" is only a
+  // placeholder, they can start on any lesson.
+  const IsThisLesson = Journey.kind === "NEEDS" && student.currentLessonNumber === selectedLessonNumber;
+  const PartOfThis = !hasThis && LessonStatusState(status) === "PARTLY" && !IsThisLesson;
+  const Tag = IsThisLesson ? (
+    <span className="math-badge border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-300 dark:bg-amber-100 dark:text-amber-900" data-lesson-tag="THIS">
+      <ArrowLeft size={12} />
+      This Lesson
+    </span>
+  ) : hasThis ? (
+    <span className="math-badge border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-200" data-lesson-tag="HAS">
+      <CheckCircle2 size={12} />
+      {singleSheet ? "Has This Sheet" : `Has Lesson ${selectedLessonNumber}`}
+    </span>
+  ) : PartOfThis ? (
+    <span className="math-badge border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200" data-lesson-tag="PART">
+      Has {status?.given ?? 0} of {status?.assignableTotal || status?.total || 0} Sheets
+    </span>
+  ) : null;
   return (
     <div className="min-w-0">
-      <p className="font-black text-slate-950">{student.studentName}</p>
-      <p className="text-sm text-slate-500"><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</span> · Class {student.className || "-"} {student.section || ""}</p>
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-        <LessonAssignmentPill Status={status} TotalFallback={lessonTotal} />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-black leading-6 text-slate-950 dark:text-white">{student.studentName}</p>
+          <p className="text-sm text-slate-500"><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</span> · Class {student.className || "-"} {student.section || ""}</p>
+        </div>
+        {Tag ? <div className="hidden shrink-0 sm:block">{Tag}</div> : null}
       </div>
-      {!SameLesson ? (
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <LessonProgressBadge
-            nowOn
-            currentLessonNumber={student.currentLessonNumber}
-            clearedInCurrentLesson={student.clearedInCurrentLesson}
-            totalInCurrentLesson={student.totalInCurrentLesson}
-            levelComplete={student.levelComplete}
-            previousLessonNumber={student.previousLessonNumber}
-          />
-          {student.isNewToLevel ? (
-            <span className="math-badge border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-              New to this level — starting on Lesson {selectedLessonNumber}
-            </span>
-          ) : null}
-        </div>
-      ) : student.previousLessonNumber && !student.clearedInCurrentLesson ? (
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <span className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
-            <CheckCircle2 size={12} />
-            Lesson {student.previousLessonNumber} Cleared
-          </span>
-        </div>
-      ) : null}
+      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+        <LessonProgressBadge
+          currentLessonNumber={student.currentLessonNumber}
+          clearedInCurrentLesson={student.clearedInCurrentLesson}
+          totalInCurrentLesson={student.totalInCurrentLesson}
+          levelComplete={student.levelComplete}
+          previousLessonNumber={student.previousLessonNumber}
+          currentLessonStatus={student.currentLessonStatus ?? null}
+          isNewToLevel={student.isNewToLevel}
+        />
+        {Tag ? <span className="sm:hidden">{Tag}</span> : null}
+      </div>
     </div>
   );
 }
