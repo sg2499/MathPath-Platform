@@ -633,7 +633,7 @@ export default function TeacherAssignDpsPage() {
                     }`}
                   >
                     <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${FILTER_DOTS[Filter.key]}`} />
-                    {Filter.label}
+                    {Filter.key === "HAS_THIS" ? (selectedDps ? "Already Has This Sheet" : `Already Has Lesson ${selectedLesson.lessonNumber}`) : Filter.label}
                     <span
                       className={`inline-flex h-6 min-w-[1.75rem] items-center justify-center rounded-lg px-1.5 text-xs font-black tabular-nums ${
                         Active
@@ -674,8 +674,13 @@ export default function TeacherAssignDpsPage() {
                     {Body}
                   </label>
                 ) : (
-                  <div key={student.studentId} data-student-card={student.studentCode} data-has-this-lesson className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-900/40">
-                    <CheckCircle2 size={16} className="mt-1 text-emerald-600 dark:text-emerald-300" aria-label="Already has this lesson" />
+                  <div
+                    key={student.studentId}
+                    data-student-card={student.studentCode}
+                    data-has-this-lesson
+                    title={selectedDps ? "Can't assign again: already has this sheet" : `Can't assign again: already has every Lesson ${selectedLesson.lessonNumber} sheet`}
+                    className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-900/40">
+                    <CheckCircle2 size={16} className="mt-1 text-emerald-600 dark:text-emerald-300" aria-label={selectedDps ? "Can't assign again: already has this sheet" : `Can't assign again: already has every Lesson ${selectedLesson.lessonNumber} sheet`} />
                     {Body}
                   </div>
                 );
@@ -960,6 +965,17 @@ function StudentLessonCard({
   // placeholder, they can start on any lesson.
   const IsThisLesson = Journey.kind === "NEEDS" && student.currentLessonNumber === selectedLessonNumber;
   const PartOfThis = !hasThis && LessonStatusState(status) === "PARTLY" && !IsThisLesson;
+  // 2026-10-15: say WHY a student can't take the picked lesson -- "Lesson 1
+  // Done" (finished it long ago) reads very differently from "Lesson 1
+  // Already Assigned" (given, still in progress). A bare "Has Lesson 1"
+  // next to "Needs Lesson 5" looked like it was about the student's
+  // current position.
+  const LessonFinished = Boolean(status && status.done >= Math.max(status.assignableTotal || status.total || 0, 1));
+  const HasThisLabel = singleSheet
+    ? "Already Has This Sheet"
+    : LessonFinished
+      ? `Lesson ${selectedLessonNumber} Done`
+      : `Lesson ${selectedLessonNumber} Already Assigned`;
   const Tag = IsThisLesson ? (
     <span className="math-badge border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-300 dark:bg-amber-100 dark:text-amber-900" data-lesson-tag="THIS">
       <ArrowLeft size={12} />
@@ -968,7 +984,7 @@ function StudentLessonCard({
   ) : hasThis ? (
     <span className="math-badge border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-200" data-lesson-tag="HAS">
       <CheckCircle2 size={12} />
-      {singleSheet ? "Has This Sheet" : `Has Lesson ${selectedLessonNumber}`}
+      {HasThisLabel}
     </span>
   ) : PartOfThis ? (
     <span className="math-badge border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200" data-lesson-tag="PART">
