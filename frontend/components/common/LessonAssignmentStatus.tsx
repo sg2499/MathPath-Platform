@@ -65,7 +65,7 @@ const TONES: Record<LessonAssignmentStateValue, string> = {
   // Not blue/violet: the teacher and student themes recolour those families
   // to the role colour (globals.css), which would make Assigned look like
   // every other pill.
-  SCHEDULED: "border-teal-300 bg-teal-50 text-teal-800 dark:border-teal-700 dark:bg-teal-950 dark:text-teal-200",
+  SCHEDULED: "border-teal-300 bg-teal-50 text-teal-800 dark:border-teal-300 dark:bg-teal-50 dark:text-teal-800",
   ASSIGNED: "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-200",
 };
 
@@ -114,4 +114,72 @@ export function LessonAssignmentPill({ Status, TotalFallback = 0 }: { Status?: T
       ) : null}
     </span>
   );
+}
+
+// ---------------------------------------------------------------------------
+// 2026-10-15 (second pass, Shailesh): one status per student, about the
+// STUDENT -- "does this child have work, or do they need their next
+// lesson?" -- instead of about whichever lesson is picked in the dropdown
+// (a picked Lesson 9 made every card say "Not Assigned" next to "Now On
+// Lesson 2", which read as a contradiction).
+//
+// Shown as a status pill plus a detail pill:
+//   NEEDS     [Needs Lesson 5] [Not Assigned Yet]
+//             [Needs Rest Of Lesson 5] [2 of 5 Sheets Assigned]   (rare)
+//   NEW       [New To This Level] [Nothing Assigned Yet]
+//   WORKING   [Working On Lesson 2] [Assigned · 0/5 Cleared]
+//   SCHEDULED [Lesson 9 Scheduled] [Starts Mon 20 Oct]
+//   COMPLETE  [Level Complete]
+// ---------------------------------------------------------------------------
+export type StudentJourneyKind = "NEEDS" | "NEW" | "WORKING" | "SCHEDULED" | "COMPLETE" | "UNKNOWN";
+
+export type StudentJourneyInput = {
+  currentLessonNumber?: number | null;
+  clearedInCurrentLesson?: number;
+  totalInCurrentLesson?: number;
+  levelComplete?: boolean;
+  isNewToLevel?: boolean;
+  currentLessonStatus?: TeacherLessonStatus | null;
+};
+
+export type StudentJourneyView = {
+  kind: StudentJourneyKind;
+  /** True when the teacher needs to give this student something. */
+  needsAssigning: boolean;
+  /** Short status, e.g. "Needs Lesson 5". */
+  label: string;
+  /** Second pill, e.g. "Not Assigned Yet" / "Assigned · 0/5 Cleared". */
+  detail: string;
+  tone: string;
+};
+
+const AMBER = "border-dashed border-amber-400 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200";
+
+export function StudentJourney(Student: StudentJourneyInput): StudentJourneyView {
+  if (Student.levelComplete) {
+    return { kind: "COMPLETE", needsAssigning: false, label: "Level Complete", detail: "", tone: TONES.ASSIGNED };
+  }
+  const Lesson = Student.currentLessonNumber;
+  if (!Lesson) {
+    return { kind: "UNKNOWN", needsAssigning: false, label: "", detail: "", tone: "" };
+  }
+  const Status = Student.currentLessonStatus;
+  const State = LessonStatusState(Status);
+  const Total = Status?.total || Student.totalInCurrentLesson || 0;
+  const Cleared = `${Status?.cleared ?? Student.clearedInCurrentLesson ?? 0}/${Total} Cleared`;
+  if (State === "NOT_ASSIGNED") {
+    if (Student.isNewToLevel) {
+      return { kind: "NEW", needsAssigning: true, label: "New To This Level", detail: "Nothing Assigned Yet", tone: AMBER };
+    }
+    return { kind: "NEEDS", needsAssigning: true, label: `Needs Lesson ${Lesson}`, detail: "Not Assigned Yet", tone: AMBER };
+  }
+  if (State === "PARTLY") {
+    const Of = Status?.assignableTotal || Total;
+    return { kind: "NEEDS", needsAssigning: true, label: `Needs Rest Of Lesson ${Lesson}`, detail: `${Status?.given ?? 0} of ${Of} Sheets Assigned`, tone: TONES.PARTLY };
+  }
+  if (State === "SCHEDULED") {
+    const Day = LessonDayLabel(Status?.nextOpensAt || Status?.firstOpensAt);
+    return { kind: "SCHEDULED", needsAssigning: false, label: `Lesson ${Lesson} Scheduled`, detail: Day ? `Starts ${Day}` : "", tone: TONES.SCHEDULED };
+  }
+  return { kind: "WORKING", needsAssigning: false, label: `Working On Lesson ${Lesson}`, detail: `Assigned · ${Cleared}`, tone: TONES.ASSIGNED };
 }
