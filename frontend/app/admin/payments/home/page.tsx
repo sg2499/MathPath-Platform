@@ -165,7 +165,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <Stat
-          label="Collected today"
+          label="Received today"
           value={data.todayCollected.display}
           icon={<HandCoins size={17} />}
           tone="emerald"
@@ -173,12 +173,12 @@ function HomeBody({ data }: { data: PaymentsHome }) {
           sub={data.todayByMethod.length ? data.todayByMethod.map((row) => `${row.methodLabel} ${row.display}`).join(" · ") : "Nothing yet"}
         />
         <Stat
-          label={data.thisMonthLabel}
+          label={`Received in ${data.thisMonthLabel}`}
           value={data.thisMonthCollected.display}
           icon={<TrendingUp size={17} />}
           tone="cyan"
           href="/admin/payments/reports?tab=overview"
-          sub={<>{data.lastMonthToDateLabel}: {data.lastMonthToDateCollected.display}{monthUp !== null ? <span className={monthUp >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"}> ({monthUp >= 0 ? "+" : ""}{monthUp}% vs the same days)</span> : null}{data.insights.rate !== null ? <span className="block text-cyan-700 dark:text-cyan-300">{data.insights.rate}% of this month&apos;s billing collected</span> : null}</>}
+          sub={<>{data.lastMonthToDateLabel}: {data.lastMonthToDateCollected.display}{monthUp !== null ? <span className={monthUp >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"}> ({monthUp >= 0 ? "+" : ""}{monthUp}% vs the same days)</span> : null}{data.insights.rate !== null ? <span className="block text-cyan-700 dark:text-cyan-300">{data.insights.rate}% of this month&apos;s billing paid</span> : null}</>}
         />
         <Stat
           label="Due"
