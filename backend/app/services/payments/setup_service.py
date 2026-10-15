@@ -360,7 +360,9 @@ def CentrePayload(Centre: PaymentCentre, StudentCount: int = 0) -> dict[str, Any
 def _CentreStudentCounts(db: Session) -> dict[str, int]:
     from sqlalchemy import func
 
-    Rows = db.query(Student.centre_id, func.count(Student.id)).filter(Student.centre_id.isnot(None)).group_by(Student.centre_id).all()
+    from app.services.demo_students import RealStudents
+
+    Rows = RealStudents(db.query(Student.centre_id, func.count(Student.id))).filter(Student.centre_id.isnot(None)).group_by(Student.centre_id).all()
     return {CentreId: Count for CentreId, Count in Rows}
 
 
@@ -374,7 +376,9 @@ def GetPaymentSettings(db: Session) -> dict[str, Any]:
     EnsurePaymentDefaults(db)
     db.commit()
     Profile = db.get(PaymentBusinessProfile, "default")
-    StudentsWithoutCentre = db.query(Student).filter(Student.centre_id.is_(None), Student.is_active == True).count()  # noqa: E712
+    from app.services.demo_students import RealStudents
+
+    StudentsWithoutCentre = RealStudents(db.query(Student)).filter(Student.centre_id.is_(None), Student.is_active == True).count()  # noqa: E712
     return {
         "business": BusinessPayload(Profile),
         "centres": ListCentres(db),
@@ -528,8 +532,11 @@ def AssignStudentsToCentre(db: Session, *, StudentIds: list[str], CentreId: Any,
 def ListStudentsForCentreAssignment(db: Session) -> list[dict[str, Any]]:
     from app.models import Level, Module, Teacher
 
+    from app.services.demo_students import RealStudents
+
+    # Demo accounts are never billed, so they need no centre.
     Rows = (
-        db.query(Student, User)
+        RealStudents(db.query(Student, User))
         .join(User, Student.user_id == User.id)
         .order_by(User.full_name.asc())
         .all()

@@ -14,7 +14,7 @@ export function AddDays(isoDate: string, days: number): string {
 export function FormatDate(isoDate: string | null | undefined): string {
   if (!isoDate) return "—";
   const [year, month, day] = isoDate.slice(0, 10).split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 export function MonthStart(isoDate: string, back = 0): string {

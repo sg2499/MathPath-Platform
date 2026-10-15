@@ -2001,8 +2001,11 @@ def AssessmentApprovalLifecycleKey(Item: dict[str, Any]) -> str:
 
 def ListAssessmentReattemptApprovals(Db: Session, Status: str | None = None) -> dict[str, Any]:
     SyncAssessmentReattemptApprovalQueue(Db)
+    from app.services.demo_students import WithoutDemoColumn
+
+    # Demo accounts are left out of the queue and its counts.
     Approvals = (
-        Db.query(AssessmentReattemptApproval)
+        WithoutDemoColumn(Db, Db.query(AssessmentReattemptApproval), AssessmentReattemptApproval.student_id)
         .order_by(AssessmentReattemptApproval.requested_at.desc())
         .all()
     )

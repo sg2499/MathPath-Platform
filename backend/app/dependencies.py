@@ -1,4 +1,5 @@
 import secrets
+import threading
 from fastapi import Depends, BackgroundTasks, Response, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -26,6 +27,26 @@ bearer_scheme = HTTPBearer(auto_error=False)
 # background.
 ACTIVITY_WRITE_DEBOUNCE_SECONDS = 50
 active_users_cache = TTLCache(maxsize=10000, ttl=ACTIVITY_WRITE_DEBOUNCE_SECONDS)
+# 2026-10-14: TTLCache is not thread-safe, and this dependency runs in
+# FastAPI's thread pool, so several requests from one user arriving together
+# could hit it at the same moment while the entry was expiring. cachetools
+# then raised KeyError(<user id>) and all those requests failed with a 500
+# (server log, 11 Oct 11:52 UTC: five at once). Every read and write now goes
+# through this lock.
+_active_users_cache_lock = threading.Lock()
+
+
+def _should_record_activity(user_id: str) -> bool:
+    """True at most once per debounce window per user (per worker)."""
+    with _active_users_cache_lock:
+        try:
+            if user_id in active_users_cache:
+                return False
+            active_users_cache[user_id] = True
+            return True
+        except KeyError:
+            # An entry expiring underneath us; recording again is harmless.
+            return True
 
 
 def _as_aware_utc(value: datetime) -> datetime:
@@ -259,11 +280,27 @@ def get_current_user(
     _enforce_idle_sign_out(request, user)
 
     # MAANG-Tier Live Tracking: Debounce via LRU memory cache, update DB in background
-    if user.id not in active_users_cache:
-        active_users_cache[user.id] = True
+    if _should_record_activity(user.id):
         background_tasks.add_task(_update_user_activity, user.id)
 
+    _set_demo_switch(request, user, db)
     return user
+
+
+def _set_demo_switch(request: Request, user: User, db: Session) -> None:
+    """2026-10-14 (app/services/demo_students.py): demo accounts are shown in
+    this request when an admin or teacher has "Show Demo Accounts" on, or
+    when the signed-in student is a demo account themselves."""
+    from app.services.demo_students import SHOW_DEMO_HEADER, SetIncludeDemo
+
+    role = str(user.role or "").upper()
+    if role in {"ADMIN", "SUPER_ADMIN", "TEACHER"}:
+        SetIncludeDemo(db, request.headers.get(SHOW_DEMO_HEADER) == "1")
+    elif role == "STUDENT":
+        is_demo = db.query(Student.is_demo).filter(Student.user_id == user.id).scalar()
+        SetIncludeDemo(db, bool(is_demo))
+    else:
+        SetIncludeDemo(db, False)
 
 
 def require_roles(*roles: str):

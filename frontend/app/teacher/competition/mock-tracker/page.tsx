@@ -1,5 +1,7 @@
 "use client";
 
+import { formatMathPathDate } from "@/lib/date";
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -47,10 +49,7 @@ const MOCK_SORT_FIELDS: SortFieldOption<SortKey>[] = MockTableColumns
   .map((Column) => ({ key: Column.key, label: Column.label }));
 
 function FormatDate(Value?: string | null) {
-  if (!Value) return "-";
-  const DateValue = new Date(Value);
-  if (Number.isNaN(DateValue.getTime())) return "-";
-  return DateValue.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return Value ? formatMathPathDate(Value) : "-";
 }
 
 function StatusLabel(Status?: string | null) {
@@ -74,59 +73,45 @@ function PercentValue(Value?: number | null) {
   return Value != null ? `${Value}%` : "-";
 }
 
+// Rule A (2026-10-14): the plain average of each completed mock's accuracy
+// and score %, the same numbers the server summary sends (it was correct /
+// questions pooled, so the cards showed 68% against the summary's 67%).
 function AverageAccuracyValue(Rows: TeacherCompetitionTrackerRow[]) {
-  const CompletedRows = Rows.filter((Row) => IsCompleted(Row) && Row.accuracyPercentage != null);
-  if (CompletedRows.length === 0) return null;
-  let totalCorrect = 0;
-  let totalQ = 0;
-  CompletedRows.forEach((Row) => {
-    const anyR = Row as any;
-    if (anyR.mockExam?.totalQuestions !== undefined && anyR.correctCount !== undefined) {
-      const qs = anyR.mockExam.totalQuestions > 0 ? anyR.mockExam.totalQuestions : ((anyR.attemptedCount ?? 0) + (anyR.unansweredCount ?? 0));
-      if (qs > 0) {
-        totalCorrect += anyR.correctCount;
-        totalQ += qs;
-      }
-    } else {
-      totalCorrect += Number(anyR.accuracyPercentage || 0);
-      totalQ += 100;
-    }
-  });
-  if (totalQ === 0) return null;
-  return Math.round((totalCorrect / totalQ) * 100);
+  const Values = Rows
+    .filter((Row) => IsCompleted(Row) && Row.accuracyPercentage != null && Number.isFinite(Number(Row.accuracyPercentage)))
+    .map((Row) => Number(Row.accuracyPercentage));
+  if (Values.length === 0) return null;
+  return Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length);
 }
 
+function RowScorePercent(Row: TeacherCompetitionTrackerRow): number | null {
+  const AnyRow = Row as any;
+  const Direct = Number(AnyRow.percentage);
+  if (AnyRow.percentage != null && Number.isFinite(Direct)) return Direct;
+  const Score = Number(AnyRow.score);
+  const Max = Number(AnyRow.maxScore);
+  return Number.isFinite(Score) && Number.isFinite(Max) && Max > 0 ? (Score / Max) * 100 : null;
+}
 
 function AverageScoreValue(Rows: TeacherCompetitionTrackerRow[]) {
-  const CompletedRows = Rows.filter((Row) => IsCompleted(Row) && Row.score != null);
-  if (CompletedRows.length === 0) return 0;
-  let totalScore = 0;
-  let totalMax = 0;
-  CompletedRows.forEach((Row) => {
-    const anyR = Row as any;
-    const s = Number(anyR.score || 0);
-    const m = Number(anyR.maxScore || 0);
-    if (m > 0) {
-      totalScore += s;
-      totalMax += m;
-    }
-  });
-  if (totalMax === 0) return 0;
-  return Math.round((totalScore / totalMax) * 100);
+  const Values = Rows
+    .filter((Row) => IsCompleted(Row))
+    .map(RowScorePercent)
+    .filter((Value): Value is number => Value !== null);
+  if (Values.length === 0) return 0;
+  return Math.round(Values.reduce((Total, Value) => Total + Value, 0) / Values.length);
 }
 
 function AverageOfStudentAccuracyValues(Rows: TeacherCompetitionTrackerRow[]) {
   return AverageAccuracyValue(Rows) || 0;
 }
 
-import { Chip } from "@/components/common/DetailWorkspaceViews";
+import { Chip, numericAccuracyTone } from "@/components/common/DetailWorkspaceViews";
 
 function AccuracyBandTone(Value: number | null): "slate" | "green" | "red" | "amber" | "blue" | "cyan" | "purple" {
-  if (Value == null) return "slate";
-  if (Value < 60) return "red";
-  if (Value < 80) return "amber";
-  if (Value < 90) return "purple";
-  return "green";
+  // 2026-10-14: the same colours as practice -- green at the 70% benchmark
+  // or above, red below (was four bands: red / amber / purple / green).
+  return numericAccuracyTone(Value);
 }
 
 function AverageAccuracyChip(Rows: TeacherCompetitionTrackerRow[]) {
@@ -499,7 +484,7 @@ function TeacherCompetitionMockTrackerContent() {
 
             <div className="grid gap-5">
               <article className="math-card p-5 sm:p-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="flex flex-col gap-4">
                   <div>
                     <p className="math-block-header">
                       <Radar size={14} />
@@ -510,7 +495,7 @@ function TeacherCompetitionMockTrackerContent() {
                       Review completion status, score, accuracy, and time taken for your students.
                     </p>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.35fr_180px_180px_180px_220px] xl:w-[1040px]">
+                  <div className="grid gap-3 sm:grid-cols-2 w-full xl:grid-cols-[minmax(240px,1.35fr)_180px_180px_180px_220px]">
                     <label className="tc-dark-filter flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[#7a1f58] focus-within:border-[#7a1f58] focus-within:ring-2 focus-within:ring-[#7a1f58]/20 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:border-rose-200/90 dark:hover:bg-rose-500/20 dark:focus-within:border-rose-300 dark:focus-within:bg-rose-500/20 dark:focus-within:ring-rose-300/25">
                       <Search size={16} className="text-[#7a1f58] dark:text-rose-100" />
                       <input
@@ -581,7 +566,7 @@ function TeacherCompetitionMockTrackerContent() {
                                 {StudentOpen ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
                               </span>
                               <div className="min-w-0">
-                                <h3 className="truncate text-lg font-black text-slate-950 dark:text-white">{StudentGroup.student.studentName}</h3>
+                                <h3 className="truncate text-lg font-black text-slate-950 dark:text-white">{StudentGroup.student.studentName}<DemoTag studentId={StudentGroup.student.studentId} studentCode={StudentGroup.student.studentCode} /></h3>
                                 <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{StudentGroup.student.studentCode}</p>
                               </div>
                             </div>

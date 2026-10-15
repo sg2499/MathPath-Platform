@@ -125,6 +125,23 @@ def NotificationPayload(notification: Notification) -> dict[str, Any]:
     }
 
 
+def _VisibleTo(db: Session, Query, recipient_user_id: str):
+    """One person's notices. Admin and teacher notices about a demo account
+    (app/services/demo_students.py) are always saved but only shown while
+    "Show Demo Accounts" is on. A student always sees their own notices."""
+    from app.services.demo_students import DemoStudentIds
+
+    Query = Query.filter(Notification.recipient_user_id == recipient_user_id)
+    Demo = DemoStudentIds(db)
+    if not Demo:
+        return Query
+    return Query.filter(
+        (Notification.student_id.is_(None))
+        | (Notification.recipient_role == "STUDENT")
+        | (Notification.student_id.notin_(sorted(Demo)))
+    )
+
+
 def CreateNotification(
     db: Session,
     *,
@@ -203,7 +220,7 @@ def NotificationTabCounts(db: Session, *, recipient_user_id: str, role: str | No
 
     from app.services.notification_tabs import TAB_ACTION, TAB_ALL, ActionCondition, TabExpression
 
-    Base = db.query(Notification).filter(Notification.recipient_user_id == recipient_user_id)
+    Base = _VisibleTo(db, db.query(Notification), recipient_user_id)
     Tab = TabExpression().label("tab")
     Unread = SqlFunc.sum(case((Notification.is_read.is_(False), 1), else_=0))
     Counts: dict[str, dict[str, int]] = {}
@@ -233,7 +250,7 @@ def ListNotifications(
 
     safe_limit = max(1, min(int(limit or 20), 100))
     safe_offset = max(0, int(offset or 0))
-    query = db.query(Notification).filter(Notification.recipient_user_id == recipient_user_id)
+    query = _VisibleTo(db, db.query(Notification), recipient_user_id)
     if unread_only:
         query = query.filter(Notification.is_read.is_(False))
     Condition = TabCondition(tab, role)
@@ -252,8 +269,7 @@ def ListNotifications(
     if To is not None:
         query = query.filter(Notification.created_at < To)
     total = query.count()
-    unread_count = db.query(Notification).filter(
-        Notification.recipient_user_id == recipient_user_id,
+    unread_count = _VisibleTo(db, db.query(Notification), recipient_user_id).filter(
         Notification.is_read.is_(False),
     ).count()
     PriorityExpression = case(
@@ -342,8 +358,7 @@ def MarkAllNotificationsRead(db: Session, *, recipient_user_id: str, role: str |
 
 
 def UnreadNotificationCount(db: Session, *, recipient_user_id: str) -> int:
-    return db.query(Notification).filter(
-        Notification.recipient_user_id == recipient_user_id,
+    return _VisibleTo(db, db.query(Notification), recipient_user_id).filter(
         Notification.is_read.is_(False),
     ).count()
 

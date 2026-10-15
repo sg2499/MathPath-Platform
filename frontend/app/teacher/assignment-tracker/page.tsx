@@ -1,5 +1,6 @@
 "use client";
 
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -289,13 +290,9 @@ function MatchesStatusFilter(Row: AnyRow, FilterValue: StatusFilter) {
   return StatusKey(Row) === FilterValue;
 }
 
-function AttemptedRows(Rows: AnyRow[]) {
-  return Rows.filter(isCompleted);
-}
-
 function AverageAccuracyDisplay(Rows: AnyRow[]) {
-  const ReviewedRows = AttemptedRows(Rows);
-  return ReviewedRows.length ? formatAccuracyPercent(averageAccuracy(ReviewedRows)) : "—";
+  // Rule A: every submitted try counts once (everyTryAverageAccuracy).
+  return formatAccuracyPercent(averageAccuracy(Rows));
 }
 
 function AverageStudentAccuracyDisplay(Students: StudentNode[]) {
@@ -337,13 +334,12 @@ function MatchesPerformanceFilter(Row: AnyRow, FilterValue: PerformanceFilter) {
 }
 
 function PerformanceBand(Rows: AnyRow[]) {
-  const ReviewedRows = AttemptedRows(Rows);
-  if (!ReviewedRows.length) return { Label: "Pending", Tone: "amber" as Tone };
-  // ReviewedRows is guaranteed non-empty here, so averageAccuracy() only
-  // returns null when every reviewed row's accuracy is exactly 0 (its
-  // `value > 0` filter excludes them) -- which already belongs in the
-  // "Needs Re-Attempt" band. `?? 0` preserves that exact behavior.
-  const Average = averageAccuracy(ReviewedRows) ?? 0;
+  // Rule A (2026-10-14): the band follows the student's Average Accuracy as
+  // shown everywhere else -- every submitted try, 0% tries included. It used
+  // the latest try per DPS with 0% tries left out, so 36 of 68 live students
+  // sat in a different band from their own average.
+  const Average = averageAccuracy(Rows);
+  if (Average === null) return { Label: "Pending", Tone: "amber" as Tone };
   // Student's average below the benchmark (a performance band, not a DPS state).
   if (Average < 70) return { Label: "Below Benchmark", Tone: "red" as Tone };
   if (Average >= 90) return { Label: "Excellence Zone", Tone: "green" as Tone };
@@ -1635,6 +1631,7 @@ function StudentReviewTab({
                     >
                       {Student.studentName}
                     </button>
+                    <DemoTag studentCode={Student.studentCode} />
                     <p className="mt-0.5 truncate text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
                                     {Student.studentCode}
                                   </p>

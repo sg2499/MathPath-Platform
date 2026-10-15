@@ -12,13 +12,23 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { InitCaps } from "@/lib/initCaps";
+import { type ChainTone, hasDpsChain, isChainCurrentRow, StatePill, studentPracticeAction } from "@/components/common/DetailWorkspaceViews";
+
+// 2026-10-14: a card whose DPS has a shared state (the trackers' and Lesson
+// Insights' "Approved Re-Attempt 3 Open", "Re-Attempt 1 In Progress", ...)
+// shows that state and the matching button ("Start Re-Attempt 3"), so the
+// student sees the same thing on every page.
+function chainState(assignment: Assignment) {
+  return hasDpsChain(assignment) && isChainCurrentRow(assignment) && assignment.mode !== "ASSESSMENT";
+}
 
 function getAssignmentAction(assignment: Assignment) {
   const status = assignment.status;
+  const ChainAction = chainState(assignment) ? studentPracticeAction(assignment) : null;
 
   if (status === "NOT_STARTED" || status === "REATTEMPT_AVAILABLE") {
     return {
-      label: status === "REATTEMPT_AVAILABLE" ? "Start Re-Attempt" : assignment.mode === "ASSESSMENT" ? "Start Assessment" : "Start Practice",
+      label: ChainAction ? ChainAction.label : status === "REATTEMPT_AVAILABLE" ? "Start Re-Attempt" : assignment.mode === "ASSESSMENT" ? "Start Assessment" : "Start Practice",
       href: `/student/dps/${assignment.dpsId}?assignmentId=${assignment.assignmentId}`,
       disabled: false,
       icon: PlayCircle,
@@ -27,7 +37,7 @@ function getAssignmentAction(assignment: Assignment) {
 
   if (status === "IN_PROGRESS") {
     return {
-      label: "Resume Practice",
+      label: ChainAction ? ChainAction.label : "Resume Practice",
       href: assignment.attemptId
         ? `/student/attempt/${assignment.attemptId}`
         : `/student/dps/${assignment.dpsId}?assignmentId=${assignment.assignmentId}`,
@@ -96,9 +106,15 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
             </p>
           </div>
 
-          <span className={`math-badge w-fit ${getStatusStyle(assignment.status)}`}>
-            {InitCaps(assignment.status)}
-          </span>
+          {chainState(assignment) && assignment.chainRowLabel ? (
+            <span className="w-fit shrink-0">
+              <StatePill tone={(assignment.chainRowTone || "slate") as ChainTone}>{assignment.chainRowLabel}</StatePill>
+            </span>
+          ) : (
+            <span className={`math-badge w-fit ${getStatusStyle(assignment.status)}`}>
+              {InitCaps(assignment.status)}
+            </span>
+          )}
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-3">

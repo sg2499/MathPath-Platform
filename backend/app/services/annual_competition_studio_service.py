@@ -2105,7 +2105,9 @@ def ListStudentsForPracticeBank(db: Session) -> dict[str, Any]:
     # service.py imports back from this module).
     from app.services.annual_competition_assignment_service import ComputeAssignmentsForRoster
 
-    Students = db.query(Student).filter(Student.is_active == True).order_by(Student.student_code.asc()).all()  # noqa: E712
+    from app.services.demo_students import RealStudents
+
+    Students = RealStudents(db.query(Student)).filter(Student.is_active == True).order_by(Student.student_code.asc()).all()  # noqa: E712
     Computations = ComputeAssignmentsForRoster(db, Students)
     ComputationByStudentId = {Computation.student_id: Computation for Computation in Computations}
 

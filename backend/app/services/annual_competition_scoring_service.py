@@ -648,8 +648,11 @@ def _RankResultsForLevel(db: Session, EventId: str, CompetitionLevelCode: str) -
     practice result must never receive a rank or affect anyone else's,
     exactly like a voided one.
     """
+    from app.services.demo_students import WithoutDemoColumn
+
+    # Demo accounts never take a rank (app/services/demo_students.py).
     ResultRecords = (
-        db.query(CompetitionEventResult)
+        WithoutDemoColumn(db, db.query(CompetitionEventResult), CompetitionEventResult.student_id)
         .filter(
             CompetitionEventResult.event_id == EventId,
             CompetitionEventResult.competition_level_code == CompetitionLevelCode,
@@ -908,8 +911,10 @@ def ListCompetitionEventResultsForAdmin(db: Session, *, EventId: str, Competitio
     if not EventRecord:
         api_error(404, "COMPETITION_EVENT_NOT_FOUND", "The selected Annual Competition event was not found.")
 
+    from app.services.demo_students import WithoutDemoColumn
+
     Query = (
-        db.query(CompetitionEventResult)
+        WithoutDemoColumn(db, db.query(CompetitionEventResult), CompetitionEventResult.student_id)
         .join(CompetitionEventAttempt, CompetitionEventAttempt.id == CompetitionEventResult.attempt_id)
         .join(CompetitionEventLevelPaper, CompetitionEventLevelPaper.id == CompetitionEventAttempt.level_paper_id)
         .filter(
@@ -1009,6 +1014,10 @@ def ListAnnualCompetitionPracticeResultsForAdmin(
         PaperQuery = PaperQuery.filter(CompetitionEventLevelPaper.competition_level_code == CompetitionLevelCode)
     if StudentId:
         PaperQuery = PaperQuery.filter(CompetitionEventLevelPaper.assigned_student_id == StudentId)
+    else:
+        from app.services.demo_students import WithoutDemoColumn
+
+        PaperQuery = WithoutDemoColumn(db, PaperQuery, CompetitionEventLevelPaper.assigned_student_id)
     if TeacherId:
         TeacherStudentIds = [Row[0] for Row in db.query(Student.id).filter(Student.teacher_id == TeacherId).all()]
         if not TeacherStudentIds:

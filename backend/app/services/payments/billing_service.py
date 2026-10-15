@@ -181,8 +181,12 @@ def _FeePayload(Item: FeeItem | None) -> dict[str, Any] | None:
 
 
 def _ActiveStudents(db: Session) -> list[tuple[Student, User]]:
+    # Demo accounts are never billed (app/services/demo_students.py): no
+    # monthly drafts, and not listed as "not billed".
+    from app.services.demo_students import RealStudents
+
     return (
-        db.query(Student, User)
+        RealStudents(db.query(Student, User))
         .join(User, Student.user_id == User.id)
         .filter(Student.is_active == True, User.is_active == True)  # noqa: E712
         .order_by(User.full_name.asc(), Student.student_code.asc())
@@ -268,7 +272,9 @@ def UpdateBillingSettings(db: Session, *, Request: dict[str, Any], Actor: User |
 
 def ListStudentModes(db: Session) -> list[dict[str, Any]]:
     EnsureBillingSettings(db)
-    Rows = db.query(Student, User).join(User, Student.user_id == User.id).order_by(User.full_name.asc()).all()
+    from app.services.demo_students import RealStudents
+
+    Rows = RealStudents(db.query(Student, User)).join(User, Student.user_id == User.id).order_by(User.full_name.asc()).all()
     Modes = ModesFor(db)
     Levels = {Row.id: Row.level_code for Row in db.query(Level).all()}
     Centres = {Row.id: Row.name for Row in db.query(PaymentCentre).all()}
@@ -449,6 +455,12 @@ def _CreateDrafts(db: Session, Period: str, StudentIds: list[str] | None, Source
     """Drafts for active students with no draft and no live monthly invoice
     for the month. Caller holds the settings lock and commits."""
     Active = {Row.id for Row, _ in _ActiveStudents(db)}
+    if Source == "AUTO":
+        # The automatic run on the 1st never drafts demo accounts, whatever
+        # the switch says (app/services/demo_students.py).
+        from app.services.demo_students import AllDemoStudentIds
+
+        Active -= AllDemoStudentIds(db)
     Targets = Active if StudentIds is None else (Active & set(StudentIds))
     Targets -= {Id for Id, Mode in ModesFor(db, sorted(Targets)).items() if Mode == "EXEMPT"}
     if not Targets:

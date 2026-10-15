@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from app.core.rounding import round_half_up
 from app.database import get_db
 from app.dependencies import get_current_student
 from app.models import Student, DPS, Lesson, Level, Module, Attempt, Assignment, AssignmentReattemptPermission, AssessmentAssignment, StudentLevelPromotion
@@ -530,10 +531,22 @@ def assignments(db: Session = Depends(get_db), student: Student = Depends(get_cu
     # correct, not just less likely to reproduce. See the matching removal
     # on /results below (same decorator, same bug class).
     NotifyMissedPracticeUnlocks(db, student)
+    # Settle timed-out sheets first, like /results and the trackers.
+    HealExpiredPracticeAttempts(db, [student.id])
     rows = [
         a for a in get_student_assignments(db, student)
         if a.assignment_type != "ASSESSMENT" and _AssignmentIsUnlocked(a.start_time, now_utc)
     ]
+    # 2026-10-14: each card carries its DPS's shared state (the same index
+    # the trackers and Lesson Insights read), so an approved re-attempt shows
+    # "Approved Re-Attempt 3 Open" / "Start Re-Attempt 3" here too instead of
+    # "Not Started" / "Start Practice".
+    chain_index = BuildDpsChainIndex(
+        db,
+        StudentIds=[student.id],
+        StudentsByLevel={student.current_level_id: [student.id]} if student.current_level_id else {},
+        Heal=False,
+    )
     payload = []
     for a in rows:
         dps = db.get(DPS, a.dps_id)
@@ -569,6 +582,8 @@ def assignments(db: Session = Depends(get_db), student: Student = Depends(get_cu
             "reattemptAvailable": bool(reattempt_permission),
             "reattemptPermissionId": reattempt_permission.id if reattempt_permission else None,
             "availableFrom": a.start_time.isoformat() if a.start_time else None,
+            "retryAttemptNumber": int(a.retry_attempt_number or 0),
+            **chain_index.row_fields(a.id, student.id),
         })
     # Found 2026-09-02: this endpoint (and the frontend Practice tab consuming it)
     # never ordered the list at all -- it came back in whatever order the plain
@@ -761,10 +776,11 @@ def level_completed_attempts_for_student(db: Session, student_id: str, level_id:
 
 
 def level_progress_accuracy(attempts: list[Attempt]) -> int:
-    values = [float(item.accuracy_percentage or 0) for item in attempts if float(item.accuracy_percentage or 0) > 0]
+    # Rule A (2026-10-14): every submitted try counts once, 0% included.
+    values = [float(item.accuracy_percentage or 0) for item in attempts]
     if not values:
         return 0
-    return round(sum(values) / len(values))
+    return round_half_up(sum(values) / len(values))
 
 
 def level_progress_row(
@@ -792,8 +808,8 @@ def level_progress_row(
         "status": status_label,
         "score": None,
         "maxScore": None,
-        "accuracyPercentage": level_progress_accuracy(cleared_attempts or current_attempts),
-        "averageAccuracy": level_progress_accuracy(cleared_attempts or current_attempts),
+        "accuracyPercentage": level_progress_accuracy(attempts),
+        "averageAccuracy": level_progress_accuracy(attempts),
         "correct": 0,
         "wrong": 0,
         "unanswered": 0,

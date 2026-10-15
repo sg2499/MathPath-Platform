@@ -194,8 +194,10 @@ def Search(db: Session, Query: Any) -> dict[str, Any]:
             func.coalesce(Student.mother_mobile, "").like(PhoneLike),
             func.coalesce(Student.parent_contact, "").like(PhoneLike),
         ]
+    from app.services.demo_students import RealStudents
+
     StudentRows = (
-        db.query(Student, User)
+        RealStudents(db.query(Student, User))
         .join(User, Student.user_id == User.id)
         .filter(or_(*StudentFilters))
         .order_by(Student.is_active.desc(), func.lower(User.full_name).asc())

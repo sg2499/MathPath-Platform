@@ -4,6 +4,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends
 
+from app.core.rounding import round_half_up
 from app.core.config import TEMPORARY_ASSESSMENT_READINESS_BYPASS, ASSESSMENT_READINESS_GATE_MODE, ASSESSMENT_READINESS_GATE_LABEL, ASSESSMENT_TESTING_OVERRIDE_ENABLED, ASSESSMENT_TESTING_OVERRIDE_LABEL
 from app.core.errors import api_error
 from app.database import get_db
@@ -14,9 +15,11 @@ from app.services import leaderboard_service
 from app.services.attempt_chain_service import ATTEMPT_SOURCE_MANUAL_RETRY
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
 from app.services.dps_chain_state_service import BuildDpsChainIndex, HealExpiredPracticeAttempts, COMPLETED_STATUSES as DPS_COMPLETED_STATUSES
+from app.services.demo_students import DemoStudentIds, IsDemoStudent, IsDemoStudentId, IsHiddenDemoStudent, RealStudents, WithoutDemo
+from app.services.request_cache import RequestCache, AttemptsForAssignment, AttemptsForAssignmentStudentInOrder, EnableRequestCache, LatestAttemptForAssignmentStudent, LevelDpsCount, OpenReattemptPermission, PinRows, PrimeAssignmentAttempts, PrimeOpenReattemptPermissions
 from app.services.attempt_service import ensure_active_or_auto_submit, result_payload
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, NeedsReattemptAttempts
-from app.services.assessment_eligibility_service import assessment_eligibility_payload, eligibility_for_students
+from app.services.assessment_eligibility_service import EligibilityPrefetch, assessment_eligibility_payload, eligibility_for_students
 from app.services.assessment_blueprint_service import blueprint_payload, teacher_visible_blueprints
 from app.services.assessment_engine_service import AvailablePublishedVersions, AssessmentVersionOptionPayload, ExistingAssessmentAssignmentForLevel, AssessmentAssignmentPayload, AssessmentResultPayload, AssessmentProgressionPayload, StudentLevelPromotionPayload, EnsureAssessmentAttemptActiveOrAutoSubmit, IsAssessmentOpenAccessStudent
 from app.services.assessment_notification_service import NotifyAssessmentAssignmentsCreated
@@ -233,8 +236,8 @@ def _teacher_competition_tracker_payload(db: Session, teacher: Teacher):
     completed = [row for row in rows if row.get("status") == "COMPLETED"]
     pending = [row for row in rows if row.get("status") in {"ASSIGNED", "PENDING"}]
     in_progress = [row for row in rows if row.get("status") == "IN_PROGRESS"]
-    avg_score = round(sum(float(row.get("percentage") or 0) for row in completed) / len(completed)) if completed else 0
-    avg_accuracy = round(sum(float(row.get("accuracyPercentage") or 0) for row in completed) / len(completed)) if completed else 0
+    avg_score = round_half_up(sum(float(row.get("percentage") or 0) for row in completed) / len(completed)) if completed else 0
+    avg_accuracy = round_half_up(sum(float(row.get("accuracyPercentage") or 0) for row in completed) / len(completed)) if completed else 0
     time_values = [int(row.get("timeTakenSeconds") or 0) for row in completed if row.get("timeTakenSeconds") is not None]
     avg_time = round(sum(time_values) / len(time_values)) if time_values else None
     return {
@@ -282,19 +285,28 @@ def teacher_user(db: Session, teacher: Teacher) -> User:
     return user
 
 
-def own_students_query(db: Session, teacher: Teacher):
+def own_students_query(db: Session, teacher: Teacher, include_demo: bool = False):
+    """The teacher's students. Demo accounts are left out (see
+    app/services/demo_students.py) unless include_demo -- used where the
+    teacher opens or assigns one specific student, so links to a demo
+    account's work still open."""
     user = db.get(User, teacher.user_id)
     teacher_name = user.full_name if user else ""
     if hasattr(Student, "teacher_id"):
-        return db.query(Student).filter(
+        query = db.query(Student).filter(
             (Student.teacher_id == teacher.id) | (Student.teacher == teacher_name)
         )
-    return db.query(Student).filter(Student.teacher == teacher_name)
+    else:
+        query = db.query(Student).filter(Student.teacher == teacher_name)
+    return query if include_demo else RealStudents(query)
 
 
 
 @router.get("/competition/mock-tracker")
 def teacher_competition_mock_tracker(db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    # Read the rows' students / users / exams / levels once (request_cache.py).
+    EnableRequestCache(db)
+    PinRows(db, Student, User, Teacher, Level, Module, CompetitionMockExam)
     return _teacher_competition_tracker_payload(db, teacher)
 
 
@@ -370,7 +382,7 @@ def teacher_get_annual_competition_practice_report_for_student(
     db: Session = Depends(get_db),
     teacher: Teacher = Depends(get_current_teacher),
 ):
-    own_student = own_students_query(db, teacher).filter(Student.id == student_id).first()
+    own_student = own_students_query(db, teacher, include_demo=True).filter(Student.id == student_id).first()
     if not own_student:
         api_error(403, "FORBIDDEN", "You can view Practice Reports only for your own students.")
     return GetAnnualCompetitionPracticeReportForStudent(db, StudentId=student_id, CompetitionLevelCode=competitionLevelCode)
@@ -416,8 +428,16 @@ def teacher_get_annual_competition_practice_daily_leaderboard_for_level(
 def teacher_get_annual_competition_attempt_review(
     attempt_id: str, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)
 ):
-    student_ids = [student.id for student in own_students_query(db, teacher).filter(Student.is_active == True).all()]
+    student_ids = [student.id for student in own_students_query(db, teacher, include_demo=True).filter(Student.is_active == True).all()]
     return GetCompetitionEventAttemptReviewForTeacher(db, attempt_id, StudentIdsFilter=student_ids)
+
+
+@router.get("/demo-students")
+def teacher_demo_students(db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
+    """2026-10-14: the demo / test accounts, so the screens can mark them
+    "Demo" while "Show Demo Accounts" is on (app/services/demo_students.py)."""
+    Rows = db.query(Student.id, Student.student_code).filter(Student.is_demo == True).all()  # noqa: E712
+    return {"students": [{"studentId": Row[0], "studentCode": Row[1]} for Row in Rows]}
 
 
 @router.get("/dashboard")
@@ -459,7 +479,7 @@ def teacher_dashboard(db: Session = Depends(get_db), teacher: Teacher = Depends(
         "activeStudentCount": active_student_count,
         "assignmentCount": len(set(relevant_assignment_ids)),
         "completedAttemptCount": completed_attempt_count,
-        "averageAccuracy": round(float(avg_accuracy or 0)),
+        "averageAccuracy": round_half_up(float(avg_accuracy or 0)),
     }
 
 
@@ -554,7 +574,7 @@ def student_payload(db: Session, student: Student, lesson_progress: dict | None 
             in_progress_assignment_count += 1
 
     accuracy_values = [attempt_accuracy(a) for a in completed_attempts]
-    average_accuracy = round(sum(accuracy_values) / len(accuracy_values)) if accuracy_values else None
+    average_accuracy = round_half_up(sum(accuracy_values) / len(accuracy_values)) if accuracy_values else None
     below_benchmark_attempts = NeedsReattemptAttempts(completed_attempts, BENCHMARK_PERCENTAGE)
 
     latest_activity_at = None
@@ -663,7 +683,7 @@ def ensure_teacher_attempt_access(db: Session, teacher: Teacher, attempt_id: str
     if not attempt:
         api_error(404, "NOT_FOUND", "Attempt not found.")
 
-    own_student = own_students_query(db, teacher).filter(Student.id == attempt.student_id).first()
+    own_student = own_students_query(db, teacher, include_demo=True).filter(Student.id == attempt.student_id).first()
     if not own_student:
         api_error(403, "FORBIDDEN", "You can review attempts only for your own students.")
 
@@ -814,6 +834,11 @@ def available_dps(
     level_ids = sorted({StudentItem.current_level_id for StudentItem in ScopedStudents if StudentItem.current_level_id})
     if not level_ids:
         return EmptyTeacherDpsOptionsResponse(moduleId, levelId)
+
+    # Each DPS row used to look up its module and count its level's DPS on
+    # its own (see request_cache.py).
+    EnableRequestCache(db)
+    PinRows(db, Module, Level, Lesson, User)
 
     levels = db.query(Level).filter(Level.id.in_(level_ids)).all()
     lessons = db.query(Lesson).filter(Lesson.level_id.in_(level_ids)).order_by(Lesson.lesson_number.asc()).all()
@@ -989,7 +1014,7 @@ def assign_dps_to_students(
     if not level:
         api_error(404, "NOT_FOUND", "DPS level not found.")
 
-    own_students = own_students_query(db, teacher).filter(Student.id.in_(payload.studentIds)).all()
+    own_students = own_students_query(db, teacher, include_demo=True).filter(Student.id.in_(payload.studentIds)).all()
     if len(own_students) != len(set(payload.studentIds)):
         api_error(403, "FORBIDDEN", "You can assign DPS only to your own students.")
 
@@ -1065,7 +1090,7 @@ def assign_lesson_dps_to_students(
     if not publishable_dps:
         api_error(403, "DPS_NOT_PUBLISHED", "No published DPS sheets are available for this lesson yet.")
 
-    own_students = own_students_query(db, teacher).filter(Student.id.in_(payload.studentIds)).all()
+    own_students = own_students_query(db, teacher, include_demo=True).filter(Student.id.in_(payload.studentIds)).all()
     if len(own_students) != len(set(payload.studentIds)):
         api_error(403, "FORBIDDEN", "You can assign DPS only to your own students.")
 
@@ -1173,7 +1198,7 @@ def schedule_lesson_dps_to_students(
     if not level:
         api_error(404, "NOT_FOUND", "Lesson level not found.")
 
-    own_students = own_students_query(db, teacher).filter(Student.id.in_(payload.studentIds)).all()
+    own_students = own_students_query(db, teacher, include_demo=True).filter(Student.id.in_(payload.studentIds)).all()
     if len(own_students) != len(set(payload.studentIds)):
         api_error(403, "FORBIDDEN", "You can assign DPS only to your own students.")
 
@@ -1320,6 +1345,9 @@ def schedule_lesson_dps_to_students(
 def teacher_level_total_dps_count(db: Session, level_id: str | None) -> int:
     if not level_id:
         return 0
+    CachedCount = LevelDpsCount(db, level_id)
+    if CachedCount is not None:
+        return CachedCount
     return (
         db.query(DPS)
         .join(Lesson, DPS.lesson_id == Lesson.id)
@@ -1358,6 +1386,9 @@ def assignment_dps_context(db: Session, assignment: Assignment) -> dict:
 
 
 def active_reattempt_permission_for_assignment(db: Session, assignment_id: str, student_id: str):
+    FoundInCache, CachedPermission = OpenReattemptPermission(db, assignment_id, student_id)
+    if FoundInCache:
+        return CachedPermission
     return (
         db.query(AssignmentReattemptPermission)
         .filter(
@@ -1372,12 +1403,14 @@ def active_reattempt_permission_for_assignment(db: Session, assignment_id: str, 
 
 
 def latest_attempt_for_assignment(db: Session, assignment_id: str, student_id: str) -> Attempt | None:
-    attempt = (
-        db.query(Attempt)
-        .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
-        .order_by(Attempt.started_at.desc())
-        .first()
-    )
+    FoundInCache, attempt = LatestAttemptForAssignmentStudent(db, assignment_id, student_id)
+    if not FoundInCache:
+        attempt = (
+            db.query(Attempt)
+            .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
+            .order_by(Attempt.started_at.desc())
+            .first()
+        )
     if attempt is None:
         return None
     # 2026-09-17 (Shailesh: "never ever anywhere"): single choke point for
@@ -1389,12 +1422,14 @@ def latest_attempt_for_assignment(db: Session, assignment_id: str, student_id: s
 
 
 def all_attempts_for_assignment_student(db: Session, assignment_id: str, student_id: str) -> list[Attempt]:
-    attempts = (
-        db.query(Attempt)
-        .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
-        .order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
-        .all()
-    )
+    attempts = AttemptsForAssignmentStudentInOrder(db, assignment_id, student_id)
+    if attempts is None:
+        attempts = (
+            db.query(Attempt)
+            .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
+            .order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
+            .all()
+        )
     # 2026-09-17 (Shailesh: "never ever anywhere"): backs the teacher
     # attempt-history display -- self-heal before status/score are read.
     return [ensure_active_or_auto_submit(db, attempt) for attempt in attempts]
@@ -1539,6 +1574,13 @@ def teacher_assignment_tracker(db: Session = Depends(get_db), teacher: Teacher =
         Benchmark=BENCHMARK_PERCENTAGE,
     )
 
+    # Read everything the rows need up front (see request_cache.py): this
+    # screen used to run ~8 queries per row.
+    EnableRequestCache(db)
+    PinRows(db, DPS, Lesson, Level, Module, User)
+    PrimeAssignmentAttempts(db, [assignment.id for assignment in assignments])
+    PrimeOpenReattemptPermissions(db, [assignment.id for assignment in assignments])
+
     for assignment in assignments:
         seen_assignment_ids.add(assignment.id)
         creator = db.get(User, assignment.assigned_by_user_id) if assignment.assigned_by_user_id else None
@@ -1641,7 +1683,7 @@ def teacher_assessment_attempt_result_route(
     attempt = db.get(AssessmentAttempt, attempt_id)
     if not attempt:
         api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found.")
-    own_student_ids = [student.id for student in own_students_query(db, teacher).all()]
+    own_student_ids = [student.id for student in own_students_query(db, teacher, include_demo=True).all()]
     if attempt.student_id not in own_student_ids:
         api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found for this teacher.")
     # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal a stuck
@@ -1660,7 +1702,7 @@ def teacher_save_assessment_attempt_remark(
     attempt = db.get(AssessmentAttempt, attempt_id)
     if not attempt:
         api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found.")
-    own_student_ids = [student.id for student in own_students_query(db, teacher).all()]
+    own_student_ids = [student.id for student in own_students_query(db, teacher, include_demo=True).all()]
     if attempt.student_id not in own_student_ids:
         api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found for this teacher.")
     user = teacher_user(db, teacher)
@@ -1679,7 +1721,7 @@ def teacher_get_assessment_attempt_remark(
     attempt = db.get(AssessmentAttempt, attempt_id)
     if not attempt:
         api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found.")
-    own_student_ids = [student.id for student in own_students_query(db, teacher).all()]
+    own_student_ids = [student.id for student in own_students_query(db, teacher, include_demo=True).all()]
     if attempt.student_id not in own_student_ids:
         api_error(404, "ASSESSMENT_ATTEMPT_NOT_FOUND", "Assessment attempt not found for this teacher.")
     return {"teacherFeedback": assessment_feedback_payload(db, active_assessment_remark(db, attempt.id))}
@@ -1875,6 +1917,12 @@ def teacher_results(db: Session = Depends(get_db), teacher: Teacher = Depends(ge
     # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal before
     # attempt_payload() below reads score/status for this list.
     attempts = [ensure_active_or_auto_submit(db, attempt) for attempt in attempts]
+    # Read the rows' assignments / DPS / users once (see request_cache.py).
+    EnableRequestCache(db)
+    PinRows(db, DPS, Lesson, Level, Module, User)
+    AssignmentIds = sorted({attempt.assignment_id for attempt in attempts if attempt.assignment_id})
+    if AssignmentIds:
+        RequestCache(db)["pinned"].extend(db.query(Assignment).filter(Assignment.id.in_(AssignmentIds)).all())
     return {"attempts": [attempt_payload(db, attempt) for attempt in attempts]}
 
 
@@ -1943,7 +1991,7 @@ def teacher_assessment_readiness(levelId: str | None = None, db: Session = Depen
 
 @router.get("/students/{student_id}/assessment-eligibility")
 def teacher_student_assessment_eligibility(student_id: str, levelId: str | None = None, db: Session = Depends(get_db), teacher: Teacher = Depends(get_current_teacher)):
-    student = own_students_query(db, teacher).filter(Student.id == student_id).first()
+    student = own_students_query(db, teacher, include_demo=True).filter(Student.id == student_id).first()
     if not student:
         api_error(404, "NOT_FOUND", "Student not found under this teacher.")
     return assessment_eligibility_payload(db, student, levelId or student.current_level_id)
@@ -2041,7 +2089,9 @@ def teacher_available_assessments(
     db: Session = Depends(get_db),
     teacher: Teacher = Depends(get_current_teacher),
 ):
-    own_students = own_students_query(db, teacher).filter(Student.is_active == True).all()
+    own_students = own_students_query(db, teacher, include_demo=True).filter(Student.is_active == True).all()
+    # Demo accounts don't widen the list, except the assessment test account.
+    own_students = [student for student in own_students if not IsHiddenDemoStudent(db, student) or IsAssessmentOpenAccessStudent(student)]
     teacher_module_ids = {student.current_module_id for student in own_students if student.current_module_id}
     teacher_level_ids = {student.current_level_id for student in own_students if student.current_level_id}
     # A teacher with the test account (MP-ST-001) in class can give it any
@@ -2071,9 +2121,14 @@ def teacher_assign_assessment_options(
     db: Session = Depends(get_db),
     teacher: Teacher = Depends(get_current_teacher),
 ):
-    own_students = own_students_query(db, teacher).filter(Student.is_active == True).order_by(Student.student_code.asc()).all()
+    own_students = own_students_query(db, teacher, include_demo=True).filter(Student.is_active == True).order_by(Student.student_code.asc()).all()
+    # Hidden demo accounts stay off this screen, except the assessment test account.
+    own_students = [StudentItem for StudentItem in own_students if not IsHiddenDemoStudent(db, StudentItem) or IsAssessmentOpenAccessStudent(StudentItem)]
     rows = []
     HasTestAccount = False
+    # One batched readiness load for every student on this screen instead
+    # of ~50 queries per student (2026-10-14 speed work).
+    EligibilityCache = EligibilityPrefetch(db, own_students, [StudentItem.current_level_id for StudentItem in own_students])
     for StudentItem in own_students:
         IsTestAccount = IsAssessmentOpenAccessStudent(StudentItem)
         HasTestAccount = HasTestAccount or IsTestAccount
@@ -2081,7 +2136,11 @@ def teacher_assign_assessment_options(
             continue
         if levelId and StudentItem.current_level_id != levelId and not IsTestAccount:
             continue
-        Eligibility = assessment_eligibility_payload(db, StudentItem, StudentItem.current_level_id) if StudentItem.current_level_id else None
+        Eligibility = assessment_eligibility_payload(db, StudentItem, StudentItem.current_level_id, EligibilityCache, compact=True) if StudentItem.current_level_id else None
+        if Eligibility:
+            # This screen only shows the counts; the per-sheet breakdown
+            # lives on the readiness page.
+            Eligibility.pop("lessons", None)
         ExistingAssignment = ExistingAssessmentAssignmentForLevel(db, StudentItem.id, StudentItem.current_level_id) if StudentItem.current_level_id else None
         ApprovedReattemptAccess = ApprovedAssessmentReattemptAccessForLevel(db, StudentItem.id, StudentItem.current_level_id) if StudentItem.current_level_id else None
         ReattemptNeeded = AssessmentRequiresReattempt(ExistingAssignment)
@@ -2207,7 +2266,7 @@ def teacher_assign_assessment(
     Rejected = []
 
     for StudentId in payload.studentIds:
-        StudentItem = own_students_query(db, teacher).filter(Student.id == StudentId, Student.is_active == True).first()
+        StudentItem = own_students_query(db, teacher, include_demo=True).filter(Student.id == StudentId, Student.is_active == True).first()
         if not StudentItem:
             Rejected.append({"studentId": StudentId, "reason": "Student is not assigned to this teacher."})
             continue

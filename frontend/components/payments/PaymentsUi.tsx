@@ -2,6 +2,7 @@
 
 // 2026-10-08 (Payments): small building blocks shared by the admin payments
 // screens -- a dialog, a metric tile, status chips and the change history.
+import { formatMathPathDateTime } from "@/lib/date";
 import { listPaymentAudit, type PaymentAuditEntry } from "@/lib/api/payments";
 import { apiErrorMessage } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
@@ -214,7 +215,7 @@ function ShowValue(value: unknown, key?: string, entityType?: string): string {
   if (value === "RECORDED") return entityType === "PAYMENT" ? "Received" : "Recorded";
   if (key && DATE_KEYS.has(key) && typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
     const [year, month, day] = value.split("-").map(Number);
-    return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+    return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
   }
   return String(value);
 }
@@ -283,7 +284,7 @@ export function PaymentsHistoryList({ entityType, entityId, limit = 50 }: { enti
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <span className="text-sm font-black text-slate-900 dark:text-white">{ACTION_LABELS[entry.action] ?? entry.action}</span>
             <span className="text-xs font-semibold text-slate-500">
-              {entry.actorName || "System"} · {entry.createdAt ? new Date(entry.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : ""}
+              {entry.actorName || "System"} · {entry.createdAt ? formatMathPathDateTime(entry.createdAt) : ""}
             </span>
           </div>
           {entry.reason ? <p className="mt-1 text-xs font-bold text-slate-600 dark:text-slate-300">Reason: {entry.reason}</p> : null}

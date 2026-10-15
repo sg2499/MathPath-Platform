@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMathPathDate } from "@/lib/date";
 import { AppShell } from "@/components/common/AppShell";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -52,10 +53,7 @@ function FormatDuration(seconds?: number | null) {
 }
 
 function FormatDate(value?: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return value ? formatMathPathDate(value) : "-";
 }
 
 function RoundHalfUp(value: number) {

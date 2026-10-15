@@ -404,6 +404,7 @@ function AdminCompetitionMockStudioPageContent() {
     const SearchValue = StudentSearch.trim().toLowerCase();
     return Students.filter((StudentValue) => (
       StudentValue.isActive
+      && !StudentValue.isDemo // demo accounts are left out (2026-10-14)
       && Boolean(AssignmentScope)
       && StudentValue.currentModuleId === AssignmentScope?.moduleId
       && StudentValue.currentLevelId === AssignmentScope?.levelId

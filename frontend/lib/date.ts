@@ -43,10 +43,6 @@ export function parseMathPathDate(value?: string | null) {
   return DateValue;
 }
 
-function withUppercaseMeridiem(value: string) {
-  return value.replace(/\b(am|pm)\b/g, (Match) => Match.toUpperCase());
-}
-
 export function mathPathTimestampValue(value?: string | null) {
   const DateValue = parseMathPathDate(value);
   return DateValue ? DateValue.getTime() : 0;
@@ -87,74 +83,70 @@ export function getLatestMathPathTimestamp(
   return LatestValue;
 }
 
+// 2026-10-14 (Phase 2 part 5): ONE date style across the platform, always
+// India time. The platform used to show four styles side by side --
+// "14 Oct, 4:05 PM", "14/10/2026, 12:38:26 AM", "Oct 11, 2026, 8:00 PM" and
+// "11/10/2026, 7:43:35 PM". Now:
+//   date        14 Oct 2026
+//   date + time 14 Oct 2026, 4:05 PM
+//   compact     14 Oct, 4:05 PM   (the year is added when it isn't this year)
+//   time        4:05 PM
+const IST = "Asia/Kolkata";
+
+function istParts(DateValue: Date, Options: Intl.DateTimeFormatOptions) {
+  const Parts: Record<string, string> = {};
+  new Intl.DateTimeFormat("en-IN", { timeZone: IST, ...Options })
+    .formatToParts(DateValue)
+    .forEach((Part) => {
+      if (Part.type !== "literal") Parts[Part.type] = Part.value;
+    });
+  return Parts;
+}
+
+function istDay(DateValue: Date) {
+  const Parts = istParts(DateValue, { day: "numeric", month: "short", year: "numeric" });
+  return { day: Parts.day, month: Parts.month, year: Parts.year };
+}
+
+function istClock(DateValue: Date) {
+  const Parts = istParts(DateValue, { hour: "numeric", minute: "2-digit", hour12: true });
+  return `${Parts.hour}:${Parts.minute} ${String(Parts.dayPeriod || "").toUpperCase()}`.trim();
+}
+
+/** "14 Oct 2026" from a Date (India time). */
+export function formatMathPathDay(DateValue: Date) {
+  const Day = istDay(DateValue);
+  return `${Day.day} ${Day.month} ${Day.year}`;
+}
+
 export function formatMathPathDateTime(value?: string | null) {
   const DateValue = parseMathPathDate(value);
   if (!DateValue) return MATHPATH_EMPTY_VALUE;
-
-  return withUppercaseMeridiem(
-    DateValue.toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-    }),
-  );
+  return `${formatMathPathDay(DateValue)}, ${istClock(DateValue)}`;
 }
 
-// 2026-09-02: a compact "recency" variant for dense table columns (Admin/Teacher
-// Students directories) that only need to convey how recent something was at a
-// glance, not an exact-to-the-second timestamp -- e.g. "2 Sep, 3:45 PM" instead
-// of formatMathPathDateTime()'s "9/2/2026, 3:45:12 PM". Dropping the year (rarely
-// relevant for "last seen"/"latest activity" -- almost always the current year)
-// and seconds cuts the rendered width roughly in half, which is what actually
-// keeps those tables' columns from wrapping or forcing horizontal scroll on a
-// normal screen. Existing formatMathPathDateTime() call sites are untouched --
-// this is purely additive, opt-in per call site.
+// A compact "recency" variant for dense table columns (Students
+// directories, "last seen"): "14 Oct, 4:05 PM". The year appears only when
+// it isn't the current year, so an old date is never mistaken for this year.
 export function formatMathPathDateTimeCompact(value?: string | null) {
   const DateValue = parseMathPathDate(value);
   if (!DateValue) return MATHPATH_EMPTY_VALUE;
-
-  return withUppercaseMeridiem(
-    DateValue.toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }),
-  );
+  const Day = istDay(DateValue);
+  const ThisYear = istDay(new Date()).year;
+  const DayText = Day.year === ThisYear ? `${Day.day} ${Day.month}` : `${Day.day} ${Day.month} ${Day.year}`;
+  return `${DayText}, ${istClock(DateValue)}`;
 }
 
 export function formatMathPathDate(value?: string | null) {
   const DateValue = parseMathPathDate(value);
   if (!DateValue) return MATHPATH_EMPTY_VALUE;
-
-  return DateValue.toLocaleDateString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-  });
+  return formatMathPathDay(DateValue);
 }
 
 export function formatMathPathTime(value?: string | null) {
   const DateValue = parseMathPathDate(value);
   if (!DateValue) return MATHPATH_EMPTY_VALUE;
-
-  return withUppercaseMeridiem(
-    DateValue.toLocaleTimeString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-    }),
-  );
+  return istClock(DateValue);
 }
 
 export function formatMathPathCompletionDateTime(source: Record<string, any> | null | undefined) {

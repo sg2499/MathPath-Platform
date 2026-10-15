@@ -1,5 +1,7 @@
 "use client";
 
+import { Plural } from "@/lib/plural";
+import { DemoTag } from "@/components/common/DemoAccounts";
 import {
   MATHPATH_ACTIVITY_TIMESTAMP_KEYS,
   MATHPATH_COMPLETION_TIMESTAMP_KEYS,
@@ -388,12 +390,21 @@ export function accuracy(row: AnyRow) {
   return 0;
 }
 
+/**
+ * Average Accuracy -- ONE rule everywhere (Shailesh, 2026-10-14, "Rule A"):
+ * every submitted try counts equally, 0% tries included, across every level.
+ * Before this the student Practice page used the latest try per DPS with
+ * 0% tries skipped, the tracker bands did the same, and several pages
+ * averaged the per-level averages, so one student could show 77%, 85% and
+ * 94% on different pages. Every average-accuracy helper below now returns
+ * this number.
+ */
+export function everyTryAverageAccuracy(rows: AnyRow[]): number | null {
+  return averageAccuracyIncludingZero(rowsWithAttemptHistory(rows));
+}
+
 export function averageAccuracy(rows: AnyRow[]): number | null {
-  const values = rows.map(accuracy).filter((value) => value > 0);
-  if (!values.length) return null;
-  return Math.round(
-    values.reduce((sum, value) => sum + value, 0) / values.length,
-  );
+  return everyTryAverageAccuracy(rows);
 }
 
 function hasAccuracyValue(row: AnyRow) {
@@ -422,28 +433,11 @@ function attemptHistoryAverageAccuracy(rows: AnyRow[]) {
   return averageAccuracyIncludingZero(rowsWithAttemptHistory(rows));
 }
 
+// Was the average of each level's average (a level with 3 tries weighed the
+// same as one with 300). Rule A: every try counts once -- see
+// everyTryAverageAccuracy above. Null (never 0) when nothing is reviewed.
 export function hierarchyAverageAccuracy(rows: AnyRow[]): number | null {
-  const LevelCodes = sortLevelCodes(
-    Array.from(new Set(rows.map(levelCodeOf).filter(Boolean))),
-  );
-  const LevelAverages = LevelCodes
-    .map((LevelCode) => {
-      const LevelRows = rows.filter((Row) => levelCodeOf(Row) === LevelCode);
-      const HasReviewedRows = rowsWithAttemptHistory(LevelRows).some(
-        (Row) => isCompleted(Row) && hasAccuracyValue(Row),
-      );
-      return HasReviewedRows ? averageAccuracyIncludingZero(rowsWithAttemptHistory(LevelRows)) : null;
-    })
-    .filter((Value): Value is number => Value !== null);
-
-  // Same reasoning as averageAccuracyIncludingZero above: no level with any
-  // reviewed accuracy means there is nothing real to average. Returning null
-  // (not 0) keeps every caller -- team-average reducers, per-student Chips,
-  // module/level rollups -- from silently treating "never attempted" as "0%".
-  if (!LevelAverages.length) return null;
-  return Math.round(
-    LevelAverages.reduce((Total, Value) => Total + Value, 0) / LevelAverages.length,
-  );
+  return everyTryAverageAccuracy(rows);
 }
 
 export function studentOverallAverageAccuracy(rows: AnyRow[]): number | null {
@@ -1479,6 +1473,7 @@ export function StudentSummaryTable({
                   <span className={`text-xs font-black uppercase tracking-[0.12em] ${studentCodeColor}`}>
                     ({student.studentCode})
                   </span>
+                  <DemoTag studentCode={student.studentCode} />
                 </button>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {stats.below ? (
@@ -2083,7 +2078,7 @@ export function RecordWorkspace({
                                     {uniqueClearedConceptCount(LevelRows)} Cleared
                                   </Chip>
                                   {(() => {
-                                    const LevelAverage = role === "admin" ? hierarchyAverageAccuracy(LevelRows) : averageAccuracy(LevelRows);
+                                    const LevelAverage = everyTryAverageAccuracy(LevelRows);
                                     return (
                                       <Chip tone={numericAccuracyTone(LevelAverage)}>
                                         {formatAccuracyPercent(LevelAverage)} Avg
@@ -2732,7 +2727,7 @@ function StudentProgressOverview({
                 Expand a lesson to review strength and practice focus.
               </p>
             </div>
-            <Chip tone="blue">{LessonInsights.length} Lessons</Chip>
+            <Chip tone="blue">{Plural(LessonInsights.length, "Lesson")}</Chip>
           </div>
 
           <div className="mt-4 space-y-3">

@@ -11,6 +11,7 @@
 // (same component DPS/Competition Mock reviews already use) so the
 // question itself renders identically to how the student saw it.
 
+import { formatMathPathDateTime } from "@/lib/date";
 import { ResultReviewTabs, ToAnnualReviewQuestions, ToAnnualReviewSections } from "@/components/common/ResultReviewTabs";
 import { AppShell } from "@/components/common/AppShell";
 import { Chip } from "@/components/common/DetailWorkspaceViews";
@@ -65,10 +66,7 @@ function FormatNumber(Value: number | null | undefined): string {
 }
 
 function FormatDateTime(Value: string | null | undefined): string {
-  if (!Value) return "-";
-  const DateValue = new Date(Value);
-  if (Number.isNaN(DateValue.getTime())) return "-";
-  return DateValue.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return Value ? formatMathPathDateTime(Value) : "-";
 }
 
 // Shailesh, 2026-09-09: admin-only second sub-tab alongside the existing

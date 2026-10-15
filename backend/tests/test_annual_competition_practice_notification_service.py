@@ -248,14 +248,20 @@ def test_practice_submission_notifies_once_when_the_whole_paper_is_finalized_not
     assert student_notifications[0].category == "ANNUAL_COMPETITION_PRACTICE"
     assert "100" in student_notifications[0].message  # both questions answered correctly
 
-    teacher_notifications = _notifications_for(db, teacher.user_id, "ANNUAL_PRACTICE_SUBMITTED")
-    assert len(teacher_notifications) == 1
-    assert teacher_notifications[0].type == "ANNUAL_PRACTICE_SUBMITTED_BY_STUDENT"
-    assert "Ravi Kumar" in teacher_notifications[0].title
+    # 2026-10-14: teacher and admin get the day's practice notice instead of
+    # one notice per paper (annual_practice_digest_service.py).
+    assert _notifications_for(db, teacher.user_id, "ANNUAL_PRACTICE_SUBMITTED") == []
+    assert _notifications_for(db, admin.id, "ANNUAL_PRACTICE_SUBMITTED") == []
+    import json
 
-    admin_notifications = _notifications_for(db, admin.id, "ANNUAL_PRACTICE_SUBMITTED")
-    assert len(admin_notifications) == 1
-    assert admin_notifications[0].type == "ANNUAL_PRACTICE_SUBMITTED_BY_STUDENT"
+    for recipient_id in (teacher.user_id, admin.id):
+        digests = _notifications_for(db, recipient_id, "ANNUAL_PRACTICE_DAILY_DIGEST")
+        assert len(digests) == 1
+        assert digests[0].title.startswith("Annual Practice: 1 Student, 1 Paper (")
+        entries = json.loads(digests[0].metadata_json)["entries"]
+        assert [entry["studentName"] for entry in entries] == ["Ravi Kumar"]
+        assert entries[0]["accuracy"] == 100
+        assert entries[0]["paperLabel"] == "Practice Paper 1"
 
 
 def test_official_attempt_submission_does_not_send_any_practice_notification():

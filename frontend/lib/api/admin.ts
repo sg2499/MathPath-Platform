@@ -738,8 +738,10 @@ export type AssessmentEligibilityRow = {
   belowBenchmarkDpsCount: number;
   progressPercentage: number;
   lessons: AssessmentLessonEligibility[];
-  missingDps: AssessmentDpsEligibility[];
-  belowBenchmarkDps: AssessmentDpsEligibility[];
+  // Only on the single-student reply; the lists leave these out (the same
+  // sheets are under `lessons`) and keep just the counts above.
+  missingDps?: AssessmentDpsEligibility[];
+  belowBenchmarkDps?: AssessmentDpsEligibility[];
   message: string;
 };
 

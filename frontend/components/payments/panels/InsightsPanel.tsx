@@ -73,7 +73,7 @@ export function InsightsPanel() {
           </div>
           {data ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:shrink-0">
-              <PaymentsMetric label="Collected" value={<span className="text-lg sm:text-xl">{Percent(data.collection.rate)}</span>} icon={<TrendingUp size={14} />} tone="cyan" />
+              <PaymentsMetric label="Billing paid" value={<span className="text-lg sm:text-xl">{Percent(data.collection.rate)}</span>} icon={<TrendingUp size={14} />} tone="cyan" />
               <PaymentsMetric label="Days to pay" value={<span className="text-lg sm:text-xl">{data.collection.averageDaysToPay ?? "—"}</span>} icon={<Clock3 size={14} />} />
               <PaymentsMetric label="Overdue" value={<span className="text-lg sm:text-xl">{data.overdueNow.display}</span>} icon={<AlertTriangle size={14} />} tone={data.overdueNow.paise ? "amber" : "emerald"} />
               <PaymentsMetric label="To review" value={<span className="text-lg sm:text-xl">{data.unusual.openCount}</span>} icon={<ShieldAlert size={14} />} tone={data.unusual.openCount ? "amber" : "emerald"} />
@@ -97,7 +97,7 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
   const pick = (colour: { light: string; dark: string }) => (dark ? colour.dark : colour.light);
   const forecast = data.forecast;
   const parts = [
-    { key: "collected", label: "Collected", value: forecast.collected, colour: pick(COLOURS.collected) },
+    { key: "collected", label: "Paid", value: forecast.collected, colour: pick(COLOURS.collected) },
     { key: "overdue", label: "Overdue", value: forecast.overdue, colour: pick(COLOURS.overdue) },
     { key: "soon", label: `Due by ${FormatDate(forecast.monthEnd).replace(/ \d{4}$/, "")}`, value: forecast.dueByMonthEnd, colour: pick(COLOURS.dueSoon) },
     { key: "later", label: "Due later", value: forecast.dueLater, colour: pick(COLOURS.later) },
@@ -107,7 +107,7 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
   const chartData = data.months.map((month) => ({
     label: month.label,
     Billed: month.billed.paise / 100,
-    Collected: month.collected.paise / 100,
+    "Billing paid": month.collected.paise / 100,
     "Overdue at month end": month.overdue.paise / 100,
   }));
   const grid = dark ? "#334155" : "#e2e8f0";
@@ -150,18 +150,18 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
               <dd className="font-black tabular-nums text-slate-950 dark:text-white">{Percent(collection.onTimePercent)}</dd>
             </div>
             <div className="flex items-baseline justify-between gap-3 border-t border-slate-200 pt-2.5 dark:border-slate-700">
-              <dt className="font-bold text-slate-600 dark:text-slate-300">{data.thisMonthLabel} billing collected</dt>
+              <dt className="font-bold text-slate-600 dark:text-slate-300">{data.thisMonthLabel} billing paid</dt>
               <dd className="font-black tabular-nums text-slate-950 dark:text-white">{Percent(collection.rate)}</dd>
             </div>
             {collection.previousLabel ? (
               <div className="flex items-baseline justify-between gap-3">
-                <dt className="font-bold text-slate-600 dark:text-slate-300">{collection.previousLabel} billing collected</dt>
+                <dt className="font-bold text-slate-600 dark:text-slate-300">{collection.previousLabel} billing paid</dt>
                 <dd className="font-black tabular-nums text-slate-950 dark:text-white">{Percent(collection.previousRate)}</dd>
               </div>
             ) : null}
           </dl>
           <p className="mt-4 text-xs font-semibold leading-relaxed text-slate-500 dark:text-slate-400">
-            From the {collection.paidInvoices} invoice{collection.paidInvoices === 1 ? "" : "s"} fully paid in the last {collection.windowDays} days. Collected is the share of a month&apos;s billing (after discounts) that has been paid so far.
+            From the {collection.paidInvoices} invoice{collection.paidInvoices === 1 ? "" : "s"} fully paid in the last {collection.windowDays} days. Billing paid is the share of a month&apos;s invoices (after discounts) paid so far. It is not the money received in the month, which also counts payments for older invoices.
           </p>
         </Card>
       </div>
@@ -184,7 +184,7 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
                 />
                 <Legend wrapperStyle={{ color: axis, fontWeight: 700, fontSize: 12 }} />
                 <Bar dataKey="Billed" fill={pick(COLOURS.billed)} radius={[6, 6, 0, 0]} maxBarSize={30} />
-                <Bar dataKey="Collected" fill={pick(COLOURS.collected)} radius={[6, 6, 0, 0]} maxBarSize={30} />
+                <Bar dataKey="Billing paid" fill={pick(COLOURS.collected)} radius={[6, 6, 0, 0]} maxBarSize={30} />
                 <Line type="monotone" dataKey="Overdue at month end" stroke={pick(COLOURS.overdue)} strokeWidth={2.5} dot={{ r: 3.5, fill: pick(COLOURS.overdue) }} />
               </ComposedChart>
             </ResponsiveContainer>
@@ -195,7 +195,7 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
                 <tr className="text-left text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
                   <th className="py-2 pr-3">Month</th>
                   <th className="py-2 pr-3 text-right">Billed</th>
-                  <th className="py-2 pr-3 text-right">Collected</th>
+                  <th className="py-2 pr-3 text-right">Billing paid</th>
                   <th className="py-2 pr-3 text-right">Rate</th>
                   <th className="py-2 pr-3 text-right">Days to pay</th>
                   <th className="py-2 text-right">Overdue at month end</th>

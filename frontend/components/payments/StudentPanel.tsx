@@ -8,6 +8,7 @@
 // R4: opens centred like every other dialog (two columns on a computer, a
 // bottom sheet on a phone) instead of sliding in from the right.
 
+import { formatMathPathDateTimeCompact } from "@/lib/date";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, BellRing, Download, FilePlus2, HandCoins, Loader2, MessageSquarePlus, Phone, PiggyBank, ReceiptText, UserRound, Wallet, X } from "lucide-react";
 import Link from "next/link";
@@ -290,7 +291,7 @@ function PanelFollowUp({ studentId, studentName, owes, onLeave }: { studentId: s
           {data.entries.slice(0, 3).map((entry) => (
             <li key={entry.id} className="text-xs font-semibold text-slate-600 dark:text-slate-300">
               <span className="font-black text-slate-800 dark:text-slate-100">{entry.kind === "NOTE" ? "Note" : entry.kind === "REMINDER" ? `${entry.templateTitle ?? ""} reminder` : entry.channelLabel}</span>
-              {entry.at ? ` · ${new Date(entry.at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}` : ""}
+              {entry.at ? ` · ${formatMathPathDateTimeCompact(entry.at)}` : ""}
               {entry.byName ? ` · ${entry.byName}` : ""}
               {entry.note && entry.kind !== "REMINDER" ? <span className="block text-slate-600 dark:text-slate-300">{entry.note}</span> : null}
               {entry.promiseDate ? <span className="block text-sky-700 dark:text-sky-300">Promised for {FormatDate(entry.promiseDate)}</span> : null}

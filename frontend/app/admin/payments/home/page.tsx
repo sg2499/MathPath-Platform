@@ -6,6 +6,7 @@
 // R6: this month's collection rate, unusual activity to review, and the
 // latest activity (who did what).
 
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -164,7 +165,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <Stat
-          label="Collected today"
+          label="Received today"
           value={data.todayCollected.display}
           icon={<HandCoins size={17} />}
           tone="emerald"
@@ -172,12 +173,12 @@ function HomeBody({ data }: { data: PaymentsHome }) {
           sub={data.todayByMethod.length ? data.todayByMethod.map((row) => `${row.methodLabel} ${row.display}`).join(" · ") : "Nothing yet"}
         />
         <Stat
-          label={data.thisMonthLabel}
+          label={`Received in ${data.thisMonthLabel}`}
           value={data.thisMonthCollected.display}
           icon={<TrendingUp size={17} />}
           tone="cyan"
           href="/admin/payments/reports?tab=overview"
-          sub={<>{data.lastMonthToDateLabel}: {data.lastMonthToDateCollected.display}{monthUp !== null ? <span className={monthUp >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"}> ({monthUp >= 0 ? "+" : ""}{monthUp}% vs the same days)</span> : null}{data.insights.rate !== null ? <span className="block text-cyan-700 dark:text-cyan-300">{data.insights.rate}% of this month&apos;s billing collected</span> : null}</>}
+          sub={<>{data.lastMonthToDateLabel}: {data.lastMonthToDateCollected.display}{monthUp !== null ? <span className={monthUp >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"}> ({monthUp >= 0 ? "+" : ""}{monthUp}% vs the same days)</span> : null}{data.insights.rate !== null ? <span className="block text-cyan-700 dark:text-cyan-300">{data.insights.rate}% of this month&apos;s billing paid</span> : null}</>}
         />
         <Stat
           label="Due"
@@ -274,7 +275,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
                 {data.attention.overdueStudents.map((row) => (
                   <li key={row.studentId} className="flex items-center gap-3 py-2.5">
                     <span className="min-w-0 flex-1">
-                      <StudentLink studentId={row.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{row.studentName}</StudentLink>
+                      <StudentLink studentId={row.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{row.studentName}<DemoTag studentId={row.studentId} /></StudentLink>
                       <span className="block truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{[row.studentCode, row.mobile, `${row.maxDaysOverdue} day${row.maxDaysOverdue === 1 ? "" : "s"} overdue`].filter(Boolean).join(" · ")}</span>
                     </span>
                     <span className="shrink-0 text-right">
@@ -295,7 +296,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
                 {data.recentPayments.map((payment) => (
                   <li key={payment.paymentId} className="flex items-center gap-3 py-2.5">
                     <span className="min-w-0 flex-1">
-                      <StudentLink studentId={payment.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{payment.studentName}</StudentLink>
+                      <StudentLink studentId={payment.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{payment.studentName}<DemoTag studentId={payment.studentId} /></StudentLink>
                       <span className="block truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{payment.receiptNumber} · {FormatDate(payment.paymentDate)} · {payment.methodSummary}</span>
                     </span>
                     <span className="shrink-0 text-right">

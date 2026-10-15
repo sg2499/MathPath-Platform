@@ -1,5 +1,6 @@
 "use client";
 
+import { Plural } from "@/lib/plural";
 import { AppShell } from "@/components/common/AppShell";
 import { SortableHeader } from "@/components/common/SortableHeader";
 import { SortByDropdown } from "@/components/common/SortByDropdown";
@@ -66,8 +67,10 @@ import {
   Wallet,
   X,
   XCircle,
+  FlaskConical,
 } from "lucide-react";
 import Link from "next/link";
+import { StatePill } from "@/components/common/DetailWorkspaceViews";
 import { useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
@@ -375,8 +378,12 @@ export default function AdminStudentsPage() {
   });
 
   const students = studentsQuery.data ?? [];
-  const activeCount = students.filter((s) => s.isActive).length;
-  const inactiveCount = students.length - activeCount;
+  // 2026-10-14: demo / test accounts are listed (marked Demo) but not
+  // counted, the same as everywhere else on the platform.
+  const realStudents = students.filter((s) => !s.isDemo);
+  const demoCount = students.length - realStudents.length;
+  const activeCount = realStudents.filter((s) => s.isActive).length;
+  const inactiveCount = realStudents.length - activeCount;
 
   const teacherOptions = useMemo(() => {
     const names = students
@@ -646,10 +653,10 @@ export default function AdminStudentsPage() {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className={`grid gap-3 ${demoCount ? "grid-cols-2 sm:grid-cols-[repeat(4,minmax(8.5rem,1fr))]" : "sm:grid-cols-3"}`}>
             <Metric
               label="Students"
-              value={students.length}
+              value={realStudents.length}
               icon={<UsersRound size={18} />}
             />
             <Metric
@@ -662,6 +669,13 @@ export default function AdminStudentsPage() {
               value={inactiveCount}
               icon={<XCircle size={18} />}
             />
+            {demoCount ? (
+              <Metric
+                label="Demo"
+                value={demoCount}
+                icon={<FlaskConical size={18} />}
+              />
+            ) : null}
           </div>
         </div>
       </section>
@@ -854,7 +868,7 @@ export default function AdminStudentsPage() {
               </p>
 
               <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                {filtered.length} Students · {DirectoryScopeLabel}
+                {Plural(filtered.length, "Student")} · {DirectoryScopeLabel}
               </p>
             </div>
 
@@ -980,8 +994,13 @@ export default function AdminStudentsPage() {
                           />
 
                           <div>
-                            <p className="font-black text-slate-950 dark:text-white">
+                            <p className="flex flex-wrap items-center gap-2 font-black text-slate-950 dark:text-white">
                               {s.studentName}
+                              {s.isDemo ? (
+                                <span title="Demo account: left out of every count, leaderboard and bill">
+                                  <StatePill tone="purple">Demo</StatePill>
+                                </span>
+                              ) : null}
                             </p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
                               {s.studentCode}
@@ -1100,7 +1119,7 @@ export default function AdminStudentsPage() {
 
             <div className="flex items-center justify-between gap-4 border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-700">
               <p className="text-slate-600 dark:text-slate-300">
-                Showing {pageItems.length} of {filtered.length} students · {DirectoryScopeLabel}
+                Showing {pageItems.length} of {Plural(filtered.length, "student")} · {DirectoryScopeLabel}
               </p>
 
               <div className="flex items-center gap-2">

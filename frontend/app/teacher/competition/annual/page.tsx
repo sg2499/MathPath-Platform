@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMathPathDateTime } from "@/lib/date";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -39,7 +40,8 @@ import {
   AnnualLiveMonitoringTable,
   AnnualLiveUpdatedAgo,
 } from "@/components/competition/AnnualLiveMonitoringTable";
-import { useUrlTabState } from "@/hooks/useUrlTabState";
+import { useUrlParamState, useUrlTabState } from "@/hooks/useUrlTabState";
+import { DayLabel, FilterPracticeStudentsBySubmittedDay } from "@/lib/annualPracticeDay";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -115,12 +117,8 @@ function TodayInIst(): string {
 // this repo's existing Competition Mock Tracker for teachers).
 
 function FormatEventDate(Value: string | null) {
-  if (!Value) return "Not set";
-  try {
-    return new Date(Value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return Value;
-  }
+  // One platform date style (lib/date.ts, 2026-10-14).
+  return Value ? formatMathPathDateTime(String(Value)) : "Not set";
 }
 
 function FormatSecondsAsMinSec(Value: number | null): string {
@@ -718,6 +716,8 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   // links already use; Official's own tabs get `officialTab` because
   // "RESULTS" exists under both Official and Practice.
   const [TopTab, SetTopTab] = useUrlTabState<TopTabKey>("tab", TopTabList, "OFFICIAL");
+  // ?submittedOn=YYYY-MM-DD from the daily practice notice (2026-10-14).
+  const [PracticeSubmittedOn, SetPracticeSubmittedOn] = useUrlParamState("submittedOn", "");
   const [ActiveTab, SetActiveTab] = useUrlTabState<OfficialSubTabKey>("officialTab", OfficialSubTabList, "LIVE");
   // 2026-09-29 (Shailesh: "we need the level filter as well where the
   // teacher can filter out and see the results level wise") -- same "ALL"
@@ -935,7 +935,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
   // submitted together) -- no client-side re-grouping needed anymore.
   const GroupedPracticeResults = (() => {
     const Term = PracticeSearchText.trim().toLowerCase();
-    const Students = PracticeQuery.data?.students || [];
+    const Students = FilterPracticeStudentsBySubmittedDay(PracticeQuery.data?.students || [], PracticeSubmittedOn);
     const Filtered = !Term
       ? Students
       : Students.filter((StudentGroup) => {
@@ -1286,7 +1286,27 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                       <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
                     ))}
                   </select>
+                  <label className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                    Submitted On
+                    <input
+                      type="date"
+                      aria-label="Submitted on"
+                      value={PracticeSubmittedOn}
+                      onChange={(EventValue) => SetPracticeSubmittedOn(EventValue.target.value)}
+                      className="math-input w-auto min-w-[160px] normal-case tracking-normal"
+                    />
+                  </label>
+                  {PracticeSubmittedOn ? (
+                    <button type="button" className="math-button-secondary px-3 py-2 text-xs" onClick={() => SetPracticeSubmittedOn("")}>
+                      Show All Days
+                    </button>
+                  ) : null}
                 </div>
+                {PracticeSubmittedOn ? (
+                  <p className="mt-3 text-xs font-black text-slate-600 dark:text-slate-300">
+                    Showing papers submitted on {DayLabel(PracticeSubmittedOn)}: {GroupedPracticeResults.length} student{GroupedPracticeResults.length === 1 ? "" : "s"}, {GroupedPracticeResults.reduce((Sum, StudentGroup) => Sum + StudentGroup.papers.length, 0)} paper{GroupedPracticeResults.reduce((Sum, StudentGroup) => Sum + StudentGroup.papers.length, 0) === 1 ? "" : "s"}.
+                  </p>
+                ) : null}
 
                 {PracticeQuery.data ? (
                   <div className="mt-4 flex flex-wrap gap-4 text-xs font-black text-slate-600 dark:text-slate-300">

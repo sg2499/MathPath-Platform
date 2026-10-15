@@ -363,7 +363,9 @@ export type TeacherAvailableAssessment = {
   publishedAt: string | null;
 };
 
-export type TeacherAssignableAssessmentStudent = TeacherAssessmentEligibilityRow & {
+export type TeacherAssignableAssessmentStudent = Omit<TeacherAssessmentEligibilityRow, "lessons"> & {
+  // No per-sheet `lessons` here: this screen shows counts only (2026-10-14).
+  lessons?: never;
   // The test account (MP-ST-001): offered for every level's assessment.
   testAccount?: boolean;
   alreadyAssigned: boolean;
@@ -525,8 +527,10 @@ export type TeacherAssessmentEligibilityRow = {
     belowBenchmarkDpsCount: number;
     dps: Array<Record<string, unknown>>;
   }>;
-  missingDps: Array<Record<string, unknown>>;
-  belowBenchmarkDps: Array<Record<string, unknown>>;
+  // Only on the single-student reply; the lists leave these out (the same
+  // sheets are under `lessons`) and keep just the counts above.
+  missingDps?: Array<Record<string, unknown>>;
+  belowBenchmarkDps?: Array<Record<string, unknown>>;
   message: string;
 };
 

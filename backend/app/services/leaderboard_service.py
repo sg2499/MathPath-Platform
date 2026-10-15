@@ -35,6 +35,8 @@ running the same live query twice.
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 
+from app.core.rounding import round_half_up
+from app.services.demo_students import RealStudentsClause
 from app.models.models import (
     Student,
     User,
@@ -114,6 +116,7 @@ def rank_mock_specific_exam(
         .join(User, Student.user_id == User.id)
         .filter(CompetitionMockResultSummary.mock_exam_id == exam_id)
         .filter(Student.current_level_id == level_id)
+        .filter(RealStudentsClause(db))  # demo accounts only when shown (demo_students.py)
     )
     if exclude_attempt_id:
         query = query.filter(CompetitionMockResultSummary.mock_attempt_id != exclude_attempt_id)
@@ -150,10 +153,11 @@ def rank_mock_overall_journey(
 ) -> list[dict]:
     """Mock 'Overall Journey' (cumulative) leaderboard -- pools every
     active-assignment mock result across every exam within `level_id`.
-    Mirrors the original get_cumulative_leaderboard() query exactly,
-    including its pooled-accuracy fix (sum(correct)/sum(total) from
-    CompetitionMockAttempt, not an AVG() of stored per-attempt percentages)
-    and its is_active assignment scoping."""
+    Mirrors the original get_cumulative_leaderboard() query and its
+    is_active assignment scoping. Accuracy: since 2026-10-14 (Rule A) the
+    average of each mock's stored accuracy, which ensure_mock_accuracy_fixed()
+    keeps equal to that attempt's correct / questions -- it was correct /
+    questions pooled across all mocks."""
     total_questions_expr = case(
         (CompetitionMockAttempt.total_questions > 0, CompetitionMockAttempt.total_questions),
         else_=CompetitionMockAttempt.attempted_count + CompetitionMockAttempt.unanswered_count,
@@ -170,6 +174,7 @@ def rank_mock_overall_journey(
             func.avg(CompetitionMockResultSummary.time_taken_seconds).label("avg_time_taken_seconds"),
             func.sum(CompetitionMockAttempt.correct_count).label("total_correct"),
             func.sum(total_questions_expr).label("total_questions_all"),
+            func.avg(func.coalesce(CompetitionMockResultSummary.accuracy_percentage, 0)).label("avg_accuracy"),
         )
         .join(Student, CompetitionMockResultSummary.student_id == Student.id)
         .join(User, Student.user_id == User.id)
@@ -178,6 +183,7 @@ def rank_mock_overall_journey(
         .join(CompetitionMockAssignment, CompetitionMockAttempt.mock_assignment_id == CompetitionMockAssignment.id)
         .filter(CompetitionMockExam.level_id == level_id)
         .filter(CompetitionMockAssignment.is_active == True)  # noqa: E712
+        .filter(RealStudentsClause(db))  # demo accounts only when shown (demo_students.py)
     )
     if exclude_attempt_id:
         query = query.filter(CompetitionMockAttempt.id != exclude_attempt_id)
@@ -187,14 +193,16 @@ def rank_mock_overall_journey(
     processed = []
     for r in results:
         percentage = (r.total_score / r.total_max_score * 100) if r.total_max_score and r.total_max_score > 0 else 0
-        accuracy = (r.total_correct / r.total_questions_all * 100) if r.total_questions_all and r.total_questions_all > 0 else 0
+        # Rule A (2026-10-14): average of each mock's accuracy, as on every
+        # other page (ranking is by score and is unchanged).
+        accuracy = float(r.avg_accuracy or 0)
         processed.append({
             "studentId": r.student_id,
             "name": r.full_name,
             "photoUrl": r.photo_url or r.student_photo,
-            "percentage": round(percentage),
-            "score": round(percentage),
-            "accuracy": round(accuracy),
+            "percentage": round_half_up(percentage),
+            "score": round_half_up(percentage),
+            "accuracy": round_half_up(accuracy),
             "timeTakenSeconds": int(r.avg_time_taken_seconds or 0),
         })
 
@@ -228,6 +236,11 @@ def _dps_pooled_query(db: Session, *, exclude_attempt_id: str | None = None):
             func.avg(Attempt.time_taken_seconds).label("avg_time_taken_seconds"),
             func.sum(Attempt.correct_count).label("total_correct"),
             func.sum(Attempt.total_questions).label("total_questions_all"),
+            # Rule A (2026-10-14): Average Accuracy is the plain average of
+            # every submitted try's accuracy, the same number the student,
+            # teacher and admin pages show. It was correct/questions pooled,
+            # which weighs long sheets more (85% vs 77% for one student).
+            func.avg(func.coalesce(Attempt.accuracy_percentage, 0)).label("avg_accuracy"),
             func.count(Attempt.id).label("sheets_completed"),
             punctual_count_expr.label("punctual_count"),
             scheduled_count_expr.label("scheduled_count"),
@@ -239,6 +252,7 @@ def _dps_pooled_query(db: Session, *, exclude_attempt_id: str | None = None):
         .join(Level, Lesson.level_id == Level.id)
         .filter(Attempt.status.in_(DPS_LEADERBOARD_COMPLETED_STATUSES))
         .filter(Attempt.submitted_at.isnot(None))
+        .filter(RealStudentsClause(db))  # demo accounts only when shown (demo_students.py)
     )
     if exclude_attempt_id:
         query = query.filter(Attempt.id != exclude_attempt_id)
@@ -248,7 +262,7 @@ def _dps_pooled_query(db: Session, *, exclude_attempt_id: str | None = None):
 def _process_dps_results(db: Session, results, *, with_badges: bool) -> list[dict]:
     processed = []
     for r in results:
-        accuracy = (r.total_correct / r.total_questions_all * 100) if r.total_questions_all and r.total_questions_all > 0 else 0
+        accuracy = float(r.avg_accuracy or 0)
         scheduled_count = int(getattr(r, "scheduled_count", 0) or 0)
         punctual_count = int(getattr(r, "punctual_count", 0) or 0)
         # None (not a 0%) when this student has no scheduled sheets at all in
@@ -260,9 +274,9 @@ def _process_dps_results(db: Session, results, *, with_badges: bool) -> list[dic
             "studentId": r.student_id,
             "name": r.full_name,
             "photoUrl": r.photo_url or r.student_photo,
-            "percentage": round(accuracy),
-            "score": round(accuracy),
-            "accuracy": round(accuracy),
+            "percentage": round_half_up(accuracy),
+            "score": round_half_up(accuracy),
+            "accuracy": round_half_up(accuracy),
             "timeTakenSeconds": int(r.avg_time_taken_seconds or 0),
             "sheetsCompleted": int(r.sheets_completed or 0),
             "punctualityPercent": punctuality_percent,

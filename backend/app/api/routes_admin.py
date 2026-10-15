@@ -16,6 +16,7 @@ from openpyxl import Workbook, load_workbook
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.rounding import round_half_up
 from app.core.errors import api_error
 from app.core.config import (
     TEMPORARY_ASSESSMENT_READINESS_BYPASS,
@@ -71,9 +72,11 @@ from app.services.assessment_engine_service import (
 )
 
 from app.services.assessment_notification_service import NotifyAssessmentReattemptDecision, NotifyStudentPromoted
-from app.services.practice_notification_service import NotifyPracticeFreshPracticeAssigned
+from app.services.practice_notification_service import NotifyBulkFreshPracticeAssigned, NotifyPracticeFreshPracticeAssigned
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
 from app.services.dps_chain_state_service import BuildDpsChainIndex, HealExpiredPracticeAttempts
+from app.services.demo_students import DemoStudentIds, IsDemoStudent, IsDemoStudentId, RealStudents, WithoutDemo, WithoutDemoColumn
+from app.services.request_cache import RequestCache, AttemptsForAssignment, AttemptsForAssignmentStudentInOrder, EnableRequestCache, LatestAttemptForAssignmentStudent, LevelDpsCount, OpenReattemptPermission, PinRows, PrimeAssignmentAttempts, PrimeOpenReattemptPermissions
 from app.services.assessment_feedback_service import upsert_assessment_remark, delete_assessment_remark, assessment_feedback_payload, active_assessment_remark
 from app.services.parent_report_notification_service import (
     NotifyParentReportGenerated,
@@ -875,6 +878,9 @@ def student_payload(db: Session, student: Student) -> dict:
     return {
         "studentId": student.id,
         "userId": student.user_id,
+        # Demo / test account: listed here (marked Demo) but left out of
+        # every count elsewhere -- app/services/demo_students.py.
+        "isDemo": bool(getattr(student, "is_demo", False)),
         "customId": student.custom_id,
         "teacher": student.teacher,
         "teacherId": getattr(student, "teacher_id", None),
@@ -1284,13 +1290,21 @@ def _AsUtcIso(value):
     return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).isoformat()
 
 
+@router.get("/demo-students")
+def admin_demo_students(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    """2026-10-14: the demo / test accounts, so the screens can mark them
+    "Demo" while "Show Demo Accounts" is on (app/services/demo_students.py)."""
+    Rows = db.query(Student.id, Student.student_code).filter(Student.is_demo == True).all()  # noqa: E712
+    return {"students": [{"studentId": Row[0], "studentCode": Row[1]} for Row in Rows]}
+
+
 @router.get("/live-students")
 def get_live_students(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     from datetime import datetime, timezone, timedelta
     live_since = datetime.now(timezone.utc) - timedelta(seconds=LIVE_STUDENT_WINDOW_SECONDS)
 
     live_rows = (
-        db.query(Student, User)
+        RealStudents(db.query(Student, User))
         .join(User, Student.user_id == User.id)
         .filter(User.last_active_at >= live_since)
         .order_by(User.last_active_at.desc())
@@ -2678,12 +2692,14 @@ def _admin_attempt_metadata(db: Session, attempt: Attempt | None) -> dict:
 
 
 def all_attempts_for_student_assignment(db: Session, assignment_id: str, student_id: str) -> list[Attempt]:
-    attempts = (
-        db.query(Attempt)
-        .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
-        .order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
-        .all()
-    )
+    attempts = AttemptsForAssignmentStudentInOrder(db, assignment_id, student_id)
+    if attempts is None:
+        attempts = (
+            db.query(Attempt)
+            .filter(Attempt.assignment_id == assignment_id, Attempt.student_id == student_id)
+            .order_by(Attempt.attempt_number.asc().nullslast(), Attempt.started_at.asc().nullslast(), Attempt.submitted_at.asc().nullslast(), Attempt.id.asc())
+            .all()
+        )
     # 2026-09-17 (Shailesh: "never ever anywhere"): sole caller is the
     # admin attempt-history display (admin_attempt_history_for_assignment_student)
     # -- self-heal here so that history never shows a stuck IN_PROGRESS
@@ -2743,6 +2759,9 @@ def admin_attempt_history_for_assignment_student(db: Session, assignment: Assign
 def admin_level_total_dps_count(db: Session, level_id: str | None) -> int:
     if not level_id:
         return 0
+    CachedCount = LevelDpsCount(db, level_id)
+    if CachedCount is not None:
+        return CachedCount
     return (
         db.query(DPS)
         .join(Lesson, DPS.lesson_id == Lesson.id)
@@ -2759,7 +2778,9 @@ def assignment_payload(db: Session, assignment: Assignment) -> dict:
     required_dps_count = admin_level_total_dps_count(db, level.id if level else None)
     assigned_by = db.get(User, assignment.assigned_by_user_id) if assignment.assigned_by_user_id else None
 
-    attempts = db.query(Attempt).filter(Attempt.assignment_id == assignment.id).all()
+    attempts = AttemptsForAssignment(db, assignment.id)
+    if attempts is None:
+        attempts = db.query(Attempt).filter(Attempt.assignment_id == assignment.id).all()
     # 2026-09-17 (Shailesh: "never ever anywhere"): self-heal any attempt
     # that's sat IN_PROGRESS past its own expiry before splitting into
     # completed/in-progress buckets below -- otherwise an abandoned attempt
@@ -2771,7 +2792,7 @@ def assignment_payload(db: Session, assignment: Assignment) -> dict:
     in_progress_attempts = [attempt for attempt in attempts if attempt.status == "IN_PROGRESS"]
 
     average_accuracy = (
-        round(sum([attempt.accuracy_percentage or 0 for attempt in completed_attempts]) / len(completed_attempts))
+        round_half_up(sum([attempt.accuracy_percentage or 0 for attempt in completed_attempts]) / len(completed_attempts))
         if completed_attempts
         else 0
     )
@@ -2894,8 +2915,9 @@ def admin_delete_assessment_attempt_remark(
 
 @router.get("/assessments")
 def list_assessments_route(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    # Demo accounts are left out (app/services/demo_students.py).
     engine_assignments = (
-        db.query(AssessmentAssignment)
+        WithoutDemoColumn(db, db.query(AssessmentAssignment), AssessmentAssignment.student_id)
         .filter(AssessmentAssignment.is_active == True)
         .order_by(AssessmentAssignment.assigned_at.desc())
         .all()
@@ -2908,6 +2930,7 @@ def list_assessments_route(db: Session = Depends(get_db), user: User = Depends(a
         .order_by(Assignment.created_at.desc())
         .all()
     )
+    legacy_rows = [row for row in legacy_rows if not (row.assigned_to_type == "STUDENT" and IsDemoStudentId(db, row.assigned_to_id))]
     legacy_payload = [assignment_payload(db, assignment) for assignment in legacy_rows]
 
     rows = engine_rows + legacy_payload
@@ -3068,8 +3091,15 @@ def list_assignments_route(db: Session = Depends(get_db), user: User = Depends(a
         .order_by(Assignment.created_at.desc())
         .all()
     )
+    # Demo accounts are left out (app/services/demo_students.py).
+    rows = [row for row in rows if not (row.assigned_to_type == "STUDENT" and IsDemoStudentId(db, row.assigned_to_id))]
     # One shared state per student per DPS (dps_chain_state_service).
     chain_index = BuildDpsChainIndex(db, Benchmark=BENCHMARK_PERCENTAGE)
+    # Read everything the rows need up front (see request_cache.py): this
+    # screen used to run ~13 queries per assignment.
+    EnableRequestCache(db)
+    PinRows(db, DPS, Lesson, Level, Module, Student, User, Teacher)
+    PrimeAssignmentAttempts(db, [assignment.id for assignment in rows], ExcludeStudentIds=DemoStudentIds(db))
     payloads = []
     for assignment in rows:
         payload = assignment_payload(db, assignment)
@@ -3232,7 +3262,7 @@ def get_assignment_route(assignment_id: str, db: Session = Depends(get_db), user
 
 
 
-def _approve_next_reattempt(db: Session, assignment: Assignment | None, student: Student | None, user: User, reason: str | None) -> dict:
+def _approve_next_reattempt(db: Session, assignment: Assignment | None, student: Student | None, user: User, reason: str | None, notice_collector: list | None = None) -> dict:
     """Open the next sheet for a student DPS that has used all its tries.
     Shared by the single and the bulk approval routes; commits on success."""
     if not assignment:
@@ -3287,7 +3317,7 @@ def _approve_next_reattempt(db: Session, assignment: Assignment | None, student:
     permission.status = "APPROVED"
     permission.used_at = datetime.now(datetime_timezone.utc)
     permission.used_assignment_id = fresh_assignment.id
-    NotifyPracticeFreshPracticeAssigned(db, assignment_id=fresh_assignment.id, actor_user_id=user.id, source_attempt_id=latest_attempt.id)
+    NotifyPracticeFreshPracticeAssigned(db, assignment_id=fresh_assignment.id, actor_user_id=user.id, source_attempt_id=latest_attempt.id, collector=notice_collector)
     # 2026-10-13: the "approval needed" notices for this student's DPS are
     # done with; mark them read for everyone who got one so the Needs Action
     # tab never shows an approval that has already been given.
@@ -3346,14 +3376,19 @@ def bulk_approve_reattempts_route(
     if len(payload.items) > 200:
         api_error(400, "VALIDATION_ERROR", "Approve up to 200 re-attempts at a time.")
     results = []
+    # One combined notice per person after the whole batch (2026-10-14).
+    collected_notices: list = []
     for item in payload.items:
         try:
-            outcome = _approve_next_reattempt(db, db.get(Assignment, item.assignmentId), db.get(Student, item.studentId), user, payload.reason)
+            outcome = _approve_next_reattempt(db, db.get(Assignment, item.assignmentId), db.get(Student, item.studentId), user, payload.reason, notice_collector=collected_notices)
             results.append({"assignmentId": item.assignmentId, "studentId": item.studentId, "approved": True, **outcome})
         except HTTPException as error:
             db.rollback()
             detail = error.detail if isinstance(error.detail, dict) else {"message": str(error.detail)}
             results.append({"assignmentId": item.assignmentId, "studentId": item.studentId, "approved": False, "message": detail.get("message") or "Could not be approved."})
+    if collected_notices:
+        NotifyBulkFreshPracticeAssigned(db, collected=collected_notices, actor_user_id=user.id)
+        db.commit()
     approved = sum(1 for row in results if row["approved"] and row.get("created"))
     already = sum(1 for row in results if row["approved"] and not row.get("created"))
     failed = sum(1 for row in results if not row["approved"])
@@ -3471,6 +3506,16 @@ def _admin_teacher_context_for_student(db: Session, student: Student | None) -> 
     teacher_name = clean_text(getattr(student, "teacher", None))
     if not teacher_name:
         return {"teacherId": None, "teacherName": None, "teacherCode": None}
+    Cache = RequestCache(db)
+    if Cache is not None:
+        ByName = Cache.setdefault("teacher_context_by_name", {})
+        if teacher_name not in ByName:
+            ByName[teacher_name] = _admin_teacher_context_by_name(db, teacher_name)
+        return dict(ByName[teacher_name])
+    return _admin_teacher_context_by_name(db, teacher_name)
+
+
+def _admin_teacher_context_by_name(db: Session, teacher_name: str) -> dict:
     teacher = (
         db.query(Teacher)
         .join(User, Teacher.user_id == User.id)
@@ -3532,7 +3577,7 @@ def dps_results(dps_id: str, teacherId: str | None = None, db: Session = Depends
         })
     avg_acc = sum(r["accuracyPercentage"] for r in results) / len(results) if results else 0
     avg_score = sum(r["score"] for r in results) / len(results) if results else 0
-    return {"dpsId": dps_id, "summary": {"totalAttempts": len(results), "averageScore": round(avg_score), "averageAccuracy": round(avg_acc)}, "results": results}
+    return {"dpsId": dps_id, "summary": {"totalAttempts": len(results), "averageScore": round_half_up(avg_score), "averageAccuracy": round_half_up(avg_acc)}, "results": results}
 
 
 @router.get("/results/level")
@@ -3589,8 +3634,8 @@ def level_results(levelId: str, moduleId: str | None = None, teacherId: str | No
         assigned_dps = len({attempt.dps_id for attempt in student_attempts})
         completed_dps = len({attempt.dps_id for attempt in completed_attempts})
         pending_dps = max(required_dps - completed_dps, 0)
-        avg_score = round(sum(float(attempt.total_score or 0) for attempt in completed_attempts) / len(completed_attempts)) if completed_attempts else 0
-        avg_accuracy = round(sum(float(attempt.accuracy_percentage or 0) for attempt in completed_attempts) / len(completed_attempts)) if completed_attempts else 0
+        avg_score = round_half_up(sum(float(attempt.total_score or 0) for attempt in completed_attempts) / len(completed_attempts)) if completed_attempts else 0
+        avg_accuracy = round_half_up(sum(float(attempt.accuracy_percentage or 0) for attempt in completed_attempts) / len(completed_attempts)) if completed_attempts else 0
         if avg_accuracy >= 90:
             performance_zone = "Excellence Zone"
         elif avg_accuracy >= 70:
@@ -3623,7 +3668,7 @@ def level_results(levelId: str, moduleId: str | None = None, teacherId: str | No
             "lastActivity": last_activity.isoformat() if last_activity else None,
         })
 
-    avg_accuracy = round(sum(float(row["averageAccuracy"] or 0) for row in rows) / len(rows)) if rows else 0
+    avg_accuracy = round_half_up(sum(float(row["averageAccuracy"] or 0) for row in rows) / len(rows)) if rows else 0
     ready_count = len([row for row in rows if row["assessmentReadiness"] == "Ready"])
     return {
         "moduleId": module.id if module else None,
@@ -4154,8 +4199,8 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
         completed = [attempt for attempt in latest_by_dps.values() if (attempt.status or "").upper() in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}]
         passed = ClearedConceptAttempts(completed, BENCHMARK_PERCENTAGE)
         needs_reattempt = NeedsReattemptAttempts(completed, BENCHMARK_PERCENTAGE)
-        avg_accuracy = round(sum(float(attempt.accuracy_percentage or 0) for attempt in completed) / len(completed)) if completed else 0
-        avg_score = round(sum(float(attempt.total_score or 0) for attempt in completed) / len(completed)) if completed else 0
+        avg_accuracy = round_half_up(sum(float(attempt.accuracy_percentage or 0) for attempt in completed) / len(completed)) if completed else 0
+        avg_score = round_half_up(sum(float(attempt.total_score or 0) for attempt in completed) / len(completed)) if completed else 0
         performance_zone = "Excellence Zone" if avg_accuracy >= 90 else "Growth Zone" if avg_accuracy >= 70 else "Needs Improvement" if completed else "Not Started"
         required_dps = len(dps_items)
         completed_dps = len({attempt.dps_id for attempt in completed})
@@ -4345,7 +4390,12 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
 
 
 def _admin_filter_attempts_for_learning_performance(db: Session, teacher_id: str | None = None, module_id: str | None = None, level_id: str | None = None, lesson_id: str | None = None, dps_id: str | None = None) -> list[tuple[Attempt, dict]]:
-    Attempts = db.query(Attempt).all()
+    # Read the reference rows once (see request_cache.py) instead of a
+    # separate lookup per attempt for its assignment / DPS / student / user.
+    EnableRequestCache(db)
+    PinRows(db, Assignment, DPS, Lesson, Level, Module, Student, User, Teacher)
+    # Demo accounts are left out (app/services/demo_students.py).
+    Attempts = WithoutDemoColumn(db, db.query(Attempt), Attempt.student_id).all()
     # 2026-09-17 (Shailesh: "never ever anywhere"): this Learning Performance
     # report reads score/accuracy fields off every one of these attempts
     # below -- self-heal each one first. Cheap relative to the rest of this
@@ -4537,7 +4587,7 @@ def _admin_learning_performance_payload(db: Session, teacher_id: str | None = No
         AssignmentId = AttemptAssignments.get(Row["attemptId"])
         if AssignmentId and Row.get("studentId"):
             Row.update(ChainIndex.attempt_fields(Row["attemptId"], AssignmentId, Row["studentId"]))
-    AverageAccuracy = round(sum(float(AttemptValue.accuracy_percentage or 0) for AttemptValue in CompletedRows) / len(CompletedRows)) if CompletedRows else 0
+    AverageAccuracy = round_half_up(sum(float(AttemptValue.accuracy_percentage or 0) for AttemptValue in CompletedRows) / len(CompletedRows)) if CompletedRows else 0
     AverageScore = round(sum(float(AttemptValue.total_score or 0) for AttemptValue in CompletedRows) / len(CompletedRows)) if CompletedRows else 0
     PromotionRecords = _admin_promotion_records_for_scope(
         db,
@@ -5771,7 +5821,7 @@ def admin_deactivate_assessment_testing_override(
 
 @router.get("/assessment-eligibility")
 def admin_assessment_eligibility(levelId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
-    students = db.query(Student).filter(Student.is_active == True).all()
+    students = RealStudents(db.query(Student)).filter(Student.is_active == True).all()
     rows = eligibility_for_students(db, students, levelId)
     ready = [row for row in rows if row.get("eligible")]
     return {
@@ -5786,7 +5836,7 @@ def admin_assessment_eligibility(levelId: str | None = None, db: Session = Depen
 
 @router.get("/assessment-eligibility/levels/{level_id}")
 def admin_assessment_eligibility_by_level(level_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
-    students = db.query(Student).filter(Student.is_active == True, Student.current_level_id == level_id).all()
+    students = RealStudents(db.query(Student)).filter(Student.is_active == True, Student.current_level_id == level_id).all()
     rows = eligibility_for_students(db, students, level_id)
     ready = [row for row in rows if row.get("eligible")]
     return {
@@ -6701,8 +6751,12 @@ from app.services.competition_mock_attempt_service import GetCompetitionMockResu
 @router.get("/competition/mock-tracker")
 def admin_competition_mock_tracker(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     from app.api.routes_admin import clean_text
+    # Read the rows' students / users / exams / levels once (request_cache.py).
+    EnableRequestCache(db)
+    PinRows(db, Student, User, Teacher, Level, Module, CompetitionMockExam)
+    # Demo accounts are left out (app/services/demo_students.py).
     assignments = (
-        db.query(CompetitionMockAssignment)
+        WithoutDemoColumn(db, db.query(CompetitionMockAssignment), CompetitionMockAssignment.student_id)
         .join(CompetitionMockExam, CompetitionMockAssignment.mock_exam_id == CompetitionMockExam.id)
         .filter(
             CompetitionMockAssignment.is_active == True,
@@ -6744,8 +6798,8 @@ def admin_competition_mock_tracker(db: Session = Depends(get_db), user: User = D
     completed = [row for row in rows if row.get("status") == "COMPLETED"]
     pending = [row for row in rows if row.get("status") in {"ASSIGNED", "PENDING"}]
     in_progress = [row for row in rows if row.get("status") == "IN_PROGRESS"]
-    avg_score = round(sum(float(row.get("percentage") or 0) for row in completed) / len(completed)) if completed else 0
-    avg_accuracy = round(sum(float(row.get("accuracyPercentage") or 0) for row in completed) / len(completed)) if completed else 0
+    avg_score = round_half_up(sum(float(row.get("percentage") or 0) for row in completed) / len(completed)) if completed else 0
+    avg_accuracy = round_half_up(sum(float(row.get("accuracyPercentage") or 0) for row in completed) / len(completed)) if completed else 0
     time_values = [int(row.get("timeTakenSeconds") or 0) for row in completed if row.get("timeTakenSeconds") is not None]
     avg_time = round(sum(time_values) / len(time_values)) if time_values else None
     return {

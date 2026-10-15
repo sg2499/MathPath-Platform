@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMathPathDateTime } from "@/lib/date";
 import { ResultReviewTabs, ToMockReviewQuestions } from "@/components/common/ResultReviewTabs";
 import { AppShell } from "@/components/common/AppShell";
 import { Chip } from "@/components/common/DetailWorkspaceViews";
@@ -52,16 +53,7 @@ function formatNumber(value?: number | null) {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return value ? formatMathPathDateTime(value) : "-";
 }
 
 function stableHash(value: string) {

@@ -1,14 +1,142 @@
 "use client";
 
 // Pieces shared by the bell and the full Notifications page (2026-10-13).
-import type { NotificationRecord, NotificationTab, NotificationTabKey } from "@/lib/api/notifications";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { MarkNotificationRead, type NotificationRecord, type NotificationTab, type NotificationTabKey } from "@/lib/api/notifications";
 import { getStoredUser } from "@/lib/auth";
+import { formatMathPathTime } from "@/lib/date";
 import { IconFor, NormalizeTone, ToneClasses } from "@/components/common/notificationDisplay";
+
+// 2026-10-14 (Phase 2 part 4): one notice per day for annual practice papers
+// (backend annual_practice_digest_service.py) -- the list opens inside the
+// notice; each student opens their practice results, "View All" opens the
+// Results tab for that day.
+export const ANNUAL_PRACTICE_DIGEST_TYPE = "ANNUAL_PRACTICE_DAILY_DIGEST";
+
+type DigestEntry = {
+  attemptId?: string;
+  studentCode?: string;
+  studentName?: string;
+  levelCode?: string;
+  levelLabel?: string;
+  paperLabel?: string;
+  score?: string;
+  accuracy?: number;
+  submittedAt?: string | null;
+};
+
+function DigestResultsPath(Item: NotificationRecord) {
+  return String(Item.targetRoute || "").startsWith("/teacher") ? "/teacher/competition/annual" : "/admin/competition/annual-studio";
+}
+
+function DigestStudentUrl(Item: NotificationRecord, Entry: DigestEntry) {
+  const Params = new URLSearchParams({ tab: "PRACTICE", subTab: "RESULTS" });
+  if (Entry.studentCode) Params.set("studentCode", Entry.studentCode);
+  if (Entry.levelCode) Params.set("levelCode", Entry.levelCode);
+  return `${DigestResultsPath(Item)}?${Params.toString()}`;
+}
+
+function DigestDayUrl(Item: NotificationRecord, Day: string) {
+  const Params = new URLSearchParams({ tab: "PRACTICE", subTab: "RESULTS" });
+  if (Day) Params.set("submittedOn", Day);
+  return `${DigestResultsPath(Item)}?${Params.toString()}`;
+}
+
+function AccuracyClass(Value: number | undefined) {
+  if (typeof Value !== "number") return "text-slate-500";
+  return Value >= 70 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300";
+}
+
+function DigestNotificationItem({
+  Item,
+  Compact,
+  OnNavigate,
+}: {
+  Item: NotificationRecord;
+  Compact: boolean;
+  OnNavigate?: (Url: string) => void;
+}) {
+  const Router = useRouter();
+  const [Open, SetOpen] = useState(false);
+  const [Read, SetRead] = useState(Item.isRead);
+  const Tone = NormalizeTone(Item);
+  const Metadata = (Item.metadata || {}) as { entries?: DigestEntry[]; day?: string };
+  const Entries = [...(Metadata.entries || [])].reverse(); // newest first
+  const Go = (Url: string) => (OnNavigate ? OnNavigate(Url) : Router.push(Url));
+  const Toggle = () => {
+    SetOpen((Value) => !Value);
+    if (!Read) {
+      SetRead(true);
+      void MarkNotificationRead(Item.id).catch(() => SetRead(false));
+    }
+  };
+  return (
+    <div className={`relative w-full overflow-hidden rounded-[20px] border text-left ${Compact ? "p-3.5" : "p-4"} ${ToneClasses(Tone, Read)}`}>
+      <button type="button" onClick={Toggle} aria-expanded={Open} className="flex w-full gap-3 text-left focus-visible:outline-none">
+        <div className="mt-0.5 h-fit shrink-0 rounded-2xl border border-current/10 bg-white/60 p-2 shadow-sm dark:bg-white/10">{IconFor(Item)}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <p className={`font-black leading-5 ${Compact ? "text-sm" : ""}`}>{Item.title}</p>
+            <span className="flex shrink-0 items-center gap-1 text-[11px] font-bold opacity-70">
+              {NotificationTime(Item)}
+              {Open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </span>
+          </div>
+          {!Open && Item.message ? <p className={`mt-1 font-semibold leading-6 opacity-85 ${Compact ? "line-clamp-2 text-[13px]" : "text-sm"}`}>{Item.message}</p> : null}
+          {!Read ? (
+            <div className="mt-2">
+              <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-white">New</span>
+            </div>
+          ) : null}
+        </div>
+      </button>
+      {Open ? (
+        <div className="mt-3 space-y-2">
+          <ul className="max-h-72 space-y-1.5 overflow-y-auto pr-1 [scrollbar-width:thin]">
+            {Entries.map((Entry, Index) => (
+              <li key={Entry.attemptId || Index}>
+                <button
+                  type="button"
+                  onClick={() => Go(DigestStudentUrl(Item, Entry))}
+                  className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 rounded-2xl border border-current/10 bg-white/70 px-3 py-2 text-left text-slate-900 transition hover:bg-white dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                  title={`Open ${Entry.studentName || "student"}'s practice results`}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-black">{Entry.studentName || Entry.studentCode}</span>
+                    <span className="block truncate text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                      {[Entry.paperLabel, Entry.levelLabel].filter(Boolean).join(" · ")}
+                    </span>
+                  </span>
+                  <span className="text-right">
+                    <span className="block text-[13px] font-black tabular-nums">
+                      {Entry.score} <span className={AccuracyClass(Entry.accuracy)}>({Entry.accuracy ?? "—"}%)</span>
+                    </span>
+                    <span className="block text-[11px] font-bold tabular-nums text-slate-500 dark:text-slate-400">
+                      {Entry.submittedAt ? formatMathPathTime(Entry.submittedAt) : ""}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => Go(DigestDayUrl(Item, String(Metadata.day || "")))}
+            className="w-full rounded-2xl border border-current/20 bg-white/60 px-3 py-2 text-center text-xs font-black uppercase tracking-[0.12em] transition hover:bg-white dark:bg-white/10 dark:hover:bg-white/15"
+          >
+            View All In Annual Competition
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 const IST = "Asia/Kolkata";
 const DayKeyFormat = new Intl.DateTimeFormat("en-CA", { timeZone: IST, year: "numeric", month: "2-digit", day: "2-digit" });
 const DayLabelFormat = new Intl.DateTimeFormat("en-IN", { timeZone: IST, weekday: "long", day: "numeric", month: "long", year: "numeric" });
-const TimeFormat = new Intl.DateTimeFormat("en-IN", { timeZone: IST, hour: "numeric", minute: "2-digit", hour12: true });
 
 function DayKey(Value: Date) {
   return DayKeyFormat.format(Value);
@@ -31,9 +159,7 @@ export function GroupNotificationsByDay(Items: NotificationRecord[]) {
 }
 
 export function NotificationTime(Item: NotificationRecord) {
-  if (!Item.createdAt) return "";
-  const Created = new Date(Item.createdAt);
-  return Number.isNaN(Created.getTime()) ? "" : TimeFormat.format(Created);
+  return Item.createdAt ? formatMathPathTime(Item.createdAt) : "";
 }
 
 export function CountText(Value: number) {
@@ -91,11 +217,14 @@ export function NotificationListItem({
   Item,
   OnOpen,
   Compact = false,
+  OnNavigate,
 }: {
   Item: NotificationRecord;
   OnOpen: (Item: NotificationRecord) => void;
   Compact?: boolean;
+  OnNavigate?: (Url: string) => void;
 }) {
+  if (Item.type === ANNUAL_PRACTICE_DIGEST_TYPE) return <DigestNotificationItem Item={Item} Compact={Compact} OnNavigate={OnNavigate} />;
   const Tone = NormalizeTone(Item);
   return (
     <button

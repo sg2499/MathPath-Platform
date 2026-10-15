@@ -144,7 +144,10 @@ def _ResolveAssignmentsForRoster(
     if StudentIdsFilter is not None and not StudentIdsFilter:
         return []
 
-    Query = db.query(CompetitionEventAssignment).filter(
+    from app.services.demo_students import WithoutDemoColumn
+
+    # Demo accounts are left out of monitoring and results (demo_students.py).
+    Query = WithoutDemoColumn(db, db.query(CompetitionEventAssignment), CompetitionEventAssignment.student_id).filter(
         CompetitionEventAssignment.event_id == EventId,
         CompetitionEventAssignment.is_active == True,  # noqa: E712
     )

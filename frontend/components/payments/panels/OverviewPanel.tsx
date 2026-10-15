@@ -63,7 +63,7 @@ export function OverviewPanel() {
   if (!ready) return null;
   const maxBucket = Math.max(1, ...(data?.buckets ?? []).map((row) => row.paise));
   const change = data && data.lastMonthToDateCollected.paise ? Math.round(((data.thisMonthCollected.paise - data.lastMonthToDateCollected.paise) / data.lastMonthToDateCollected.paise) * 100) : null;
-  const chartData = (data?.series ?? []).map((row) => ({ label: row.label, Collected: row.collected.paise / 100, Spent: row.spent.paise / 100 }));
+  const chartData = (data?.series ?? []).map((row) => ({ label: row.label, Received: row.collected.paise / 100, Spent: row.spent.paise / 100 }));
   const grid = dark ? "#334155" : "#e2e8f0";
   const axis = dark ? "#cbd5e1" : "#475569";
 
@@ -79,8 +79,8 @@ export function OverviewPanel() {
           </div>
           {data ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:shrink-0">
-              <PaymentsMetric label="Today" value={<span className="text-lg sm:text-xl">{data.todayCollected.display}</span>} icon={<HandCoins size={14} />} tone="emerald" />
-              <PaymentsMetric label="This month" value={<span className="text-lg sm:text-xl">{data.thisMonthCollected.display}</span>} icon={<CalendarDays size={14} />} tone="cyan" />
+              <PaymentsMetric label="Received today" value={<span className="text-lg sm:text-xl">{data.todayCollected.display}</span>} icon={<HandCoins size={14} />} tone="emerald" />
+              <PaymentsMetric label="Received this month" value={<span className="text-lg sm:text-xl">{data.thisMonthCollected.display}</span>} icon={<CalendarDays size={14} />} tone="cyan" />
               <PaymentsMetric label="Due" value={<span className="text-lg sm:text-xl">{data.due.display}</span>} icon={<Wallet size={14} />} tone={data.due.paise ? "amber" : "emerald"} />
               <PaymentsMetric label="Advance held" value={<span className="text-lg sm:text-xl">{data.advanceHeld.display}</span>} icon={<PiggyBank size={14} />} />
             </div>
@@ -128,7 +128,7 @@ export function OverviewPanel() {
               <p className="math-block-header"><CalendarDays size={14} />{data.thisMonthLabel}</p>
               <dl className="grid gap-3 text-sm">
                 <div className="flex items-baseline justify-between gap-3">
-                  <dt className="font-bold text-slate-700 dark:text-slate-200">Collected</dt>
+                  <dt className="font-bold text-slate-700 dark:text-slate-200">Received</dt>
                   <dd className="text-xl font-black tabular-nums text-slate-950 dark:text-white">{data.thisMonthCollected.display}</dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-3">
@@ -141,7 +141,7 @@ export function OverviewPanel() {
                 </div>
               </dl>
               <p className="mt-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {data.lastMonthLabel}: {data.lastMonthCollected.display} collected in the whole month, {data.lastMonthToDateCollected.display} by the same date ({data.lastMonthToDateLabel})
+                {data.lastMonthLabel}: {data.lastMonthCollected.display} received in the whole month, {data.lastMonthToDateCollected.display} by the same date ({data.lastMonthToDateLabel})
                 {change !== null ? `. This month is ${change >= 0 ? `${change}% ahead` : `${Math.abs(change)}% behind`} that pace` : ""}.
               </p>
             </section>
@@ -170,7 +170,7 @@ export function OverviewPanel() {
 
           <section className="mt-6 math-card p-5 sm:p-6">
             <p className="math-block-header"><BarChart3 size={14} />Last six months</p>
-            <h2 className="text-2xl font-black text-slate-950 dark:text-white">Collected and spent each month</h2>
+            <h2 className="text-2xl font-black text-slate-950 dark:text-white">Received and spent each month</h2>
             <div className="mt-4 h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={4}>
@@ -183,7 +183,7 @@ export function OverviewPanel() {
                     formatter={(value) => `₹${Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   />
                   <Legend wrapperStyle={{ color: axis, fontWeight: 700, fontSize: 12 }} />
-                  <Bar dataKey="Collected" fill={dark ? IN_COLOUR.dark : IN_COLOUR.light} radius={[6, 6, 0, 0]} maxBarSize={36} />
+                  <Bar dataKey="Received" fill={dark ? IN_COLOUR.dark : IN_COLOUR.light} radius={[6, 6, 0, 0]} maxBarSize={36} />
                   <Bar dataKey="Spent" fill={dark ? OUT_COLOUR.dark : OUT_COLOUR.light} radius={[6, 6, 0, 0]} maxBarSize={36} />
                 </BarChart>
               </ResponsiveContainer>

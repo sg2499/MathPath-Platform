@@ -1,5 +1,6 @@
 "use client";
 
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { AppShell } from "@/components/common/AppShell";
 import { SortableHeader } from "@/components/common/SortableHeader";
 import { SortByDropdown } from "@/components/common/SortByDropdown";
@@ -107,40 +108,16 @@ function trackerScopedAccuracy(row: Record<string, any>) {
   return Number.isFinite(NumericValue) ? NumericValue : 0;
 }
 
-function trackerLevelCode(row: Record<string, any>) {
-  return String(row.levelCode || row.levelId || row.level || "Level");
-}
-
+// Rule A (2026-10-14): every submitted try counts once, across every level
+// (was the average of per-level averages). Null, never 0, when the student
+// has no completed, scored try -- a fake 0 would drag the team average down.
 function trackerHierarchyAverageAccuracy(rows: Record<string, any>[]): number | null {
-  const AttemptRows = rows.flatMap(trackerAttemptRows);
-  const LevelCodes = Array.from(new Set(AttemptRows.map(trackerLevelCode).filter(Boolean))).sort((First, Second) =>
-    First.localeCompare(Second, undefined, { numeric: true }),
-  );
-
-  const LevelAverages = LevelCodes
-    .map((LevelCode) => {
-      const LevelRows = AttemptRows.filter((Row) => trackerLevelCode(Row) === LevelCode);
-      const AccuracyValues = LevelRows
-        .filter((Row) => trackerCompleted(Row) && trackerHasAccuracyValue(Row))
-        .map(trackerScopedAccuracy);
-
-      if (!AccuracyValues.length) return null;
-
-      return Math.round(AccuracyValues.reduce((Sum, Value) => Sum + Value, 0) / AccuracyValues.length);
-    })
-    .filter((Value): Value is number => Value !== null);
-
-  // A student with zero completed, scored attempts has no real accuracy to
-  // report. Returning 0 here (as this used to) is indistinguishable from a
-  // genuine 0% score once it flows into StudentRow's `metric?.averageAccuracy
-  // ?? student.averageAccuracy` and the team-average reducer in
-  // TeacherStudentsPage -- it silently reintroduces the exact null-as-zero
-  // dilution bug those call sites already guard against, because this fake 0
-  // wins before their null checks ever run. Return null so "no data" stays
-  // "no data" all the way up.
-  if (!LevelAverages.length) return null;
-
-  return Math.round(LevelAverages.reduce((Sum, Value) => Sum + Value, 0) / LevelAverages.length);
+  const AccuracyValues = rows
+    .flatMap(trackerAttemptRows)
+    .filter((Row) => trackerCompleted(Row) && trackerHasAccuracyValue(Row))
+    .map(trackerScopedAccuracy);
+  if (!AccuracyValues.length) return null;
+  return Math.round(AccuracyValues.reduce((Sum, Value) => Sum + Value, 0) / AccuracyValues.length);
 }
 
 function trackerCompleted(row: Record<string, any>) {
@@ -242,6 +219,12 @@ export default function TeacherStudentsPage() {
   const trackerQuery = useQuery({ queryKey: ["teacher-assignment-tracker-current-state"], queryFn: getTeacherAssignmentTracker, enabled: ready });
 
   const students = query.data ?? [];
+  // 2026-10-14: the per-student numbers come from the tracker. Until it has
+  // loaded, the page used to show the raw assignment counts from the student
+  // list (every try's assignment, e.g. Assigned 942 / Pending 286 live) and
+  // then jump to the real numbers (679 / 220). Wait for both instead; if the
+  // tracker fails, fall back to the student-list numbers as before.
+  const isLoadingNumbers = query.isLoading || trackerQuery.isLoading;
   const trackerRows = useMemo(
     () => (trackerQuery.data?.rows ?? []) as Record<string, any>[],
     [trackerQuery.data],
@@ -393,10 +376,10 @@ export default function TeacherStudentsPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-4">
-            <Metric label="Students" value={summary.students} icon={<UsersRound size={18} />} />
-            <Metric label="Assigned" value={summary.assigned} icon={<Target size={18} />} />
-            <Metric label="Pending" value={summary.pending} icon={<XCircle size={18} />} />
-            <Metric label="Average Accuracy" value={summary.avgAccuracy === null ? "-" : `${summary.avgAccuracy}%`} icon={<TrendingUp size={18} />} />
+            <Metric label="Students" value={isLoadingNumbers ? "…" : summary.students} icon={<UsersRound size={18} />} />
+            <Metric label="Assigned" value={isLoadingNumbers ? "…" : summary.assigned} icon={<Target size={18} />} />
+            <Metric label="Pending" value={isLoadingNumbers ? "…" : summary.pending} icon={<XCircle size={18} />} />
+            <Metric label="Average Accuracy" value={isLoadingNumbers ? "…" : summary.avgAccuracy === null ? "-" : `${summary.avgAccuracy}%`} icon={<TrendingUp size={18} />} />
           </div>
         </div>
       </section>
@@ -463,17 +446,17 @@ export default function TeacherStudentsPage() {
       </section>
 
       <section className="mt-6">
-        {currentNeedsReattemptStudentCodes.size > 0 ? (
+        {!isLoadingNumbers && currentNeedsReattemptStudentCodes.size > 0 ? (
           <div className="mb-5"><BenchmarkAlert show message="Caution: One or more students currently need re-attempt support. Please review them closely and provide corrective support." /></div>
         ) : null}
-        {query.isLoading ? <LoadingState label="Loading students..." /> : null}
+        {isLoadingNumbers ? <LoadingState label="Loading students..." /> : null}
         {query.error ? <ErrorState message={apiErrorMessage(query.error)} /> : null}
 
-        {!query.isLoading && !query.error && !filtered.length ? (
+        {!isLoadingNumbers && !query.error && !filtered.length ? (
           <EmptyState message="No assigned students found." />
         ) : null}
 
-        {filtered.length ? (
+        {!isLoadingNumbers && filtered.length ? (
           <div className="math-table math-teacher-students-directory-table">
             <table>
               <thead>
@@ -531,7 +514,7 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
             className="math-record-avatar-student h-11 w-11 text-xs"
           />
           <div>
-            <p className="font-black text-slate-950 dark:text-white">{student.studentName}</p>
+            <p className="font-black text-slate-950 dark:text-white">{student.studentName}<DemoTag studentId={student.studentId} studentCode={student.studentCode} /></p>
             <p className="mt-0.5 text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</p>
           </div>
         </div>

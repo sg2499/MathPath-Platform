@@ -1,5 +1,6 @@
 "use client";
 
+import { Plural } from "@/lib/plural";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { LessonProgressBadge } from "@/components/common/LessonProgressBadge";
@@ -437,7 +438,7 @@ export default function TeacherAssignDpsPage() {
             >
               <option value="" disabled>Choose Level</option>
               <option value="ALL">All Levels</option>
-              {levels.map((level) => <option key={level.levelId} value={level.levelId}>{level.levelCode} - {level.levelName} ({level.studentCount} students)</option>)}
+              {levels.map((level) => <option key={level.levelId} value={level.levelId}>{level.levelCode} - {level.levelName} ({Plural(level.studentCount, "student")})</option>)}
             </select>
           </div>
           <div className="min-w-0">

@@ -321,18 +321,10 @@ function AttemptAverageAccuracy(Rows: AnyRow[]) {
   return AverageValues(ScopedCompletedAttemptRows(Rows).map(accuracy));
 }
 
+// Rule A (2026-10-14): every submitted try counts once, across every level
+// (was the average of per-level averages, with 0% levels dropped).
 function HierarchyAverageAccuracy(Rows: AnyRow[]) {
-  const AccuracyRows = ScopedCompletedAttemptRows(Rows);
-  if (!AccuracyRows.length) return 0;
-
-  const LevelCodes = Array.from(new Set(AccuracyRows.map(levelCodeOf).filter(Boolean))).sort(NaturalCompare);
-  if (!LevelCodes.length) return AttemptAverageAccuracy(AccuracyRows);
-
-  const LevelAverages = LevelCodes
-    .map((LevelCode) => AttemptAverageAccuracy(AccuracyRows.filter((Row) => levelCodeOf(Row) === LevelCode)))
-    .filter((Value) => Value > 0);
-
-  return AverageValues(LevelAverages);
+  return AttemptAverageAccuracy(Rows);
 }
 
 function ScopedAverageAccuracy(Rows: AnyRow[]) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMathPathDateTime } from "@/lib/date";
 import { AppShell } from "@/components/common/AppShell";
 import Link from "next/link";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -83,7 +84,8 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
-import { useUrlTabState } from "@/hooks/useUrlTabState";
+import { useUrlParamState, useUrlTabState } from "@/hooks/useUrlTabState";
+import { DayLabel, FilterPracticeStudentsBySubmittedDay } from "@/lib/annualPracticeDay";
 
 // 2026-09-27 (Shailesh, Practice Leaderboard sort filter): "just like the
 // other sort filters we have across the platform" -- reuses the exact same
@@ -180,12 +182,8 @@ function StatusChip({ status }: { status: string }) {
 }
 
 function FormatEventDate(Value: string | null) {
-  if (!Value) return "Not set";
-  try {
-    return new Date(Value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return Value;
-  }
+  // One platform date style (lib/date.ts, 2026-10-14).
+  return Value ? formatMathPathDateTime(String(Value)) : "Not set";
 }
 
 function FormatSecondsAsMinSec(Value: number | null): string {
@@ -765,6 +763,8 @@ function AdminAnnualCompetitionStudioPageContent() {
   // Paper Bank (see useUrlTabState). `tab` and `subTab` are the same names
   // the notification links already use, so those keep working unchanged.
   const [TopTab, SetTopTab] = useUrlTabState<TopTabKey>("tab", TopTabList, "OFFICIAL");
+  // ?submittedOn=YYYY-MM-DD from the daily practice notice (2026-10-14).
+  const [PracticeSubmittedOn, SetPracticeSubmittedOn] = useUrlParamState("submittedOn", "");
   const [PracticeSubTab, SetPracticeSubTab] = useUrlTabState<PracticeSubTabKey>("subTab", PracticeSubTabList, "BANK");
 
   // 2026-09-16 (Shailesh, 504 fix -- "bulletproof end to end"): this page
@@ -1216,7 +1216,7 @@ function AdminAnnualCompetitionStudioPageContent() {
   // what it's given, no client-side re-grouping needed anymore.
   const GroupedPracticeResults = (() => {
     const Term = PracticeResultsSearchText.trim().toLowerCase();
-    const Students = PracticeResultsQuery.data?.students || [];
+    const Students = FilterPracticeStudentsBySubmittedDay(PracticeResultsQuery.data?.students || [], PracticeSubmittedOn);
     const Filtered = !Term
       ? Students
       : Students.filter((StudentGroup) => {
@@ -1600,39 +1600,6 @@ function AdminAnnualCompetitionStudioPageContent() {
             {LastActionResult.Text}
           </div>
         )}
-
-        {/* 2026-09-14 batch: one-time (and repeatable) accuracy backfill
-            trigger -- see the mutations above for what this actually calls.
-            Safe to click more than once; only refreshes already-finalized
-            results under the current formula, never touches release/rank
-            state. */}
-        <div className="math-card p-5">
-          <p className="math-block-header"><RefreshCcw size={14} />Accuracy Backfill</p>
-          <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
-            Recomputes score/accuracy/correct/wrong/unanswered for every already-finalized result under the current
-            formula. Never touches release status, rank, or certificates — safe to run again anytime.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => RecomputeOfficialMutation.mutate()}
-              disabled={RecomputeOfficialMutation.isPending}
-              className="math-button-secondary inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-60"
-            >
-              <RefreshCcw size={14} className={RecomputeOfficialMutation.isPending ? "animate-spin" : ""} />
-              {RecomputeOfficialMutation.isPending ? "Recomputing..." : "Recompute Official Results"}
-            </button>
-            <button
-              type="button"
-              onClick={() => RecomputePracticeMutation.mutate()}
-              disabled={RecomputePracticeMutation.isPending}
-              className="math-button-secondary inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-60"
-            >
-              <RefreshCcw size={14} className={RecomputePracticeMutation.isPending ? "animate-spin" : ""} />
-              {RecomputePracticeMutation.isPending ? "Recomputing..." : "Recompute Practice Results"}
-            </button>
-          </div>
-        </div>
 
         <div className="math-card p-3">
           <div className="flex flex-wrap gap-3">
@@ -2134,7 +2101,27 @@ function AdminAnnualCompetitionStudioPageContent() {
                       <option key={LevelCode} value={LevelCode}>{FormatCompetitionLevelLabel(LevelCode)}</option>
                     ))}
                   </select>
+                  <label className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                    Submitted On
+                    <input
+                      type="date"
+                      aria-label="Submitted on"
+                      value={PracticeSubmittedOn}
+                      onChange={(EventValue) => SetPracticeSubmittedOn(EventValue.target.value)}
+                      className="math-input w-auto min-w-[160px] normal-case tracking-normal"
+                    />
+                  </label>
+                  {PracticeSubmittedOn ? (
+                    <button type="button" className="math-button-secondary px-3 py-2 text-xs" onClick={() => SetPracticeSubmittedOn("")}>
+                      Show All Days
+                    </button>
+                  ) : null}
                 </div>
+                {PracticeSubmittedOn ? (
+                  <p className="mt-3 text-xs font-black text-slate-600 dark:text-slate-300">
+                    Showing papers submitted on {DayLabel(PracticeSubmittedOn)}: {GroupedPracticeResults.length} student{GroupedPracticeResults.length === 1 ? "" : "s"}, {GroupedPracticeResults.reduce((Sum, StudentGroup) => Sum + StudentGroup.papers.length, 0)} paper{GroupedPracticeResults.reduce((Sum, StudentGroup) => Sum + StudentGroup.papers.length, 0) === 1 ? "" : "s"}.
+                  </p>
+                ) : null}
 
                 {PracticeResultsQuery.isLoading ? (
                   <div className="mt-5"><LoadingState label="Loading practice results..." /></div>
@@ -2866,6 +2853,43 @@ function AdminAnnualCompetitionStudioPageContent() {
             )}
           </div>
         )}
+        {/* 2026-10-14 (Phase 2 part 5): the accuracy backfill buttons are a
+            maintenance tool, not everyday work -- moved here from the top of
+            the page into a collapsed section. What they do is unchanged:
+            recompute already-finalized results under the current formula,
+            never touching release status, rank or certificates. */}
+        <details className="math-card group p-5">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+            <span className="math-block-header"><RefreshCcw size={14} />Maintenance</span>
+            <span className="text-xs font-black text-slate-500 group-open:hidden dark:text-slate-400">Show</span>
+            <span className="hidden text-xs font-black text-slate-500 group-open:inline dark:text-slate-400">Hide</span>
+          </summary>
+          <p className="mt-3 text-sm font-black text-slate-900 dark:text-white">Accuracy Backfill</p>
+          <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+            Recomputes score/accuracy/correct/wrong/unanswered for every already-finalized result under the current
+            formula. Never touches release status, rank, or certificates — safe to run again anytime.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => RecomputeOfficialMutation.mutate()}
+              disabled={RecomputeOfficialMutation.isPending}
+              className="math-button-secondary inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-60"
+            >
+              <RefreshCcw size={14} className={RecomputeOfficialMutation.isPending ? "animate-spin" : ""} />
+              {RecomputeOfficialMutation.isPending ? "Recomputing..." : "Recompute Official Results"}
+            </button>
+            <button
+              type="button"
+              onClick={() => RecomputePracticeMutation.mutate()}
+              disabled={RecomputePracticeMutation.isPending}
+              className="math-button-secondary inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-60"
+            >
+              <RefreshCcw size={14} className={RecomputePracticeMutation.isPending ? "animate-spin" : ""} />
+              {RecomputePracticeMutation.isPending ? "Recomputing..." : "Recompute Practice Results"}
+            </button>
+          </div>
+        </details>
       </section>
       {ModalStudentRow ? (
         <StudentAnalyticsModal Row={ModalStudentRow} OnClose={() => SetModalStudentRow(null)} />

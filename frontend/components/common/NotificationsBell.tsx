@@ -236,7 +236,7 @@ export function NotificationsBell() {
                 <div key={Group.key} className="space-y-2">
                   <p className="px-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{Group.label}</p>
                   {Group.items.map((Item) => (
-                    <NotificationListItem key={Item.id} Item={Item} OnOpen={HandleNotificationClick} Compact />
+                    <NotificationListItem key={Item.id} Item={Item} OnOpen={HandleNotificationClick} Compact OnNavigate={(Url) => { SetOpen(false); Router.push(Url); }} />
                   ))}
                 </div>
               ))

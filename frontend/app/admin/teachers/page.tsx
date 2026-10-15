@@ -1,5 +1,6 @@
 "use client";
 
+import { Plural } from "@/lib/plural";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -552,7 +553,7 @@ export default function AdminTeachersPage() {
             </table>
 
             <div className="flex items-center justify-between gap-4 border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-700">
-              <p className="text-slate-600 dark:text-slate-300">Showing {pageItems.length} of {filtered.length} teachers</p>
+              <p className="text-slate-600 dark:text-slate-300">Showing {pageItems.length} of {Plural(filtered.length, "teacher")}</p>
               <div className="flex items-center gap-2">
                 <button className="math-button-secondary px-3 py-2" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
                 <span className="font-black">{page} / {totalPages}</span>

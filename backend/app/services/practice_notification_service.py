@@ -796,6 +796,7 @@ def NotifyPracticeFreshPracticeAssigned(
     assignment_id: str,
     actor_user_id: str | None,
     source_attempt_id: str | None = None,
+    collector: list | None = None,
 ) -> None:
     """Notify all roles when Admin approval creates a fresh same-concept practice sheet.
 
@@ -833,6 +834,18 @@ def NotifyPracticeFreshPracticeAssigned(
         "assignmentSource": getattr(assignment, "assignment_source", None),
         "retryAttemptNumber": getattr(assignment, "retry_attempt_number", None),
     })
+
+    # 2026-10-14: a bulk approval collects every approved sheet first and
+    # then sends ONE combined notice per person (NotifyBulkFreshPracticeAssigned).
+    if collector is not None:
+        collector.append({
+            "context": context,
+            "assignment": assignment,
+            "retry": int(getattr(assignment, "retry_attempt_number", 0) or 0),
+            "identity": dps_identity,
+            "metadata": metadata,
+        })
+        return
 
     if student_user:
         CreateNotification(
@@ -899,6 +912,166 @@ def NotifyPracticeFreshPracticeAssigned(
             target_tab="practice-control",
             metadata=metadata,
         )
+
+def NotifyBulkFreshPracticeAssigned(db: Session, *, collected: list, actor_user_id: str | None) -> None:
+    """2026-10-14 (Shailesh: "bulk approval should send one combined
+    notice"): after a bulk approval, one notice per student, one per teacher
+    and one per admin, listing every re-attempt opened -- instead of one per
+    DPS (approving 6 sheets used to send the teacher 6 notices). A single
+    approved sheet reads exactly as before."""
+    if not collected:
+        return
+    from app.services.demo_students import AllDemoStudentIds
+
+    demo_ids = AllDemoStudentIds(db)
+
+    def line(item: dict) -> str:
+        return f"Re-Attempt {item['retry']} for {item['identity']}"
+
+    def student_of(item: dict):
+        return item["context"].get("student")
+
+    def notice_fields(items: list[dict]) -> dict:
+        # The notice belongs to one student when it is about one student;
+        # demo accounts are always grouped apart from real students so the
+        # "Show Demo Accounts" switch can hide them (demo_students.py).
+        students = {student_of(item).id for item in items if student_of(item)}
+        student_id = next(iter(students)) if len(students) == 1 else None
+        if student_id is None and students and students <= demo_ids:
+            student_id = sorted(students)[0]
+        first = items[0]["context"]
+        return {
+            "student_id": student_id,
+            "teacher_id": first.get("teacher").id if first.get("teacher") else None,
+            "metadata": {
+                "bulk": True,
+                "count": len(items),
+                "items": [
+                    {
+                        "studentCode": item["context"].get("student_code"),
+                        "studentName": item["context"].get("student_name"),
+                        "dps": item["identity"],
+                        "retryAttemptNumber": item["retry"],
+                        "freshAssignmentId": item["assignment"].id,
+                    }
+                    for item in items
+                ],
+                **({"studentCode": first.get("student_code")} if student_id else {}),
+            },
+        }
+
+    def split_demo(items: list[dict]) -> list[list[dict]]:
+        real = [item for item in items if not (student_of(item) and student_of(item).id in demo_ids)]
+        demo = [item for item in items if student_of(item) and student_of(item).id in demo_ids]
+        return [group for group in (real, demo) if group]
+
+    def names_of(items: list[dict]) -> list[str]:
+        seen: list[str] = []
+        for item in items:
+            name = item["context"].get("student_name") or "Student"
+            if name not in seen:
+                seen.append(name)
+        return seen
+
+    # Students: one notice each.
+    by_student: dict[str, list[dict]] = {}
+    for item in collected:
+        student_user = item["context"].get("student_user")
+        if student_user:
+            by_student.setdefault(student_user.id, []).append(item)
+    for user_id, items in by_student.items():
+        if len(items) == 1:
+            item = items[0]
+            context = item["context"]
+            title = f"Re-Attempt {item['retry']} Assigned"
+            message = f"Your teacher has opened Re-Attempt {item['retry']} for {item['identity']}. Open the Practice tab to complete the new sheet."
+        else:
+            context = items[0]["context"]
+            title = f"{len(items)} Re-Attempts Assigned"
+            message = "Your teacher has opened " + "; ".join(line(item) for item in items) + ". Open the Practice tab to complete the new sheets."
+        fields = notice_fields(items)
+        CreateNotification(
+            db,
+            recipient_user_id=user_id,
+            recipient_role="STUDENT",
+            actor_user_id=actor_user_id,
+            actor_role="TEACHER" if actor_user_id else None,
+            student_id=fields["student_id"],
+            teacher_id=fields["teacher_id"],
+            dps_id=items[0]["context"].get("dps").id if len(items) == 1 and items[0]["context"].get("dps") else None,
+            type="DPS_FRESH_PRACTICE_ASSIGNED",
+            category="REATTEMPT",
+            title=title,
+            message=message,
+            target_route=f"/student/results/module/{context.get('module_code')}" if context.get("module_code") else "/student/results",
+            target_tab="practice",
+            metadata=items[0]["metadata"] if len(items) == 1 else fields["metadata"],
+        )
+
+    def staff_notice(recipient_user_id: str, recipient_role: str, items: list[dict], *, teacher: bool) -> None:
+        if len(items) == 1:
+            item = items[0]
+            context = item["context"]
+            name = context.get("student_name")
+            title = f"Re-Attempt {item['retry']} Assigned After Admin Approval" if teacher else f"Re-Attempt {item['retry']} Assigned After Approval"
+            message = (
+                f"Admin approval has opened Re-Attempt {item['retry']} for {name} in {item['identity']}. The latest record is now pending in the tracker."
+                if teacher
+                else f"Re-Attempt {item['retry']} has been assigned to {name} for {item['identity']}. Previous exhausted attempts remain preserved in history."
+            )
+            metadata = item["metadata"]
+        else:
+            names = names_of(items)
+            who = names[0] if len(names) == 1 else f"{len(names)} students"
+            title = f"{len(items)} Re-Attempts Assigned After {'Admin ' if teacher else ''}Approval"
+            if len(names) == 1:
+                message = f"Admin approval has opened {len(items)} re-attempts for {who}: " + "; ".join(line(item) for item in items) + "."
+            else:
+                by_name: dict[str, list[str]] = {}
+                for item in items:
+                    by_name.setdefault(item["context"].get("student_name") or "Student", []).append(line(item))
+                message = f"Admin approval has opened {len(items)} re-attempts for {who}. " + " ".join(f"{name}: {'; '.join(lines)}." for name, lines in by_name.items())
+            metadata = notice_fields(items)["metadata"]
+        context = items[0]["context"]
+        single_student = len({(item["context"].get("student_code") or "") for item in items}) == 1
+        if teacher:
+            route = _teacher_practice_target_route(context) if single_student else "/teacher/assignment-tracker"
+        else:
+            route = _admin_practice_target_route(context) if single_student else "/admin/assignments"
+        fields = notice_fields(items)
+        CreateNotification(
+            db,
+            recipient_user_id=recipient_user_id,
+            recipient_role=recipient_role,
+            actor_user_id=actor_user_id,
+            actor_role="ADMIN" if actor_user_id else None,
+            student_id=fields["student_id"],
+            teacher_id=fields["teacher_id"],
+            dps_id=items[0]["context"].get("dps").id if len(items) == 1 and items[0]["context"].get("dps") else None,
+            type="DPS_FRESH_PRACTICE_ASSIGNED",
+            category="REATTEMPT",
+            title=title,
+            message=message,
+            target_route=route,
+            target_tab="practice-tracker" if teacher else "practice-control",
+            metadata=metadata,
+        )
+
+    # Teachers: one notice each (per real / demo group).
+    by_teacher: dict[str, list[dict]] = {}
+    for item in collected:
+        teacher_user = item["context"].get("teacher_user")
+        if teacher_user:
+            by_teacher.setdefault(teacher_user.id, []).append(item)
+    for user_id, items in by_teacher.items():
+        for group in split_demo(items):
+            staff_notice(user_id, "TEACHER", group, teacher=True)
+
+    # Admins: one notice each (per real / demo group).
+    for AdminUser in ActiveAdminUsers(db):
+        for group in split_demo(collected):
+            staff_notice(AdminUser.id, AdminUser.role, group, teacher=False)
+
 
 def NotifyPracticeAttemptSubmitted(
     db: Session,

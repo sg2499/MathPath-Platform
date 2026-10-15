@@ -7,6 +7,7 @@
 // payment that went through but did not show (the "money cut but not
 // showing" call from a parent).
 
+import { formatMathPathDateTime } from "@/lib/date";
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, CircleSlash, Clock3, CreditCard, Eye, Loader2, RefreshCw, Search, Settings, X, XCircle } from "lucide-react";
@@ -35,7 +36,7 @@ const STATUS_TABS: [string, string][] = [
 
 function When(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
+  return formatMathPathDateTime(iso);
 }
 
 function useDebounced<T>(value: T, delay = 300): T {

@@ -1,4 +1,5 @@
 import uuid
+from sqlalchemy import false as sa_false
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -57,6 +58,11 @@ class Student(Base):
     current_module_id = Column(String, ForeignKey("modules.id"), nullable=True, index=True)
     current_level_id = Column(String, ForeignKey("levels.id"), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    # 2026-10-14: demo / test accounts (MP-ST-001..009 on live). They can sign
+    # in and be used as before, but are left out of every count, tracker,
+    # leaderboard, readiness view, mock list, staff notification and bill --
+    # see app/services/demo_students.py.
+    is_demo = Column(Boolean, default=False, nullable=False, server_default=sa_false())
 
     # Student profile information
     custom_id = Column(String(80), unique=True, nullable=True)

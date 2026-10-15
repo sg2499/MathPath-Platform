@@ -220,11 +220,17 @@ def BuildManualInterventionQueue(
 
     if StudentIds is not None and not StudentIds:
         return []
+    from app.services.demo_students import DemoStudentIds
+
     Index = BuildDpsChainIndex(Db, StudentIds=StudentIds, StudentsByLevel=StudentsByLevel, Benchmark=BenchmarkPercentage)
+    DemoIds = DemoStudentIds(Db)
     Rows = []
     for Concept in Index.awaiting_approval():
         AttemptItem = Db.get(Attempt, Concept.awaiting_approval_attempt_id) if Concept.awaiting_approval_attempt_id else None
         if AttemptItem is None:
+            continue
+        # Demo accounts are left out of the approval queue and its counts.
+        if AttemptItem.student_id in DemoIds:
             continue
         Row = ManualInterventionQueuePayload(Db, AttemptItem)
         Row["assignmentId"] = Concept.awaiting_approval_assignment_id or Row.get("assignmentId")

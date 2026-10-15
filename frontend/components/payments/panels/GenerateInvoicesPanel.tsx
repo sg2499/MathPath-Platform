@@ -7,6 +7,7 @@
 // be created and what will be skipped (and why), then confirm. The server
 // re-checks everything on confirm, and the same confirm press can never
 // create a second set (idempotency key per preview).
+import { DemoTag } from "@/components/common/DemoAccounts";
 import { HeroSearch } from "@/components/payments/CommandPalette";
 import { FeeItemPicker } from "@/components/payments/FeeItemPicker";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -65,7 +66,7 @@ function NewKey(): string {
 function FormatDate(isoDate: string | null | undefined): string {
   if (!isoDate) return "—";
   const [year, month, day] = isoDate.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 export function GenerateInvoicesPanel() {
@@ -387,7 +388,7 @@ export function GenerateInvoicesPanel() {
                       <label className={`flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-900/60 ${row.isActive ? "" : "opacity-60"}`}>
                         <input type="checkbox" className="h-4 w-4 shrink-0" checked={selected.has(row.studentId)} onChange={() => toggleOne(row.studentId)} />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate font-black text-slate-900 dark:text-white">{row.studentName}{row.isActive ? "" : " (inactive)"}</span>
+                          <span className="block truncate font-black text-slate-900 dark:text-white">{row.studentName}{row.isActive ? "" : " (inactive)"}<DemoTag studentId={row.studentId} /></span>
                           <span className="block truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
                             {[row.studentCode, row.levelCode, row.centreName ?? "No centre", row.teacherName].filter(Boolean).join(" · ")}
                           </span>

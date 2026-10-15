@@ -4,6 +4,7 @@ import { IDLE_SIGN_OUT_EVENT } from "@/components/common/IdleSignOutWatcher";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { useAuthenticatedImage } from "@/lib/hooks/useAuthenticatedImage";
 import { NotificationsBell } from "@/components/common/NotificationsBell";
+import { DemoSwitchButton } from "@/components/common/DemoAccounts";
 import { BuildInfoBadge } from "@/components/common/BuildInfoBadge";
 import { apiErrorMessage } from "@/lib/api";
 import { getStudentFeesSummary } from "@/lib/api/fees";
@@ -1205,6 +1206,7 @@ export function AppShell({
                   </span>
                 </button>
 
+                {IsTeacher || IsAdmin ? <DemoSwitchButton /> : null}
                 {MountedUser ? <NotificationsBell /> : null}
                 {MountedUser ? (
                   <div className="relative" ref={AccountMenuRef}>
@@ -1245,6 +1247,7 @@ export function AppShell({
                 >
                   {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
+                {IsTeacher || IsAdmin ? <DemoSwitchButton compact /> : null}
                 {MountedUser ? <NotificationsBell /> : null}
                 <button
                   className="math-button-secondary px-3"
@@ -1590,6 +1593,7 @@ export function AppShell({
                   </span>
                 </button>
 
+                {IsTeacher || IsAdmin ? <DemoSwitchButton /> : null}
                 {MountedUser ? <NotificationsBell /> : null}
                 {MountedUser ? (
                   <div className="relative" ref={AccountMenuRef}>
@@ -1629,6 +1633,7 @@ export function AppShell({
                 >
                   {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
+                {IsTeacher || IsAdmin ? <DemoSwitchButton compact /> : null}
                 {MountedUser ? <NotificationsBell /> : null}
                 <button
                   className="math-button-secondary px-3"

@@ -20,7 +20,7 @@ import {
   getModules,
   getStudentReport,
 } from "@/lib/api/admin";
-import { formatMathPathDateTime } from "@/lib/date";
+import { formatMathPathDateTime, formatMathPathDate } from "@/lib/date";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import type {
   DpsItem,
@@ -223,13 +223,7 @@ function FormatDate(Value: unknown) {
 
 function FormatDateOnly(Value: unknown) {
   if (!Value || Value === "-") return "-";
-  const DateValue = new Date(String(Value));
-  if (Number.isNaN(DateValue.getTime())) return FormatDate(Value);
-  return DateValue.toLocaleDateString(undefined, {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return formatMathPathDate(String(Value));
 }
 
 function FormatTimeTaken(Value: unknown) {
@@ -635,20 +629,6 @@ function CurrentNeedsReAttemptCount(Rows: AnyRecord[]) {
   ).length;
 }
 
-function CurrentAverageAccuracy(Rows: AnyRecord[]): number | null {
-  const CurrentRows = BuildCurrentAttemptGroups(Rows).map(
-    (Group) => Group.CurrentRow,
-  );
-  const Percentages = CurrentRows.map(RowPercent).filter((Value) =>
-    Number.isFinite(Value),
-  );
-  if (!Percentages.length) return null;
-  return Math.round(
-    Percentages.reduce((Total, Value) => Total + Value, 0) / Percentages.length,
-  );
-}
-
-
 function VisibleAttemptAverageAccuracy(Rows: AnyRecord[]): number | null {
   const Percentages = Rows.map(RowPercent).filter((Value) =>
     Number.isFinite(Value),
@@ -663,40 +643,6 @@ function FormatAccuracyOrDash(Value: number | null | undefined) {
   return typeof Value === "number" && Number.isFinite(Value) ? `${Value}%` : "—";
 }
 
-function StudentAverageAccuracyKey(Row: AnyRecord, Index: number) {
-  const StudentId = PickFirstString(Row, ["studentId"], "");
-  if (StudentId && StudentId !== "-") return `student-id:${StudentId}`;
-
-  const StudentCode = PickFirstString(Row, ["studentCode"], "");
-  if (StudentCode && StudentCode !== "-") return `student-code:${StudentCode}`;
-
-  const StudentName = PickFirstString(Row, ["studentName"], "");
-  if (StudentName && StudentName !== "-") return `student-name:${StudentName}`;
-
-  return `student-row:${Index}`;
-}
-
-function CurrentAverageAccuracyByStudent(Rows: AnyRecord[]) {
-  const RowsByStudent = new Map<string, AnyRecord[]>();
-
-  Rows.forEach((Row, Index) => {
-    const StudentKey = StudentAverageAccuracyKey(Row, Index);
-    const ExistingRows = RowsByStudent.get(StudentKey) ?? [];
-    ExistingRows.push(Row);
-    RowsByStudent.set(StudentKey, ExistingRows);
-  });
-
-  const StudentAverages = Array.from(RowsByStudent.values())
-    .map((StudentRows) => CurrentAverageAccuracy(StudentRows))
-    .filter((Value): Value is number => typeof Value === "number" && Number.isFinite(Value));
-
-  if (!StudentAverages.length) return null;
-
-  return Math.round(
-    StudentAverages.reduce((Total, Value) => Total + Value, 0) /
-      StudentAverages.length,
-  );
-}
 
 function NormalizeScopeValue(Value: unknown) {
   return String(Value ?? "")

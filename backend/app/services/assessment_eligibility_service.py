@@ -65,16 +65,77 @@ def completed_attempts_for_dps(db: Session, student_id: str, dps_id: str) -> lis
             Attempt.dps_id == dps_id,
             Attempt.status.in_(COMPLETED_STATUSES),
         )
+        .order_by(Attempt.started_at.asc(), Attempt.id.asc())
         .all()
     )
+
+
+class EligibilityPrefetch:
+    """Loads everything the readiness payload needs for many students in a
+    handful of queries (2026-10-14, Phase 2 speed work).
+
+    Before this, every student cost two level queries plus one attempt query
+    per DPS in the level -- about 50 queries a student, so the admin list of
+    ~170 students took over 8,000 queries and 20+ seconds. The payload built
+    from this is identical to the one built query by query."""
+
+    def __init__(self, db: Session, students: list[Student], level_ids: list[str] | None = None):
+        self.db = db
+        self._bundles: dict[str, tuple] = {}
+        self._users: dict[str, User] = {}
+        self._attempts: dict[tuple[str, str], list[Attempt]] = {}
+
+        UserIds = [student.user_id for student in students if student and student.user_id]
+        if UserIds:
+            for UserRow in db.query(User).filter(User.id.in_(UserIds)).all():
+                self._users[UserRow.id] = UserRow
+
+        WantedLevels = {level_id for level_id in (level_ids or []) if level_id}
+        for level_id in WantedLevels:
+            self.bundle(level_id)
+
+        DpsIds = sorted({dps.id for bundle in self._bundles.values() for dps, _lesson in bundle[3]})
+        StudentIds = sorted({student.id for student in students if student})
+        if DpsIds and StudentIds:
+            AttemptRows = (
+                db.query(Attempt)
+                .filter(
+                    Attempt.student_id.in_(StudentIds),
+                    Attempt.dps_id.in_(DpsIds),
+                    Attempt.status.in_(COMPLETED_STATUSES),
+                )
+                .order_by(Attempt.started_at.asc(), Attempt.id.asc())
+                .all()
+            )
+            for AttemptRow in AttemptRows:
+                self._attempts.setdefault((AttemptRow.student_id, AttemptRow.dps_id), []).append(AttemptRow)
+        self._loaded_dps = set(DpsIds)
+        self._loaded_students = set(StudentIds)
+
+    def bundle(self, level_id: str):
+        if level_id not in self._bundles:
+            self._bundles[level_id] = get_level_bundle(self.db, level_id)
+        return self._bundles[level_id]
+
+    def user(self, student: Student) -> User | None:
+        if not student or not student.user_id:
+            return None
+        if student.user_id not in self._users:
+            self._users[student.user_id] = self.db.get(User, student.user_id)
+        return self._users[student.user_id]
+
+    def attempts(self, student_id: str, dps_id: str) -> list[Attempt]:
+        if student_id in self._loaded_students and dps_id in self._loaded_dps:
+            return self._attempts.get((student_id, dps_id), [])
+        return completed_attempts_for_dps(self.db, student_id, dps_id)
 
 
 def latest_key(attempt: Attempt):
     return getattr(attempt, "submitted_at", None) or getattr(attempt, "started_at", None)
 
 
-def dps_eligibility(db: Session, student_id: str, dps: DPS, lesson: Lesson) -> DpsEligibility:
-    attempts = completed_attempts_for_dps(db, student_id, dps.id)
+def dps_eligibility(db: Session, student_id: str, dps: DPS, lesson: Lesson, prefetch: "EligibilityPrefetch | None" = None) -> DpsEligibility:
+    attempts = prefetch.attempts(student_id, dps.id) if prefetch else completed_attempts_for_dps(db, student_id, dps.id)
 
     if not attempts:
         return DpsEligibility(
@@ -131,10 +192,20 @@ def dps_payload(item: DpsEligibility) -> dict[str, Any]:
     }
 
 
-def assessment_eligibility_payload(db: Session, student: Student, level_id: str | None = None) -> dict[str, Any]:
+def assessment_eligibility_payload(
+    db: Session,
+    student: Student,
+    level_id: str | None = None,
+    prefetch: EligibilityPrefetch | None = None,
+    compact: bool = False,
+) -> dict[str, Any]:
+    """`compact` (used by the multi-student lists) leaves out the
+    missingDps / belowBenchmarkDps arrays. They repeat sheets already listed
+    under `lessons`, no list screen reads them, and they were close to half
+    of the list's download. Their counts stay in the payload."""
     target_level_id = level_id or student.current_level_id
 
-    user = student_user(db, student)
+    user = prefetch.user(student) if prefetch else student_user(db, student)
 
     if not target_level_id:
         return {
@@ -165,7 +236,7 @@ def assessment_eligibility_payload(db: Session, student: Student, level_id: str 
             "message": "No level is currently assigned to this student.",
         }
 
-    level, module, lessons, dps_rows = get_level_bundle(db, target_level_id)
+    level, module, lessons, dps_rows = prefetch.bundle(target_level_id) if prefetch else get_level_bundle(db, target_level_id)
 
     if not level:
         return {
@@ -196,7 +267,7 @@ def assessment_eligibility_payload(db: Session, student: Student, level_id: str 
             "message": "The selected level could not be found.",
         }
 
-    dps_statuses = [dps_eligibility(db, student.id, dps, lesson) for dps, lesson in dps_rows]
+    dps_statuses = [dps_eligibility(db, student.id, dps, lesson, prefetch) for dps, lesson in dps_rows]
     required = len(dps_statuses)
     passed = [item for item in dps_statuses if item.status == "PASSED"]
     missing = [item for item in dps_statuses if item.status == "NOT_STARTED"]
@@ -262,9 +333,11 @@ def assessment_eligibility_payload(db: Session, student: Student, level_id: str 
         lesson_payload["belowBenchmarkDpsCount"] += 1 if payload["status"] == "BELOW_BENCHMARK" else 0
         lesson_payload["dps"].append(payload)
 
-    progress = round((len(passed) / required) * 100, 2) if required else 0
+    # Whole percent, rounded half up like every other page (was 2 decimals,
+    # e.g. "6.67%" here against "7%" on Progress) -- 2026-10-14.
+    progress = int((len(passed) / required) * 100 + 0.5) if required else 0
 
-    return {
+    payload_out = {
         "studentId": student.id,
         "studentName": user.full_name if user else "",
         "studentCode": student.student_code,
@@ -287,16 +360,16 @@ def assessment_eligibility_payload(db: Session, student: Student, level_id: str 
         "belowBenchmarkDpsCount": len(below),
         "progressPercentage": progress,
         "lessons": list(lesson_map.values()),
-        "missingDps": [dps_payload(item) for item in missing],
-        "belowBenchmarkDps": [dps_payload(item) for item in below],
         "message": message,
     }
+    if not compact:
+        payload_out["missingDps"] = [dps_payload(item) for item in missing]
+        payload_out["belowBenchmarkDps"] = [dps_payload(item) for item in below]
+    return payload_out
 
 
 def eligibility_for_students(db: Session, students: list[Student], level_id: str | None = None) -> list[dict[str, Any]]:
-    payloads = []
-    for student in students:
-        target_level_id = level_id or student.current_level_id
-        if target_level_id:
-            payloads.append(assessment_eligibility_payload(db, student, target_level_id))
-    return payloads
+    Targets = [(student, level_id or student.current_level_id) for student in students]
+    Targets = [(student, target_level_id) for student, target_level_id in Targets if target_level_id]
+    prefetch = EligibilityPrefetch(db, [student for student, _ in Targets], [target_level_id for _, target_level_id in Targets])
+    return [assessment_eligibility_payload(db, student, target_level_id, prefetch, compact=True) for student, target_level_id in Targets]

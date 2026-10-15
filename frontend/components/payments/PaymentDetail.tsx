@@ -2,6 +2,7 @@
 
 // 2026-10-08 (Payments Phase 3): one payment -- what it paid, how it was
 // paid, its advance, its history -- with Download receipt, Edit and Cancel.
+import { formatMathPathDateTime } from "@/lib/date";
 import { InlineError, PaymentsDialog, PaymentsHistoryList, FieldLabel } from "@/components/payments/PaymentsUi";
 import { cancelPayment, downloadReceiptPdf, getPayment, saveBlob, type Payment } from "@/lib/api/payments";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -11,7 +12,7 @@ import { useEffect, useState } from "react";
 function FormatDate(isoDate: string | null | undefined): string {
   if (!isoDate) return "—";
   const [year, month, day] = isoDate.slice(0, 10).split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 export function PaymentStatusChip({ payment }: { payment: Pick<Payment, "status" | "statusLabel" | "advancePaise" | "editedAt"> }) {
@@ -175,7 +176,7 @@ export function PaymentDetailDialog({
 
           {payment.status === "CANCELLED" ? (
             <p className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300">
-              Cancelled {payment.cancelledAt ? new Date(payment.cancelledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : ""}
+              Cancelled {payment.cancelledAt ? formatMathPathDateTime(payment.cancelledAt) : ""}
               {payment.cancelledByName ? ` by ${payment.cancelledByName}` : ""}. Reason: {payment.cancelReason}
             </p>
           ) : null}

@@ -695,7 +695,14 @@ def _Describe(Row: PaymentAuditLog) -> dict[str, Any]:
     elif Kind == "HISTORY_IMPORT":
         Icon = "invoice"
         Href = "/admin/payments/invoices?tab=all"
-        Text = f"Brought in the old platform's payment history: {After.get('invoices', 0)} invoices and {After.get('payments', 0)} payments" + (f", {After.get('studentsAdded')} former students added" if After.get("studentsAdded") else "")
+        if Action == "TOPUP":
+            # 2026-10-15 (Phase 2 part 6): newer old-platform payments brought across.
+            Text = (
+                f"Brought across the old platform's newer payments: {After.get('payments', 0)} payments and {After.get('invoices', 0)} invoices"
+                + (f", {After.get('cancelled')} invoices removed there cancelled" if After.get("cancelled") else "")
+            )
+        else:
+            Text = f"Brought in the old platform's payment history: {After.get('invoices', 0)} invoices and {After.get('payments', 0)} payments" + (f", {After.get('studentsAdded')} former students added" if After.get("studentsAdded") else "")
     elif Kind == "INSIGHT_REVIEW":
         Icon = "insight"
         Text = "Marked an unusual item as reviewed" if Action == "REVIEW" else "Moved an unusual item back to open"
