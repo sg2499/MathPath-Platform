@@ -567,7 +567,7 @@ function TeacherCompetitionMockTrackerContent() {
                               </span>
                               <div className="min-w-0">
                                 <h3 className="truncate text-lg font-black text-slate-950 dark:text-white">{StudentGroup.student.studentName}<DemoTag studentId={StudentGroup.student.studentId} studentCode={StudentGroup.student.studentCode} /></h3>
-                                <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{StudentGroup.student.studentCode}</p>
+                                <p className="te-code">{StudentGroup.student.studentCode}</p>
                               </div>
                             </div>
                             <div className="flex flex-wrap gap-2 text-xs font-black">

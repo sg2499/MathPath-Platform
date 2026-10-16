@@ -348,6 +348,9 @@ def test_roster_results_hide_metrics_until_released():
 
     assert result["totalResults"] == 0
     assert result["rows"] == []
+    # 2026-10-16 (teacher revamp, fix B): the student is still counted as
+    # assigned, so the page can say "Results Not Released Yet".
+    assert result["assignedCount"] == 1
 
 
 def test_roster_results_show_full_metrics_once_released():
@@ -384,6 +387,7 @@ def test_roster_results_empty_filter_short_circuits():
 
     assert result["totalResults"] == 0
     assert result["rows"] == []
+    assert result["assignedCount"] == 0
 
 
 # ---------------------------------------------------------------------------

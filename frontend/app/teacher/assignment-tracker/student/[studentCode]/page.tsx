@@ -830,9 +830,7 @@ function TeacherStudentTrackerWorkspacePageContent() {
                 Review assigned practice, completion date, accuracy bands,
                 lesson insights, and attempt history for this student.
               </p>
-              <p className="mt-2 text-sm font-bold text-slate-500">
-                Student Code: {StudentCode}
-              </p>
+              <p className="te-hero-code">{StudentCode}</p>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <Metric
@@ -1098,44 +1096,12 @@ function OverviewTab({
   OnView: (Row: AnyRow) => void;
 }) {
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_1.15fr]">
-      <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <p className="math-block-header">
-          <Sliders size={14} />
-          Practice Control
-        </p>
-        <h2 className="math-teacher-block-title text-2xl font-black text-slate-950 dark:text-white">
-          What Needs Attention Now?
-        </h2>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <MiniMetric
-            Title="Assigned DPS"
-            Value={AssignedCount}
-            Tone="blue"
-            Icon={<ClipboardList className="h-5 w-5" />}
-          />
-          <MiniMetric
-            Title="Cleared DPS"
-            Value={ClearedCount}
-            Tone="green"
-            Icon={<CheckCircle2 className="h-5 w-5" />}
-          />
-          <MiniMetric
-            Title="Pending DPS"
-            Value={PendingCount}
-            Tone="amber"
-            Icon={<Clock3 className="h-5 w-5" />}
-          />
-          <MiniMetric
-            Title="Needs Re-Attempt"
-            Value={ReattemptCount}
-            Tone="red"
-            Icon={<AlertTriangle className="h-5 w-5" />}
-          />
-        </div>
-        <LevelCoverageCard Rows={Rows} />
-      </div>
-      <div className="grid gap-6">
+    // 2026-10 (teacher revamp): the four counts that sat here repeated the
+    // tiles at the top of the page; the level coverage now has its own row and
+    // the two lists sit side by side under it.
+    <div className="grid gap-6">
+      <LevelCoverageCard Rows={Rows} />
+      <div className="te-pair grid gap-6 xl:grid-cols-2">
         <PracticeList
           Title="Priority Queue"
           Description="Practice requiring follow-up appears here."
@@ -1158,7 +1124,7 @@ function OverviewTab({
 function LevelCoverageCard({ Rows }: { Rows: AnyRow[] }) {
   const Items = LevelCoverageItems(Rows);
   return (
-    <div className="mt-5 rounded-[24px] border border-slate-100 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+    <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="math-block-header">
@@ -1169,7 +1135,7 @@ function LevelCoverageCard({ Rows }: { Rows: AnyRow[] }) {
             Cleared DPS Out Of Available Sheets
           </h3>
         </div>
-        <Chip tone="blue">{Items.length} Level(s)</Chip>
+        <Chip tone="blue">{Items.length} {Items.length === 1 ? "Level" : "Levels"}</Chip>
       </div>
       <div className="mt-4 grid gap-3">
         {Items.length ? (
@@ -1303,7 +1269,7 @@ function CompactPracticeRow({
     <div className="flex flex-col gap-3 rounded-[20px] bg-slate-50/80 p-4 dark:bg-slate-900/70 xl:flex-row xl:items-center xl:justify-between">
       <div>
         <p className="text-sm font-black text-slate-950 dark:text-white">
-          {CompactDpsLabel(Row)}
+          {TeacherDpsTitle(Row)}
         </p>
         <p className="mt-1 text-xs font-bold text-slate-500">
           {moduleCodeOf(Row)} · {levelCodeOf(Row)}
@@ -1858,4 +1824,11 @@ function PracticeRowsTable({
       </div>
     </div>
   );
+}
+
+// "Lesson 3 · DPS 1": the DPS number alone does not say which lesson.
+function TeacherDpsTitle(Row: AnyRow) {
+  const Dps = String(CompactDpsLabel(Row)).replace(/^DPS-/, "DPS ");
+  const Lesson = Row.lessonNumber ?? Row.lessonNo ?? Row.lessonSequence;
+  return Lesson !== undefined && Lesson !== null && Lesson !== "" ? `Lesson ${Lesson} · ${Dps}` : Dps;
 }

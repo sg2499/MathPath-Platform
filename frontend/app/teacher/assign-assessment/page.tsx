@@ -306,7 +306,7 @@ export default function TeacherAssignAssessmentPage() {
             <p className="math-subtitle">Assign live level assessments to your students.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <Metric label="Students" value={Data?.summary.students ?? 0} helper="Teacher Roster" icon={<UsersRound size={17} />} />
+            <Metric label="Students" value={Data?.summary.students ?? 0} helper="Active Students You Teach" icon={<UsersRound size={17} />} />
             <Metric label="Live Assessments" value={Data?.summary.availableAssessments ?? 0} helper="Open For Assignment" icon={<GraduationCap size={17} />} />
             <Metric label="Eligible Students" value={Data?.summary.assignableStudents ?? 0} helper={Data?.summary.strictReadinessMode ? "Ready / Override" : "Assignable Now"} icon={<UserCheck size={17} />} />
             <Metric label="Assigned Assessments" value={Data?.summary.alreadyAssigned ?? 0} helper="Original Assignments" icon={<ShieldCheck size={17} />} />
@@ -316,7 +316,7 @@ export default function TeacherAssignAssessmentPage() {
 
         {Data?.summary ? <ReadinessGateBanner Summary={Data.summary} /> : null}
 
-        <div className="grid gap-5 xl:grid-cols-[390px_1fr]">
+        <div className="grid items-start gap-5 xl:grid-cols-[390px_1fr]">
           <aside className="rounded-[32px] border border-white/70 bg-white/90 p-5 shadow-xl dark:border-slate-800 dark:bg-slate-950/80">
             <div className="flex items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--mp-role-soft)] text-[var(--mp-role-readable)]"><GraduationCap size={20} /></span>
@@ -368,17 +368,17 @@ export default function TeacherAssignAssessmentPage() {
 
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-[22px] border border-white/70 bg-white/85 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/75">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 dark:text-slate-300">{Data?.summary.readinessBypassEnabled ? "Readiness" : "Readiness Gate"}</p>
+                <p className="te-mini-label">{Data?.summary.readinessBypassEnabled ? "Readiness" : "Readiness Gate"}</p>
                 <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{Data?.summary.readinessBypassEnabled ? "Guide Only" : Data?.summary.assignmentGateLabel || "Readiness Gate"}</p>
               </div>
               <div className="rounded-[22px] border border-white/70 bg-white/85 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/75">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 dark:text-slate-300">Ready Students</p>
+                <p className="te-mini-label">Ready Students</p>
                 <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{Data?.summary.readyStudents ?? 0}</p>
               </div>
               <div className="rounded-[22px] border border-white/70 bg-white/85 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/75">
                 {/* Nobody is blocked while readiness is a guide, so this card counts
                     the students whose practice is not complete instead. */}
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 dark:text-slate-300">{Data?.summary.strictReadinessMode ? "Blocked Students" : "Practice Incomplete"}</p>
+                <p className="te-mini-label">{Data?.summary.strictReadinessMode ? "Blocked Students" : "Practice Incomplete"}</p>
                 <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">{Data?.summary.strictReadinessMode ? (Data?.summary.strictBlockedStudents ?? 0) : (Data?.summary.readinessBypassStudents ?? 0)}</p>
               </div>
             </div>
@@ -411,7 +411,7 @@ export default function TeacherAssignAssessmentPage() {
               {AssignMutation.isError ? <div className="mt-4"><ErrorState message={apiErrorMessage(AssignMutation.error)} /></div> : null}
 
               <div className="mt-5 rounded-[24px] bg-slate-50 p-4 dark:bg-slate-900/70">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-600 dark:text-slate-300">Assessment Instructions</p>
+                <p className="te-mini-label">Assessment Instructions</p>
                 <textarea className="math-input mt-3 min-h-[88px]" value={Instructions} onChange={(Event) => SetInstructions(Event.target.value)} placeholder="Assessment instructions" />
               </div>
 
@@ -431,7 +431,7 @@ export default function TeacherAssignAssessmentPage() {
                             <p className="font-black text-slate-950 dark:text-white">{Student.studentName}</p>
                             <StudentStatusPill Student={Student} />
                           </div>
-                          <p className="mt-1 text-xs font-bold text-slate-500"><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{Student.studentCode}</span> · {Student.moduleCode || "Module"} · {Student.levelCode || "Level"}</p>
+                          <p className="mt-1 text-xs font-bold text-slate-500"><span className="te-code-inline !ml-0">{Student.studentCode}</span> · {Student.moduleCode || "Module"} · {Student.levelCode || "Level"}</p>
                           <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{Student.testAccount ? "Test account: can be given any level's assessment, as often as needed." : Student.canAssign ? (Student.approvedReattemptAccess ? "Admin-approved re-attempt access is available." : Student.testingOverrideApplied ? "Eligible through controlled assessment access." : Student.readinessBypassApplied ? GuideLineForStudent(Student) : "Ready for original assessment assignment.") : BlockReason}</p>
                         </div>
                       </div>

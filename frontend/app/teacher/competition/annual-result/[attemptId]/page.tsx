@@ -40,7 +40,7 @@ import {
 import { useParams, useRouter } from "next/navigation";
 
 function FormatDurationSeconds(Value: number | null | undefined): string {
-  if (Value === null || Value === undefined) return "-";
+  if (Value === null || Value === undefined) return "—";
   const Total = Math.max(0, Math.round(Number(Value) || 0));
   const Minutes = Math.floor(Total / 60);
   const Seconds = Total % 60;
@@ -57,7 +57,7 @@ function FormatDurationSeconds(Value: number | null | undefined): string {
 // second layer on top of the backend's own RoundPercentageForDisplay
 // rounding.
 function FormatNumber(Value: number | null | undefined): string {
-  if (Value === null || Value === undefined || Number.isNaN(Number(Value))) return "-";
+  if (Value === null || Value === undefined || Number.isNaN(Number(Value))) return "—";
   return String(Math.round(Number(Value)));
 }
 
@@ -100,28 +100,28 @@ export default function TeacherAnnualCompetitionAttemptReviewPage() {
     );
   }
 
+  // 2026-10 (teacher revamp): Back sits above the card, at the right, as on
+  // every other teacher result page.
   const BackButton = (
-    <button
-      type="button"
-      className="math-button-secondary mb-4 inline-flex items-center gap-1.5 px-4 py-2 text-sm"
-      onClick={() => Router.push("/teacher/competition/annual")}
-    >
-      <ArrowLeft size={14} />
-      Back To Annual Competition
-    </button>
+    <div className="te-back-row">
+      <button type="button" className="te-back" onClick={() => Router.push("/teacher/competition/annual")}>
+        <ArrowLeft size={16} />
+        Back To Annual Competition
+      </button>
+    </div>
   );
 
   if (!Review.released) {
     return (
       <AppShell title="Annual Competition Attempt Review">
         <section className="space-y-5">
+          {BackButton}
           <div className="math-card p-6">
-            {BackButton}
             <p className="math-block-header"><BookOpenCheck size={14} />Attempt Review</p>
-            <h1 className="math-title">Not released yet</h1>
+            <h1 className="math-title">Results Not Released Yet</h1>
             <p className="mt-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-              This attempt hasn't been submitted yet, or — for an official competition attempt — results haven't been
-              released by an admin yet. Check back once that's done.
+              This attempt has not been submitted yet, or the admin has not released the official results yet.
+              They show here once that is done.
             </p>
           </div>
         </section>
@@ -134,9 +134,9 @@ export default function TeacherAnnualCompetitionAttemptReviewPage() {
   return (
     <AppShell title="Annual Competition Attempt Review">
       <section className="space-y-5">
+        {BackButton}
         <div className="math-card p-6">
-          {BackButton}
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="math-block-header"><BookOpenCheck size={14} />Attempt Review</p>
               <h1 className="math-title">{Review.studentName || Review.studentCode || Review.studentId}</h1>
@@ -144,13 +144,13 @@ export default function TeacherAnnualCompetitionAttemptReviewPage() {
                 {Review.studentCode ? <Chip label={Review.studentCode} /> : null}
                 {Review.competitionLevelCode ? <Chip label={FormatCompetitionLevelLabel(Review.competitionLevelCode)} /> : null}
                 {Review.attemptType ? (
-                  <Chip tone={Review.attemptType === "PRACTICE" ? "amber" : "slate"}>{Review.attemptType}</Chip>
+                  <Chip tone={Review.attemptType === "PRACTICE" ? "amber" : "slate"}>{Review.attemptType === "PRACTICE" ? "Practice" : "Official"}</Chip>
                 ) : null}
               </div>
             </div>
             {Result ? (
-              <div className="rounded-[24px] border border-[#2563eb]/25 bg-[#2563eb]/5 px-6 py-4 text-center dark:border-cyan-300/30 dark:bg-cyan-400/10">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2563eb] dark:text-cyan-100">Score</p>
+              <div className="rounded-[24px] border border-[#7a1f58]/25 bg-[#7a1f58]/5 px-6 py-4 text-center dark:border-rose-300/30 dark:bg-rose-400/10">
+                <p className="te-mini-label">Score</p>
                 <p className="mt-1 text-4xl font-black text-slate-950 dark:text-white">
                   {FormatNumber(Result.score)}/{FormatNumber(Result.maxScore)}
                 </p>
@@ -168,11 +168,11 @@ export default function TeacherAnnualCompetitionAttemptReviewPage() {
         </div>
 
         {Result ? (
-          <div className="grid gap-4 lg:grid-cols-4">
-            <MetricCard icon={<Target size={18} />} label="ACCURACY" value={`${FormatNumber(Result.accuracyPercentage)}%`} helper={`${Result.correctCount} correct, ${Result.wrongCount} wrong`} />
-            <MetricCard icon={<CheckCircle2 size={18} />} label="CORRECT" value={Result.correctCount} helper={`${Result.unansweredCount} unanswered`} />
-            <MetricCard icon={<Trophy size={18} />} label="RANK" value={Result.rank ?? "-"} helper="Among ranked official attempts" />
-            <MetricCard icon={<Clock3 size={18} />} label="TIME TAKEN" value={FormatDurationSeconds(Result.timeTakenSeconds)} helper="Across all sections" />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard icon={<Target size={18} />} label="Accuracy" value={`${FormatNumber(Result.accuracyPercentage)}%`} helper={`${Result.correctCount} correct, ${Result.wrongCount} wrong`} />
+            <MetricCard icon={<CheckCircle2 size={18} />} label="Correct" value={Result.correctCount} helper={`${Result.unansweredCount} unanswered`} />
+            <MetricCard icon={<Trophy size={18} />} label="Rank" value={Result.rank ?? "—"} helper={Review.attemptType === "PRACTICE" ? "Practice is not ranked" : "Among ranked official attempts"} />
+            <MetricCard icon={<Clock3 size={18} />} label="Time Taken" value={FormatDurationSeconds(Result.timeTakenSeconds)} helper="Across all sections" />
           </div>
         ) : null}
 
@@ -186,8 +186,8 @@ export default function TeacherAnnualCompetitionAttemptReviewPage() {
 
 function MetricCard({ icon, label, value, helper }: { icon: React.ReactNode; label: string; value: string | number; helper: string }) {
   return (
-    <article className="math-card p-5">
-      <div className="inline-flex rounded-2xl bg-[#2563eb]/5 p-2 text-[#2563eb] dark:bg-cyan-400/10 dark:text-cyan-100">{icon}</div>
+    <article className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-5">
+      <div className="math-teacher-icon-chip">{icon}</div>
       <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 dark:text-slate-300">{label}</p>
       <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">{value}</p>
       <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-300">{helper}</p>
@@ -228,7 +228,7 @@ function ScorecardTab({ Review }: { Review: TeacherAnnualCompetitionAttemptRevie
       </div>
 
       {Rows.length === 0 ? (
-        <p className="rounded-[20px] border border-[#2563eb]/15 bg-[#2563eb]/5 p-4 text-sm font-bold text-slate-700 dark:border-cyan-300/25 dark:bg-cyan-400/10 dark:text-slate-300">
+        <p className="rounded-[20px] border border-[#7a1f58]/15 bg-[#7a1f58]/5 p-4 text-sm font-bold text-slate-700 dark:border-rose-300/25 dark:bg-rose-400/10 dark:text-slate-300">
           No section data is available for this attempt yet.
         </p>
       ) : (
@@ -257,20 +257,20 @@ function ScorecardTab({ Review }: { Review: TeacherAnnualCompetitionAttemptRevie
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-[#2563eb]/30 dark:border-cyan-300/30">
-                <td className="px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">Total</td>
+              <tr className="border-t-2 border-[#7a1f58]/30 dark:border-rose-300/30">
+                <td className="px-3 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#7a1f58] dark:text-rose-100">Total</td>
                 <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{TotalQuestions}</td>
                 <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{TotalAttempted}</td>
                 <td className="px-3 py-3 text-right font-black text-slate-950 dark:text-white">{TotalMarksObtained}</td>
-                <td className="px-3 py-3 text-right text-lg font-black text-[#2563eb] dark:text-cyan-100">{TotalMarksObtained}</td>
+                <td className="px-3 py-3 text-right text-lg font-black text-[#7a1f58] dark:text-rose-100">{TotalMarksObtained}</td>
               </tr>
             </tfoot>
           </table>
         </div>
       )}
 
-      <div className="mt-4 rounded-[22px] border border-[#2563eb]/25 bg-[#2563eb]/5 px-5 py-4 text-center dark:border-cyan-300/30 dark:bg-cyan-400/10">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2563eb] dark:text-cyan-100">Total Marks Obtained</p>
+      <div className="mt-4 rounded-[22px] border border-[#7a1f58]/25 bg-[#7a1f58]/5 px-5 py-4 text-center dark:border-rose-300/30 dark:bg-rose-400/10">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7a1f58] dark:text-rose-100">Total Marks Obtained</p>
         <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
           {TotalMarksObtained}/{TotalQuestions}
         </p>

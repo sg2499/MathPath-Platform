@@ -306,7 +306,7 @@ export default function TeacherAssessmentReadinessPage() {
             onChange={(event) => setFilter(event.target.value as Filter)}
           >
             <option value="" disabled>
-              Choose Readiness Status
+              Choose Status
             </option>
             <option value="ALL">All Readiness Statuses</option>
             <option value="READY">Ready</option>
@@ -361,23 +361,26 @@ export default function TeacherAssessmentReadinessPage() {
                 onCollapse={() => setBranch(skey, false)}
                 title={
                   <>
-                    {row.studentName}{" "}
-                    <span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">({row.studentCode})</span>
+                    {row.studentName}
+                    <span className="te-code-inline">{row.studentCode}</span>
                     <DemoTag studentId={row.studentId} studentCode={row.studentCode} />
                   </>
                 }
                 subtitle={undefined}
                 chips={
                   <>
-                    <Chip tone="blue">{row.requiredDpsCount} DPS</Chip>
                     <Chip tone={row.eligible ? "green" : "amber"}>
                       {row.statusLabel}
                     </Chip>
-                    <Chip tone={row.belowBenchmarkDpsCount ? "red" : "green"}>
-                      {row.progressPercentage}% progress
-                    </Chip>
+                    {row.belowBenchmarkDpsCount ? (
+                      <Chip tone="red">Needs Re-Attempt: {row.belowBenchmarkDpsCount}</Chip>
+                    ) : null}
                   </>
                 }
+                meter={{
+                  percent: row.progressPercentage,
+                  label: `${row.passedDpsCount} of ${row.requiredDpsCount} DPS Cleared`,
+                }}
               >
                 <NodeCard
                   open={!!open[mkey]}
@@ -398,11 +401,11 @@ export default function TeacherAssessmentReadinessPage() {
                     chips={
                       <>
                         <Chip tone="blue">
-                          {row.passedDpsCount}/{row.requiredDpsCount} cleared
+                          {row.passedDpsCount}/{row.requiredDpsCount} Cleared
                         </Chip>
                         {row.missingDpsCount ? (
                           <Chip tone="amber">
-                            {row.missingDpsCount} missing
+                            {row.missingDpsCount} Not Done Yet
                           </Chip>
                         ) : null}
                         {row.belowBenchmarkDpsCount ? (
@@ -788,6 +791,7 @@ function NodeCard({
   title,
   subtitle,
   chips,
+  meter,
   compact,
   children,
 }: {
@@ -798,14 +802,15 @@ function NodeCard({
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   chips?: React.ReactNode;
+  meter?: { percent: number; label: string };
   compact?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <article
-      className={`overflow-hidden rounded-[30px] border border-slate-200 bg-white/90 shadow-sm dark:border-slate-800 dark:bg-slate-950/80 ${compact ? "mt-4" : ""}`}
+      className={`te-node overflow-hidden rounded-[30px] border border-slate-200 bg-white/90 shadow-sm dark:border-slate-800 dark:bg-slate-950/80 ${compact ? "mt-4" : ""}`}
     >
-      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
+      <div className="te-node-head flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
         <button
           type="button"
           onClick={onToggle}
@@ -828,7 +833,18 @@ function NodeCard({
             ) : null}
           </div>
         </button>
-        <BranchButtons onExpand={onExpand} onCollapse={onCollapse} />
+        {meter ? (
+          <div className="te-meter" aria-label={`${meter.label}, ${meter.percent}%`}>
+            <div className="te-meter-text">
+              <span>{meter.label}</span>
+              <b>{meter.percent}%</b>
+            </div>
+            <div className="te-meter-track" aria-hidden="true">
+              <i style={{ width: `${Math.max(0, Math.min(100, meter.percent))}%` }} />
+            </div>
+          </div>
+        ) : null}
+        <BranchButtons open={open} onExpand={onExpand} onCollapse={onCollapse} />
       </div>
       {open ? (
         <div className="border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800">
@@ -839,40 +855,31 @@ function NodeCard({
   );
 }
 
+// One labelled button instead of two unlabelled icons: "Open All" opens this
+// row and everything inside it; "Close All" closes them again.
 function BranchButtons({
+  open,
   onExpand,
   onCollapse,
 }: {
+  open: boolean;
   onExpand: () => void;
   onCollapse: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        title="Expand this branch"
-        aria-label="Expand this branch"
-        className="math-readiness-branch-button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onExpand();
-        }}
-      >
-        <Maximize2 size={15} strokeWidth={2.4} />
-      </button>
-      <button
-        type="button"
-        title="Collapse this branch"
-        aria-label="Collapse this branch"
-        className="math-readiness-branch-button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onCollapse();
-        }}
-      >
-        <Minimize2 size={15} strokeWidth={2.4} />
-      </button>
-    </div>
+    <button
+      type="button"
+      className="te-branch-btn"
+      title={open ? "Close this and everything inside it" : "Open this and everything inside it"}
+      onClick={(event) => {
+        event.stopPropagation();
+        if (open) onCollapse();
+        else onExpand();
+      }}
+    >
+      {open ? <Minimize2 size={14} strokeWidth={2.4} /> : <Maximize2 size={14} strokeWidth={2.4} />}
+      {open ? "Close All" : "Open All"}
+    </button>
   );
 }
 

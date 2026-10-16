@@ -366,25 +366,31 @@ export default function TeacherPromotionHistoryPage() {
 
   return (
     <AppShell title="Promotion History">
-      <section className="mx-auto max-w-[1680px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-        <div className="math-hero p-6">
-          <p className="math-block-header">
-            <Award size={14} />
-            Progression Tracking
-          </p>
-          <h1 className="math-title mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-white">
-            Promotion History
-          </h1>
-          <p className="math-subtitle">
-            Review completed level promotions for your assigned students without
-            changing admin-controlled progression records.
-          </p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric
-              Label="Promoted Students"
-              Value={PromotionStudentCount}
-              Icon={<ShieldCheck size={15} />}
-            />
+      <section className="space-y-6">
+        <div className="math-hero">
+          {/* 2026-10 (teacher revamp): the one number tile sits beside the title,
+              not alone on a row of its own */}
+          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <p className="math-block-header">
+                <Award size={14} />
+                Progression Tracking
+              </p>
+              <h1 className="math-title">
+                Promotion History
+              </h1>
+              <p className="math-subtitle">
+                Review completed level promotions for your assigned students without
+                changing admin-controlled progression records.
+              </p>
+            </div>
+            <div className="w-full shrink-0 lg:w-72">
+              <Metric
+                Label="Promoted Students"
+                Value={PromotionStudentCount}
+                Icon={<ShieldCheck size={15} />}
+              />
+            </div>
           </div>
         </div>
 

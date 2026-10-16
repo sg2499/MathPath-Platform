@@ -114,6 +114,14 @@ const TrackerTabValues: TrackerTab[] = [
   "RECENT_PRACTICE",
 ];
 
+// "Lesson 3 · DPS 1" for teacher screens (the shared short labels read
+// "Lesson-3" and "DPS-1", and a DPS number alone does not say which lesson).
+function TeacherDpsTitle(Row: AnyRow) {
+  const Dps = String(CompactDpsLabel(Row)).replace(/^DPS-/, "DPS ");
+  const Lesson = Row.lessonNumber ?? Row.lessonNo ?? Row.lessonSequence;
+  return Lesson !== undefined && Lesson !== null && Lesson !== "" ? `Lesson ${Lesson} · ${Dps}` : Dps;
+}
+
 function NormalizeTrackerTab(Value?: string | null): TrackerTab {
   const NormalizedValue = String(Value || "").trim().toUpperCase().replace(/-/g, "_");
   return TrackerTabValues.includes(NormalizedValue as TrackerTab)
@@ -984,7 +992,7 @@ function OverviewTab({
 
   return (
     <div className="grid gap-6">
-      <div className="grid gap-6 xl:grid-cols-[1fr_1.05fr]">
+      <div className="te-pair grid gap-6 xl:grid-cols-[1fr_1.05fr]">
         <CompactPracticeList
           Title="Priority Queue"
           Description="Practice work requiring teacher follow-up first."
@@ -1099,11 +1107,10 @@ function CompactPracticeRow({
         <div className="min-w-0">
           <p className="text-sm font-black text-slate-950 dark:text-white">
             {studentNameOf(Row)}{" "}
-            <span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">({StudentCode})</span>
+            <span className="te-code-inline">{StudentCode}</span>
           </p>
           <p className="mt-1 text-xs font-bold text-slate-500">
-            {moduleCodeOf(Row)} · {levelCodeOf(Row)} · {CompactLessonLabel(Row)}{" "}
-            · {CompactDpsLabel(Row)}
+            {moduleCodeOf(Row)} · {levelCodeOf(Row)} · {TeacherDpsTitle(Row)}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -1181,14 +1188,14 @@ function ExcellenceHighlightsList({
               key={Group.GroupKey}
               className="rounded-[20px] border border-emerald-100 bg-emerald-50/50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20"
             >
-              <div className="flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-200">
+              <div className="te-crumb flex flex-wrap items-center gap-x-2 gap-y-1 text-emerald-800 dark:text-emerald-200">
                 <span>{Group.ModuleCode}</span>
-                <span className="opacity-45">→</span>
+                <span aria-hidden="true">·</span>
                 <span>{Group.LevelCode}</span>
-                <span className="opacity-45">→</span>
-                <span>{Group.LessonLabel}</span>
-                <span className="opacity-45">→</span>
-                <span>{Group.DpsLabel}</span>
+                <span aria-hidden="true">·</span>
+                <span>{String(Group.LessonLabel).replace(/^Lesson-/, "Lesson ")}</span>
+                <span aria-hidden="true">·</span>
+                <span>{String(Group.DpsLabel).replace(/^DPS-/, "DPS ")}</span>
               </div>
               <div className="mt-3 grid gap-2">
                 {Group.Rows.map((Row, Index) => (
@@ -1199,12 +1206,10 @@ function ExcellenceHighlightsList({
                     <div className="min-w-0">
                       <p className="text-sm font-black text-slate-950 dark:text-white">
                         {studentNameOf(Row)}{" "}
-                        <span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
-                          ({studentCodeOf(Row)})
-                        </span>
+                        <span className="te-code-inline">{studentCodeOf(Row)}</span>
                       </p>
                       <p className="mt-1 text-xs font-bold text-slate-500">
-                        Excellence-level practice
+                        In the Excellence Zone
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -1468,9 +1473,9 @@ function ActionQueueTab({
           onChange={(key, direction) => SetSortStateValue(key === NATURAL_SORT_KEY ? null : { Key: key, Direction: direction })}
         />
       </div>
-      <div className="w-full overflow-x-auto">
+      <div className="te-gtable w-full overflow-x-auto">
         <div className="min-w-[800px] xl:min-w-0">
-          <div className="math-teacher-practice-record-table-header grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_minmax(0,.6fr)_minmax(0,1.2fr)_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+          <div className="te-ghead math-teacher-practice-record-table-header grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_minmax(0,.6fr)_minmax(0,1.2fr)_120px] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
             <SortableHeader Label="Student" SortKey="student" SortState={SortStateValue} OnSort={HandleSort} />
             <SortableHeader Label="DPS" SortKey="dps" SortState={SortStateValue} OnSort={HandleSort} />
             <SortableHeader Label="Accuracy" SortKey="accuracy" SortState={SortStateValue} OnSort={HandleSort} Align="center" />
@@ -1486,9 +1491,9 @@ function ActionQueueTab({
               return (
                 <div
                   key={`${Row.attemptId || Row.assignmentId || Row.id || Index}`}
-                  className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_minmax(0,.6fr)_minmax(0,1.2fr)_120px] items-center gap-3 px-5 py-4 transition hover:bg-rose-50/40 dark:hover:bg-slate-900/70"
+                  className="te-grow grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_minmax(0,.6fr)_minmax(0,1.2fr)_120px] items-center gap-3 px-5 py-4 transition hover:bg-rose-50/40 dark:hover:bg-slate-900/70"
                 >
-                  <div className="min-w-0">
+                  <div className="te-gtitle min-w-0">
                     <button
                       type="button"
                       className="truncate text-left text-sm font-black !text-slate-950 transition hover:!text-blue-700 dark:!text-white"
@@ -1496,19 +1501,19 @@ function ActionQueueTab({
                     >
                       {studentNameOf(Row)}
                     </button>
-                    <p className="mt-0.5 truncate text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
+                    <p className="te-code truncate">
                       {StudentCode}
                     </p>
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0" data-label="DPS">
                     <p className="font-black text-slate-950 dark:text-white">
-                      {CompactDpsLabel(Row)}
+                      {TeacherDpsTitle(Row)}
                     </p>
                     <p className="text-xs font-semibold text-slate-500">
                       {moduleCodeOf(Row)} · {levelCodeOf(Row)}
                     </p>
                   </div>
-                  <div className="flex items-center justify-center">
+                  <div className="flex items-center justify-center" data-label="Accuracy">
                     <Chip
                       tone={
                         RowCompleted && accuracy(Row) >= 70
@@ -1521,7 +1526,7 @@ function ActionQueueTab({
                       {RowCompleted ? `${accuracy(Row)}%` : "—"}
                     </Chip>
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0" data-label="Status">
                     <ChainStatusStack
                       row={Row}
                       label={StatusText}
@@ -1536,7 +1541,7 @@ function ActionQueueTab({
                       }
                     />
                   </div>
-                  <div className="flex justify-end">
+                  <div className="te-gaction flex justify-end">
                     <StandardViewButton
                       label="Review"
                       tooltip="Open student practice review"
@@ -1599,9 +1604,9 @@ function StudentReviewTab({
           onChange={(key, direction) => SetSortStateValue(key === NATURAL_SORT_KEY ? null : { Key: key, Direction: direction })}
         />
       </div>
-      <div className="w-full overflow-x-auto">
+      <div className="te-gtable te-gtable-wide w-full overflow-x-auto">
         <div className="min-w-[1100px] xl:min-w-0">
-          <div className="math-teacher-practice-record-table-header grid grid-cols-[17fr_6fr_6fr_8fr_8fr_8fr_10fr_10fr_11fr_11fr_8fr] items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-4 text-[10px] font-black uppercase tracking-[0.07em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+          <div className="te-ghead math-teacher-practice-record-table-header grid grid-cols-[17fr_6fr_6fr_8fr_8fr_8fr_10fr_10fr_11fr_11fr_8fr] items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-4 text-xs font-black uppercase tracking-[0.07em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
             <StudentReviewHeader SortKey="student">Student</StudentReviewHeader>
             <StudentReviewHeader SortKey="module" Align="center">Module</StudentReviewHeader>
             <StudentReviewHeader SortKey="level" Align="center">Level</StudentReviewHeader>
@@ -1621,9 +1626,9 @@ function StudentReviewTab({
               return (
                 <div
                   key={Student.key}
-                  className="grid grid-cols-[17fr_6fr_6fr_8fr_8fr_8fr_10fr_10fr_11fr_11fr_8fr] items-center gap-2 px-3 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
+                  className="te-grow grid grid-cols-[17fr_6fr_6fr_8fr_8fr_8fr_10fr_10fr_11fr_11fr_8fr] items-center gap-2 px-3 py-4 transition hover:bg-rose-50/40 dark:hover:bg-slate-900/70"
                 >
-                  <div className="min-w-0">
+                  <div className="te-gtitle min-w-0">
                     <button
                       type="button"
                       className="truncate text-left text-sm font-black !text-slate-950 transition hover:!text-blue-700 dark:!text-white"
@@ -1632,44 +1637,44 @@ function StudentReviewTab({
                       {Student.studentName}
                     </button>
                     <DemoTag studentCode={Student.studentCode} />
-                    <p className="mt-0.5 truncate text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
-                                    {Student.studentCode}
-                                  </p>
+                    <p className="te-code truncate">
+                      {Student.studentCode}
+                    </p>
                   </div>
-                  <div className="text-center text-sm font-bold text-slate-600">
+                  <div className="text-center text-sm font-bold text-slate-600" data-label="Module">
                     {StudentPrimaryModule(Student)}
                   </div>
-                  <div className="text-center text-sm font-bold text-slate-600">
+                  <div className="text-center text-sm font-bold text-slate-600" data-label="Level">
                     {StudentPrimaryLevel(Student)}
                   </div>
-                  <div className="flex justify-center">
+                  <div className="flex justify-center" data-label="Assigned DPS">
                     <Chip tone="blue">{Stats.Assigned}</Chip>
                   </div>
-                  <div className="flex justify-center">
+                  <div className="flex justify-center" data-label="Cleared DPS">
                     <Chip tone="green">{Stats.Cleared}</Chip>
                   </div>
-                  <div className="flex justify-center">
+                  <div className="flex justify-center" data-label="Pending DPS">
                     <Chip tone="amber">
                       {Stats.Pending}
                     </Chip>
                   </div>
-                  <div className="flex justify-center">
+                  <div className="flex justify-center" data-label="Needs Re-Attempt">
                     <Chip tone="red">
                       {Stats.NeedsReattempt}
                     </Chip>
                   </div>
-                  <div className="flex justify-center">
+                  <div className="flex justify-center" data-label="Average Accuracy">
                     <Chip tone={accuracyTone(Stats.Average)}>
                       {formatAccuracyPercent(Stats.Average)}
                     </Chip>
                   </div>
-                  <div className="flex justify-center">
+                  <div className="flex justify-center" data-label="Performance">
                     <Chip tone={Band.Tone}>{Band.Label}</Chip>
                   </div>
-                  <div className="text-center text-xs font-bold leading-snug text-slate-600">
+                  <div className="text-center text-xs font-bold leading-snug text-slate-600" data-label="Last Activity">
                     {Stats.Last}
                   </div>
-                  <div className="flex justify-end">
+                  <div className="te-gaction flex justify-end">
                     <StandardViewButton
                       label="Review"
                       tooltip="Open student practice review"

@@ -7,6 +7,10 @@ import { Trophy, Users, AlertCircle, ChevronDown, Star } from "lucide-react";
 import { AppShell } from "@/components/common/AppShell";
 import { TeacherMockLeaderboardAPI } from "@/lib/api-teacher-leaderboard";
 import { LoadingState } from "@/components/common/LoadingState";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { getTeacherStudents } from "@/lib/api/teacher";
+import { PickTeacherDefaultLevelId, PickTeacherDefaultModuleId } from "../teacherDefaultModule";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { useSearchParams } from "next/navigation";
 import type {
@@ -170,7 +174,7 @@ function PodiumCard({ entry, rank, isHighlighted, cardRef, onActivateHero }: { e
         </div>
       </div>
 
-      <div className="text-center mb-3 relative z-30 drop-shadow-lg bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 w-56 md:w-64 mx-auto">
+      <div className="text-center mb-3 relative z-30 drop-shadow-lg te-podium-name bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 w-56 md:w-64 mx-auto">
         <p className={`font-black text-sm md:text-base text-white truncate flex items-center justify-center gap-1.5 ${rank === 1 ? 'drop-shadow-[0_0_15px_rgba(250,204,21,1)]' : ''}`}>
           {entry.name}
           {entry.isOwnStudent && <Star size={12} className="text-[var(--mp-role-accent)] shrink-0" fill="currentColor" />}
@@ -217,16 +221,16 @@ function TableRow({ row, isHighlighted, rowRef }: { row: TeacherLeaderboardEntry
       ref={rowRef}
       className={`group transition-colors ${isHighlighted ? "bg-[var(--mp-role-primary)]/15 ring-2 ring-inset ring-[var(--mp-role-primary)] animate-pulse z-10 relative" : row.isOwnStudent ? "bg-[var(--mp-role-primary)]/5" : "hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
     >
-      <td className="px-6 py-4 font-black text-slate-500 dark:text-slate-400 group-hover:text-[var(--mp-role-primary)] transition-colors">#{row.rank}</td>
-      <td className="px-6 py-4">
+      <td data-label="Rank" className="te-board-rank px-6 py-4 font-black text-slate-500 dark:text-slate-400 group-hover:text-[var(--mp-role-primary)] transition-colors">#{row.rank}</td>
+      <td className="te-card-title px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[var(--mp-role-accent)] dark:bg-[var(--mp-role-primary)]/40 overflow-hidden flex-shrink-0 shadow-sm ring-1 ring-[var(--mp-role-primary)]/15">
+          <div className="te-board-avatar w-9 h-9 rounded-full bg-[var(--mp-role-accent)] dark:bg-[var(--mp-role-primary)]/40 overflow-hidden flex-shrink-0 shadow-sm ring-1 ring-[var(--mp-role-primary)]/15">
             {row.photoUrl ? <img src={row.photoUrl} alt="avatar" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-black text-xs text-[var(--mp-role-primary)] dark:text-[var(--mp-role-accent)]">{getInitials(row.name)}</div>}
           </div>
           <div className="min-w-0">
             <p className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">{row.name}<DemoTag studentId={row.studentId} /></p>
             {row.isOwnStudent && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-[var(--mp-role-primary)]">
+              <span className="te-own-student inline-flex items-center gap-1 text-[11px] font-black text-[var(--mp-role-primary)]">
                 <Star size={10} fill="currentColor" /> Your Student
               </span>
             )}
@@ -234,8 +238,8 @@ function TableRow({ row, isHighlighted, rowRef }: { row: TeacherLeaderboardEntry
           {row.topBadges && row.topBadges.length > 0 && <TopBadgeChips badges={row.topBadges} size="xs" />}
         </div>
       </td>
-      <td className="px-6 py-4 text-center font-black text-sm text-slate-800 dark:text-slate-100">{Math.round(row.accuracy)}%</td>
-      <td className="px-6 py-4 text-right hidden sm:table-cell font-black text-sm text-slate-700 dark:text-slate-300">
+      <td data-label="Accuracy" className="px-6 py-4 text-center font-black text-sm text-slate-800 dark:text-slate-100">{Math.round(row.accuracy)}%</td>
+      <td data-label="Time" className="px-6 py-4 text-right font-black text-sm text-slate-700 dark:text-slate-300">
         {Math.floor(row.timeTakenSeconds / 60)}m {row.timeTakenSeconds % 60}s
       </td>
     </tr>
@@ -269,7 +273,10 @@ function TeacherMockLeaderboardPageInner() {
   useEffect(() => {
     async function loadHierarchy() {
       try {
-        const data: TeacherMockHierarchyResponse = await TeacherMockLeaderboardAPI.getHierarchy();
+        const [data, ownStudents]: [TeacherMockHierarchyResponse, Awaited<ReturnType<typeof getTeacherStudents>> | null] = await Promise.all([
+          TeacherMockLeaderboardAPI.getHierarchy(),
+          getTeacherStudents().catch(() => null),
+        ]);
         const fetchedModules = data.modules || [];
         const fetchedLevels = data.levels || [];
         const fetchedExams = data.exams || [];
@@ -290,9 +297,8 @@ function TeacherMockLeaderboardPageInner() {
           targetLevelId = deepLinkLevelId;
           targetModuleId = fetchedLevels.find((l) => l.id === deepLinkLevelId)?.moduleId || null;
         } else if (fetchedModules.length > 0) {
-          targetModuleId = fetchedModules[0].id;
-          const modLevels = fetchedLevels.filter((l) => l.moduleId === targetModuleId);
-          if (modLevels.length > 0) targetLevelId = modLevels[0].id;
+          targetModuleId = PickTeacherDefaultModuleId(fetchedModules, ownStudents);
+          targetLevelId = PickTeacherDefaultLevelId(fetchedLevels, targetModuleId, ownStudents);
         }
 
         if (deepLinkExamId && fetchedExams.some((e) => e.id === deepLinkExamId)) {
@@ -365,7 +371,7 @@ function TeacherMockLeaderboardPageInner() {
 
   return (
     <AppShell title="Mock Leaderboard">
-      <div className="math-role-teacher math-page space-y-6">
+      <div className="math-role-teacher w-full space-y-6">
         <PodiumHeroAnimation
           rank={activeHeroRank}
           viewMode={viewMode}
@@ -378,16 +384,16 @@ function TeacherMockLeaderboardPageInner() {
           <p className="math-subtitle">See how your students rank in competition mock exams, across the whole class.</p>
 
           <div className="mt-6 flex flex-col xl:flex-row xl:items-center justify-between gap-6 border-t border-slate-100 dark:border-slate-800 pt-6">
-            <div className="flex gap-3 w-fit">
+            <div className="te-board-views flex flex-wrap gap-3 w-fit" role="group" aria-label="Leaderboard view">
               <button
                 onClick={() => setViewMode("CUMULATIVE")}
-                className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "CUMULATIVE" ? "bg-[var(--mp-role-primary)] text-white shadow-lg shadow-[var(--mp-role-primary)]/30 ring-2 ring-[var(--mp-role-primary)] ring-offset-2 ring-offset-white dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-[var(--mp-role-primary)] hover:bg-[var(--mp-role-primary)]/5 dark:hover:bg-[var(--mp-role-primary)]/10"}`}
+                className={`te-board-view px-5 py-2.5 rounded-xl font-black text-sm transition-all shadow-sm ${viewMode === "CUMULATIVE" ? "bg-[var(--mp-role-primary)] text-white shadow-lg shadow-[var(--mp-role-primary)]/30 ring-2 ring-[var(--mp-role-primary)] ring-offset-2 ring-offset-white dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-[var(--mp-role-primary)] hover:bg-[var(--mp-role-primary)]/5 dark:hover:bg-[var(--mp-role-primary)]/10"}`}
               >
                 Overall Journey
               </button>
               <button
                 onClick={() => setViewMode("INDIVIDUAL")}
-                className={`px-5 py-2.5 rounded-xl font-black text-sm tracking-widest uppercase transition-all shadow-sm ${viewMode === "INDIVIDUAL" ? "bg-[var(--mp-role-primary)] text-white shadow-lg shadow-[var(--mp-role-primary)]/30 ring-2 ring-[var(--mp-role-primary)] ring-offset-2 ring-offset-white dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-[var(--mp-role-primary)] hover:bg-[var(--mp-role-primary)]/5 dark:hover:bg-[var(--mp-role-primary)]/10"}`}
+                className={`te-board-view px-5 py-2.5 rounded-xl font-black text-sm transition-all shadow-sm ${viewMode === "INDIVIDUAL" ? "bg-[var(--mp-role-primary)] text-white shadow-lg shadow-[var(--mp-role-primary)]/30 ring-2 ring-[var(--mp-role-primary)] ring-offset-2 ring-offset-white dark:ring-offset-slate-950" : "bg-white dark:bg-slate-800 text-slate-500 hover:text-[var(--mp-role-primary)] hover:bg-[var(--mp-role-primary)]/5 dark:hover:bg-[var(--mp-role-primary)]/10"}`}
               >
                 Specific Exam
               </button>
@@ -395,7 +401,7 @@ function TeacherMockLeaderboardPageInner() {
 
             <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto">
               <div className="relative min-w-[180px] flex-1 xl:flex-none">
-                <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Module</label>
+                <label className="te-mini-label block mb-1.5">Module</label>
                 <div className="relative">
                   <select
                     value={selectedModuleId || ""}
@@ -409,7 +415,7 @@ function TeacherMockLeaderboardPageInner() {
               </div>
 
               <div className="relative min-w-[180px] flex-1 xl:flex-none">
-                <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Level</label>
+                <label className="te-mini-label block mb-1.5">Level</label>
                 <div className="relative">
                   <select
                     value={selectedLevelId || ""}
@@ -424,7 +430,7 @@ function TeacherMockLeaderboardPageInner() {
 
               {viewMode === "INDIVIDUAL" && (
                 <div className="relative min-w-[220px] flex-1 xl:flex-none">
-                  <label className="block text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1.5">Exam</label>
+                  <label className="te-mini-label block mb-1.5">Exam</label>
                   <div className="relative">
                     <select
                       value={selectedExamId || ""}
@@ -443,39 +449,35 @@ function TeacherMockLeaderboardPageInner() {
 
         {loading && <LoadingState />}
 
-        {!loading && error && (
-          <div className="text-center p-12 bg-white dark:bg-slate-900 rounded-3xl border-2 border-red-100 dark:border-red-900/40">
-            <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-            <p className="text-lg font-bold text-slate-500">{error}</p>
-          </div>
-        )}
+        {!loading && error && <ErrorState message={error} />}
 
         {!loading && !error && leaderboard.length === 0 && (
-          <div className="text-center p-12 bg-white dark:bg-slate-900 rounded-3xl border-2 border-slate-100 dark:border-slate-800">
-            <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-lg font-bold text-slate-500">No mock exam results recorded yet for this {viewMode === "CUMULATIVE" ? "level" : "exam"}</p>
-          </div>
+          <EmptyState title="No Mock Results Yet" description={`No student has a mock result for this ${viewMode === "CUMULATIVE" ? "level" : "exam"} yet.`} />
         )}
 
         {!loading && !error && leaderboard.length > 0 && (
           <>
             {top3.length > 0 && (
-              <div className="math-card rounded-3xl p-8 pt-16 md:pt-20 flex items-end justify-center gap-2 md:gap-6 relative">
+              <div className="te-podium math-card rounded-3xl p-8 pt-16 md:pt-20 flex items-end justify-center gap-2 md:gap-6 relative">
                 {top3[1] && <PodiumCard entry={top3[1]} rank={2} isHighlighted={top3[1].studentId === highlightStudentId} cardRef={top3[1].studentId === highlightStudentId ? highlightCardRef : undefined} onActivateHero={() => setActiveHeroRank(2)} />}
                 {top3[0] && <PodiumCard entry={top3[0]} rank={1} isHighlighted={top3[0].studentId === highlightStudentId} cardRef={top3[0].studentId === highlightStudentId ? highlightCardRef : undefined} onActivateHero={() => setActiveHeroRank(1)} />}
                 {top3[2] && <PodiumCard entry={top3[2]} rank={3} isHighlighted={top3[2].studentId === highlightStudentId} cardRef={top3[2].studentId === highlightStudentId ? highlightCardRef : undefined} onActivateHero={() => setActiveHeroRank(3)} />}
               </div>
             )}
 
-            <div className="math-card rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+            {/* 2026-10 (teacher revamp): with three students or fewer everyone is on
+                the podium, and the table used to show only its headings. */}
+            {rest.length === 0 ? (
+              <p className="te-board-note">Everyone on this board is on the podium above.</p>
+            ) : (
+            <div className="math-table te-board-table">
+                <table className="te-cards w-full text-left border-collapse">
                   <thead className="bg-slate-50/80 dark:bg-slate-800/80 text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                     <tr>
                       <th className="px-6 py-5">Rank</th>
                       <th className="px-6 py-5">Student</th>
                       <th className="px-6 py-5 text-center">{viewMode === "CUMULATIVE" ? "Avg Accuracy" : "Accuracy"}</th>
-                      <th className="px-6 py-5 text-right hidden sm:table-cell">{viewMode === "CUMULATIVE" ? "Avg Time" : "Time Taken"}</th>
+                      <th className="px-6 py-5 text-right">{viewMode === "CUMULATIVE" ? "Avg Time" : "Time Taken"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -489,8 +491,8 @@ function TeacherMockLeaderboardPageInner() {
                     ))}
                   </tbody>
                 </table>
-              </div>
             </div>
+            )}
           </>
         )}
       </div>

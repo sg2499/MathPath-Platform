@@ -510,7 +510,7 @@ export default function TeacherAssignDpsPage() {
                 <div key={student.studentId} className="rounded-2xl border border-slate-200 bg-white/80 p-4">
                   <p className="font-black text-slate-950">{student.studentName}</p>
                   <p className="text-sm text-slate-500">
-                    <span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</span> · Class {student.className || "-"} {student.section || ""}
+                    <span className="te-code-inline">{student.studentCode}</span>{student.className ? ` · Class ${student.className}${student.section ? ` ${student.section}` : ""}` : ""}
                   </p>
                   <div className="mt-2">
                     <LessonProgressBadge
@@ -533,7 +533,7 @@ export default function TeacherAssignDpsPage() {
 
         {selectedLesson ? (
           <section className="math-card p-5 sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="grid gap-4">
               <div className="min-w-0">
                 <p className="math-block-header">
                   <UserCheck size={14} />
@@ -545,10 +545,10 @@ export default function TeacherAssignDpsPage() {
                 <p className="mt-1 text-sm text-slate-600">
                   {selectedDps
                     ? `Only students in ${selectedDps.levelCode} can be selected.`
-                    : `All ${dpsForLesson.length} sheet(s) in this lesson — only students in ${selectedLesson.levelCode} can be selected.`}
+                    : `${dpsForLesson.length === 1 ? "The 1 sheet" : `All ${dpsForLesson.length} sheets`} in this lesson. Only students in ${selectedLesson.levelCode} can be selected.`}
                 </p>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 w-auto">
+              <div className="te-actions">
                 <button
                   type="button"
                   className="math-button-secondary w-full justify-center whitespace-nowrap"
@@ -577,7 +577,7 @@ export default function TeacherAssignDpsPage() {
                       ? "Clear the DPS Sheet selection (choose \"All Sheets In This Lesson\") to use this."
                       : dpsForLesson.length < 2
                         ? "Only one published sheet in this lesson right now."
-                        : `Assign all ${dpsForLesson.length} published sheets in Lesson ${selectedLesson.lessonNumber} to the selected student(s).`
+                        : `Assign all ${dpsForLesson.length} published sheets in Lesson ${selectedLesson.lessonNumber} to the selected students.`
                   }
                   onClick={openAssignAllSheetsConfirmation}
                 >
@@ -586,31 +586,28 @@ export default function TeacherAssignDpsPage() {
                 </button>
                 <button
                   type="button"
+                  className="math-button-secondary w-full justify-center gap-2 whitespace-nowrap"
+                  disabled={!selectedStudentIds.length || Boolean(dpsId) || !dpsForLesson.length || scheduleMutation.isPending}
+                  title={
+                    dpsId
+                      ? "Clear the DPS Sheet selection (choose \"All Sheets In This Lesson\") to use this."
+                      : `Schedule ${dpsForLesson.length} ${dpsForLesson.length === 1 ? "sheet" : "sheets"} across consecutive days for the selected students.`
+                  }
+                  onClick={openScheduleConfirmation}
+                >
+                  <CalendarDays size={18} />
+                  {scheduleMutation.isPending ? "Scheduling..." : "Schedule The Week"}
+                </button>
+                <button
+                  type="button"
                   className="math-button-primary w-full justify-center whitespace-nowrap"
                   disabled={!selectedDps || !selectedStudentIds.length || mutation.isPending}
                   title={!selectedDps ? "Choose a specific DPS sheet to use this." : undefined}
                   onClick={assignSelectedStudents}
                 >
-                  <Send size={18} /> {mutation.isPending && assignMode === "selected" ? "Assigning..." : `Assign to ${selectedStudentIds.length} Student(s)`}
+                  <Send size={18} /> {mutation.isPending && assignMode === "selected" ? "Assigning..." : `Assign To ${selectedStudentIds.length} ${selectedStudentIds.length === 1 ? "Student" : "Students"}`}
                 </button>
               </div>
-            </div>
-
-            <div className="mt-3 flex justify-center">
-              <button
-                type="button"
-                className="math-button-secondary w-full max-w-xs justify-center gap-2 whitespace-nowrap sm:max-w-sm"
-                disabled={!selectedStudentIds.length || Boolean(dpsId) || !dpsForLesson.length || scheduleMutation.isPending}
-                title={
-                  dpsId
-                    ? "Clear the DPS Sheet selection (choose \"All Sheets In This Lesson\") to use this."
-                    : `Schedule ${dpsForLesson.length} sheet(s) across consecutive days for the selected student(s).`
-                }
-                onClick={openScheduleConfirmation}
-              >
-                <CalendarDays size={18} />
-                {scheduleMutation.isPending ? "Scheduling..." : "Schedule The Week"}
-              </button>
             </div>
 
             <div
@@ -822,7 +819,7 @@ export default function TeacherAssignDpsPage() {
             <div className="mt-5 flex gap-3 rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-amber-900">
               <AlertTriangle size={18} className="mt-0.5 shrink-0" />
               <p className="text-sm font-bold leading-6">
-                This will assign every published practice sheet in this lesson to the selected student(s) in one go.
+                This will assign every published practice sheet in this lesson to the selected students in one go.
                 Any sheet a student already has (or has completed) is skipped automatically, same as assigning one sheet at a time.
               </p>
             </div>
@@ -914,7 +911,7 @@ export default function TeacherAssignDpsPage() {
               <div className="flex gap-3 rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-amber-900">
                 <AlertTriangle size={18} className="mt-0.5 shrink-0" />
                 <p className="text-sm font-bold leading-6">
-                  Each sheet unlocks for the selected student(s) at the start of its date (IST) and stays visible after that — earlier sheets remain available once later ones unlock too. Dates default to 5 consecutive days starting today, weekends included, and every date can be edited above.
+                  Each sheet unlocks for the selected students at the start of its date (IST) and stays visible after that — earlier sheets remain available once later ones unlock too. Dates default to 5 consecutive days starting today, weekends included, and every date can be edited above.
                 </p>
               </div>
 
@@ -997,7 +994,7 @@ function StudentLessonCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-black leading-6 text-slate-950 dark:text-white">{student.studentName}</p>
-          <p className="text-sm text-slate-500"><span className="text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</span> · Class {student.className || "-"} {student.section || ""}</p>
+          <p className="text-sm text-slate-500"><span className="te-code-inline">{student.studentCode}</span>{student.className ? ` · Class ${student.className}${student.section ? ` ${student.section}` : ""}` : ""}</p>
         </div>
         {Tag ? <div className="hidden shrink-0 sm:block">{Tag}</div> : null}
       </div>
