@@ -481,9 +481,9 @@ function TeacherCompetitionProgressContent() {
                       <Radar size={14} />
                       Monitor
                     </p>
-                    <h2 className="text-2xl font-black text-slate-950 dark:text-white">Student Mock Outcomes</h2>
+                    <h2 className="text-2xl font-black text-slate-950 dark:text-white">Strengths And Areas To Improve</h2>
                     <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      Review completion status, score, accuracy, and time taken for your students.
+                      Each student&apos;s strongest and weakest topic across their completed mocks. Open a student for every topic, level by level.
                     </p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 w-full xl:grid-cols-[minmax(240px,1fr)_180px_180px_180px]">
@@ -549,11 +549,26 @@ function TeacherCompetitionProgressContent() {
                               <h3 className="text-xl font-black text-slate-950 dark:text-white">
                                 {StudentGroup.student.studentName}
                               </h3>
-                              <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
+                              <p className="te-code">
                                 {StudentGroup.student.studentCode}
                               </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
+                              {/* 2026-10 (teacher revamp): the row said nothing until it was
+                                  opened, and the page read like the Mock Tracker. Now each
+                                  student shows their strongest and weakest topic. */}
+                              {(() => {
+                                const Insight = computeLevelInsights(StudentGroup.rows);
+                                const Best = Insight.strongConcepts[0];
+                                const Worst = Insight.weakConcepts[0];
+                                if (!Best && !Worst) return <span className="te-insight-none">No completed mock yet</span>;
+                                return (
+                                  <>
+                                    {Best ? <span className="te-insight te-insight-good">Strongest: {Best.name} <b>{Best.accuracy}%</b></span> : null}
+                                    {Worst ? <span className="te-insight te-insight-weak">Needs Work: {Worst.name} <b>{Worst.accuracy}%</b></span> : null}
+                                  </>
+                                );
+                              })()}
                               <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
                                 <ChevronDown className={StudentOpen ? "rotate-180 transition" : "transition"} size={18} />
                               </span>

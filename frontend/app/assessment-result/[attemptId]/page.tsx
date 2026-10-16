@@ -141,11 +141,36 @@ function assessmentBackRoute(ViewerRole?: "ADMIN" | "TEACHER" | "STUDENT" | null
   return "/student/assessments";
 }
 
-function AssessmentFeedbackCard({ Result }: { Result: any }) {
-  const Feedback = ResultFeedback(Result);
+// A teacher reads the result about the student, not words of encouragement
+// written to the student (2026-10, teacher revamp). Students and admins keep
+// the feedback above.
+function TeacherResultFeedback(Result: any) {
+  const Accuracy = Math.min(Math.max(Number(Result?.accuracyPercentage || 0), 0), 100);
+  const Benchmark = Number(Result?.benchmarkPercentage || 0);
+  const Of = Benchmark ? ` (the benchmark is ${CleanNumber(Benchmark)}%)` : "";
+  if (Result?.status === "CLEARED") {
+    return {
+      Title: "Assessment Cleared",
+      Message: `The student cleared this assessment with ${CleanNumber(Accuracy)}% accuracy${Of}.`,
+      NextStep: "Promotion to the next level is handled by the admin. A short remark below helps the student see what went well.",
+      Tone: "success" as const,
+      Icon: <Sparkles size={24} />,
+    };
+  }
+  return {
+    Title: "Below The Benchmark",
+    Message: `The student scored ${CleanNumber(Accuracy)}% on this assessment${Of}.`,
+    NextStep: "Write a remark below on what to practise. A re-attempt needs the admin to approve a different version of the assessment.",
+    Tone: "danger" as const,
+    Icon: <ShieldAlert size={24} />,
+  };
+}
+
+function AssessmentFeedbackCard({ Result, ForTeacher = false }: { Result: any; ForTeacher?: boolean }) {
+  const Feedback = ForTeacher ? TeacherResultFeedback(Result) : ResultFeedback(Result);
   return (
     <PremiumResultFeedbackCard
-      Kicker="Assessment Feedback"
+      Kicker={ForTeacher ? "Assessment Outcome" : "Assessment Feedback"}
       Title={Feedback.Title}
       Message={Feedback.Message}
       NextStep={Feedback.NextStep}
@@ -216,15 +241,15 @@ function StudentAssessmentResultPageContent() {
             </div>
 
             <div className="relative z-10 mt-5 grid gap-3 sm:grid-cols-5">
-              <Metric icon={<Target size={16} />} label="ACCURACY" value={`${CleanNumber(Math.min(Math.max(Number(Query.data.accuracyPercentage || 0), 0), 100))}%`} />
-              <Metric icon={<CheckCircle2 size={16} />} label="CORRECT" value={Query.data.correct} />
-              <Metric icon={<ShieldAlert size={16} />} label="WRONG" value={Query.data.wrong} />
-              <Metric icon={<Award size={16} />} label="UNANSWERED" value={Query.data.unanswered} />
-              <Metric icon={<Clock3 size={16} />} label="COMPLETION DATE" value={formatMathPathDateTime(Query.data.completedDate || Query.data.submittedAt)} />
+              <Metric icon={<Target size={16} />} label="Accuracy" value={`${CleanNumber(Math.min(Math.max(Number(Query.data.accuracyPercentage || 0), 0), 100))}%`} />
+              <Metric icon={<CheckCircle2 size={16} />} label="Correct" value={Query.data.correct} />
+              <Metric icon={<ShieldAlert size={16} />} label="Wrong" value={Query.data.wrong} />
+              <Metric icon={<Award size={16} />} label="Unanswered" value={Query.data.unanswered} />
+              <Metric icon={<Clock3 size={16} />} label="Completed" value={formatMathPathDateTime(Query.data.completedDate || Query.data.submittedAt)} />
             </div>
           </section>
 
-          <AssessmentFeedbackCard Result={Query.data} />
+          <AssessmentFeedbackCard Result={Query.data} ForTeacher={ReviewViewer === "TEACHER"} />
 
           <AssessmentRemarksPanel
             AttemptId={Params.attemptId}
@@ -253,7 +278,7 @@ function StudentAssessmentResultPageContent() {
 function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
     <div className="math-teacher-light-metric-card rounded-[20px] border border-rose-200/70 bg-white/85 p-3 shadow-sm ring-1 ring-rose-100/80 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/60 dark:ring-slate-700">
-      <div className="inline-flex rounded-xl bg-blue-50 p-1.5 text-blue-700 dark:bg-cyan-950/50 dark:text-cyan-300">{icon}</div>
+      <div className="math-teacher-icon-chip inline-flex rounded-xl bg-blue-50 p-1.5 text-blue-700 dark:bg-cyan-950/50 dark:text-cyan-300">{icon}</div>
       <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-300">{label}</p>
       <p className="mt-1 text-lg font-black leading-tight text-slate-950 dark:text-white">{value}</p>
     </div>

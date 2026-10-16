@@ -392,20 +392,26 @@ function TeacherProgressReportsPageContent() {
 
   return (
     <AppShell title="Progress Reports">
-      <section className="mx-auto max-w-[1680px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-        <div className="math-hero p-6">
-          <p className="math-block-header">
-            <FileBarChart size={14} />
-            Parent Progress Reports
-          </p>
-          <h1 className="math-title mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-white">
-            Progress Reports
-          </h1>
-          <p className="math-subtitle">
-            Review and download the parent progress reports the admin has published for your assigned students.
-          </p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric Label="Total Reports" Value={Items.length} Icon={<FileBarChart size={15} />} />
+      <section className="space-y-6">
+        <div className="math-hero">
+          {/* 2026-10 (teacher revamp): the one number tile sits beside the title,
+              not alone on a row of its own */}
+          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <p className="math-block-header">
+                <FileBarChart size={14} />
+                Parent Progress Reports
+              </p>
+              <h1 className="math-title">
+                Progress Reports
+              </h1>
+              <p className="math-subtitle">
+                Review and download the parent progress reports the admin has published for your assigned students.
+              </p>
+            </div>
+            <div className="w-full shrink-0 lg:w-72">
+              <Metric Label="Total Reports" Value={Items.length} Icon={<FileBarChart size={15} />} />
+            </div>
           </div>
         </div>
 

@@ -911,7 +911,7 @@ function AssessmentRecordTable({
                 if (Event.key === "Enter" || Event.key === " ")
                   ToggleStudent(Student.StudentKey);
               }}
-              className="math-hierarchy-row flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+              className="math-hierarchy-row flex-col items-start gap-4 lg:flex-row lg:items-center lg:justify-between"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <button
@@ -941,17 +941,20 @@ function AssessmentRecordTable({
                   <p className="truncate text-left text-base font-black text-slate-950 dark:text-white">
                     {Student.StudentName}
                   </p>
-                  <p className="mt-0.5 text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">
+                  <p className="te-code">
                     {Student.StudentCode}
                   </p>
                 </div>
               </div>
+              {/* 2026-10 (teacher revamp): where the student stands, without
+                  opening the row; it used to show only the last activity. */}
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
-                  Last Activity
-                </span>
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                  {Stats.LastActivity}
+                {Stats.Cleared ? <Chip Tone="green">{Stats.Cleared} Cleared</Chip> : null}
+                {Stats.Reattempt ? <Chip Tone="red">{Stats.Reattempt} Needs Re-Attempt</Chip> : null}
+                {Stats.Pending ? <Chip Tone="amber">{Stats.Pending} Pending</Chip> : null}
+                {Stats.Accuracy !== null && Stats.Accuracy !== undefined ? <Chip Tone="slate">Latest {AccuracyDisplay(Stats.Accuracy as number | null)}</Chip> : null}
+                <span className="te-last-activity">
+                  Last Activity <b>{Stats.LastActivity}</b>
                 </span>
               </div>
             </div>
@@ -1114,17 +1117,17 @@ function TeacherAssessmentAssignmentsContent() {
               Icon={<UsersRound size={17} />}
             />
             <Metric
-              Label="Assigned Assessments"
+              Label="Assigned"
               Value={VisibleRows.length}
               Icon={<BookOpenCheck size={17} />}
             />
             <Metric
-              Label="Cleared Assessments"
+              Label="Cleared"
               Value={ClearedCount}
               Icon={<CheckCircle2 size={17} />}
             />
             <Metric
-              Label="Pending Assessments"
+              Label="Pending"
               Value={PendingCount}
               Icon={<Clock3 size={17} />}
             />

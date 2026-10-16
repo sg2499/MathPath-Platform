@@ -115,9 +115,11 @@ export function ReattemptApprovalQueue({
       </div>
 
       {Sorted.length ? (
-        <div className="w-full overflow-x-auto">
+        // 2026-10 (teacher revamp): te-* classes turn each row into a card
+        // below 1024px in the teacher login; nothing changes elsewhere.
+        <div className="te-gtable w-full overflow-x-auto">
           <div className="min-w-[860px] xl:min-w-0">
-            <div className={`grid ${Columns} items-center gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70`}>
+            <div className={`te-ghead grid ${Columns} items-center gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70`}>
               {IsAdmin ? (
                 <input
                   type="checkbox"
@@ -138,7 +140,7 @@ export function ReattemptApprovalQueue({
               {Sorted.map((Row) => {
                 const Key = ApprovalKey(Row);
                 return (
-                  <div key={Key} className={`grid ${Columns} items-center gap-3 px-5 py-4`}>
+                  <div key={Key} className={`te-grow grid ${Columns} items-center gap-3 px-5 py-4`}>
                     {IsAdmin ? (
                       <input
                         type="checkbox"
@@ -148,7 +150,7 @@ export function ReattemptApprovalQueue({
                         aria-label={`Select ${studentNameOf(Row)} ${CompactDpsLabel(Row)}`}
                       />
                     ) : null}
-                    <div className="min-w-0">
+                    <div className="te-gtitle min-w-0">
                       <button
                         type="button"
                         className="truncate text-left text-sm font-black !text-slate-950 transition hover:!text-blue-700 dark:!text-white"
@@ -161,7 +163,7 @@ export function ReattemptApprovalQueue({
                         {studentCodeOf(Row)}
                       </p>
                     </div>
-                    <div className="min-w-0">
+                    <div data-label="DPS" className="min-w-0">
                       <p className="text-sm font-black text-slate-950 dark:text-white">
                         {CompactLessonLabel(Row)} · {CompactDpsLabel(Row)}
                       </p>
@@ -169,14 +171,14 @@ export function ReattemptApprovalQueue({
                         {moduleCodeOf(Row)} · {levelCodeOf(Row)}
                       </p>
                     </div>
-                    <div className="flex justify-center">
+                    <div data-label="Last Try" className="flex justify-center">
                       <Chip tone="red">{accuracy(Row)}%</Chip>
                     </div>
-                    <div className="flex justify-center text-center">
+                    <div data-label="Tries" className="flex justify-center text-center">
                       <StatePill tone={chainTriesTone(Row)}>{chainTriesText(Row)}</StatePill>
                     </div>
-                    <div className="text-xs font-bold text-slate-600 dark:text-slate-300">{completedText(Row)}</div>
-                    <div className="flex justify-end">
+                    <div data-label="Waiting Since" className="text-xs font-bold text-slate-600 dark:text-slate-300">{completedText(Row)}</div>
+                    <div className="te-gaction flex justify-end">
                       {IsAdmin ? (
                         <div className="flex items-center justify-end gap-2">
                         <StandardViewButton label="Review" tooltip="Open this DPS in the student's Lesson Insights" onClick={() => OnOpenStudent(Row)} compact />

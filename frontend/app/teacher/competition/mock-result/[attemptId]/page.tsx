@@ -8,9 +8,10 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
-import { getTeacherCompetitionMockResult } from "@/lib/api/teacher";
+import { getTeacherCompetitionMockResult, getTeacherStudents } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   BookOpenCheck,
   Brain,
   CheckCircle2,
@@ -147,6 +148,67 @@ function buildCompetitionMessage(
   };
 }
 
+// 2026-10 (teacher revamp): the coach panel spoke to the student ("Maintain
+// your perfect form"). A teacher reads it about the student instead, with
+// the same bands, focus topics and next target.
+function buildTeacherCoachMessage(
+  result: Awaited<ReturnType<typeof getTeacherCompetitionMockResult>>,
+  FirstName: string,
+): CompetitionMessage {
+  const Base = buildCompetitionMessage(result);
+  const Percentage = Number(result.percentage ?? result.accuracyPercentage ?? 0);
+  const Band = competitionBandKey(Percentage);
+  const Rounded = Math.round(Percentage);
+  const Headline: Record<string, string> = {
+    perfect: `${FirstName} Scored A Perfect ${Rounded}%`,
+    champion: `${FirstName} Is In The Champion Zone At ${Rounded}%`,
+    strong: `${FirstName} Had A Strong Mock At ${Rounded}%`,
+    momentum: `${FirstName} Is Building Momentum At ${Rounded}%`,
+    practice: `${FirstName} Needs More Practice At ${Rounded}%`,
+    restart: `${FirstName} Needs A Fresh Start At ${Rounded}%`,
+  };
+  const Message: Record<string, string> = {
+    perfect: `Every question was right. Keep ${FirstName} on full mocks to hold this form.`,
+    champion: `${FirstName} is close to flawless. The few mistakes left are worth going through together.`,
+    strong: `${FirstName} has a solid base. The weaker topics below are what stand between this and the Champion Zone.`,
+    momentum: `${FirstName} is getting there. Section-wise practice on the topics below will lift the score fastest.`,
+    practice: `${FirstName} is finding several topics hard. Go over the basics of the topics below before the next mock.`,
+    restart: `${FirstName} struggled on this mock. Start with the weakest topic below and build up one section at a time.`,
+  };
+  const Unanswered = Number(result.unanswered || 0);
+  const Utilisation = Number(result.timeUtilizationPercentage || 0);
+  const Notes = [
+    Unanswered > 0 ? `${Unanswered} question${Unanswered === 1 ? " was" : "s were"} left unanswered.` : "",
+    Utilisation > 85
+      ? `${FirstName} used most of the time, so watch for accuracy dropping near the end.`
+      : Utilisation < 25
+        ? `${FirstName} finished quickly; encourage using the spare time to check answers.`
+        : `${FirstName}'s pace leaves room to balance speed with accuracy.`,
+  ].filter(Boolean);
+  const NextTarget =
+    Percentage >= 100
+      ? "Hold 100% on the next mock."
+      : Percentage >= 95
+        ? "Reach a flawless 100%."
+        : Percentage >= 90
+          ? "Reach 95% or more with no careless slips."
+          : Percentage >= 75
+            ? "Reach the 90% Champion Zone."
+            : Percentage >= 60
+              ? "Reach 75% or more by working on the weaker sections."
+              : Percentage >= 40
+                ? "Reach 60% or more with cleaner basics."
+                : "A first big jump through section-wise practice.";
+  return {
+    ...Base,
+    title: Headline[Band],
+    message: Message[Band],
+    coachNote: Notes.join(" "),
+    focusAreas: Percentage >= 100 ? ["Keep practising full mocks"] : Base.focusAreas,
+    nextTarget: NextTarget,
+  };
+}
+
 function TeacherCompetitionResultDarkHoverStyles() {
   return (
     <style>{`
@@ -236,6 +298,9 @@ export default function TeacherCompetitionMockResultPage() {
     queryFn: () => getTeacherCompetitionMockResult(attemptId),
     enabled: ready && Boolean(attemptId),
   });
+  // The result carries only the student's id; the name comes from the
+  // teacher's own list (the same query My Students uses, usually cached).
+  const studentsQuery = useQuery({ queryKey: ["teacher-students"], queryFn: getTeacherStudents, enabled: ready });
 
   if (!ready) return null;
 
@@ -266,7 +331,11 @@ export default function TeacherCompetitionMockResultPage() {
 
   const mock = result.mockExam || {};
   const questionReview = result.questionReview || [];
-  const competitionMessage = buildCompetitionMessage(result);
+  const student = (studentsQuery.data || []).find((item) => item.studentId === result.studentId);
+  const studentName = student?.studentName || "";
+  const firstName = studentName.split(" ")[0] || "The student";
+  const competitionMessage = buildTeacherCoachMessage(result, firstName);
+  const backHref = `/teacher/competition/mock-tracker?studentId=${result.studentId || ""}&moduleCode=${mock.moduleCode || ""}&levelCode=${mock.levelCode || ""}`;
 
   // Focus-area buttons pass a concept name (e.g. "BODMAS"), not a section
   // title -- several concepts share one section -- so map the concept back to
@@ -283,20 +352,26 @@ export default function TeacherCompetitionMockResultPage() {
     <AppShell title="Competition Mock Result">
       <TeacherCompetitionResultDarkHoverStyles />
       <section className="teacher-competition-dark-hover-scope space-y-5">
-        <div className="math-card p-6">
-          <button
-            className="math-button-secondary mb-4 px-4 py-2 text-sm"
-            onClick={() => router.push(`/teacher/competition/mock-tracker?studentId=${result.studentId || ""}&moduleCode=${mock.moduleCode || ""}&levelCode=${mock.levelCode || ""}`)}
-          >
+        <div className="te-back-row">
+          <button type="button" className="te-back" onClick={() => router.push(backHref)}>
+            <ArrowLeft size={16} />
             Back To Mock Tracker
           </button>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        </div>
+        <div className="math-card p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="math-block-header">
                 <CheckCircle2 size={14} />
                 Mock Result
               </p>
               <h1 className="math-title">{mock.title || "Mock Result"}</h1>
+              {studentName ? (
+                <p className="te-result-student">
+                  <span className="te-name">{studentName}</span>
+                  {student?.studentCode ? <span className="te-code-inline">{student.studentCode}</span> : null}
+                </p>
+              ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 {mock.mockCode ? <Chip label={mock.mockCode} /> : null}
                 <Chip
@@ -304,15 +379,12 @@ export default function TeacherCompetitionMockResultPage() {
                 />
               </div>
               <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-300">
-                Submitted {formatDate(result.completedAt || result.submittedAt)}
-                . Review the student mock answers, correct solutions, and section
-                performance below.
+                Submitted {formatDate(result.completedAt || result.submittedAt)}. Below are{" "}
+                {studentName ? `${firstName}'s` : "the student's"} answers, the correct solutions and how each section went.
               </p>
             </div>
             <div className="rounded-[24px] border border-[#7a1f58]/25 bg-[#7a1f58]/5 px-6 py-4 text-center dark:border-rose-300/30 dark:bg-rose-400/10">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7a1f58] dark:text-rose-100">
-                Score
-              </p>
+              <p className="te-mini-label">Score</p>
               <p className="mt-1 text-4xl font-black text-slate-950 dark:text-white">
                 {formatNumber(result.score)}/{formatNumber(result.maxScore)}
               </p>
@@ -323,28 +395,28 @@ export default function TeacherCompetitionMockResultPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             icon={<Target size={18} />}
-            label="ACCURACY"
+            label="Accuracy"
             value={`${formatNumber(result.accuracyPercentage)}%`}
             helper="Attempted answers"
           />
           <MetricCard
             icon={<CheckCircle2 size={18} />}
-            label="CORRECT"
+            label="Correct"
             value={result.correct}
             helper={`${result.totalQuestions} total questions`}
           />
           <MetricCard
             icon={<XCircle size={18} />}
-            label="UNANSWERED"
+            label="Unanswered"
             value={result.unanswered}
             helper="Scored as zero"
           />
           <MetricCard
             icon={<Clock3 size={18} />}
-            label="TIME TAKEN"
+            label="Time Taken"
             value={formatDuration(result.timeTakenSeconds)}
             helper={`${formatNumber(result.timeUtilizationPercentage)}% time used`}
           />
@@ -391,9 +463,9 @@ function CompetitionMessageBox({
             <div className="flex flex-wrap items-center gap-2">
               <p className="math-block-header">
                 <Megaphone size={14} />
-                Competition Coach
+                Coach&apos;s Read
               </p>
-              <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
+              <span className="rounded-full border border-[#7a1f58]/20 bg-white px-3 py-1 text-xs font-black text-[#7a1f58] dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-100">
                 {message.badge}
               </span>
             </div>
@@ -411,9 +483,7 @@ function CompetitionMessageBox({
 
         <div className="grid min-w-0 gap-3 lg:w-[360px]">
           <div className="rounded-[24px] border border-[#7a1f58]/20 bg-white/90 p-4 dark:border-rose-300/30 dark:bg-slate-950/70">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">
-              Focus Next
-            </p>
+            <p className="te-mini-label">Focus Next</p>
             <div className="mt-3 grid gap-2">
               {message.focusAreas.map((area) => (
                 <button
@@ -428,9 +498,7 @@ function CompetitionMessageBox({
             </div>
           </div>
           <div className="rounded-[24px] border border-[#e6b8a2]/50 bg-[#e6b8a2]/15 p-4 dark:border-[#e6b8a2]/30 dark:bg-[#e6b8a2]/10">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7a1f58] dark:text-rose-100">
-              Next Target
-            </p>
+            <p className="te-mini-label">Next Target</p>
             <p className="mt-2 text-base font-black leading-6 text-slate-950 dark:text-white">
               {message.nextTarget}
             </p>
@@ -462,7 +530,7 @@ function MetricCard({
           {icon}
         </div>
       )}
-      <p className="relative z-10 mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
+      <p className="relative z-10 mt-3 text-xs font-black text-slate-700 transition-colors duration-300 group-hover:text-[var(--mp-role-primary)] dark:text-slate-300">
         {label}
       </p>
       <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">

@@ -1140,11 +1140,11 @@ function TeacherAnnualCompetitionMonitorPageContent() {
 
                 {LiveQuery.data && (
                   <div className="mt-4 flex flex-wrap gap-4 text-xs font-black text-slate-600 dark:text-slate-300">
-                    <span>{LiveQuery.data.summary.totalCount} total</span>
-                    <span className="text-slate-500">{LiveQuery.data.summary.notStartedCount} not started</span>
-                    <span className="text-blue-600 dark:text-blue-300">{LiveQuery.data.summary.inProgressCount} in progress</span>
-                    <span className="text-rose-600 dark:text-rose-300">{LiveQuery.data.summary.stuckCount} stuck</span>
-                    <span className="text-emerald-600 dark:text-emerald-300">{LiveQuery.data.summary.finalizedCount} finalized</span>
+                    <span>{LiveQuery.data.summary.totalCount} Total</span>
+                    <span className="text-slate-500">{LiveQuery.data.summary.notStartedCount} Not Started</span>
+                    <span className="text-blue-600 dark:text-blue-300">{LiveQuery.data.summary.inProgressCount} In Progress</span>
+                    <span className="text-rose-600 dark:text-rose-300">{LiveQuery.data.summary.stuckCount} Stuck</span>
+                    <span className="text-emerald-600 dark:text-emerald-300">{LiveQuery.data.summary.finalizedCount} Finalized</span>
                   </div>
                 )}
 
@@ -1160,7 +1160,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                   />
                 ) : (
                   <div className="mt-4">
-                    <EmptyState title="No students of yours are assigned" description="Nothing to monitor for this event yet." />
+                    <EmptyState title="No Students Of Yours Are Assigned" description="None of your students are in this event." />
                   </div>
                 )}
               </div>
@@ -1170,13 +1170,13 @@ function TeacherAnnualCompetitionMonitorPageContent() {
               <div className="math-card p-5">
                 <p className="math-block-header"><Medal size={14} />Results</p>
                 <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                  Kept hidden here too until Admin releases them — exactly the same lock-down students and parents see.
-                  Ranked ascending by rank within each level — this is the tab used to review who finished where.
+                  Results stay hidden until the admin releases them, just as for students and parents. Each level is
+                  listed by rank, so you can see who finished where.
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-end gap-3">
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
-                    Filter by Level
+                    Filter By Level
                     <select
                       value={ResultsLevelFilter}
                       onChange={(EventValue) => SetResultsLevelFilter(EventValue.target.value)}
@@ -1196,7 +1196,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                   <div className="mt-4"><ErrorState message={apiErrorMessage(ResultsQuery.error)} /></div>
                 ) : ResultsQuery.data && ResultsQuery.data.rows.length > 0 ? (
                   <div className="mt-4 overflow-x-auto">
-                    <table className="w-full min-w-[680px] text-left text-sm font-bold">
+                    <table className="te-cards w-full min-w-[680px] text-left text-sm font-bold">
                       <thead>
                         <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                           <th className="px-2 py-1.5">Student</th>
@@ -1211,15 +1211,15 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                       <tbody>
                         {ResultsQuery.data.rows.map((Row: TeacherAnnualCompetitionResultRow) => (
                           <tr key={Row.assignmentId} className="border-t border-[color:var(--mp-role-border)]">
-                            <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                            <td className="px-2 py-2">{FormatCompetitionLevelLabel(Row.assignedLevelCode)}</td>
+                            <td className="te-card-title px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                            <td data-label="Level" className="px-2 py-2">{FormatCompetitionLevelLabel(Row.assignedLevelCode)}</td>
                             {Row.released && Row.result ? (
                               <>
-                                <td className="px-2 py-2">{Row.result.rank ?? "--"}</td>
-                                <td className="px-2 py-2">{Row.result.accuracyPercentage}%</td>
-                                <td className="px-2 py-2">{Row.result.score}/{Row.result.maxScore}</td>
-                                <td className="px-2 py-2">{FormatSecondsAsMinSec(Row.result.timeTakenSeconds)}</td>
-                                <td className="px-2 py-2">
+                                <td data-label="Rank" className="px-2 py-2">{Row.result.rank ?? "—"}</td>
+                                <td data-label="Accuracy" className="px-2 py-2">{Row.result.accuracyPercentage}%</td>
+                                <td data-label="Score" className="px-2 py-2">{Row.result.score}/{Row.result.maxScore}</td>
+                                <td data-label="Time Taken" className="px-2 py-2">{FormatSecondsAsMinSec(Row.result.timeTakenSeconds)}</td>
+                                <td className="te-card-wide px-2 py-2">
                                   {Row.attemptId ? (
                                     <button
                                       type="button"
@@ -1232,7 +1232,7 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                                 </td>
                               </>
                             ) : (
-                              <td className="px-2 py-2 text-slate-400" colSpan={5}>Not released yet</td>
+                              <td className="te-card-wide px-2 py-2 text-slate-400" colSpan={5}>Not Released Yet</td>
                             )}
                           </tr>
                         ))}
@@ -1241,7 +1241,17 @@ function TeacherAnnualCompetitionMonitorPageContent() {
                   </div>
                 ) : (
                   <div className="mt-4">
-                    <EmptyState title="No students of yours are assigned" description="Nothing to review for this event yet." />
+                    {/* 2026-10 (teacher revamp, fix B): results that are not released are
+                        left out of this list, so an empty list used to read as "no
+                        students assigned" even when they had sat the event. */}
+                    {(ResultsQuery.data?.assignedCount ?? 0) > 0 ? (
+                      <EmptyState
+                        title="Results Not Released Yet"
+                        description={`${ResultsQuery.data?.assignedCount} of your students ${ResultsQuery.data?.assignedCount === 1 ? "is" : "are"} in this event. Results show here once the admin releases them.`}
+                      />
+                    ) : (
+                      <EmptyState title="No Students Of Yours Are Assigned" description="None of your students are in this event." />
+                    )}
                   </div>
                 )}
               </div>
@@ -1254,9 +1264,8 @@ function TeacherAnnualCompetitionMonitorPageContent() {
               <div className="math-card p-5">
                 <p className="math-block-header"><Repeat size={14} />Practice</p>
                 <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-                  Every practice paper your students have completed — not tied to any Annual Competition event, results
-                  are visible to them the instant they're scored (no release gate, unlike Official). Not ranked --
-                  practice papers are for building confidence and speed, never for competing against classmates.
+                  Every practice paper your students have completed. Practice is not tied to an event, and students see
+                  each result as soon as it is scored. It is not ranked: practice builds confidence and speed.
                 </p>
 
                 {/* 2026-09-29 (Shailesh): moved here, under this tab's own
@@ -1622,9 +1631,8 @@ function TeacherAnnualCompetitionMonitorPageContent() {
             <p className="math-block-header"><Trophy size={14} />Leaderboard</p>
             <h2 className="mt-1 text-lg font-black text-slate-950 dark:text-white">Practice Leaderboard</h2>
             <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-400">
-              Level-wise rankings across your own students&apos; Annual Competition practice papers at this level --
-              highest average score first, average time taken as tiebreak. Practice only, never mixed with the
-              official event&apos;s own ranked results.
+              Your students ranked on their practice papers at this level: highest average score first, then the
+              shorter average time. Practice only, kept apart from the official event&apos;s results.
             </p>
 
             {/* 2026-09-22 (Shailesh, round 2 -- widening min-w alone didn't

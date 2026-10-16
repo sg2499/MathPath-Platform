@@ -31,7 +31,7 @@ export default function TeacherStudentAssessmentsWorkspacePage() {
       {StudentRows.length ? (
         <AssessmentInsightWorkspace
           title={StudentName}
-          subtitle={`Student Code: ${StudentCode}`}
+          subtitle={StudentCode}
           rows={StudentRows}
           role="teacher"
           onView={(Row) => Row.attemptId ? Router.push(`/assessment-result/${Row.attemptId}?viewer=teacher`) : undefined}

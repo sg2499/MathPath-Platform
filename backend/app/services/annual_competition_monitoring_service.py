@@ -553,7 +553,16 @@ def ListAnnualCompetitionResultsForRoster(
             (0, Row["result"]["rank"], "") if Row["result"].get("rank") is not None else (1, 0, (Row["studentName"] or "").lower()),
         )
     )
-    return {"eventId": EventId, "competitionLevelCode": CompetitionLevelCode, "totalResults": len(Rows), "rows": Rows}
+    # 2026-10-16 (teacher revamp): assignedCount lets the page tell "none of
+    # your students sat this event" apart from "results not released yet";
+    # unreleased rows are dropped above, so both used to look the same.
+    return {
+        "eventId": EventId,
+        "competitionLevelCode": CompetitionLevelCode,
+        "totalResults": len(Rows),
+        "assignedCount": len(AssignmentRecords),
+        "rows": Rows,
+    }
 
 
 def ListAnnualCompetitionPracticeResultsForRoster(

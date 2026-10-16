@@ -350,6 +350,7 @@ export default function TeacherStudentsPage() {
 
     return {
       students: VisibleStudents.length,
+      inactive: VisibleStudents.filter((Student) => Student.isActive === false).length,
       assigned,
       completed,
       pending,
@@ -363,7 +364,7 @@ export default function TeacherStudentsPage() {
   return (
     <AppShell title="My Students">
       <section className="math-hero">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="te-hero-stack relative z-10">
           <div>
             <p className="math-block-header">
               <UsersRound size={14} />
@@ -375,28 +376,33 @@ export default function TeacherStudentsPage() {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-4">
-            <Metric label="Students" value={isLoadingNumbers ? "…" : summary.students} icon={<UsersRound size={18} />} />
+          <div className="te-hero-tiles">
+            <Metric
+              label="Students"
+              value={isLoadingNumbers ? "…" : summary.students}
+              helper={!isLoadingNumbers && summary.inactive ? `${summary.inactive} inactive` : undefined}
+              icon={<UsersRound size={18} />}
+            />
             <Metric label="Assigned" value={isLoadingNumbers ? "…" : summary.assigned} icon={<Target size={18} />} />
             <Metric label="Pending" value={isLoadingNumbers ? "…" : summary.pending} icon={<XCircle size={18} />} />
-            <Metric label="Average Accuracy" value={isLoadingNumbers ? "…" : summary.avgAccuracy === null ? "-" : `${summary.avgAccuracy}%`} icon={<TrendingUp size={18} />} />
+            <Metric label="Average Accuracy" value={isLoadingNumbers ? "…" : summary.avgAccuracy === null ? "—" : `${summary.avgAccuracy}%`} icon={<TrendingUp size={18} />} />
           </div>
         </div>
       </section>
 
       <section className="mt-6 math-card p-5 sm:p-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-4">
           <div>
             <p className="math-block-header">
               <LayoutGrid size={14} />
               Student Overview
             </p>
-            <h2 className="text-2xl font-black text-slate-950">Learning Progress Snapshot</h2>
+            <h2 className="text-2xl font-black text-slate-950 dark:text-white">Learning Progress Snapshot</h2>
             <p className="mt-1 text-sm text-slate-600">
               Focus on pending work, completion, average accuracy, and last seen.
             </p>
           </div>
-          <div className="grid w-full gap-3 md:grid-cols-[minmax(240px,1fr)_180px_180px] xl:max-w-4xl xl:grid-cols-[minmax(240px,1fr)_180px_180px_220px]">
+          <div className="grid w-full gap-3 md:grid-cols-[minmax(240px,1fr)_180px_180px] xl:grid-cols-[minmax(320px,1fr)_220px_220px_260px]">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
@@ -458,7 +464,7 @@ export default function TeacherStudentsPage() {
 
         {!isLoadingNumbers && filtered.length ? (
           <div className="math-table math-teacher-students-directory-table">
-            <table>
+            <table className="te-cards">
               <thead>
                 <tr>
                   <th><SortableHeader active={sortKey === "studentName"} direction={sortDirection} onClick={() => toggleSort("studentName")}>Student</SortableHeader></th>
@@ -505,7 +511,7 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
         }
       }}
     >
-      <td>
+      <td className="te-card-title">
         <div className="flex items-center gap-3">
           <ProfileAvatar
             name={student.studentName}
@@ -513,16 +519,20 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
             role="STUDENT"
             className="math-record-avatar-student h-11 w-11 text-xs"
           />
-          <div>
-            <p className="font-black text-slate-950 dark:text-white">{student.studentName}<DemoTag studentId={student.studentId} studentCode={student.studentCode} /></p>
-            <p className="mt-0.5 text-xs font-black uppercase tracking-[0.12em] text-[#7a1f58] dark:text-rose-100">{student.studentCode}</p>
+          <div className="min-w-0">
+            <p className="te-name">
+              {student.studentName}
+              {student.isActive === false ? <span className="te-tag" title="This account is switched off: the student cannot sign in.">Inactive</span> : null}
+              <DemoTag studentId={student.studentId} studentCode={student.studentCode} />
+            </p>
+            <p className="te-code">{student.studentCode}</p>
           </div>
         </div>
       </td>
-      <td>
-        <p className="font-black text-slate-900 dark:text-white">{student.currentLevelCode || "-"}</p>
+      <td data-label="Level">
+        <p className="font-black text-slate-900 dark:text-white">{student.currentLevelCode || "—"}</p>
       </td>
-      <td>
+      <td data-label="Lesson">
         <LessonProgressBadge
           currentLessonNumber={student.currentLessonNumber}
           clearedInCurrentLesson={student.clearedInCurrentLesson}
@@ -533,31 +543,31 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
           isNewToLevel={student.isNewToLevel}
         />
       </td>
-      <td>
+      <td data-label="Assigned">
         <span className="math-badge border-blue-200 bg-blue-50 text-blue-700">
           {assigned}
         </span>
       </td>
-      <td>
+      <td data-label="Cleared">
         <span className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700">
           <CheckCircle2 size={14} />
           {cleared}
         </span>
       </td>
-      <td>
+      <td data-label="Pending">
         <span className="math-badge border-amber-200 bg-amber-50 text-amber-700">
           {pending}
         </span>
       </td>
-      <td>
+      <td data-label="Avg Accuracy">
         <span className={`math-badge whitespace-nowrap ${typeof averageAccuracy === "number" ? AccuracyToneClass(averageAccuracy) : "border-slate-200 bg-slate-50 text-slate-600"}`}>
           {typeof averageAccuracy === "number" ? `${Math.round(averageAccuracy)}%` : "—"}
         </span>
       </td>
-      <td className="whitespace-nowrap text-sm font-bold text-slate-600 dark:text-slate-300">
-        {student.lastActiveAt ? formatMathPathDateTimeCompact(student.lastActiveAt) : "Never"}
+      <td data-label="Last Seen" className="whitespace-nowrap text-sm font-bold text-slate-600 dark:text-slate-300">
+        {student.lastActiveAt ? KeepTogether(formatMathPathDateTimeCompact(student.lastActiveAt)) : "Never"}
       </td>
-      <td>
+      <td data-label="Attention">
         <span className={`math-badge ${attentionTone(attention)}`}>
           {attentionLabel(attention)}
         </span>
@@ -566,7 +576,13 @@ function StudentRow({ student, metric, attention, onOpen }: { student: TeacherSt
   );
 }
 
-function Metric({ label, value, icon }: { label: string; value: number | string; icon: React.ReactNode }) {
+// "6 Oct, 2:09 AM" may take two lines in a narrow column; it breaks only
+// after the comma, never inside "6 Oct" or "2:09 AM".
+function KeepTogether(Value: string) {
+  return Value.replace(/ (AM|PM)$/, "\u00a0$1").replace(/^(\d+) /, "$1\u00a0");
+}
+
+function Metric({ label, value, icon, helper }: { label: string; value: number | string; icon: React.ReactNode; helper?: string }) {
   return (
     <div className="math-teacher-light-metric-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl rounded-[24px] border border-rose-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-rose-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10">
       {/* Gamified hover shine */}
@@ -583,6 +599,7 @@ function Metric({ label, value, icon }: { label: string; value: number | string;
       <p className="relative z-10 mt-1 origin-left text-3xl font-black text-slate-950 transition-transform duration-300 group-hover:scale-105 group-hover:text-[var(--mp-role-primary)] dark:text-white">
         {value}
       </p>
+      {helper ? <p className="relative z-10 text-xs font-bold text-slate-600 dark:text-slate-300">{helper}</p> : null}
     </div>
   );
 }

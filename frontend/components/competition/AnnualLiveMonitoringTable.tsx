@@ -44,10 +44,19 @@ const LiveStatusTone: Record<AnnualLiveMonitoringRow["liveStatus"], string> = {
   FINALIZED: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200",
 };
 
+// Init Caps labels (2026-10, teacher revamp), not the raw IN_PROGRESS codes.
+const LiveStatusLabel: Record<string, string> = {
+  NOT_STARTED: "Not Started",
+  IN_PROGRESS: "In Progress",
+  STUCK: "Stuck",
+  SUBMITTED: "Submitted",
+  FINALIZED: "Finalized",
+};
+
 export function AnnualLiveStatusChip({ status }: { status: AnnualLiveMonitoringRow["liveStatus"] }) {
   return (
     <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-1 text-xs font-black ${LiveStatusTone[status]}`}>
-      {status.replace("_", " ")}
+      {LiveStatusLabel[status] ?? status}
     </span>
   );
 }
@@ -101,7 +110,7 @@ function RemainingCell({
 
   if (!IsRunning(Row) || Row.totalRemainingSecondsAtLastHeartbeat == null || Row.heartbeatGapMilliseconds == null) {
     EndAtRef.current = null;
-    return <span className="text-slate-400">--</span>;
+    return <span className="text-slate-400">—</span>;
   }
 
   // The student's last heartbeat, placed on THIS screen's clock: "when the
@@ -150,7 +159,7 @@ function RemainingCell({
 }
 
 function SectionCell({ Row }: { Row: AnnualLiveMonitoringRow }) {
-  if (!IsRunning(Row) || Row.currentSectionNumber == null) return <span className="text-slate-400">--</span>;
+  if (!IsRunning(Row) || Row.currentSectionNumber == null) return <span className="text-slate-400">—</span>;
   if (Row.totalSectionCount == null) return <span>{Row.currentSectionNumber}</span>;
   return (
     <span>
@@ -160,7 +169,7 @@ function SectionCell({ Row }: { Row: AnnualLiveMonitoringRow }) {
 }
 
 function LastSeenCell({ Row, FetchedAtMs, NowMs }: { Row: AnnualLiveMonitoringRow; FetchedAtMs: number; NowMs: number }) {
-  if (!IsRunning(Row) || Row.heartbeatGapMilliseconds == null) return <span className="text-slate-400">--</span>;
+  if (!IsRunning(Row) || Row.heartbeatGapMilliseconds == null) return <span className="text-slate-400">—</span>;
   const Seconds = (Row.heartbeatGapMilliseconds + Math.max(0, NowMs - FetchedAtMs)) / 1000;
   return <span>{FormatAgo(Seconds)}</span>;
 }
@@ -271,7 +280,7 @@ export function AnnualLiveMonitoringTable({
   // a narrow screen the board scrolls sideways instead.
   return (
     <div className="mt-4 overflow-x-auto">
-      <table className="w-full min-w-[980px] text-left text-sm font-bold">
+      <table className="te-cards w-full min-w-[980px] text-left text-sm font-bold">
         <colgroup>
           <col />
           <col />
@@ -295,21 +304,21 @@ export function AnnualLiveMonitoringTable({
         <tbody>
           {Rows.map((Row) => (
             <tr key={Row.assignmentId} className="border-t border-[color:var(--mp-role-border)]">
-              <td className="whitespace-nowrap px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-              <td className="whitespace-nowrap px-2 py-2">{FormatCompetitionLevelLabel(Row.assignedLevelCode)}</td>
-              <td className="whitespace-nowrap px-2 py-2">
+              <td className="te-card-title whitespace-nowrap px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+              <td data-label="Level" className="whitespace-nowrap px-2 py-2">{FormatCompetitionLevelLabel(Row.assignedLevelCode)}</td>
+              <td data-label="Slot" className="whitespace-nowrap px-2 py-2">
                 {Row.slot ? (
                   Row.slot.slotLabel || Row.slot.mode
                 ) : Row.slotPending && Row.liveStatus === "NOT_STARTED" ? (
                   <span className="text-amber-600 dark:text-amber-300">Slot not set yet</span>
                 ) : (
-                  "--"
+                  "—"
                 )}
               </td>
-              <td className="whitespace-nowrap px-2 py-2"><AnnualLiveStatusChip status={Row.liveStatus} /></td>
-              <td className="whitespace-nowrap px-2 py-2 tabular-nums"><SectionCell Row={Row} /></td>
-              <td className="whitespace-nowrap px-2 py-2 tabular-nums"><RemainingCell Row={Row} FetchedAtMs={FetchedAtMs} GraceSeconds={GraceSeconds} NowMs={NowMs} /></td>
-              {ShowLastSeen && <td className="whitespace-nowrap px-2 py-2 tabular-nums"><LastSeenCell Row={Row} FetchedAtMs={FetchedAtMs} NowMs={NowMs} /></td>}
+              <td data-label="Status" className="whitespace-nowrap px-2 py-2"><AnnualLiveStatusChip status={Row.liveStatus} /></td>
+              <td data-label="Section" className="whitespace-nowrap px-2 py-2 tabular-nums"><SectionCell Row={Row} /></td>
+              <td data-label="Remaining" className="whitespace-nowrap px-2 py-2 tabular-nums"><RemainingCell Row={Row} FetchedAtMs={FetchedAtMs} GraceSeconds={GraceSeconds} NowMs={NowMs} /></td>
+              {ShowLastSeen && <td data-label="Last Seen" className="whitespace-nowrap px-2 py-2 tabular-nums"><LastSeenCell Row={Row} FetchedAtMs={FetchedAtMs} NowMs={NowMs} /></td>}
             </tr>
           ))}
         </tbody>

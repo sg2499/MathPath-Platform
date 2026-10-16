@@ -20,7 +20,35 @@ function IsBenchmarkCleared(result: AttemptResult): boolean {
   return ExplicitCleared || FallbackCleared || Workflow?.state === "CLEARED";
 }
 
-function RetryWorkflowCard({ result, showStudentActions = false }: { result: AttemptResult; showStudentActions?: boolean }) {
+// Who is reading the result. The student (default) is spoken to directly; a
+// teacher reads the same facts about the student (2026-10, teacher revamp:
+// the teacher page used to say "Excellent work! You have…"). Admin pages keep
+// the default wording.
+type ResultViewer = { kind: "STUDENT" } | { kind: "TEACHER"; studentName: string };
+
+function TeacherWorkflowText(result: AttemptResult, Name: string, IsCleared: boolean, IsManualReview: boolean) {
+  const Summary = (result.summary || {}) as any;
+  const Benchmark = Number(Summary.benchmarkPercentage || 0);
+  const Of = Benchmark ? ` (the benchmark is ${Benchmark}%)` : "";
+  if (IsCleared) {
+    return {
+      Message: `${Name} met the benchmark on this sheet with ${Summary.accuracyPercentage}% accuracy${Of}.`,
+      Guidance: "Nothing more is needed on this sheet; the next one can be assigned.",
+    };
+  }
+  if (IsManualReview) {
+    return {
+      Message: `${Name} is below the benchmark on this sheet${Of} and has used every try.`,
+      Guidance: "The next re-attempt opens once an admin approves it (Practice Tracker, Awaiting Approval).",
+    };
+  }
+  return {
+    Message: `${Name} is below the benchmark on this sheet${Of}.`,
+    Guidance: `A re-attempt is open in ${Name}'s Practice tab; its result will show on ${Name}'s practice page.`,
+  };
+}
+
+function RetryWorkflowCard({ result, showStudentActions = false, viewer = { kind: "STUDENT" } }: { result: AttemptResult; showStudentActions?: boolean; viewer?: ResultViewer }) {
   const Workflow = result.retryWorkflow;
   const Summary = result.summary;
   const IsCleared = IsBenchmarkCleared(result);
@@ -53,6 +81,8 @@ function RetryWorkflowCard({ result, showStudentActions = false }: { result: Att
       : "bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-200";
 
   const Icon = IsCleared ? <CheckCircle2 size={22} /> : IsManualReview ? <AlertTriangle size={22} /> : <BookOpenCheck size={22} />;
+  const TeacherText = viewer.kind === "TEACHER" ? TeacherWorkflowText(result, viewer.studentName, IsCleared, IsManualReview) : null;
+  const ShownTitle = viewer.kind === "TEACHER" ? (IsCleared ? "Benchmark Met" : IsManualReview ? "Waiting For Admin Approval" : "Re-Attempt Open") : Title;
 
   return (
     <div className={`mt-5 rounded-[28px] border p-5 shadow-sm ${ToneClass}`}>
@@ -62,15 +92,15 @@ function RetryWorkflowCard({ result, showStudentActions = false }: { result: Att
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-black tracking-tight">{Title}</h2>
+            <h2 className="text-lg font-black tracking-tight">{ShownTitle}</h2>
             {typeof Workflow?.attemptNumber === "number" ? (
               <span className="w-fit rounded-full border border-current/20 bg-white/50 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] dark:bg-white/10">
                 {Workflow.attemptNumber <= 0 ? "Original" : `Re-Attempt ${Workflow.attemptNumber}`}
               </span>
             ) : null}
           </div>
-          <p className="mt-2 text-sm font-medium leading-6 sm:text-base opacity-95">{Message}</p>
-          <p className="mt-1 text-sm font-medium leading-6 sm:text-base opacity-85">{Guidance}</p>
+          <p className="mt-2 text-sm font-medium leading-6 sm:text-base opacity-95">{TeacherText ? TeacherText.Message : Message}</p>
+          <p className="mt-1 text-sm font-medium leading-6 sm:text-base opacity-85">{TeacherText ? TeacherText.Guidance : Guidance}</p>
           {showStudentActions && !IsCleared && Workflow?.action ? <ReattemptActionButton Action={Workflow.action} /> : null}
         </div>
       </div>
@@ -113,8 +143,9 @@ function ReattemptActionButton({ Action }: { Action: NonNullable<NonNullable<Att
   );
 }
 
-export function ResultSummary({ result, showStudentActions = false }: { result: AttemptResult; showStudentActions?: boolean }) {
+export function ResultSummary({ result, showStudentActions = false, viewer = { kind: "STUDENT" } }: { result: AttemptResult; showStudentActions?: boolean; viewer?: ResultViewer }) {
   const s = result.summary;
+  const IsTeacher = viewer.kind === "TEACHER";
 
   return (
     <>
@@ -124,7 +155,9 @@ export function ResultSummary({ result, showStudentActions = false }: { result: 
           <div className="math-block-header mb-2"><ClipboardCheck size={14} /> Result Overview</div>
           <h1 className="mt-3 text-4xl font-black text-slate-950 dark:text-white">Score: {s.score} / {s.maxScore}</h1>
           <p className="math-subtitle">
-            {result.message || resultMessage(s.accuracyPercentage)}
+            {viewer.kind === "TEACHER"
+              ? `${viewer.studentName} answered ${s.correct} of ${Number(s.correct || 0) + Number(s.wrong || 0) + Number(s.unanswered || 0)} questions correctly.`
+              : result.message || resultMessage(s.accuracyPercentage)}
           </p>
         </div>
 
@@ -139,7 +172,7 @@ export function ResultSummary({ result, showStudentActions = false }: { result: 
         </div>
       </div>
 
-      <RetryWorkflowCard result={result} showStudentActions={showStudentActions} />
+      <RetryWorkflowCard result={result} showStudentActions={showStudentActions} viewer={viewer} />
 
       <div className="se-result-tiles mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Metric icon={<Target size={18} />} label="Accuracy" value={`${s.accuracyPercentage}%`} />
@@ -150,7 +183,9 @@ export function ResultSummary({ result, showStudentActions = false }: { result: 
       </div>
     </div>
 
-    <div className="mt-5">
+    {/* The encouragement card speaks to the student; a teacher has the
+        benchmark card above instead. */}
+    {IsTeacher ? null : <div className="mt-5">
       <StudentPerformanceFeedback
         accuracy={s.accuracyPercentage}
         benchmarkCleared={IsBenchmarkCleared(result)}
@@ -159,7 +194,7 @@ export function ResultSummary({ result, showStudentActions = false }: { result: 
         attemptNumber={result.retryWorkflow?.attemptNumber ?? result.attemptNumber ?? 0}
         showNeedsPracticeNextStep={Boolean(result.retryWorkflow?.showTeacherGuidance || result.requiresManualIntervention)}
       />
-    </div>
+    </div>}
     </>
   );
 }

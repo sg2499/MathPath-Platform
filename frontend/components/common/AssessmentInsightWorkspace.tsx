@@ -370,7 +370,7 @@ export function AssessmentInsightWorkspace({
   }
 
   return (
-    <div className="mx-auto max-w-[1500px] px-6 py-8">
+    <div className={role === "teacher" ? "" : "mx-auto max-w-[1500px] px-6 py-8"}>
       <div className="math-hero">
         <div>
           <p className="math-block-header">
@@ -379,13 +379,14 @@ export function AssessmentInsightWorkspace({
           </p>
           <h1 className="math-title">{title}</h1>
           <p className="math-subtitle">Review module-level assessment completion, outcomes, and re-attempt history for this student.</p>
-          {subtitle ? <p className="mt-2 text-sm font-bold text-slate-500">{subtitle}</p> : null}
+          {subtitle ? <p className={role === "teacher" ? "te-hero-code" : "mt-2 text-sm font-bold text-slate-500"}>{subtitle}</p> : null}
         </div>
-        <div className="grid grid-cols-4 gap-3">
+        <div className={role === "teacher" ? "grid grid-cols-2 gap-3 lg:grid-cols-5" : "grid grid-cols-4 gap-3"}>
           <Metric Label="Assigned Assessments" Value={CurrentStats.Total} Icon={<Layers3 size={15} />} />
           <Metric Label="Cleared" Value={CurrentStats.Cleared} Icon={<CheckCircle2 size={15} />} />
           <Metric Label="Pending" Value={CurrentStats.Pending} Icon={<CalendarClock size={15} />} />
           <Metric Label="Needs Re-Attempt" Value={CurrentStats.Reattempt} Icon={<AlertTriangle size={15} />} />
+          {role === "teacher" ? <Metric Label="Levels Reviewed" Value={new Set(FilteredRows.map(LevelKey)).size} Icon={<Target size={15} />} /> : null}
         </div>
       </div>
 
@@ -426,7 +427,7 @@ export function AssessmentInsightWorkspace({
 
       <div className="mt-6">
         {Tab === "overview" ? (
-          <AssessmentOverview Rows={FilteredRows} onView={onView} />
+          <AssessmentOverview Rows={FilteredRows} onView={onView} HideSnapshot={role === "teacher"} />
         ) : null}
 
         {Tab === "insights" ? (
@@ -441,30 +442,35 @@ export function AssessmentInsightWorkspace({
   );
 }
 
-function AssessmentOverview({ Rows, onView }: { Rows: AssessmentRow[]; onView?: (row: AssessmentRow) => void }) {
+// HideSnapshot (teacher page, 2026-10): the snapshot's counts repeat the
+// tiles at the top of the page, so the teacher sees the two lists side by
+// side instead. The admin page keeps the snapshot.
+function AssessmentOverview({ Rows, onView, HideSnapshot = false }: { Rows: AssessmentRow[]; onView?: (row: AssessmentRow) => void; HideSnapshot?: boolean }) {
   const CurrentStats = Stats(Rows);
   const PriorityRows = Rows.filter((Row) => IsPending(Row) || NeedsReattempt(Row));
   const RecentRows = [...Rows].sort((First, Second) => RowTime(Second) - RowTime(First)).slice(0, 4);
   const Levels = new Set(Rows.map(LevelKey)).size;
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.95fr_1.15fr]">
-      <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <p className="math-block-header">
-          <Settings size={14} />
-          Assessment Control Summary
-        </p>
-        <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">Assessment Snapshot</h2>
-        <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">Review assigned assessments, completion dates, and assessment outcomes.</p>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <OverviewStat Icon={<ClipboardList size={18} />} Label="Assigned Assessments" Value={CurrentStats.Total} Tone="blue" />
-          <OverviewStat Icon={<CheckCircle2 size={18} />} Label="Cleared" Value={CurrentStats.Cleared} Tone="green" />
-          <OverviewStat Icon={<AlertTriangle size={18} />} Label="Needs Re-Attempt" Value={CurrentStats.Reattempt} Tone={CurrentStats.Reattempt ? "red" : "green"} />
-          <OverviewStat Icon={<Target size={18} />} Label="Levels Reviewed" Value={Levels} Tone="slate" />
-        </div>
-      </section>
+    <div className={HideSnapshot ? "grid items-start gap-6" : "grid gap-6 xl:grid-cols-[0.95fr_1.15fr]"}>
+      {HideSnapshot ? null : (
+        <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <p className="math-block-header">
+            <Settings size={14} />
+            Assessment Control Summary
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">Assessment Snapshot</h2>
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">Review assigned assessments, completion dates, and assessment outcomes.</p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <OverviewStat Icon={<ClipboardList size={18} />} Label="Assigned Assessments" Value={CurrentStats.Total} Tone="blue" />
+            <OverviewStat Icon={<CheckCircle2 size={18} />} Label="Cleared" Value={CurrentStats.Cleared} Tone="green" />
+            <OverviewStat Icon={<AlertTriangle size={18} />} Label="Needs Re-Attempt" Value={CurrentStats.Reattempt} Tone={CurrentStats.Reattempt ? "red" : "green"} />
+            <OverviewStat Icon={<Target size={18} />} Label="Levels Reviewed" Value={Levels} Tone="slate" />
+          </div>
+        </section>
+      )}
 
-      <section className="grid gap-6">
+      <section className={HideSnapshot ? "te-pair grid gap-6 xl:grid-cols-2" : "grid gap-6"}>
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
           <div className="flex items-start gap-3">
             <div className="rounded-2xl bg-amber-50 p-3 text-amber-700"><AlertTriangle size={20} /></div>

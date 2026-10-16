@@ -29,6 +29,7 @@ from app.api.routes_admin import (
     _admin_parent_report_level_label,
     BuildParentProgressPdfResponse,
 )
+from app.services.demo_students import IsHiddenDemoStudent
 from app.services.parent_report_notification_service import ResolveStudentTeacher
 
 router = APIRouter(prefix="/api/teacher", tags=["teacher"])
@@ -76,6 +77,12 @@ def teacher_list_parent_report_deliveries(
     for LogValue in Logs:
         StudentValue = StudentsById.get(LogValue.student_id) if LogValue.student_id else None
         if not _teacher_owns_student(db, teacher, StudentValue):
+            continue
+        # Demo / test accounts stay off the list unless "Show Demo Accounts" is
+        # on (2026-10, teacher revamp: this list was missed by the Phase 2 demo
+        # work, so the test account showed on live). Opening one report by id
+        # still works, as for every other demo screen.
+        if IsHiddenDemoStudent(db, StudentValue):
             continue
         if studentCode and (not StudentValue or StudentValue.student_code != studentCode):
             continue

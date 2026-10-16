@@ -731,6 +731,8 @@ export type TeacherAnnualCompetitionResultsList = {
   eventId: string;
   competitionLevelCode: string | null;
   totalResults: number;
+  // How many of the teacher's students were assigned the event (released or not).
+  assignedCount?: number;
   rows: TeacherAnnualCompetitionResultRow[];
 };
 
