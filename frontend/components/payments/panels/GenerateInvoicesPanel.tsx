@@ -231,7 +231,7 @@ export function GenerateInvoicesPanel() {
           </div>
           <div className="grid grid-cols-2 gap-3 xl:shrink-0">
             <PaymentsMetric label="Students" value={selected.size} icon={<UsersRound size={14} />} tone="cyan" />
-            <PaymentsMetric label="Fee items" value={feeIds.length} icon={<FilePlus2 size={14} />} tone="emerald" />
+            <PaymentsMetric label="Fee Items" value={feeIds.length} icon={<FilePlus2 size={14} />} tone="emerald" />
           </div>
         </div>
       </section>
@@ -270,11 +270,11 @@ export function GenerateInvoicesPanel() {
             </details>
           ) : null}
           <div className="mt-5 flex flex-wrap gap-3">
-            <Link href={`/admin/payments/invoices?tab=all&batchId=${encodeURIComponent(result.batchId)}`} className="math-button-primary"><FileText size={17} />View these invoices</Link>
+            <Link href={`/admin/payments/invoices?tab=all&batchId=${encodeURIComponent(result.batchId)}`} className="math-button-primary"><FileText size={17} />View These Invoices</Link>
             <button type="button" className="math-button-secondary" disabled={pdfMutation.isPending} onClick={() => pdfMutation.mutate(result.batchId)}>
               {pdfMutation.isPending ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}Download all as PDF
             </button>
-            <button type="button" className="math-button-secondary" onClick={startAgain}><FilePlus2 size={17} />Generate more</button>
+            <button type="button" className="math-button-secondary" onClick={startAgain}><FilePlus2 size={17} />Generate More</button>
           </div>
           {pdfMutation.error ? <div className="mt-3"><InlineError error={pdfMutation.error} /></div> : null}
         </section>
@@ -286,10 +286,10 @@ export function GenerateInvoicesPanel() {
         <>
           <section className={`mt-6 math-card p-5 sm:p-6 ${feePickerOpen ? "relative z-30" : ""}`}>
             <p className="math-block-header"><FilePlus2 size={14} />Step 1</p>
-            <h2 className="text-2xl font-black text-slate-950 dark:text-white">What to invoice</h2>
+            <h2 className="text-2xl font-black text-slate-950 dark:text-white">What To Invoice</h2>
             {!activeFees.length ? (
               <div className="mt-4">
-                <EmptyState title="No fee items yet" description="Add fee items in Fee Setup first, then come back here." />
+                <EmptyState title="No Fee Items Yet" description="Add fee items in Fee Setup first, then come back here." />
               </div>
             ) : (
               <div className="mt-4 max-w-3xl">
@@ -302,7 +302,7 @@ export function GenerateInvoicesPanel() {
               {hasMonthly ? (
                 <div className="grid grid-cols-2 items-end gap-3 sm:col-span-2 xl:col-span-2">
                   <label className="block">
-                    <FieldLabel>Month (monthly fee)</FieldLabel>
+                    <FieldLabel>Month (Monthly Fee)</FieldLabel>
                     <select className="math-input" value={month} onChange={(event) => setMonth(Number(event.target.value))}>
                       {MONTHS.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}
                     </select>
@@ -316,11 +316,11 @@ export function GenerateInvoicesPanel() {
                 </div>
               ) : null}
               <label className="block">
-                <FieldLabel>Invoice date</FieldLabel>
+                <FieldLabel>Invoice Date</FieldLabel>
                 <input type="date" className="math-input" value={invoiceDate} onChange={(event) => setInvoiceDate(event.target.value)} />
               </label>
               <label className="block">
-                <FieldLabel hint="10 days by default">Due date</FieldLabel>
+                <FieldLabel hint="10 days by default">Due Date</FieldLabel>
                 <input type="date" className="math-input" value={dueDate} min={invoiceDate} onChange={(event) => { setDueTouched(true); setDueDate(event.target.value); }} />
               </label>
             </div>
@@ -335,34 +335,34 @@ export function GenerateInvoicesPanel() {
           <section className="mt-6 math-card p-5 sm:p-6">
             <div className="flex flex-col gap-1">
               <p className="math-block-header"><UsersRound size={14} />Step 2</p>
-              <h2 className="text-2xl font-black text-slate-950 dark:text-white">Who to invoice</h2>
+              <h2 className="text-2xl font-black text-slate-950 dark:text-white">Who To Invoice</h2>
               <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{selected.size} selected of {students.filter((row) => row.isActive).length} active students.</p>
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5 2xl:grid-cols-6">
               <div className="relative sm:col-span-2 lg:col-span-5 2xl:col-span-1">
                 <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name or student ID" aria-label="Search students" />
+                <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name or student ID" aria-label="Search Students" />
               </div>
               <select className="math-input" value={centre} onChange={(event) => setCentre(event.target.value)} aria-label="Centre">
-                <option value="ALL">All centres</option>
+                <option value="ALL">All Centres</option>
                 {options.centres.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-                <option value="NONE">No centre set</option>
+                <option value="NONE">No Centre Set</option>
               </select>
               <select className="math-input" value={moduleCode} onChange={(event) => { setModuleCode(event.target.value); setLevelCode("ALL"); }} aria-label="Module">
-                <option value="ALL">All modules</option>
+                <option value="ALL">All Modules</option>
                 {options.modules.map((value) => <option key={value} value={value}>{value}</option>)}
               </select>
               <select className="math-input" value={levelCode} onChange={(event) => setLevelCode(event.target.value)} aria-label="Level">
-                <option value="ALL">All levels</option>
+                <option value="ALL">All Levels</option>
                 {options.levels.map((value) => <option key={value} value={value}>{value}</option>)}
               </select>
               <select className="math-input" value={teacher} onChange={(event) => setTeacher(event.target.value)} aria-label="Teacher">
-                <option value="ALL">All teachers</option>
+                <option value="ALL">All Teachers</option>
                 {options.teachers.map((value) => <option key={value} value={value}>{value}</option>)}
               </select>
               <select className="math-input" value={batch} onChange={(event) => setBatch(event.target.value)} aria-label="Batch">
-                <option value="ALL">All batches</option>
+                <option value="ALL">All Batches</option>
                 {options.batches.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
               </select>
             </div>
@@ -371,10 +371,10 @@ export function GenerateInvoicesPanel() {
               <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={toggleVisible} disabled={!visible.length}>
                 {allVisibleSelected ? "Unselect shown" : `Select all shown (${visible.length})`}
               </button>
-              {selected.size ? <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => setSelected(new Set())}>Clear selection</button> : null}
+              {selected.size ? <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => setSelected(new Set())}>Clear Selection</button> : null}
               <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
                 <input type="checkbox" className="h-4 w-4" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />
-                Show inactive students
+                Show Inactive Students
               </label>
             </div>
 
@@ -406,7 +406,7 @@ export function GenerateInvoicesPanel() {
               {problems.length ? problems[0] : `${selected.size} ${selected.size === 1 ? "student" : "students"} × ${feeIds.length} ${feeIds.length === 1 ? "fee item" : "fee items"}${hasMonthly ? ` for ${MONTHS[month - 1]} ${year}` : ""}`}
             </div>
             <button type="button" className="math-button-primary whitespace-nowrap" disabled={Boolean(problems.length) || previewMutation.isPending} onClick={() => previewMutation.mutate()}>
-              {previewMutation.isPending ? <Loader2 size={17} className="animate-spin" /> : <FileText size={17} />}Preview invoices
+              {previewMutation.isPending ? <Loader2 size={17} className="animate-spin" /> : <FileText size={17} />}Preview Invoices
             </button>
           </section>
           {previewMutation.error ? <div className="mt-3"><InlineError error={previewMutation.error} /></div> : null}

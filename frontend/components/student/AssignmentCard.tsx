@@ -86,13 +86,28 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
     <div className="math-card math-card-hover flex h-full flex-col overflow-hidden p-5 sm:p-6 bg-white/40 dark:bg-slate-900/40 border border-white/50 dark:border-white/10 backdrop-blur-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-all duration-500 relative group hover:-translate-y-1">
       <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent dark:from-white/5 dark:to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
       <div className="relative z-10 flex flex-1 flex-col">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+        {/* 2026-10 (platform rule): the status sits on the top row with the
+            mode chip, so the title and the sheet's description run the full
+            width of the card (they wrapped in a column beside the status
+            while the space under it stayed empty). */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-blue-700">
               <Sparkles size={12} />
               {InitCaps(assignment.mode === "ASSESSMENT" ? "ASSESSMENT" : assignment.mode)}
             </div>
 
+          {chainState(assignment) && assignment.chainRowLabel ? (
+            <span className="w-fit shrink-0">
+              <StatePill tone={(assignment.chainRowTone || "slate") as ChainTone}>{assignment.chainRowLabel}</StatePill>
+            </span>
+          ) : (
+            <span className={`math-badge w-fit ${getStatusStyle(assignment.status)}`}>
+              {InitCaps(assignment.status)}
+            </span>
+          )}
+        </div>
+
+        <div>
             <h3 className="se-card-title mt-4 text-xl font-black text-slate-950 dark:text-white sm:text-2xl">
               {assignment.title}
             </h3>
@@ -104,17 +119,6 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
             <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
               {assignment.dpsTitle}
             </p>
-          </div>
-
-          {chainState(assignment) && assignment.chainRowLabel ? (
-            <span className="w-fit shrink-0">
-              <StatePill tone={(assignment.chainRowTone || "slate") as ChainTone}>{assignment.chainRowLabel}</StatePill>
-            </span>
-          ) : (
-            <span className={`math-badge w-fit ${getStatusStyle(assignment.status)}`}>
-              {InitCaps(assignment.status)}
-            </span>
-          )}
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-3">

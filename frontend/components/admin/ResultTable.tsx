@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { Eye } from "lucide-react";
+import { formatMathPathDateTime } from "@/lib/date";
 import { useRouter } from "next/navigation";
 
 
@@ -28,9 +29,12 @@ function AccuracyTone(Value: unknown): "green" | "red" | "slate" {
 export function ResultTable({ results }: { results: any[] }) {
   const router = useRouter();
 
+  // 2026-10 (admin revamp): the student code under each name, the submitted
+  // date, the View button in the admin style, and a card per row below
+  // 1280px instead of a sideways-scrolling table.
   return (
-    <div className="math-table">
-      <table>
+    <div className="math-table math-admin-directory-table">
+      <table className="ad-cards ad-cards-wide">
         <thead>
           <tr>
             <th>Student</th>
@@ -39,25 +43,32 @@ export function ResultTable({ results }: { results: any[] }) {
             <th>Correct</th>
             <th>Wrong</th>
             <th>Unanswered</th>
+            <th>Submitted</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
           {results.map((row) => (
             <tr key={row.attemptId}>
-              <td className="font-bold text-slate-900">{row.studentName}</td>
-              <td><ResultValueChip Value={`${RoundedNumber(row.score)} / ${RoundedNumber(row.maxScore)}`} Tone="blue" /></td>
-              <td><ResultValueChip Value={`${RoundedNumber(row.accuracyPercentage)}%`} Tone={AccuracyTone(row.accuracyPercentage)} /></td>
-              <td>{row.correct}</td>
-              <td>{row.wrong}</td>
-              <td>{row.unanswered}</td>
-              <td>
+              <td className="ad-card-title">
+                <p className="font-black text-slate-950 dark:text-white">{row.studentName || "—"}</p>
+                {row.studentCode ? <p className="ad-code">{row.studentCode}</p> : null}
+              </td>
+              <td data-label="Score"><ResultValueChip Value={`${RoundedNumber(row.score)} / ${RoundedNumber(row.maxScore)}`} Tone="blue" /></td>
+              <td data-label="Accuracy"><ResultValueChip Value={`${RoundedNumber(row.accuracyPercentage)}%`} Tone={AccuracyTone(row.accuracyPercentage)} /></td>
+              <td data-label="Correct">{row.correct ?? "—"}</td>
+              <td data-label="Wrong">{row.wrong ?? "—"}</td>
+              <td data-label="Unanswered">{row.unanswered ?? "—"}</td>
+              <td data-label="Submitted" className="ad-date">{formatMathPathDateTime(row.completedDate || row.submittedAt) || "—"}</td>
+              <td data-label="Action">
                 <button
-                  className="inline-flex items-center gap-2 font-bold text-blue-700 hover:text-blue-900"
+                  type="button"
+                  className="math-role-action-button px-3 py-2"
                   onClick={() => router.push(`/admin/results/attempts/${row.attemptId}`)}
+                  title="Open this attempt"
                 >
+                  <Eye size={15} />
                   View
-                  <ArrowRight size={16} />
                 </button>
               </td>
             </tr>

@@ -77,7 +77,7 @@ function TemplateCard({ data, templateKey }: { data: ReminderTemplates; template
     <section className="math-card flex h-full min-w-0 flex-col p-5 sm:p-6">
       <div className="mb-1 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 dark:text-white"><BellRing size={18} className={templateKey === "GENTLE" ? "text-sky-600" : templateKey === "FIRM" ? "text-amber-600" : "text-rose-600"} />{template.title}</h2>
-        {template.isDefault ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">Default wording</span> : <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-black text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">Your wording</span>}
+        {template.isDefault ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">Default Wording</span> : <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-black text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">Your Wording</span>}
       </div>
       <p className="mb-3 text-sm font-semibold text-slate-500 dark:text-slate-400">{WHEN[templateKey]}</p>
       <textarea ref={box} className="math-input min-h-[260px] flex-1 text-sm leading-relaxed" maxLength={1500} value={body} onChange={(event) => { setBody(event.target.value); setSaved(false); }} aria-label={`${template.title} reminder`} />
@@ -93,7 +93,7 @@ function TemplateCard({ data, templateKey }: { data: ReminderTemplates; template
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button type="button" className="math-button-primary" disabled={!changed || save.isPending} onClick={() => save.mutate()}>{save.isPending ? <Loader2 size={17} className="animate-spin" /> : <CheckCircle2 size={17} />}Save</button>
-        {!template.isDefault ? <button type="button" className="math-button-secondary" disabled={reset.isPending} onClick={() => reset.mutate()}><RotateCcw size={16} />Default wording</button> : null}
+        {!template.isDefault ? <button type="button" className="math-button-secondary" disabled={reset.isPending} onClick={() => reset.mutate()}><RotateCcw size={16} />Default Wording</button> : null}
         {saved && !changed ? <span role="status" className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Saved.</span> : null}
       </div>
       {save.error ? <div className="mt-3"><InlineError error={save.error} /></div> : null}

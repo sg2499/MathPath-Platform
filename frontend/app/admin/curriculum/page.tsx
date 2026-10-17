@@ -508,7 +508,7 @@ function AdminCurriculumPageContent() {
       ) : null}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-4">
-        <Panel title="Modules">
+        <Panel title="Modules" count={(modulesQuery.data ?? []).length}>
           {(modulesQuery.data ?? []).map((moduleItem: ModuleItem) => (
             <Item
               key={moduleItem.moduleId}
@@ -523,7 +523,7 @@ function AdminCurriculumPageContent() {
           ))}
         </Panel>
 
-        <Panel title="Levels">
+        <Panel title="Levels" count={(levelsQuery.data ?? []).length}>
           {(levelsQuery.data ?? []).map((level: LevelItem) => (
             <Item
               key={level.levelId}
@@ -538,7 +538,7 @@ function AdminCurriculumPageContent() {
           ))}
         </Panel>
 
-        <Panel title="Lessons">
+        <Panel title="Lessons" count={(lessonsQuery.data ?? []).length}>
           {(lessonsQuery.data ?? []).map((lesson: LessonItem) => (
             <Item
               key={lesson.lessonId}
@@ -550,7 +550,7 @@ function AdminCurriculumPageContent() {
           ))}
         </Panel>
 
-        <Panel title="DPS">
+        <Panel title="DPS" count={(dpsQuery.data ?? []).length}>
           {(dpsQuery.data ?? []).map((dps: DpsItem) => (
             <Item
               key={dps.dpsId}
@@ -560,7 +560,7 @@ function AdminCurriculumPageContent() {
               <span className="block">
                 DPS {dps.dpsNumber}: {dps.dpsTitle}
               </span>
-              <span className="mt-1 block text-[0.65rem] font-black uppercase tracking-[0.16em] opacity-80">
+              <span className="ad-pick-note mt-1 block">
                 {(dps.publicationStatus || "DRAFT") === "PUBLISHED"
                   ? "Published"
                   : "Draft"}
@@ -572,7 +572,7 @@ function AdminCurriculumPageContent() {
 
       {lessonId ? (
         <div className="mt-6 math-card p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <p className="math-block-header text-blue-600">
                 <Layers size={14} />Selected Lesson
@@ -588,14 +588,14 @@ function AdminCurriculumPageContent() {
                 <p>
                   <span className="font-semibold">Module:</span>{" "}
                   {selectedModule
-                    ? `${selectedModule.moduleCode} - ${selectedModule.moduleName}`
-                    : "Not selected"}
+                    ? `${selectedModule.moduleCode} · ${selectedModule.moduleName}`
+                    : "Not Selected"}
                 </p>
                 <p>
                   <span className="font-semibold">Level:</span>{" "}
                   {selectedLevel
-                    ? `${selectedLevel.levelCode} - ${selectedLevel.levelName}`
-                    : "Not selected"}
+                    ? `${selectedLevel.levelCode} · ${selectedLevel.levelName}`
+                    : "Not Selected"}
                 </p>
               </div>
 
@@ -612,18 +612,18 @@ function AdminCurriculumPageContent() {
               </div>
 
               <p className="mt-3 text-xs font-semibold text-slate-500">
-                {publishedLessonDpsCount} of {lessonDpsRows.length} sheet(s) published in this lesson.
+                {publishedLessonDpsCount} of {lessonDpsRows.length} {lessonDpsRows.length === 1 ? "sheet" : "sheets"} published in this lesson.
               </p>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
-              <label className="flex items-center gap-2 whitespace-nowrap text-xs font-bold text-slate-600">
+            <div className="ad-studio-actions">
+              <label className="ad-check">
                 <input
                   type="checkbox"
                   checked={includePublishedInBulk}
                   onChange={(event) => setIncludePublishedInBulk(event.target.checked)}
                 />
-                Include already-published (republish)
+                Include Published Sheets
               </label>
 
               <button
@@ -633,7 +633,7 @@ function AdminCurriculumPageContent() {
                   lessonDpsRows.length === 0
                     ? "This lesson has no DPS sheets yet."
                     : !includePublishedInBulk && publishedLessonDpsCount >= lessonDpsRows.length
-                      ? "Every sheet in this lesson is already published. Check \"Include already-published\" to republish them."
+                      ? "Every sheet in this lesson is already published. Tick \"Include Published Sheets\" to republish them."
                       : "Generate fresh previews for this lesson's sheets, then review before publishing all at once."
                 }
                 onClick={() => bulkPreviewMutation.mutate()}
@@ -652,7 +652,7 @@ function AdminCurriculumPageContent() {
                     <CheckCircle2 size={14} />Review Before Publishing
                   </p>
                   <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-cyan-100/80">
-                    {bulkReview.results.length} sheet(s) ready to publish
+                    {bulkReview.results.length} {bulkReview.results.length === 1 ? "sheet" : "sheets"} ready to publish
                     {bulkReview.skipped.length ? `, ${bulkReview.skipped.length} skipped` : ""}.
                   </p>
                 </div>
@@ -690,7 +690,7 @@ function AdminCurriculumPageContent() {
                           ) : null}
                         </span>
                         <span className="flex shrink-0 items-center gap-2 text-xs font-bold text-slate-500">
-                          {result.questions.length} questions
+                          {result.questions.length} {result.questions.length === 1 ? "Question" : "Questions"}
                           {IsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         </span>
                       </button>
@@ -715,7 +715,7 @@ function AdminCurriculumPageContent() {
                 <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
                   Skipped: {bulkReview.skipped.map((item) => `DPS ${item.dpsNumber}`).join(", ")}
                   {" "}
-                  (already published — check &quot;Include already-published&quot; to republish them too).
+                  (already published; tick &quot;Include Published Sheets&quot; to republish them too).
                 </div>
               ) : null}
 
@@ -738,7 +738,7 @@ function AdminCurriculumPageContent() {
                   <CheckCircle2 size={16} />
                   {bulkPublishMutation.isPending
                     ? "Publishing..."
-                    : `Confirm & Publish ${bulkReview.results.length} Sheet(s)`}
+                    : `Confirm & Publish ${bulkReview.results.length} ${bulkReview.results.length === 1 ? "Sheet" : "Sheets"}`}
                 </button>
               </div>
             </div>
@@ -753,7 +753,7 @@ function AdminCurriculumPageContent() {
       ) : null}
 
       <div className="mt-6 math-card p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <p className="math-block-header text-blue-600">
               <Filter size={14} />Selected DPS
@@ -774,29 +774,29 @@ function AdminCurriculumPageContent() {
               <p>
                 <span className="font-semibold">Module:</span>{" "}
                 {selectedModule
-                  ? `${selectedModule.moduleCode} - ${selectedModule.moduleName}`
-                  : "Not selected"}
+                  ? `${selectedModule.moduleCode} · ${selectedModule.moduleName}`
+                  : "Not Selected"}
               </p>
 
               <p>
                 <span className="font-semibold">Level:</span>{" "}
                 {selectedLevel
-                  ? `${selectedLevel.levelCode} - ${selectedLevel.levelName}`
-                  : "Not selected"}
+                  ? `${selectedLevel.levelCode} · ${selectedLevel.levelName}`
+                  : "Not Selected"}
               </p>
 
               <p>
                 <span className="font-semibold">Lesson:</span>{" "}
                 {selectedLesson
-                  ? `Lesson ${selectedLesson.lessonNumber} - ${selectedLesson.lessonTitle}`
-                  : "Not selected"}
+                  ? `Lesson ${selectedLesson.lessonNumber} · ${selectedLesson.lessonTitle}`
+                  : "Not Selected"}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+          <div className="ad-studio-actions">
             <button
-              className="math-role-action-button px-4"
+              className="math-button-secondary"
               disabled={!canPreview}
               onClick={() => previewMutation.mutate()}
             >
@@ -805,7 +805,7 @@ function AdminCurriculumPageContent() {
             </button>
 
             <button
-              className="math-role-action-button px-4"
+              className="math-button-secondary"
               disabled={previewQuestions.length === 0}
               onClick={() => setShowCorrectAnswers((value) => !value)}
             >
@@ -844,19 +844,22 @@ function AdminCurriculumPageContent() {
       </div>
 
       <div className="mt-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-black text-slate-900">
-            Generated Question Preview
-          </h2>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="math-block-header"><Eye size={14} />Preview</p>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white">
+              Generated Question Preview
+            </h2>
+          </div>
 
-          <p className="text-sm text-slate-500">
-            {previewQuestions.length} questions
-          </p>
+          <span className="math-badge border-blue-200 bg-blue-50 text-blue-700">
+            {previewQuestions.length} {previewQuestions.length === 1 ? "Question" : "Questions"}
+          </span>
         </div>
 
         {previewQuestions.length === 0 ? (
           <div className="math-card p-6 text-center text-slate-500">
-            Select a DPS and click Generate Preview to inspect questions before
+            Choose a DPS and press Generate Preview to see its questions before
             publishing.
           </div>
         ) : (
@@ -871,7 +874,7 @@ function AdminCurriculumPageContent() {
                   )}
                   <h3 className="mt-1 text-xl font-black">{Section.title}</h3>
                   <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-cyan-100/80">
-                    {Section.questions.length} questions
+                    {Section.questions.length} {Section.questions.length === 1 ? "Question" : "Questions"}
                   </p>
                 </div>
 
@@ -973,17 +976,25 @@ function PublishStatusChip({ Status }: { Status: string }) {
   );
 }
 
+// One column of the studio (2026-10, admin revamp): its count beside the
+// title, and a list that scrolls inside the column, fading at the edge it can
+// scroll to instead of cutting an item in half.
 function Panel({
   title,
+  count,
   children,
 }: {
   title: string;
+  count?: number;
   children: React.ReactNode;
 }) {
   return (
-    <div className="math-card p-4">
-      <h2 className="mb-3 font-black text-slate-900">{title}</h2>
-      <div className="max-h-[420px] space-y-2 overflow-auto pr-1">
+    <div className="ad-studio-col math-card p-4">
+      <div className="ad-studio-col-head">
+        <h2 className="font-black text-slate-900 dark:text-white">{title}</h2>
+        {typeof count === "number" ? <span className="ad-studio-count">{count}</span> : null}
+      </div>
+      <div className="ad-studio-list">
         {children}
       </div>
     </div>
@@ -1001,10 +1012,12 @@ function Item({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`w-full rounded-xl p-3 text-left text-sm font-semibold transition ${
+      aria-pressed={active}
+      className={`ad-pick w-full rounded-xl p-3 text-left text-sm font-semibold transition ${
         active
-          ? "bg-blue-600 text-white"
+          ? "ad-pick-active bg-blue-600 text-white"
           : "bg-slate-50 text-slate-700 hover:bg-blue-50"
       }`}
     >

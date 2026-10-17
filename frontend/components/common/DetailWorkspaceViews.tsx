@@ -1442,8 +1442,11 @@ export function StudentSummaryTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="math-admin-light-student-summary-header grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
+    // ad-* classes (2026-10, admin revamp; this table is only on Practice
+    // Control): below 1280px each row becomes a card, each value under its
+    // heading.
+    <div className="ad-gtable ad-gtable-wide overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="ad-ghead math-admin-light-student-summary-header grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/70">
         <SortHeader label="Student" sortKey="student" />
         <SortHeader label="Assigned DPS" sortKey="assigned" />
         <SortHeader label="Cleared DPS" sortKey="completed" />
@@ -1460,9 +1463,9 @@ export function StudentSummaryTable({
           return (
             <div
               key={student.key}
-              className="grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] items-center gap-3 px-5 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
+              className="ad-grow grid grid-cols-[minmax(180px,1fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(104px,.48fr)_minmax(128px,.56fr)_minmax(118px,.52fr)_minmax(150px,.68fr)_minmax(130px,.58fr)] items-center gap-3 px-5 py-4 transition hover:bg-blue-50/45 dark:hover:bg-slate-900/70"
             >
-              <div className="min-w-0">
+              <div className="ad-gtitle min-w-0">
                 <button
                   className="truncate text-left text-base font-black text-slate-950 transition hover:text-blue-700 dark:text-white"
                   onClick={() => onOpen(student)}
@@ -1470,8 +1473,8 @@ export function StudentSummaryTable({
                   aria-label="Open student details"
                 >
                   {student.studentName}{" "}
-                  <span className={`text-xs font-black uppercase tracking-[0.12em] ${studentCodeColor}`}>
-                    ({student.studentCode})
+                  <span className={`ad-code-inline text-xs font-black ${studentCodeColor}`}>
+                    {student.studentCode}
                   </span>
                   <DemoTag studentCode={student.studentCode} />
                 </button>
@@ -1485,23 +1488,23 @@ export function StudentSummaryTable({
                   )}
                 </div>
               </div>
-              <div>
+              <div data-label="Assigned DPS">
                 <Chip tone="blue">{stats.assigned}</Chip>
               </div>
-              <div>
+              <div data-label="Cleared DPS">
                 <Chip tone="green">{stats.completed}</Chip>
               </div>
-              <div>
+              <div data-label="Pending DPS">
                 <Chip tone={stats.pending ? "amber" : "green"}>
                   {stats.pending}
                 </Chip>
               </div>
-              <div>
+              <div data-label="Needs Re-Attempt">
                 <Chip tone={stats.below ? "red" : "green"}>
                   {stats.below}
                 </Chip>
               </div>
-              <div>
+              <div data-label="Average Accuracy">
                 {(() => {
                   const OverallAverage = hierarchyAverageAccuracy(student.rows);
                   return (
@@ -1511,10 +1514,10 @@ export function StudentSummaryTable({
                   );
                 })()}
               </div>
-              <div className="text-sm font-bold text-slate-600">
+              <div className="ad-date text-sm font-bold text-slate-600" data-label="Last Activity">
                 {stats.last}
               </div>
-              <div className="flex justify-start">
+              <div className="ad-gaction flex justify-end">
                 <StandardViewButton
                   label={viewLabel}
                   tooltip={viewTooltip}
@@ -1828,7 +1831,7 @@ export function RecordWorkspace({
           <h1 className="math-title">{title}</h1>
           <p className="math-subtitle">{overviewDescription}</p>
           {subtitle ? (
-            <p className="mt-2 text-sm font-bold text-slate-500">{subtitle}</p>
+            <p className={role === "admin" ? "ad-hero-code" : "mt-2 text-sm font-bold text-slate-500"}>{subtitle}</p>
           ) : null}
         </div>
         <div className={`mt-6 grid gap-4 sm:grid-cols-2 ${role === "student" ? "xl:grid-cols-6" : "xl:grid-cols-5"}`}>
@@ -2034,7 +2037,7 @@ export function RecordWorkspace({
                         </h3>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Chip tone="blue">{ModuleGroup.Levels.length} Level(s)</Chip>
+                        <Chip tone="blue">{ModuleGroup.Levels.length} {ModuleGroup.Levels.length === 1 ? "Level" : "Levels"}</Chip>
                         <Chip tone="blue">{uniqueAssignedConceptCount(ModuleRows)} DPS</Chip>
                         <Chip tone="green">
                           {uniqueClearedConceptCount(ModuleRows)} Cleared
@@ -2073,7 +2076,7 @@ export function RecordWorkspace({
                                   </h4>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <Chip tone="blue">{LevelGroup.Lessons.length} Lesson(s)</Chip>
+                                  <Chip tone="blue">{LevelGroup.Lessons.length} {LevelGroup.Lessons.length === 1 ? "Lesson" : "Lessons"}</Chip>
                                   <Chip tone="green">
                                     {uniqueClearedConceptCount(LevelRows)} Cleared
                                   </Chip>
@@ -2200,7 +2203,7 @@ export function RecordWorkspace({
                         </h3>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Chip tone="blue">{ModuleGroup.Levels.length} Level(s)</Chip>
+                        <Chip tone="blue">{ModuleGroup.Levels.length} {ModuleGroup.Levels.length === 1 ? "Level" : "Levels"}</Chip>
                         <Chip tone="blue">{uniqueAssignedConceptCount(ModuleRows)} DPS</Chip>
                         <Chip tone="green">
                           {uniqueClearedConceptCount(ModuleRows)} Cleared
@@ -2234,7 +2237,7 @@ export function RecordWorkspace({
                                   </h4>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <Chip tone="blue">{LevelGroup.Lessons.length} Lesson(s)</Chip>
+                                  <Chip tone="blue">{LevelGroup.Lessons.length} {LevelGroup.Lessons.length === 1 ? "Lesson" : "Lessons"}</Chip>
                                   <Chip tone="blue">{uniqueAssignedConceptCount(LevelRows)} DPS</Chip>
                                   <Chip tone="green">
                                     {uniqueClearedConceptCount(LevelRows)} Cleared
@@ -2471,52 +2474,16 @@ function AdminAssignmentOverview({
   viewLabel: string;
   viewTip: string;
 }) {
-  const stats = studentStats(rows);
   const priorityRows = priorityWorkRows(rows);
-  const archivedRows = currentWorkRows(rows).filter((row) => row.isActive === false).length;
 
+  // 2026-10 (admin revamp): the four counts that sat here ("Administrative
+  // Snapshot") repeated the tiles at the top of the page. The level coverage
+  // has its own row, and the two lists sit side by side under it.
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.95fr_1.15fr]">
-      <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <div className="math-block-header mb-2"><Settings size={14} /> Assignment Control Summary</div>
-        <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
-          Administrative Snapshot
-        </h2>
-        <p className="math-subtitle !mt-2">
-          Review assigned practice, completion date, and administrative actions.
-        </p>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <OverviewStat
-            icon={<ClipboardList size={18} />}
-            label="Assigned DPS"
-            value={stats.assigned}
-            tone="blue"
-          />
-          <OverviewStat
-            icon={<CheckCircle2 size={18} />}
-            label="Cleared DPS"
-            value={stats.completed}
-            tone="green"
-          />
-          <OverviewStat
-            icon={<Clock3 size={18} />}
-            label="Pending DPS"
-            value={stats.pending}
-            tone="amber"
-          />
-          <OverviewStat
-            icon={<AlertTriangle size={18} />}
-            label="Re-Attempt Needed"
-            value={stats.below}
-            tone="red"
-          />
-        </div>
-        <div className="mt-5">
-          <LevelSnapshot rows={rows} />
-        </div>
-      </section>
+    <div className="grid gap-6">
+      <LevelSnapshot rows={rows} />
 
-      <section className="grid gap-6">
+      <div className="ad-pair grid gap-6 xl:grid-cols-2">
         <PriorityQueueCard
           title="Admin Action Queue"
           description="Review pending, re-attempt, and archived practice."
@@ -2526,14 +2493,16 @@ function AdminAssignmentOverview({
           onView={onView}
           viewLabel={viewLabel}
           viewTip={viewTip}
+          hideIcon
         />
         <RecentActivityCard
           rows={rows}
           onView={onView}
           viewLabel={viewLabel}
           viewTip={viewTip}
+          hideIcon
         />
-      </section>
+      </div>
     </div>
   );
 }
@@ -2899,6 +2868,7 @@ function PriorityQueueCard({
   onView,
   viewLabel,
   viewTip,
+  hideIcon = false,
 }: {
   title: string;
   description: string;
@@ -2908,14 +2878,15 @@ function PriorityQueueCard({
   onView?: (row: AnyRow) => void;
   viewLabel: string;
   viewTip: string;
+  hideIcon?: boolean;
 }) {
   const visibleRows = rows.slice(0, 5);
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="flex items-start gap-3">
-        <div className="rounded-2xl bg-amber-50 p-3 text-amber-700">
+        {hideIcon ? null : <div className="rounded-2xl bg-amber-50 p-3 text-amber-700">
           <AlertTriangle size={20} />
-        </div>
+        </div>}
         <div>
           <div className="math-block-header mb-2"><ListOrdered size={14} /> Priority Queue</div>
           <h3 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
@@ -2948,8 +2919,7 @@ function PriorityQueueCard({
         )}
         {rows.length > visibleRows.length ? (
           <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-            + {rows.length - visibleRows.length} More Items Available In The
-            Detailed Tab.
+            + {rows.length - visibleRows.length} More In Lesson Insights
           </p>
         ) : null}
       </div>
@@ -2969,13 +2939,18 @@ function WorkSignalRow({
   viewTip: string;
 }) {
   const issue = issueLabel(row);
+  // admin pages read "Lesson 3 · DPS 2" (2026-10, admin revamp)
+  const IsAdminPage = Boolean(usePathname()?.startsWith("/admin"));
+  const RowTitle = IsAdminPage
+    ? CompactPracticeTitle(row).replace(/^Lesson-/, "Lesson ").replace(/DPS-/, "DPS ")
+    : CompactPracticeTitle(row);
   // 2026-10-14: the status shows once (it used to show beside the title and
   // again on the right); the accuracy chip only when there is a score.
   return (
     <div className="flex flex-col gap-3 rounded-[22px] border border-slate-100 bg-slate-50/75 p-4 dark:border-slate-800 dark:bg-slate-900/70 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
         <h4 className="font-black text-slate-950 dark:text-white">
-          {CompactPracticeTitle(row)}
+          {RowTitle}
         </h4>
         <p className="mt-1 text-sm font-semibold text-slate-500">
           {moduleCodeOf(row)} · {levelCodeOf(row)}
@@ -3008,19 +2983,21 @@ function RecentActivityCard({
   onView,
   viewLabel,
   viewTip,
+  hideIcon = false,
 }: {
   rows: AnyRow[];
   onView?: (row: AnyRow) => void;
   viewLabel: string;
   viewTip: string;
+  hideIcon?: boolean;
 }) {
   const recentRows = recentWorkRows(rows).slice(0, 4);
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className="flex items-start gap-3">
-        <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
+        {hideIcon ? null : <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
           <CalendarClock size={20} />
-        </div>
+        </div>}
         <div>
           <div className="math-block-header mb-2"><Clock size={14} /> Recent Activity</div>
           <h3 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
@@ -3049,46 +3026,49 @@ function RecentActivityCard({
   );
 }
 
+// Level Coverage on the admin's student practice page (the only user): its
+// own card, one bar per level, cleared DPS out of the level's sheets.
 function LevelSnapshot({ rows }: { rows: AnyRow[] }) {
   const levels = levelProgressSummary(rows).levels;
   return (
-    <div className="rounded-[22px] border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="flex items-center gap-2">
-        <Layers3 size={18} className="text-blue-600" />
-        <h3 className="font-black text-slate-950 dark:text-white">
-          Level Coverage
-        </h3>
+    <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="math-block-header">
+            <Layers3 size={14} />
+            Level Coverage
+          </p>
+          <h3 className="text-lg font-black text-slate-950 dark:text-white">
+            Cleared DPS Out Of Available Sheets
+          </h3>
+        </div>
+        <Chip tone="blue">{levels.length} {levels.length === 1 ? "Level" : "Levels"}</Chip>
       </div>
-      <div className="mt-4 grid gap-3">
-        {levels.slice(0, 4).map((level) => {
-          const percent = level.required
-            ? Math.min(
-                100,
-                Math.round((level.completed / level.required) * 100),
-              )
-            : 0;
-          return (
-            <div key={level.levelCode}>
-              <div className="flex items-center justify-between gap-3 text-sm font-black">
-                <span>{level.levelCode}</span>
-                <span>
-                  {level.completed}/{level.required}
-                </span>
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <div className="math-role-progress-track h-2 flex-1">
-                  <div
-                    className="math-role-progress-fill"
-                    style={{ width: `${percent}%` }}
-                  />
+      <div className="mt-4 grid gap-4">
+        {levels.length ? (
+          levels.map((level) => {
+            const percent = level.required
+              ? Math.min(100, Math.round((level.completed / level.required) * 100))
+              : 0;
+            return (
+              <div key={level.levelCode}>
+                <div className="flex items-center justify-between gap-3 text-sm font-black text-slate-800 dark:text-slate-100">
+                  <span>{level.levelCode}</span>
+                  <span>
+                    {level.completed} / {level.required} · {percent}%
+                  </span>
                 </div>
-                <span className="shrink-0 text-[10px] font-black text-slate-700 dark:text-slate-100">{percent}%</span>
+                <div className="math-role-progress-track mt-2 h-2">
+                  <div className="math-role-progress-fill" style={{ width: `${percent}%` }} />
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        ) : (
+          <p className="text-sm font-bold text-slate-500">No level coverage for these filters.</p>
+        )}
       </div>
-    </div>
+    </section>
   );
 }
 

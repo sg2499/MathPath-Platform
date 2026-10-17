@@ -189,13 +189,13 @@ export function FeeSetupPanel() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="math-block-header"><ReceiptText size={14} />Fee Items</p>
-            <h2 className="text-2xl font-black text-slate-950 dark:text-white">What students pay for</h2>
+            <h2 className="text-2xl font-black text-slate-950 dark:text-white">What Students Pay For</h2>
             <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">Prices include 18% GST unless switched off. Use the arrows to set the order items appear in on invoices.</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative sm:w-72">
               <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search fee items" aria-label="Search fee items" />
+              <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search fee items" aria-label="Search Fee Items" />
             </div>
             <label className="inline-flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm font-bold text-slate-600 dark:text-slate-300">
               <input type="checkbox" className="h-4 w-4" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />
@@ -222,11 +222,11 @@ export function FeeSetupPanel() {
             <ErrorState message="Fee items could not be loaded. Refresh the page to try again." />
           ) : !items.length ? (
             <EmptyState
-              title="No fee items yet"
+              title="No Fee Items Yet"
               description="Add the fees students pay, like Monthly Fee or Registration Charges."
             />
           ) : !visible.length ? (
-            <EmptyState title="No fee items match" description="Try a different search, or show switched-off items." />
+            <EmptyState title="No Fee Items Match" description="Try a different search, or show switched-off items." />
           ) : (
             <>
             {/* Phones: one card per fee item. */}
@@ -386,9 +386,9 @@ export function FeeSetupPanel() {
 
           {preview ? (
             <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm dark:bg-slate-900/60">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">On the invoice</p>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">On The Invoice</p>
               <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 tabular-nums">
-                <dt className="font-semibold text-slate-600 dark:text-slate-300">Taxable amount</dt><dd className="text-right font-black">{FormatRupees(preview.taxable)}</dd>
+                <dt className="font-semibold text-slate-600 dark:text-slate-300">Taxable Amount</dt><dd className="text-right font-black">{FormatRupees(preview.taxable)}</dd>
                 <dt className="font-semibold text-slate-600 dark:text-slate-300">CGST 9%</dt><dd className="text-right font-black">{FormatRupees(preview.cgst)}</dd>
                 <dt className="font-semibold text-slate-600 dark:text-slate-300">SGST 9%</dt><dd className="text-right font-black">{FormatRupees(preview.sgst)}</dd>
                 <dt className="border-t border-slate-200 pt-1 font-black text-slate-900 dark:border-slate-700 dark:text-white">Total</dt><dd className="border-t border-slate-200 pt-1 text-right font-black text-slate-900 dark:border-slate-700 dark:text-white">{amountCheck.ok ? FormatRupees(amountCheck.paise) : ""}</dd>
@@ -409,7 +409,7 @@ export function FeeSetupPanel() {
                 </p>
               ) : null}
               <label className="block">
-                <FieldLabel hint="optional, kept in the history">Reason for the change</FieldLabel>
+                <FieldLabel hint="optional, kept in the history">Reason For The Change</FieldLabel>
                 <input className="math-input" value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} placeholder="e.g. new session price" />
               </label>
             </>

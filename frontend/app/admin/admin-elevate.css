@@ -1,0 +1,2516 @@
+/* ==========================================================================
+   Admin login: look-and-feel layer (admin revamp, part 1, Oct 2026).
+
+   Loaded only for /admin routes (see ./layout.tsx). Every rule is scoped to
+   the admin shell (.math-role-admin), to the document while an admin page is
+   open (html.mp-admin, set by AdminScope) or to ad-* classes that only admin
+   pages use, so the teacher and student logins are untouched. Nothing here
+   changes behaviour.
+
+   It follows the teacher layer (app/teacher/teacher-elevate.css) rule for
+   rule, so the three logins share one craft:
+     - Init Caps: no forced upper-casing anywhere.
+     - One display typeface (the sign-in page's) for headings, labels, numbers
+       and controls.
+     - Buttons look like buttons, tabs like tabs, each with distinct rest,
+       hover, pressed, selected, disabled and keyboard-focus states.
+     - Text stays on one line while there is room for it.
+     - Blocks side by side share a top and a height.
+   The admin colours stay: deep blue into indigo.
+   ========================================================================== */
+
+@font-face {
+  font-family: "MathPath Display";
+  src: url("../login/fonts/Gabarito-Variable.woff2") format("woff2");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- tokens -------------------------------------------------------- */
+html .math-role-admin,
+html.mp-admin,
+.ad-portal {
+  --ad-display: "MathPath Display", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --ad-dark: #0b1736;
+  --ad-primary: #1d4ed8;
+  --ad-secondary: #3b82f6;
+  --ad-accent: #6366f1;
+  /* the selected look: deep blue into indigo (the admin dashboard's old
+     near-black start read as a black outline on the student side) */
+  --ad-action: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 52%, #4f46e5 100%);
+  --ad-action-hover: linear-gradient(135deg, #1e40af 0%, #2563eb 52%, #6366f1 100%);
+  --ad-action-shadow: 0 1px 0 rgba(255, 255, 255, 0.22) inset, 0 14px 28px -16px rgba(29, 58, 138, 0.55);
+  --ad-ink: #0b1736;
+  --ad-ink-soft: #4b5878;
+  --ad-readable: #1d4ed8;
+  --ad-surface: #ffffff;
+  --ad-surface-2: #f6f8fd;
+  --ad-tint: #eef3fe;
+  --ad-line: rgba(29, 58, 138, 0.12);
+  --ad-line-strong: rgba(59, 130, 246, 0.48);
+  --ad-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 18px 40px -26px rgba(11, 23, 54, 0.3);
+  --ad-glow: 0 14px 30px -14px rgba(29, 78, 216, 0.55);
+  --ad-ring: 0 0 0 3px rgba(59, 130, 246, 0.38);
+  --ad-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html.dark .math-role-admin,
+html.dark.mp-admin,
+html.dark .ad-portal {
+  --ad-ink: #eef2fb;
+  --ad-ink-soft: #a9b4cc;
+  --ad-readable: #a5c0ff;
+  --ad-surface: #0f172a;
+  --ad-surface-2: #141c31;
+  --ad-tint: rgba(59, 130, 246, 0.16);
+  --ad-line: rgba(255, 255, 255, 0.1);
+  --ad-line-strong: rgba(147, 180, 255, 0.45);
+  --ad-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 22px 46px -24px rgba(0, 0, 0, 0.75);
+  --ad-glow: 0 14px 30px -14px rgba(59, 130, 246, 0.5);
+  --ad-ring: 0 0 0 3px rgba(147, 180, 255, 0.42);
+}
+
+/* ---------- Init Caps and type ------------------------------------------- */
+/* :not(#ad) lifts these above the many class-only "uppercase !important"
+   rules in globals.css (table headings, sort buttons, chips) */
+html .math-role-admin *:not(#ad),
+html.mp-admin body *:not(#ad),
+.ad-portal *:not(#ad) {
+  text-transform: none !important;
+}
+
+html .math-role-admin :is(.tracking-wide, .tracking-wider, .tracking-widest, [class*="tracking-[0."], th, th *, .math-badge, .math-block-header, .math-sortable-header, .math-sortable-header *):not(#ad),
+html.mp-admin body :is(.tracking-wide, .tracking-wider, .tracking-widest, [class*="tracking-[0."]):not(#ad),
+.ad-portal :is(.tracking-wide, .tracking-wider, .tracking-widest, [class*="tracking-[0."]):not(#ad) {
+  letter-spacing: 0.005em !important;
+}
+
+/* labels typed in sentence case read as Init Caps: section chips, table
+   headings, badges, empty-state titles, tabs */
+html .math-role-admin :is(.math-block-header, .math-table th, .math-table th *, .math-badge, .math-empty-title, .math-role-tab, .math-role-tab-button, .math-dashboard-section-label, .math-dashboard-pulse-eyebrow):not(#ad):not(#ad) {
+  text-transform: capitalize !important;
+}
+
+/* a sort heading is never cut short: it takes a second line (between words)
+   when its column is narrow, instead of an ellipsis */
+html .math-role-admin .math-sortable-header-label:not(#ad) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+html .math-role-admin :is(h1, h2, h3, h4, h5, h6, button, [role="tab"], label, th, .font-black, .font-extrabold, .math-badge, .ad-display):not(.font-mono):not(.font-mono *),
+html.mp-admin body :is(h1, h2, h3, h4, h5, h6, button, [role="tab"], .font-black, .font-extrabold, .ad-display):not(.font-mono):not(.font-mono *),
+.ad-portal :is(h1, h2, h3, h4, h5, h6, button, .font-black, .font-extrabold, .ad-display):not(.font-mono):not(.font-mono *),
+html .math-role-admin :is(.premium-nav-item, .math-block-header, .math-role-action-button, .math-role-tab, .math-button-primary, .math-button-secondary, .math-theme-toggle, .math-context-pill, .math-title, .math-input, select) {
+  font-family: var(--ad-display);
+}
+
+.ad-display {
+  font-family: var(--ad-display);
+}
+
+/* the display face does not need the extra-tight spacing of the old headings */
+html .math-role-admin :is(h1, h2, h3, h4)[class*="tracking-"],
+html .math-role-admin .math-title {
+  letter-spacing: -0.01em !important;
+}
+
+/* ---------- shell ----------------------------------------------------------- */
+html .math-role-admin .premium-nav-item {
+  flex-shrink: 0;
+  font-weight: 800;
+  letter-spacing: 0;
+  transition: transform 200ms var(--ad-ease), background 200ms ease, color 200ms ease, box-shadow 200ms ease;
+}
+
+/* (not the screen-reader-only name of an icon-only item: letting that one
+   overflow made the item look cut and pushed the menu to icons only) */
+html .math-role-admin .premium-nav-item > span:not(.sr-only) {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+html .math-role-admin .premium-nav-item:active {
+  transform: translateY(0) scale(0.98);
+}
+
+html .math-role-admin :is(.premium-nav-item, .math-theme-toggle, .math-role-icon-button, .math-button-secondary, .math-icon-button, .math-user-pill):focus-visible {
+  outline: none;
+  box-shadow: var(--ad-ring) !important;
+}
+
+/* The admin menu has eight groups and fits itself to the space, one step at
+   a time (AppShell, NavLevel). Step 5 is new: the decorative icons go and
+   every name stays on show; before, most laptops (1024 to 1365px, and again
+   from 1536px, where the header's right side grows) went straight to eight
+   bare icons. Dashboard keeps its icon (its name is hidden from step 1). */
+html .math-role-admin .premium-nav[data-admin-nav-level="5"] .premium-nav-item:not(:has(> span.sr-only)) > svg:first-child {
+  display: none;
+}
+
+/* an item shown as its icon alone is a full square, never cut in half */
+html .math-role-admin .premium-nav-item:has(> span.sr-only):not(#ad) {
+  flex-shrink: 0;
+  min-width: 2.4rem !important;
+  justify-content: center;
+}
+
+/* "Focused view" beside the logo on detail pages */
+html .math-role-admin .math-shell-header a[aria-label="Open MathPath Website"] > div + div p {
+  text-transform: capitalize !important;
+  font-family: var(--ad-display);
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ad-ink-soft);
+  white-space: nowrap;
+}
+
+/* header logo: no white box behind it in the light theme */
+html:not(.dark) .math-role-admin .math-shell-header a[aria-label="Open MathPath Website"] img {
+  mix-blend-mode: multiply;
+}
+
+html:not(.dark) .math-role-admin .math-shell-header a[aria-label="Open MathPath Website"] > div:first-child:not(#ad) {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* phone menu: a solid sheet, the selected item in the admin gradient */
+html .math-role-admin .math-mobile-drawer:not(#ad),
+html.mp-admin .math-mobile-drawer:not(#ad) {
+  border: 1px solid var(--ad-line-strong);
+  background: #f7f9fe !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 30px 60px -28px rgba(11, 23, 54, 0.45);
+  opacity: 1;
+}
+
+html.dark .math-role-admin .math-mobile-drawer:not(#ad),
+html.dark.mp-admin .math-mobile-drawer:not(#ad) {
+  background: #0f172a !important;
+}
+
+html .math-role-admin .math-mobile-drawer :is(button, a)[class*="bg-slate-950"]:not(#ad),
+html.dark .math-role-admin .math-mobile-drawer :is(button, a)[class*="dark:bg-white"][class*="bg-slate-950"]:not(#ad) {
+  background: var(--ad-action) !important;
+  color: #ffffff !important;
+  box-shadow: var(--ad-action-shadow);
+}
+
+html .math-role-admin .math-mobile-drawer :is(button, a)[class*="bg-slate-950"]:not(#ad) :is(svg, span) {
+  color: #ffffff !important;
+}
+
+html .math-role-admin .math-mobile-drawer .math-mobile-group > button {
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+}
+
+/* ---------- page header card ------------------------------------------------ */
+html .math-role-admin .math-hero .math-title,
+html .math-role-admin .math-hero h1 {
+  font-weight: 800;
+  color: var(--ad-ink);
+}
+
+html .math-role-admin .math-hero .math-subtitle,
+html .math-role-admin .math-subtitle {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--ad-ink-soft);
+}
+
+/* the section chip ("Teacher Students", "Student Overview") */
+html .math-role-admin .math-block-header {
+  gap: 0.45rem;
+  padding: 0.38rem 0.95rem;
+  border-color: var(--ad-line);
+  background: var(--ad-surface);
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: var(--ad-readable);
+  box-shadow: 0 6px 16px -12px rgba(29, 58, 138, 0.35);
+  backdrop-filter: none;
+  white-space: nowrap;
+}
+
+html.dark .math-role-admin .math-block-header {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ---------- number tiles -----------------------------------------------------
+   Icon on the left, label over value on the right (the student tiles' layout).
+   They stacked icon / label / value, which left each tile half empty and let a
+   two-word label break onto a second line. */
+html .math-role-admin :is(.math-teacher-light-metric-card, .math-student-metric-card) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.8rem;
+  row-gap: 0.1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ad-line) !important;
+  border-radius: 20px !important;
+  background: var(--ad-surface) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 12px 26px -22px rgba(29, 58, 138, 0.35) !important;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+  transition: transform 200ms var(--ad-ease), box-shadow 200ms ease, border-color 200ms ease;
+}
+
+html.dark .math-role-admin :is(.math-teacher-light-metric-card, .math-student-metric-card) {
+  background: rgba(255, 255, 255, 0.04) !important;
+  box-shadow: none !important;
+}
+
+html .math-role-admin :is(.math-teacher-light-metric-card, .math-student-metric-card):hover {
+  transform: translateY(-2px);
+  border-color: var(--ad-line-strong) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 18px 30px -22px rgba(29, 78, 216, 0.6) !important;
+}
+
+/* the sweep-of-light layer is not needed */
+html .math-role-admin :is(.math-teacher-light-metric-card, .math-student-metric-card) > .absolute {
+  display: none;
+}
+
+html .math-role-admin .math-teacher-light-metric-card > .math-teacher-icon-chip,
+html .math-role-admin .math-student-metric-card > .math-student-icon-chip {
+  grid-row: 1 / span 2;
+  grid-column: 1;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 14px;
+  background: var(--ad-tint);
+  color: var(--ad-readable);
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+html .math-role-admin :is(.math-teacher-light-metric-card, .math-student-metric-card) > p {
+  grid-column: 2;
+  min-width: 0;
+  margin-top: 0 !important;
+  transform: none !important;
+}
+
+/* a lone tile with no icon */
+html .math-role-admin .math-teacher-light-metric-card:not(:has(> .math-teacher-icon-chip)) > p {
+  grid-column: 1 / -1;
+}
+
+html .math-role-admin :is(.math-teacher-light-metric-card, .math-student-metric-card) > p:nth-of-type(1) {
+  font-family: var(--ad-display);
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ad-ink-soft) !important;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+html .math-role-admin :is(.math-teacher-light-metric-card, .math-student-metric-card) > p:nth-of-type(2) {
+  font-family: var(--ad-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.12;
+  font-variant-numeric: tabular-nums;
+  color: var(--ad-ink) !important;
+  /* a figure stays on one line; a long value (a date and time) may take two
+     lines, breaking between words, instead of being cut off */
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+html .math-role-admin :is(.math-teacher-light-metric-card, .math-student-metric-card) > p:nth-of-type(n + 3) {
+  grid-column: 1 / -1;
+  margin-top: 0.35rem !important;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ad-ink-soft) !important;
+}
+
+@media (min-width: 640px) and (max-width: 1439px) {
+  html .math-role-admin .math-teacher-light-metric-card {
+    column-gap: 0.6rem;
+    padding: 0.75rem 0.85rem;
+  }
+
+  html .math-role-admin .math-teacher-light-metric-card > .math-teacher-icon-chip {
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 12px;
+  }
+
+  html .math-role-admin .math-teacher-light-metric-card > p:nth-of-type(1) {
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  html .math-role-admin .math-teacher-light-metric-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html .math-role-admin .math-teacher-light-metric-card > .math-teacher-icon-chip {
+    display: none;
+  }
+
+  html .math-role-admin .math-teacher-light-metric-card > p {
+    grid-column: 1;
+  }
+}
+
+/* phones: two tiles to a row (they were one per row, a long scroll) */
+@media (max-width: 639px) {
+  html .math-role-admin :is(div, section):has(> .math-teacher-light-metric-card) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  html .math-role-admin .math-teacher-light-metric-card {
+    padding: 0.7rem 0.8rem;
+  }
+
+  html .math-role-admin .math-teacher-light-metric-card > p:nth-of-type(2) {
+    font-size: 1.35rem;
+  }
+}
+
+/* ---------- buttons and tabs -------------------------------------------------- */
+html .math-role-admin :is(.math-role-action-button, .math-role-icon-button, .math-button-secondary, .math-button-primary) {
+  font-weight: 800;
+  letter-spacing: 0;
+  border-radius: 999px;
+  transition: transform 200ms var(--ad-ease), color 200ms ease, background 200ms ease, border-color 200ms ease, box-shadow 200ms ease, filter 200ms ease;
+}
+
+html .math-role-admin :is(.math-role-action-button, .math-role-icon-button, .math-button-secondary, .math-button-primary):is(:hover, :focus-visible):not(:disabled) {
+  transform: translateY(-2px);
+}
+
+html .math-role-admin :is(.math-role-action-button, .math-role-icon-button, .math-button-primary, .math-button-secondary):active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+html .math-role-admin .math-button-primary:not(:disabled) {
+  border-color: transparent !important;
+  background: var(--ad-action) !important;
+  color: #ffffff !important;
+  box-shadow: var(--ad-action-shadow);
+}
+
+html .math-role-admin .math-button-primary:not(:disabled) :is(svg, span) {
+  color: #ffffff !important;
+}
+
+html .math-role-admin .math-button-primary:is(:hover, :focus-visible):not(:disabled) {
+  background: var(--ad-action-hover) !important;
+  box-shadow: var(--ad-glow) !important;
+}
+
+html .math-role-admin :is(button, .math-role-action-button, .math-button-primary):disabled {
+  cursor: not-allowed;
+}
+
+/* Tabs: not selected = plain surface; hover = blue tint and edge; selected =
+   the blue gradient */
+html .math-role-admin :is(.math-role-tab, .math-role-tab-button) {
+  font-weight: 800;
+  letter-spacing: 0;
+  border-radius: 999px;
+  transition: transform 200ms var(--ad-ease), color 200ms ease, background 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+
+html .math-role-admin :is(.math-role-tab, .math-role-tab-button):is(:hover, :focus-visible):not(.math-role-tab-active):not(.is-active):not([aria-selected="true"]):not([data-active="true"]):not(:disabled) {
+  transform: translateY(-1px);
+  color: var(--ad-readable) !important;
+  background: var(--ad-tint) !important;
+  border-color: var(--ad-line-strong) !important;
+}
+
+html .math-role-admin :is(.math-role-tab-active, .math-role-tab-button.is-active, .math-role-tab-button[aria-selected="true"], .math-role-tab-button[data-active="true"]) {
+  color: #ffffff !important;
+  background: var(--ad-action) !important;
+  border-color: transparent !important;
+  box-shadow: var(--ad-action-shadow) !important;
+}
+
+html .math-role-admin :is(.math-role-tab, .math-role-tab-button):active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+html .math-role-admin :is(.math-role-tab, .math-role-tab-button, .math-role-action-button, .math-button-primary, .ad-btn, .ad-tile):focus-visible {
+  outline: none;
+  box-shadow: var(--ad-ring) !important;
+}
+
+/* ---------- filters: search boxes and dropdowns -------------------------------
+   One height, one radius, the display face, a blue edge on hover and a ring
+   on focus. Dropdowns get the same chevron everywhere. */
+html .math-role-admin .math-input {
+  min-height: 2.9rem;
+  border-color: var(--ad-line);
+  border-radius: 14px;
+  background-color: var(--ad-surface);
+  color: var(--ad-ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+html.dark .math-role-admin .math-input {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+html .math-role-admin .math-input:hover {
+  border-color: var(--ad-line-strong);
+}
+
+html .math-role-admin .math-input:focus,
+html .math-role-admin .math-input:focus-visible {
+  outline: none;
+  border-color: var(--ad-secondary);
+  box-shadow: var(--ad-ring);
+}
+
+html .math-role-admin select.math-input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231d4ed8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 16px 16px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+html.dark .math-role-admin select.math-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a5c0ff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* ---------- badges ----------------------------------------------------------- */
+html .math-role-admin .math-badge {
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+/* ---------- tables --------------------------------------------------------------
+   One heading style (Init Caps, the display face, blue), one cell style, and a
+   row lights up on hover. */
+html .math-role-admin .math-table {
+  border-color: var(--ad-line);
+  border-radius: 22px;
+  background: var(--ad-surface);
+  box-shadow: var(--ad-shadow);
+}
+
+html.dark .math-role-admin .math-table {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+html .math-role-admin .math-table thead {
+  background: var(--ad-surface-2);
+}
+
+html.dark .math-role-admin .math-table thead {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+html .math-role-admin .math-table th:not(#ad),
+html .math-role-admin .math-table th :is(button, span):not(#ad) {
+  font-family: var(--ad-display);
+  font-size: 0.86rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  color: var(--ad-readable);
+}
+
+html .math-role-admin .math-table tbody tr {
+  border-color: var(--ad-line);
+  transition: background 160ms ease;
+}
+
+html .math-role-admin .math-table tbody tr:hover {
+  background: var(--ad-tint);
+}
+
+html .math-role-admin .math-table td {
+  font-family: var(--ad-display);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ad-ink);
+}
+
+/* a student code under a name: quiet, no letter-spacing */
+html .math-role-admin .ad-code {
+  margin-top: 0.15rem;
+  font-family: var(--ad-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: var(--ad-ink-soft);
+  white-space: nowrap;
+}
+
+html .math-role-admin .ad-name {
+  font-family: var(--ad-display);
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ad-ink);
+}
+
+/* an empty value is one quiet dash */
+html .math-role-admin .ad-empty {
+  color: var(--ad-ink-soft);
+  font-weight: 600;
+}
+
+/* "Inactive" beside a student's name */
+.ad-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.45rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid rgba(100, 116, 139, 0.35);
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.1);
+  color: #475569;
+  font-family: var(--ad-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.3;
+  vertical-align: 0.1em;
+  white-space: nowrap;
+}
+
+html.dark .ad-tag {
+  color: #cbd5e1;
+  background: rgba(148, 163, 184, 0.14);
+}
+
+/* ---------- phones and tablets: a table row becomes a card -------------------
+   Tables marked ad-cards stop scrolling sideways below 1024px (eight or nine
+   columns do not fit an upright tablet without cutting values): each row is a
+   card with its name on top and each value under its heading. */
+@media (max-width: 1023px) {
+  html .math-role-admin .math-table:has(> table.ad-cards):not(#ad) {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  html .math-role-admin table.ad-cards:not(#ad) {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+    table-layout: auto !important;
+  }
+
+  html .math-role-admin table.ad-cards thead {
+    display: none;
+  }
+
+  html .math-role-admin table.ad-cards tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  html .math-role-admin table.ad-cards tbody > tr:not(#ad) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.55rem 1rem;
+    min-width: 0;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--ad-line) !important;
+    border-radius: 18px;
+    background: var(--ad-surface);
+    box-shadow: 0 10px 20px -18px rgba(29, 58, 138, 0.5);
+  }
+
+  html.dark .math-role-admin table.ad-cards tbody > tr:not(#ad) {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  html .math-role-admin table.ad-cards td:not(#ad) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    width: auto !important;
+    min-width: 0;
+    padding: 0 !important;
+    overflow: visible;
+    text-align: left;
+    white-space: normal;
+  }
+
+  html .math-role-admin table.ad-cards td::before {
+    content: attr(data-label);
+    font-family: var(--ad-display);
+    font-size: 0.76rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--ad-ink-soft);
+    white-space: nowrap;
+  }
+
+  /* the row's name is the card's title, across the full width */
+  html .math-role-admin table.ad-cards td.ad-card-title:not(#ad),
+  html .math-role-admin table.ad-cards td.ad-card-wide:not(#ad) {
+    grid-column: 1 / -1;
+  }
+
+  html .math-role-admin table.ad-cards td.ad-card-title:not(#ad) {
+    padding-bottom: 0.6rem !important;
+    border-bottom: 1px solid var(--ad-line);
+  }
+
+  html .math-role-admin table.ad-cards td.ad-card-title::before {
+    content: none;
+  }
+}
+
+/* ---------- empty, loading and error states ------------------------------------ */
+html .math-role-admin .math-empty-title {
+  font-family: var(--ad-display);
+  font-size: 1rem !important;
+  font-weight: 800;
+  letter-spacing: 0 !important;
+  color: var(--ad-readable);
+}
+
+html .math-role-admin .math-empty-state .math-empty-orb {
+  border-radius: 16px;
+  background: var(--ad-tint);
+  color: var(--ad-readable);
+}
+
+/* ---------- dark mode: pale tints without a dark version -----------------------
+   Chips written with a pale tint (bg-emerald-50 with dark green text) and no
+   dark colours showed as bright slabs on dark rows. Each becomes a soft tint of
+   the same colour with light text. Elements that declare their own dark colours
+   are left alone. */
+html.dark .math-role-admin :is([class~="bg-emerald-50"], [class~="bg-emerald-100"], [class~="bg-green-50"]):not([class*="dark:bg-"]):not(#ad) {
+  border-color: rgba(16, 185, 129, 0.38) !important;
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-admin :is([class~="bg-emerald-50"], [class~="bg-emerald-100"], [class~="bg-green-50"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#ad),
+html.dark .math-role-admin :is([class~="text-emerald-700"], [class~="text-emerald-800"], [class~="text-green-700"]):not([class*="dark:text-"]):not(#ad) {
+  color: #6ee7b7 !important;
+}
+
+html.dark .math-role-admin :is([class~="bg-teal-50"], [class~="bg-teal-100"]):not([class*="dark:bg-"]):not(#ad) {
+  border-color: rgba(20, 184, 166, 0.38) !important;
+  background-color: rgba(20, 184, 166, 0.15) !important;
+}
+
+html.dark .math-role-admin :is([class~="bg-teal-50"], [class~="bg-teal-100"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#ad),
+html.dark .math-role-admin :is([class~="text-teal-700"], [class~="text-teal-800"]):not([class*="dark:text-"]):not(#ad) {
+  color: #5eead4 !important;
+}
+
+html.dark .math-role-admin :is([class~="bg-amber-50"], [class~="bg-amber-100"], [class~="bg-yellow-50"], [class~="bg-orange-50"]):not([class*="dark:bg-"]):not(#ad) {
+  border-color: rgba(245, 158, 11, 0.38) !important;
+  background-color: rgba(245, 158, 11, 0.14) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-admin :is([class~="bg-amber-50"], [class~="bg-amber-100"], [class~="bg-yellow-50"], [class~="bg-orange-50"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#ad),
+html.dark .math-role-admin :is([class~="text-amber-700"], [class~="text-amber-800"], [class~="text-orange-700"]):not([class*="dark:text-"]):not(#ad) {
+  color: #fcd34d !important;
+}
+
+html.dark .math-role-admin :is([class~="bg-rose-50"], [class~="bg-rose-100"], [class~="bg-red-50"]):not([class*="dark:bg-"]):not(#ad) {
+  border-color: rgba(244, 63, 94, 0.38) !important;
+  background-color: rgba(244, 63, 94, 0.15) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-admin :is([class~="bg-rose-50"], [class~="bg-rose-100"], [class~="bg-red-50"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#ad),
+html.dark .math-role-admin :is([class~="text-rose-700"], [class~="text-rose-800"], [class~="text-red-700"]):not([class*="dark:text-"]):not(#ad) {
+  color: #fda4af !important;
+}
+
+/* pale blue, sky, cyan and slate chips: a soft blue tint with light text */
+html.dark .math-role-admin :is([class~="bg-blue-50"], [class~="bg-sky-50"], [class~="bg-cyan-50"], [class~="bg-slate-50"]):not([class*="dark:bg-"]):not(#ad) {
+  border-color: rgba(147, 180, 255, 0.3) !important;
+  background-color: rgba(59, 130, 246, 0.14) !important;
+  background-image: none !important;
+}
+
+html.dark .math-role-admin :is([class~="bg-blue-50"], [class~="bg-sky-50"], [class~="bg-cyan-50"], [class~="bg-slate-50"]):not([class*="dark:bg-"]):not([class*="dark:text-"]):not(#ad) {
+  color: #a5c0ff !important;
+}
+
+/* ===========================================================================
+   Dashboard
+   =========================================================================== */
+html .math-role-admin .math-dashboard-hero-admin h1 {
+  font-weight: 800;
+  color: var(--ad-ink);
+}
+
+/* the dashboard's two kinds of button: the main one is the blue gradient in
+   both themes (in dark mode it was a dark fill on a dark card); the second
+   one is a blue-edged surface that fills on hover */
+html .math-role-admin .math-dashboard-primary-action:not(#ad) {
+  border-color: transparent !important;
+  background: var(--ad-action) !important;
+  color: #ffffff !important;
+  font-family: var(--ad-display);
+  font-weight: 800;
+  box-shadow: var(--ad-action-shadow) !important;
+  transition: transform 200ms var(--ad-ease), box-shadow 200ms ease, background 200ms ease;
+}
+
+html .math-role-admin .math-dashboard-primary-action:not(#ad) svg {
+  color: #ffffff !important;
+}
+
+html .math-role-admin .math-dashboard-primary-action:not(#ad):hover {
+  transform: translateY(-2px);
+  background: var(--ad-action-hover) !important;
+  box-shadow: var(--ad-glow) !important;
+}
+
+html .math-role-admin .math-dashboard-secondary-action:not(#ad) {
+  border-color: var(--ad-line-strong) !important;
+  background: var(--ad-surface) !important;
+  color: var(--ad-readable) !important;
+  font-family: var(--ad-display);
+  font-weight: 800;
+  transition: transform 200ms var(--ad-ease), box-shadow 200ms ease, background 200ms ease, color 200ms ease;
+}
+
+html.dark .math-role-admin .math-dashboard-secondary-action:not(#ad) {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+html .math-role-admin .math-dashboard-secondary-action:not(#ad):hover {
+  transform: translateY(-2px);
+  border-color: transparent !important;
+  background: var(--ad-action) !important;
+  color: #ffffff !important;
+}
+
+html .math-role-admin .math-dashboard-secondary-action:not(#ad):hover svg {
+  color: #ffffff !important;
+}
+
+html .math-role-admin :is(.math-dashboard-primary-action, .math-dashboard-secondary-action):active {
+  transform: scale(0.98);
+}
+
+html .math-role-admin :is(.math-dashboard-primary-action, .math-dashboard-secondary-action):focus-visible {
+  outline: none;
+  box-shadow: var(--ad-ring) !important;
+}
+
+/* "Today" pulse card: real figures for today instead of a slogan */
+html .math-role-admin .ad-pulse {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 17rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: 22px;
+  background: var(--ad-action);
+  color: #ffffff;
+  box-shadow: var(--ad-action-shadow);
+}
+
+html .math-role-admin .ad-pulse-day {
+  font-family: var(--ad-display);
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.82);
+  white-space: nowrap;
+}
+
+html .math-role-admin .ad-pulse-line {
+  font-family: var(--ad-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+html .math-role-admin .ad-pulse-sub {
+  font-family: var(--ad-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.86);
+  white-space: nowrap;
+}
+
+/* Today's figures: five tiles, each opens the page that deals with it */
+html .math-role-admin .ad-today {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+@media (max-width: 1279px) {
+  html .math-role-admin .ad-today {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  html .math-role-admin .ad-today {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+html .math-role-admin .ad-tile {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  align-content: start;
+  column-gap: 0.8rem;
+  row-gap: 0.15rem;
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--ad-line);
+  border-radius: 20px;
+  background: var(--ad-surface);
+  color: var(--ad-ink);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 12px 26px -22px rgba(29, 58, 138, 0.35);
+  transition: transform 200ms var(--ad-ease), box-shadow 200ms ease, border-color 200ms ease, background 200ms ease;
+}
+
+html.dark .math-role-admin .ad-tile {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
+}
+
+html .math-role-admin .ad-tile:hover {
+  transform: translateY(-2px);
+  border-color: var(--ad-line-strong);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 18px 30px -22px rgba(29, 78, 216, 0.6);
+}
+
+html .math-role-admin .ad-tile:active {
+  transform: scale(0.985);
+}
+
+html .math-role-admin .ad-tile-icon {
+  grid-row: 1 / span 3;
+  display: inline-flex;
+  width: 2.6rem;
+  height: 2.6rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: var(--ad-tint);
+  color: var(--ad-readable);
+}
+
+html .math-role-admin .ad-tile[data-tone="warn"] .ad-tile-icon {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+}
+
+html .math-role-admin .ad-tile[data-tone="alert"] .ad-tile-icon {
+  background: rgba(244, 63, 94, 0.12);
+  color: #be123c;
+}
+
+html .math-role-admin .ad-tile[data-tone="calm"] .ad-tile-icon {
+  background: rgba(16, 185, 129, 0.13);
+  color: #047857;
+}
+
+html.dark .math-role-admin .ad-tile[data-tone="warn"] .ad-tile-icon { color: #fcd34d; }
+html.dark .math-role-admin .ad-tile[data-tone="alert"] .ad-tile-icon { color: #fda4af; }
+html.dark .math-role-admin .ad-tile[data-tone="calm"] .ad-tile-icon { color: #6ee7b7; }
+
+html .math-role-admin .ad-tile-label {
+  font-family: var(--ad-display);
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ad-ink-soft);
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+html .math-role-admin .ad-tile-value {
+  font-family: var(--ad-display);
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ad-ink);
+}
+
+html .math-role-admin .ad-tile-note {
+  font-family: var(--ad-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ad-readable);
+}
+
+@media (max-width: 767px) {
+  html .math-role-admin .ad-tile {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.8rem 0.85rem;
+  }
+
+  html .math-role-admin .ad-tile-icon {
+    display: none;
+  }
+
+  html .math-role-admin .ad-tile-value {
+    font-size: 1.4rem;
+  }
+}
+
+html .math-role-admin .ad-section-title {
+  font-family: var(--ad-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ad-ink);
+}
+
+html .math-role-admin .ad-section-note {
+  font-family: var(--ad-display);
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--ad-ink-soft);
+}
+
+/* quick links: a label and a one-line description */
+html .math-role-admin .math-dashboard-quick-card .ad-quick-note {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: var(--ad-display);
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--ad-ink-soft);
+}
+
+html .math-role-admin .math-dashboard-quick-card {
+  transition: transform 200ms var(--ad-ease), box-shadow 200ms ease, border-color 200ms ease;
+}
+
+html .math-role-admin .math-dashboard-quick-card:hover {
+  transform: translateY(-2px);
+}
+
+html .math-role-admin .math-dashboard-quick-card:focus-visible {
+  outline: none;
+  box-shadow: var(--ad-ring) !important;
+}
+
+/* ---------- phones: nothing runs off the screen ------------------------------
+   globals.css gives .math-table a 44rem minimum on small screens; on My
+   Students the class sits on the wrapper, so the wrapper itself was 704px
+   wide and the page zoomed out on a phone. The header's right-hand buttons
+   also ran 17px past a 390px screen. */
+html .math-role-admin div.math-table:not(#ad) { min-width: 0; max-width: 100%; }
+@media (max-width: 639px) {
+  html .math-role-admin .math-shell-header a[aria-label="Open MathPath Website"] img { height: 50px; width: auto; }
+  html .math-role-admin .math-shell-header a[aria-label="Open MathPath Website"] > div:first-child { height: auto; }
+  html .math-role-admin .math-shell-header .lg\:hidden:is(.ml-auto, .shrink-0) { gap: 0.4rem; }
+  /* four round buttons of one size: theme, demo, updates, menu */
+  html .math-role-admin .math-shell-header .lg\:hidden:is(.ml-auto, .shrink-0) > button:not(#ad),
+  html .math-role-admin .math-shell-header .lg\:hidden:is(.ml-auto, .shrink-0) > div > button:not(#ad) {
+    display: inline-flex;
+    width: 2.6rem;
+    min-width: 2.6rem;
+    height: 2.6rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 999px;
+  }
+  html .math-role-admin .math-shell-header .lg\:hidden:is(.ml-auto, .shrink-0) > button svg,
+  html .math-role-admin .math-shell-header .lg\:hidden:is(.ml-auto, .shrink-0) > div > button svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+}
+
+/* ---------- dark mode: every chip and pill ------------------------------------
+   Chips and lesson pills kept their pale daytime fill in dark mode (a rule in
+   globals.css re-lights them), so they glared on dark rows and their numbers
+   were hard to read. In the admin dark theme each one is a soft tint of its
+   own colour with light text. */
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-emerald-50"], [class~="bg-emerald-100"]):not(#ad):not(#ad) {
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  background-color: rgba(16, 185, 129, 0.16) !important;
+  background-image: none !important;
+  color: #6ee7b7 !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-emerald-50"], [class~="bg-emerald-100"]):not(#ad):not(#ad) :is(svg, span) {
+  color: #6ee7b7 !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-green-50"], [class~="bg-green-100"]):not(#ad):not(#ad) {
+  border-color: rgba(34, 197, 94, 0.4) !important;
+  background-color: rgba(34, 197, 94, 0.16) !important;
+  background-image: none !important;
+  color: #86efac !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-green-50"], [class~="bg-green-100"]):not(#ad):not(#ad) :is(svg, span) {
+  color: #86efac !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-teal-50"], [class~="bg-teal-100"]):not(#ad):not(#ad) {
+  border-color: rgba(20, 184, 166, 0.4) !important;
+  background-color: rgba(20, 184, 166, 0.16) !important;
+  background-image: none !important;
+  color: #5eead4 !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-teal-50"], [class~="bg-teal-100"]):not(#ad):not(#ad) :is(svg, span) {
+  color: #5eead4 !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-amber-50"], [class~="bg-amber-100"]):not(#ad):not(#ad) {
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  background-color: rgba(245, 158, 11, 0.16) !important;
+  background-image: none !important;
+  color: #fcd34d !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-amber-50"], [class~="bg-amber-100"]):not(#ad):not(#ad) :is(svg, span) {
+  color: #fcd34d !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-yellow-50"], [class~="bg-yellow-100"]):not(#ad):not(#ad) {
+  border-color: rgba(234, 179, 8, 0.4) !important;
+  background-color: rgba(234, 179, 8, 0.16) !important;
+  background-image: none !important;
+  color: #fde047 !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-yellow-50"], [class~="bg-yellow-100"]):not(#ad):not(#ad) :is(svg, span) {
+  color: #fde047 !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-orange-50"], [class~="bg-orange-100"]):not(#ad):not(#ad) {
+  border-color: rgba(249, 115, 22, 0.4) !important;
+  background-color: rgba(249, 115, 22, 0.16) !important;
+  background-image: none !important;
+  color: #fdba74 !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-orange-50"], [class~="bg-orange-100"]):not(#ad):not(#ad) :is(svg, span) {
+  color: #fdba74 !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-rose-50"], [class~="bg-rose-100"]):not(#ad):not(#ad) {
+  border-color: rgba(244, 63, 94, 0.4) !important;
+  background-color: rgba(244, 63, 94, 0.16) !important;
+  background-image: none !important;
+  color: #fda4af !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-rose-50"], [class~="bg-rose-100"]):not(#ad):not(#ad) :is(svg, span) {
+  color: #fda4af !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-red-50"], [class~="bg-red-100"]):not(#ad):not(#ad) {
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  background-color: rgba(239, 68, 68, 0.16) !important;
+  background-image: none !important;
+  color: #fca5a5 !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-red-50"], [class~="bg-red-100"]):not(#ad):not(#ad) :is(svg, span) {
+  color: #fca5a5 !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-blue-50"], [class~="bg-blue-100"]):not(#ad):not(#ad) {
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  background-color: rgba(59, 130, 246, 0.16) !important;
+  background-image: none !important;
+  color: #a5c0ff !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-blue-50"], [class~="bg-blue-100"]):not(#ad):not(#ad) :is(svg, span) {
+  color: #a5c0ff !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-sky-50"], [class~="bg-sky-100"]):not(#ad):not(#ad) {
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  background-color: rgba(59, 130, 246, 0.16) !important;
+  background-image: none !important;
+  color: #a5c0ff !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-sky-50"], [class~="bg-sky-100"]):not(#ad):not(#ad) :is(svg, span) {
+  color: #a5c0ff !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-cyan-50"], [class~="bg-cyan-100"]):not(#ad):not(#ad) {
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  background-color: rgba(59, 130, 246, 0.16) !important;
+  background-image: none !important;
+  color: #a5c0ff !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-cyan-50"], [class~="bg-cyan-100"]):not(#ad):not(#ad) :is(svg, span) {
+  color: #a5c0ff !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-slate-50"], [class~="bg-slate-100"]):not(#ad):not(#ad) {
+  border-color: rgba(148, 163, 184, 0.4) !important;
+  background-color: rgba(148, 163, 184, 0.16) !important;
+  background-image: none !important;
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html.dark .math-role-admin :is(.math-badge, [class*="rounded-full"]):is([class~="bg-slate-50"], [class~="bg-slate-100"]):not(#ad):not(#ad) :is(svg, span) {
+  color: #cbd5e1 !important;
+}
+
+/* dashboard quick-link icons: the admin blue in both themes (they were blue
+   and cyan in dark mode) */
+html .math-role-admin .math-dashboard-quick-icon:not(#ad) {
+  border-color: var(--ad-line) !important;
+  background: var(--ad-tint) !important;
+  color: var(--ad-readable) !important;
+}
+
+/* ===========================================================================
+   Part 2: practice pages (Assign Practice, Practice Tracker, a student's
+   practice page, a practice result)
+   =========================================================================== */
+/* dropdowns written as .math-select (Assign Practice) take the filter look */
+html .math-role-admin .math-select:not(#ad) {
+  min-height: 2.9rem;
+  /* the chevron below is for real dropdowns; the Sort By button draws its own */
+  border-color: var(--ad-line);
+  border-radius: 14px;
+  background-color: var(--ad-surface);
+  color: var(--ad-ink);
+  font-family: var(--ad-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+html .math-role-admin select.math-select:not(#ad) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231d4ed8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 16px 16px;
+}
+
+html.dark .math-role-admin .math-select:not(#ad) {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+html.dark .math-role-admin select.math-select:not(#ad) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a5c0ff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+html .math-role-admin .math-select:not(#ad):hover {
+  border-color: var(--ad-line-strong);
+}
+
+html .math-role-admin .math-select:not(#ad):focus-visible {
+  outline: none;
+  border-color: var(--ad-secondary);
+  box-shadow: var(--ad-ring);
+}
+
+html .math-role-admin .math-label {
+  font-family: var(--ad-display);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ad-ink);
+}
+
+/* empty states: one plain sentence that stays on one line while it fits */
+html .math-role-admin .math-empty-state p:not(.math-empty-title):not(#ad) {
+  max-width: none;
+  font-weight: 500;
+  color: var(--ad-ink-soft);
+}
+
+/* a student code beside a name: quiet ink, no capitals, no spacing */
+html .math-role-admin .ad-code-inline {
+  margin-left: 0.35rem;
+  font-family: var(--ad-display);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ad-ink-soft);
+  white-space: nowrap;
+}
+
+/* the code under a student's name in a page header */
+html .math-role-admin .ad-hero-code {
+  display: inline-flex;
+  margin-top: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--ad-line);
+  border-radius: 999px;
+  background: var(--ad-surface);
+  font-family: var(--ad-display);
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ad-ink-soft);
+}
+
+/* "BM · BM-L1 · Lesson 1 · DPS 1" above each excellence group */
+html .math-role-admin .ad-crumb {
+  font-family: var(--ad-display);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+/* section titles inside cards */
+html .math-role-admin .math-teacher-block-title {
+  font-family: var(--ad-display);
+  font-weight: 800;
+  letter-spacing: -0.005em;
+}
+
+/* the insight cards (Excellence Zone, Growth Zone, Needs Re-Attempt,
+   Performance Band, Best and Lowest Accuracy): the sentence under the figure
+   is ordinary weight, not a second heading */
+html .math-role-admin :is(.rounded-\[28px\], .rounded-\[24px\]) > p:is([class*="font-bold"], [class*="font-semibold"]):is([class*="opacity-80"], [class*="opacity-75"]):not(#ad) {
+  font-weight: 500 !important;
+  opacity: 0.9;
+}
+
+/* Assign Practice: the five actions in one row (they were a cramped 2 x 2
+   grid with "Schedule The Week" floating centred under it) */
+html .math-role-admin .ad-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+html .math-role-admin .ad-actions > button:not(#ad) {
+  width: auto;
+}
+
+html .math-role-admin .ad-actions > button.math-button-primary {
+  margin-left: auto;
+}
+
+@media (max-width: 639px) {
+  html .math-role-admin .ad-actions > button:not(#ad) {
+    width: 100%;
+  }
+
+  html .math-role-admin .ad-actions > button.math-button-primary {
+    margin-left: 0;
+  }
+}
+
+/* Back: one place, top right, on inner pages */
+html .math-role-admin .ad-back-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+html .math-role-admin .ad-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: 1px solid var(--ad-line-strong);
+  border-radius: 999px;
+  background: var(--ad-surface);
+  color: var(--ad-readable);
+  font-family: var(--ad-display);
+  font-size: 0.92rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 8px 18px -14px rgba(29, 58, 138, 0.45);
+  transition: transform 200ms ease, background 200ms ease;
+}
+
+html.dark .math-role-admin .ad-back {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+html .math-role-admin .ad-back:hover {
+  transform: translateX(-2px);
+  background: var(--ad-tint);
+}
+
+html .math-role-admin .ad-back:focus-visible {
+  outline: none;
+  box-shadow: var(--ad-ring);
+}
+
+/* result page: the four facts about the attempt */
+html .math-role-admin .ad-info-card > p.ad-info-value:not(#ad) {
+  font-size: 1.1rem;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+/* ---------- grid tables become cards on phones and tablets -------------------
+   The Practice Tracker's Action Queue (5 columns) and Student Review (11
+   columns, with 10px headings) are grids inside a sideways-scrolling box.
+   Below 1024px each row is a card: the student on top, each value under its
+   heading, the Review button full width. */
+@media (max-width: 1023px) {
+  html .math-role-admin .ad-gtable:not(#ad) {
+    overflow: visible;
+  }
+
+  html .math-role-admin .ad-gtable > div:not(#ad) {
+    min-width: 0 !important;
+  }
+
+  html .math-role-admin .ad-gtable .ad-ghead:not(#ad) {
+    display: none;
+  }
+
+  html .math-role-admin .ad-gtable .ad-ghead + div:not(#ad) {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  html .math-role-admin .ad-gtable .ad-grow:not(#ad) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.6rem 1rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--ad-line) !important;
+    border-radius: 18px;
+    background: var(--ad-surface);
+  }
+
+  html.dark .math-role-admin .ad-gtable .ad-grow:not(#ad) {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  html .math-role-admin .ad-gtable .ad-grow > [data-label]:not(#ad) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.25rem;
+    text-align: left;
+  }
+
+  html .math-role-admin .ad-gtable .ad-grow > [data-label]::before {
+    content: attr(data-label);
+    font-family: var(--ad-display);
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--ad-ink-soft);
+  }
+
+  html .math-role-admin .ad-gtable .ad-gtitle:not(#ad),
+  html .math-role-admin .ad-gtable .ad-gaction:not(#ad) {
+    grid-column: 1 / -1;
+  }
+
+  html .math-role-admin .ad-gtable .ad-gtitle:not(#ad) {
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid var(--ad-line);
+  }
+
+  html .math-role-admin .ad-gtable .ad-gaction:not(#ad) > * {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Student Review has eleven columns: cards up to 1279px */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  html .math-role-admin .ad-gtable.ad-gtable-wide:not(#ad) {
+    overflow: visible;
+  }
+
+  html .math-role-admin .ad-gtable.ad-gtable-wide > div:not(#ad) {
+    min-width: 0 !important;
+  }
+
+  html .math-role-admin .ad-gtable.ad-gtable-wide .ad-ghead:not(#ad) {
+    display: none;
+  }
+
+  html .math-role-admin .ad-gtable.ad-gtable-wide .ad-ghead + div:not(#ad) {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  html .math-role-admin .ad-gtable.ad-gtable-wide .ad-grow:not(#ad) {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 0.6rem 1rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--ad-line) !important;
+    border-radius: 18px;
+    background: var(--ad-surface);
+  }
+
+  html.dark .math-role-admin .ad-gtable.ad-gtable-wide .ad-grow:not(#ad) {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  html .math-role-admin .ad-gtable.ad-gtable-wide .ad-grow > [data-label]:not(#ad) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.25rem;
+    text-align: left;
+  }
+
+  html .math-role-admin .ad-gtable.ad-gtable-wide .ad-grow > [data-label]::before {
+    content: attr(data-label);
+    font-family: var(--ad-display);
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--ad-ink-soft);
+  }
+
+  html .math-role-admin .ad-gtable.ad-gtable-wide .ad-gtitle:not(#ad),
+  html .math-role-admin .ad-gtable.ad-gtable-wide .ad-gaction:not(#ad) {
+    grid-column: 1 / -1;
+  }
+
+  html .math-role-admin .ad-gtable.ad-gtable-wide .ad-gtitle:not(#ad) {
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid var(--ad-line);
+  }
+
+  html .math-role-admin .ad-gtable.ad-gtable-wide .ad-gaction:not(#ad) > * {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* the grid tables' headings: readable size from 1024px up */
+html .math-role-admin .math-teacher-practice-record-table-header:not(#ad),
+html .math-role-admin .math-teacher-practice-record-table-header :is(button, span, div):not(#ad) {
+  font-family: var(--ad-display);
+  font-size: 0.84rem !important;
+  font-weight: 800 !important;
+  color: var(--ad-readable);
+}
+
+/* a tile's figure sits a little apart from the sentence above it */
+html .math-role-admin .math-hero :is(div, section):not(.ad-hero-tiles):has(> .math-teacher-light-metric-card) {
+  margin-top: 1.1rem;
+}
+
+/* the result page's accuracy badge: no letter-spaced capitals */
+html .math-role-admin .math-result-accuracy-label:not(#ad) {
+  font-family: var(--ad-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0 !important;
+}
+
+html .math-role-admin .math-student-metric-card:not(#ad) {
+  min-height: 0;
+}
+
+/* phones: result tiles two to a row, like the other tiles */
+@media (max-width: 639px) {
+  html .math-role-admin :is(div, section):has(> .math-student-metric-card) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  html .math-role-admin .math-student-metric-card > .math-student-icon-chip {
+    display: none;
+  }
+
+  html .math-role-admin .math-student-metric-card > p {
+    grid-column: 1 / -1;
+  }
+}
+
+/* status pills in a phone card keep their words on one line */
+@media (max-width: 1023px) {
+  html .math-role-admin .ad-gtable .ad-grow [data-label] :is(span, div)[class*="rounded-full"]:not(#ad) {
+    white-space: nowrap;
+  }
+
+  html .math-role-admin .ad-gtable .ad-grow [data-label] > div:not(#ad) {
+    width: auto;
+    max-width: 100%;
+  }
+}
+
+/* ===========================================================================
+   Part 3: assessment pages
+   =========================================================================== */
+/* Assessment Readiness: each student row shows how far through the level's
+   practice they are, as a bar, instead of three chips */
+html .math-role-admin .ad-node-head {
+  align-items: center;
+}
+
+html .math-role-admin .ad-meter {
+  display: grid;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  html .math-role-admin .ad-meter {
+    width: 17rem;
+    flex-shrink: 0;
+  }
+}
+
+html .math-role-admin .ad-meter-text {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-family: var(--ad-display);
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ad-ink-soft);
+}
+
+html .math-role-admin .ad-meter-text b {
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--ad-ink);
+}
+
+html .math-role-admin .ad-meter-track {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ad-tint);
+}
+
+html .math-role-admin .ad-meter-track > i {
+  display: block;
+  height: 100%;
+  min-width: 0.5rem;
+  border-radius: inherit;
+  background: var(--ad-action);
+}
+
+/* one labelled button per row: Open All / Close All */
+html .math-role-admin .ad-branch-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.3rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--ad-line-strong);
+  border-radius: 999px;
+  background: var(--ad-surface);
+  color: var(--ad-readable);
+  font-family: var(--ad-display);
+  font-size: 0.86rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 180ms var(--ad-ease), background 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+html.dark .math-role-admin .ad-branch-btn {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+html .math-role-admin .ad-branch-btn:hover {
+  transform: translateY(-1px);
+  border-color: transparent;
+  background: var(--ad-action);
+  color: #ffffff;
+}
+
+html .math-role-admin .ad-branch-btn:active {
+  transform: scale(0.97);
+}
+
+html .math-role-admin .ad-branch-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ad-ring);
+}
+
+/* a row heading and its chips: tighter, so 20 students fit on less page */
+html .math-role-admin .ad-node > .ad-node-head:not(#ad) {
+  padding: 1rem 1.25rem;
+}
+
+/* small labels over a value (Assign Assessment's three figures, the
+   instructions box) */
+html .math-role-admin .ad-mini-label {
+  font-family: var(--ad-display);
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--ad-ink-soft);
+}
+
+/* Assessment Tracker rows: "Last Activity 6 Oct 2026, 8:49 PM" */
+html .math-role-admin .ad-last-activity {
+  font-family: var(--ad-display);
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ad-ink-soft);
+  white-space: nowrap;
+}
+
+html .math-role-admin .ad-last-activity b {
+  margin-left: 0.25rem;
+  font-weight: 700;
+  color: var(--ad-ink);
+}
+
+/* ---------- alignment (Shailesh, 16 Oct: "perfect alignment is a must") -------
+   Blocks side by side share a top and a height, and their first lines of
+   text sit level. */
+html .math-role-admin .math-dashboard-quick-card:not(#ad) {
+  align-items: flex-start;
+}
+
+html .math-role-admin .math-dashboard-quick-card > .math-dashboard-quick-icon:not(#ad) {
+  margin-top: 0.1rem;
+}
+
+/* side-by-side panels stretch to the same height; their lists start at the top */
+html .math-role-admin .ad-pair > * {
+  height: 100%;
+}
+
+/* number tiles in a row: every label starts on the same line and every figure
+   sits on the same line, even when one label (or a date) takes two lines */
+html .math-role-admin :is(.math-teacher-light-metric-card, .math-student-metric-card):not(#ad) {
+  grid-template-rows: 1fr auto;
+  align-items: start;
+}
+
+html .math-role-admin :is(.math-teacher-light-metric-card, .math-student-metric-card) > p:nth-of-type(1):not(#ad) {
+  align-self: start;
+}
+
+html .math-role-admin :is(.math-teacher-light-metric-card, .math-student-metric-card) > p:nth-of-type(2):not(#ad) {
+  align-self: end;
+}
+
+html .math-role-admin .math-teacher-light-metric-card > .math-teacher-icon-chip:not(#ad),
+html .math-role-admin .math-student-metric-card > .math-student-icon-chip:not(#ad) {
+  align-self: center;
+}
+
+/* tables in a sideways-scrolling box (not .math-table) also become cards */
+@media (max-width: 1023px) {
+  html .math-role-admin .overflow-x-auto:has(> table.ad-cards):not(#ad) {
+    overflow: visible;
+  }
+}
+
+/* phone cards: the student's name leads, the rank sits with the figures */
+@media (max-width: 1023px) {
+  html .math-role-admin table.ad-cards td.ad-card-title:not(#ad) {
+    order: -1;
+  }
+  html .math-role-admin table.ad-cards tbody > tr:not(#ad) {
+    display: grid;
+  }
+}
+
+/* table avatars: initials readable in both themes */
+html .math-role-admin .ad-board-avatar:not(#ad) {
+  background: var(--ad-tint) !important;
+}
+
+html .math-role-admin .ad-board-avatar > div:not(#ad) {
+  color: var(--ad-readable) !important;
+  font-family: var(--ad-display);
+}
+
+/* phone and tablet cards from grid tables: each value's label starts on the
+   same line as its neighbour's (the grid rows were vertically centred) */
+@media (max-width: 1023px) {
+  html .math-role-admin .ad-gtable .ad-grow:not(#ad) {
+    align-items: start !important;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  html .math-role-admin .ad-gtable.ad-gtable-wide .ad-grow:not(#ad) {
+    align-items: start !important;
+  }
+}
+
+/* ===========================================================================
+   Admin: Dashboard
+   =========================================================================== */
+/* four figures for today in one row on a laptop, two by two below that */
+html .math-role-admin .ad-today.ad-today-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1023px) {
+  html .math-role-admin .ad-today.ad-today-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+html .math-role-admin .math-dashboard-hero-admin h1:not(#ad) {
+  white-space: normal;
+}
+
+/* ===========================================================================
+   Admin: Students and Teachers
+   =========================================================================== */
+/* the header card: title and sentence on one row, the tiles on the next, so
+   the tiles never squeeze the sentence */
+html .math-role-admin .ad-hero-stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+html .math-role-admin .ad-hero-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+html .math-role-admin .ad-hero-tiles.ad-hero-tiles-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 1023px) {
+  html .math-role-admin .ad-hero-tiles:not(.ad-hero-tiles-3) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* row actions: the five buttons on one row, the new password box and its
+   button under them across the cell */
+html .math-role-admin .ad-row-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 2.4rem);
+  gap: 0.4rem;
+  justify-content: start;
+}
+
+/* five buttons (Students: view, edit, fees, status, delete) */
+html .math-role-admin .ad-row-actions:has(> :nth-child(6)) {
+  grid-template-columns: repeat(5, 2.4rem);
+}
+
+html .math-role-admin .ad-row-actions > :is(button, a):not(#ad) {
+  display: inline-flex;
+  width: 2.4rem;
+  height: 2.4rem;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  border-radius: 12px;
+}
+
+html .math-role-admin .ad-row-actions > .ad-reset {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 0.4rem;
+}
+
+html .math-role-admin .ad-row-actions > .ad-reset > .math-input:not(#ad) {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 2.4rem;
+  height: 2.4rem;
+  font-size: 0.85rem;
+}
+
+html .math-role-admin .ad-row-actions > .ad-reset > button:not(#ad) {
+  flex: 0 0 2.4rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0 !important;
+}
+
+/* the directory tables: every heading whole, no cell cut short */
+html .math-role-admin .math-admin-directory-table th:not(#ad),
+html .math-role-admin .math-admin-directory-table th :is(button, span):not(#ad) {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+html .math-role-admin .math-admin-directory-table td:not(#ad) {
+  overflow: visible;
+  vertical-align: middle;
+}
+
+@media (min-width: 1024px) {
+  html .math-role-admin .math-admin-directory-table table {
+    table-layout: auto;
+  }
+
+  html .math-role-admin .math-admin-directory-table td:last-child,
+  html .math-role-admin .math-admin-directory-table th:last-child {
+    width: 1%;
+  }
+}
+
+/* status chips: Init Caps words, not capitals */
+html .math-role-admin .math-admin-directory-status-chip:not(#ad) {
+  font-size: 0.8rem !important;
+  letter-spacing: 0 !important;
+}
+
+/* Live Radar in the dashboard header: one quiet card in the admin style,
+   the live count as its button (it was a pale box with a green double edge) */
+html .math-role-admin .ad-radar:not(#ad) {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--ad-line) !important;
+  border-radius: 20px;
+  background: var(--ad-surface);
+  box-shadow: var(--ad-shadow);
+}
+
+html.dark .math-role-admin .ad-radar:not(#ad) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+html .math-role-admin .ad-radar h3:not(#ad) {
+  font-family: var(--ad-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--ad-ink);
+}
+
+html .math-role-admin .ad-radar > div > button:not(#ad) {
+  font-family: var(--ad-display);
+  font-size: 0.8rem;
+}
+
+html .math-role-admin .ad-radar-empty:not(#ad) {
+  padding: 0.7rem 0.8rem;
+  border-radius: 14px;
+  background: var(--ad-surface-2);
+  font-family: var(--ad-display);
+  font-weight: 600;
+  color: var(--ad-ink-soft);
+}
+
+html.dark .math-role-admin .ad-radar-empty:not(#ad) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* the page count under a directory ("1 / 1") stays on one line */
+html .math-role-admin .math-admin-directory-table > div:last-child :is(span, p):not(#ad) {
+  white-space: nowrap;
+}
+
+/* tables marked ad-cards-wide (Students: eight columns and five buttons)
+   are cards up to 1279px; at 1024 to 1279px the table scrolled sideways */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  html .math-role-admin .math-table:has(> table.ad-cards.ad-cards-wide):not(#ad) {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  html .math-role-admin table.ad-cards.ad-cards-wide:not(#ad) {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+    table-layout: auto !important;
+  }
+
+  html .math-role-admin table.ad-cards.ad-cards-wide thead {
+    display: none;
+  }
+
+  html .math-role-admin table.ad-cards.ad-cards-wide tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  html .math-role-admin table.ad-cards.ad-cards-wide tbody > tr:not(#ad) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.55rem 1rem;
+    min-width: 0;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--ad-line) !important;
+    border-radius: 18px;
+    background: var(--ad-surface);
+    box-shadow: 0 10px 20px -18px rgba(29, 58, 138, 0.5);
+  }
+
+  html.dark .math-role-admin table.ad-cards.ad-cards-wide tbody > tr:not(#ad) {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  html .math-role-admin table.ad-cards.ad-cards-wide td:not(#ad) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    width: auto !important;
+    min-width: 0;
+    padding: 0 !important;
+    overflow: visible;
+    text-align: left;
+    white-space: normal;
+  }
+
+  html .math-role-admin table.ad-cards.ad-cards-wide td::before {
+    content: attr(data-label);
+    font-family: var(--ad-display);
+    font-size: 0.76rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--ad-ink-soft);
+    white-space: nowrap;
+  }
+
+  /* the row's name is the card's title, across the full width */
+  html .math-role-admin table.ad-cards.ad-cards-wide td.ad-card-title:not(#ad),
+  html .math-role-admin table.ad-cards.ad-cards-wide td.ad-card-wide:not(#ad) {
+    grid-column: 1 / -1;
+  }
+
+  html .math-role-admin table.ad-cards.ad-cards-wide td.ad-card-title:not(#ad) {
+    padding-bottom: 0.6rem !important;
+    border-bottom: 1px solid var(--ad-line);
+  }
+
+  html .math-role-admin table.ad-cards.ad-cards-wide td.ad-card-title::before {
+    content: none;
+  }
+}
+
+
+/* cards side by side from 1024px: two to a row */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  html .math-role-admin table.ad-cards.ad-cards-wide tbody:not(#ad) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ===========================================================================
+   Part 2: Learning Path and Practice
+   =========================================================================== */
+/* a button that cannot be used yet: one quiet state for every button (a
+   disabled primary used to show its gradient at half strength, which read
+   as a pink-purple smear) */
+html .math-role-admin :is(.math-button-primary, .math-button-secondary, .math-role-action-button, button[class*="mp-role-action-bg"]):disabled:not(#ad) {
+  border: 1px solid var(--ad-line) !important;
+  background: var(--ad-surface-2) !important;
+  background-image: none !important;
+  color: var(--ad-ink-soft) !important;
+  box-shadow: none !important;
+  opacity: 0.75;
+  filter: none !important;
+}
+
+html .math-role-admin :is(.math-button-primary, .math-button-secondary, .math-role-action-button, button[class*="mp-role-action-bg"]):disabled:not(#ad) :is(svg, span) {
+  color: inherit !important;
+}
+
+html.dark .math-role-admin :is(.math-button-primary, .math-button-secondary, .math-role-action-button):disabled:not(#ad) {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Learning Path Studio: the four columns */
+html .math-role-admin .ad-studio-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+html .math-role-admin .ad-studio-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+html .math-role-admin .ad-studio-col-head h2:not(#ad) {
+  font-family: var(--ad-display);
+  font-size: 1.05rem;
+  color: var(--ad-ink);
+}
+
+html .math-role-admin .ad-studio-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.6rem;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  background: var(--ad-tint);
+  color: var(--ad-readable);
+  font-family: var(--ad-display);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+/* the list scrolls inside its column; the last 1.25rem fades, and the same
+   space is kept clear at the end, so no item is ever cut in half */
+html .math-role-admin .ad-studio-list {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  max-height: 27rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 0.25rem 1.25rem 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.25rem), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 1.25rem), transparent);
+}
+
+@media (max-width: 1023px) {
+  html .math-role-admin .ad-studio-list {
+    max-height: 18rem;
+  }
+}
+
+html .math-role-admin .ad-pick:not(#ad) {
+  border: 1px solid transparent;
+  background: var(--ad-surface-2);
+  color: var(--ad-ink);
+  font-family: var(--ad-display);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+html.dark .math-role-admin .ad-pick:not(#ad) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+html .math-role-admin .ad-pick:not(.ad-pick-active):hover:not(#ad) {
+  border-color: var(--ad-line-strong);
+  background: var(--ad-tint);
+}
+
+html .math-role-admin .ad-pick.ad-pick-active:not(#ad) {
+  background: var(--ad-action);
+  color: #ffffff;
+  box-shadow: var(--ad-action-shadow);
+}
+
+html .math-role-admin .ad-pick:focus-visible {
+  outline: none;
+  box-shadow: var(--ad-ring);
+}
+
+html .math-role-admin .ad-pick :is(span):not(#ad) {
+  font-family: inherit;
+}
+
+html .math-role-admin .ad-pick .text-xs:not(#ad),
+html .math-role-admin .ad-pick-note:not(#ad) {
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.82;
+}
+
+/* the actions of the Selected Lesson and Selected DPS cards: one row of
+   same-height buttons (they stacked, in three styles) */
+html .math-role-admin .ad-studio-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+html .math-role-admin .ad-studio-actions > button:not(#ad) {
+  min-height: 2.75rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 1023px) {
+  html .math-role-admin .ad-studio-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 639px) {
+  html .math-role-admin .ad-studio-actions > button:not(#ad) {
+    flex: 1 1 100%;
+  }
+}
+
+html .math-role-admin .ad-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--ad-line);
+  border-radius: 999px;
+  background: var(--ad-surface);
+  color: var(--ad-ink);
+  font-family: var(--ad-display);
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+html.dark .math-role-admin .ad-check {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+html .math-role-admin .ad-check input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--ad-primary);
+}
+
+/* dates and times never break inside ("13 Oct 2026, 11:24 / PM") */
+html .math-role-admin .ad-date:not(#ad) {
+  white-space: nowrap;
+}
+
+/* Practice Control's student table: headings in the admin style on one line */
+html .math-role-admin .math-admin-light-student-summary-header:not(#ad),
+html .math-role-admin .math-admin-light-student-summary-header :is(button, span, div):not(#ad) {
+  font-family: var(--ad-display);
+  font-size: 0.84rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  color: var(--ad-readable);
+  white-space: nowrap;
+}
+
+html .math-role-admin .math-admin-light-student-summary-header > div:last-child {
+  text-align: right;
+}
+
+/* the practice detail page's four facts */
+html .math-role-admin .ad-fact:not(#ad) {
+  border-color: var(--ad-line);
+  background: var(--ad-surface-2);
+}
+
+html.dark .math-role-admin .ad-fact:not(#ad) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* in a row card (below 1280px) a date takes the card's full width, so it
+   stays on one line inside the card instead of running past its edge */
+@media (max-width: 1279px) {
+  html .math-role-admin .ad-gtable.ad-gtable-wide .ad-grow > .ad-date:not(#ad),
+  html .math-role-admin table.ad-cards.ad-cards-wide td.ad-date:not(#ad) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1023px) {
+  html .math-role-admin .ad-gtable .ad-grow > .ad-date:not(#ad),
+  html .math-role-admin table.ad-cards td.ad-date:not(#ad) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* three tiles side by side on a phone: a smaller label, so "Average Score"
+   keeps to one line where it can */
+@media (max-width: 639px) {
+  html .math-role-admin .ad-hero-tiles.ad-hero-tiles-3 > * > p:nth-of-type(1):not(#ad) {
+    font-size: 0.74rem;
+  }
+
+  html .math-role-admin .ad-hero-tiles.ad-hero-tiles-3 > *:not(#ad) {
+    padding: 0.75rem;
+  }
+
+  html .math-role-admin .ad-hero-tiles.ad-hero-tiles-3 .math-teacher-icon-chip:not(#ad) {
+    display: none;
+  }
+}
+
+/* status pills ("Awaiting Admin Approval", "Tries 3/3", "Demo") in dark mode:
+   a soft tint of their colour with light text, like every other admin chip
+   (they kept their pale daytime fill) */
+html.dark .math-role-admin .mp-state-pill[data-tone="green"]:not(#mp-state):not(#ad) { background: rgba(16, 185, 129, 0.16) !important; border-color: rgba(16, 185, 129, 0.4) !important; color: #6ee7b7 !important; }
+html.dark .math-role-admin .mp-state-pill[data-tone="red"]:not(#mp-state):not(#ad) { background: rgba(244, 63, 94, 0.16) !important; border-color: rgba(244, 63, 94, 0.42) !important; color: #fda4af !important; }
+html.dark .math-role-admin .mp-state-pill[data-tone="amber"]:not(#mp-state):not(#ad) { background: rgba(245, 158, 11, 0.16) !important; border-color: rgba(245, 158, 11, 0.4) !important; color: #fcd34d !important; }
+html.dark .math-role-admin .mp-state-pill:is([data-tone="blue"], [data-tone="cyan"]):not(#mp-state):not(#ad) { background: rgba(59, 130, 246, 0.16) !important; border-color: rgba(96, 165, 250, 0.42) !important; color: #a5c0ff !important; }
+html.dark .math-role-admin .mp-state-pill[data-tone="purple"]:not(#mp-state):not(#ad) { background: rgba(139, 92, 246, 0.18) !important; border-color: rgba(167, 139, 250, 0.42) !important; color: #c4b5fd !important; }
+html.dark .math-role-admin .mp-state-pill[data-tone="slate"]:not(#mp-state):not(#ad) { background: rgba(255, 255, 255, 0.06) !important; border-color: rgba(255, 255, 255, 0.14) !important; color: #cbd5e1 !important; }
+
+/* ===========================================================================
+   Part 3: assessment pages
+   =========================================================================== */
+/* five tiles under a title (Assessment Studio, a student's assessments) */
+html .math-role-admin .ad-hero-tiles.ad-hero-tiles-5:not(#ad) {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 1279px) {
+  html .math-role-admin .ad-hero-tiles.ad-hero-tiles-5:not(#ad) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
+  html .math-role-admin .ad-hero-tiles.ad-hero-tiles-5:not(#ad) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Assessment Studio's distribution matrix on a phone: each lesson is two
+   lines (number and topic; questions box, weight and status) instead of five
+   fixed columns cut at the card's edge */
+@media (max-width: 639px) {
+  html .math-role-admin .ad-matrix-head:not(#ad) {
+    display: none;
+  }
+
+  html .math-role-admin .ad-matrix-row:not(#ad) {
+    grid-template-columns: minmax(0, 6rem) minmax(0, 1fr) auto !important;
+    align-items: center;
+  }
+
+  html .math-role-admin .ad-matrix-row > :nth-child(1):not(#ad) {
+    grid-column: 1;
+  }
+
+  html .math-role-admin .ad-matrix-row > :nth-child(2):not(#ad) {
+    grid-column: 2 / -1;
+  }
+
+  html .math-role-admin .ad-matrix-row > :nth-child(3):not(#ad) {
+    grid-column: 1;
+  }
+
+  html .math-role-admin .ad-matrix-weight::before {
+    content: "Weight\00a0";
+    font-weight: 700;
+    color: var(--ad-ink-soft);
+  }
+}
+
+/* ===========================================================================
+   Part 4: competition pages
+   =========================================================================== */
+/* the event page's tables (roster, assignments, results) and the practice
+   bank become cards below 1024px, like every admin table: the tick box and the
+   student's name on top, each value under its heading, actions full width */
+@media (max-width: 1023px) {
+  html .math-role-admin .overflow-x-auto:has(> table.ad-ptable):not(#ad) {
+    overflow: visible;
+  }
+
+  html .math-role-admin table.ad-ptable tbody > tr:not(#ad) {
+    position: relative;
+  }
+
+  html .math-role-admin table.ad-ptable td[data-cell="check"]:not(#ad) {
+    position: absolute;
+    top: 0.95rem;
+    left: 1rem;
+  }
+
+  html .math-role-admin table.ad-ptable td[data-cell="title"]:not(#ad) {
+    order: -1;
+    grid-column: 1 / -1;
+    padding-bottom: 0.6rem !important;
+    border-bottom: 1px solid var(--ad-line);
+    font-family: var(--ad-display);
+    font-weight: 800;
+  }
+
+  html .math-role-admin table.ad-ptable tr:has(> td[data-cell="check"]) > td[data-cell="title"]:not(#ad) {
+    padding-left: 1.75rem !important;
+  }
+
+  html .math-role-admin table.ad-ptable td[data-cell]::before {
+    content: none;
+  }
+
+  html .math-role-admin table.ad-ptable td[data-cell="action"]:not(#ad),
+  html .math-role-admin table.ad-ptable td[colspan]:not(#ad) {
+    grid-column: 1 / -1;
+    align-items: stretch;
+    text-align: left;
+  }
+
+  html .math-role-admin table.ad-ptable td :is(select, .math-input):not(#ad) {
+    width: 100%;
+  }
+
+  html .math-role-admin table.ad-ptable td[class*="truncate"]:not(#ad) {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
+
+/* the student's name and code under a mock result's title */
+html .math-role-admin .ad-result-student {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 1rem;
+}
+
+/* the Assignments tab's Set Level and Slot controls take the card's full
+   width on a phone (the level picker was squeezed to one letter) */
+@media (max-width: 1023px) {
+  html .math-role-admin table.ad-ptable td:is([data-label="Set Level"], [data-label="Slot"]):not(#ad) {
+    grid-column: 1 / -1;
+    align-items: stretch;
+  }
+
+  html .math-role-admin table.ad-ptable td:is([data-label="Set Level"], [data-label="Slot"]) > *:not(#ad) {
+    width: 100%;
+  }
+
+  html .math-role-admin table.ad-ptable td[data-label="Set Level"] select:not(#ad) {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+/* ---------- Part 5: payments ----------------------------------------------------
+   Payments tables that had no phone list of their own (day close, centres,
+   billing modes, a student's account, monthly drafts, the paying-on-time
+   months) become cards below 1024px like every other admin table. A row's tick
+   box sits in the card's top-right corner, and the "tick all" box from the
+   hidden header stays, with its words beside it. */
+@media (max-width: 1023px) {
+  html .math-role-admin table.ad-cards tbody > tr:has(> td.ad-card-check):not(#ad) {
+    position: relative;
+  }
+  html .math-role-admin table.ad-cards td.ad-card-check:not(#ad) {
+    position: absolute;
+    top: 0.95rem;
+    right: 1rem;
+  }
+  html .math-role-admin table.ad-cards td.ad-card-check::before,
+  html .math-role-admin table.ad-cards td.ad-card-wide:not([data-label])::before {
+    content: none;
+  }
+  html .math-role-admin table.ad-cards tr:has(> td.ad-card-check) > td.ad-card-title:not(#ad) {
+    padding-right: 2.25rem !important;
+  }
+  html .math-role-admin table.ad-cards thead:has(input[type="checkbox"]):not(#ad) {
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+  html .math-role-admin table.ad-cards thead:has(input[type="checkbox"]) > tr:not(#ad) {
+    display: flex;
+    border: 0;
+  }
+  html .math-role-admin table.ad-cards thead:has(input[type="checkbox"]) th:not(:has(input[type="checkbox"])) {
+    display: none;
+  }
+  html .math-role-admin table.ad-cards thead th:has(input[type="checkbox"]):not(#ad) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: auto !important;
+    padding: 0 !important;
+  }
+  html .math-role-admin table.ad-cards thead th:has(input[type="checkbox"])::after {
+    content: "Select All Shown";
+    font-family: var(--ad-display);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ad-ink-soft);
+  }
+  /* buttons at the foot of a card fill its width */
+  html .math-role-admin table.ad-cards td.ad-card-wide:not(#ad) > div,
+  html .math-role-admin table.ad-cards td.ad-card-wide:not(#ad) > button {
+    width: 100%;
+  }
+}
+
+/* Performance Reports: when one scope tab's text wraps, the other's text
+   stays at the top instead of centring, so both start on the same line. */
+html .math-role-admin button.math-report-scope-tab:not(#ad) {
+  display: flex;
+  align-items: flex-start;
+  text-align: left;
+}
+
+/* Payments heroes on wide screens (the ones with the payments search box):
+   the description runs the full width of the hero (the platform rule), and
+   the search box and the figure tiles share the row under it, instead of the
+   description being squeezed into a narrow column beside the tiles. */
+@media (min-width: 1280px) {
+  html .math-role-admin .math-hero > div.relative.z-10[class*="xl:flex-row"]:has(> div > .math-subtitle ~ div.max-w-xl):not(#ad) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 1.5rem;
+    row-gap: 0;
+    align-items: end;
+  }
+  html .math-role-admin .math-hero > div.relative.z-10[class*="xl:flex-row"]:has(> div > .math-subtitle ~ div.max-w-xl) > div:has(> .math-subtitle):not(#ad) {
+    display: contents;
+  }
+  html .math-role-admin .math-hero > div.relative.z-10[class*="xl:flex-row"]:has(> div > .math-subtitle ~ div.max-w-xl) > div:has(> .math-subtitle) > :not(div.max-w-xl) {
+    grid-column: 1 / -1;
+  }
+  html .math-role-admin .math-hero > div.relative.z-10[class*="xl:flex-row"]:has(> div > .math-subtitle ~ div.max-w-xl) > div:has(> .math-subtitle) > div.max-w-xl {
+    grid-column: 1;
+  }
+  html .math-role-admin .math-hero > div.relative.z-10[class*="xl:flex-row"]:has(> div > .math-subtitle ~ div.max-w-xl) > div:not(:has(> .math-subtitle)) {
+    grid-column: 2;
+    margin-top: 1.25rem;
+  }
+}
+
+/* Payment Settings › Online Payments: each switch sits beside its title and
+   the description runs the full width of the box under them. */
+html .math-role-admin .ad-switch-row:not(#ad) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 1rem;
+}
+html .math-role-admin .ad-switch-row > div.min-w-0:not(#ad) {
+  display: contents;
+}
+html .math-role-admin .ad-switch-row > div.min-w-0 > h3 {
+  grid-column: 1;
+  grid-row: 1;
+}
+html .math-role-admin .ad-switch-row > div.min-w-0 > p {
+  grid-column: 1 / -1;
+}
+html .math-role-admin .ad-switch-row > :not(div.min-w-0) {
+  grid-column: 2;
+  grid-row: 1;
+}

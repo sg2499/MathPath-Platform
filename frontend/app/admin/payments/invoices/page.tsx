@@ -15,7 +15,7 @@ export default function InvoicesSectionPage() {
   return (
     <PaymentsSection<Tab>
       title="Invoices"
-      label="Invoices sections"
+      label="Invoices Sections"
       fallback="all"
       tabs={[
         { key: "all", label: "All Invoices", icon: <FileText size={16} /> },

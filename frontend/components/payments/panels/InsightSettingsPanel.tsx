@@ -78,15 +78,15 @@ export function InsightSettingsPanel() {
         query.error ? <div className="mt-6"><ErrorState message="The limits could not be loaded. Refresh the page to try again." /></div> : <div className="mt-6"><PaymentsLoading label="Loading the limits…" rows={4} /></div>
       ) : (
         <section className="math-card mt-6 p-5 sm:p-6">
-          <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 dark:text-white"><ShieldAlert size={18} className="text-violet-600 dark:text-violet-400" />Unusual activity</h2>
+          <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 dark:text-white"><ShieldAlert size={18} className="text-violet-600 dark:text-violet-400" />Unusual Activity</h2>
           <form className="mt-4 grid gap-3" onSubmit={(event) => { event.preventDefault(); if (changed) save.mutate(); }}>
-            <NumberField id="ins-discount-amount" label="A large discount" hint="A discount on one payment above this amount." prefix="₹" suffix="" value={form.discountAmount} onChange={set("discountAmount")} />
-            <NumberField id="ins-discount-percent" label="Or a large share" hint="A discount above this share of what the payment settled (paid + discount)." suffix="%" value={form.discountPercent} onChange={set("discountPercent")} />
-            <NumberField id="ins-cancellations" label="Many cancellations" hint="This many or more payments, invoices or expenses cancelled by one person in one day." suffix="in a day" value={form.cancellationsPerDay} onChange={set("cancellationsPerDay")} />
-            <NumberField id="ins-backdated" label="A backdated payment" hint="A counter payment dated more than this many days before it was entered (or last edited)." suffix="days" value={form.backdatedDays} onChange={set("backdatedDays")} />
+            <NumberField id="ins-discount-amount" label="A Large Discount" hint="A discount on one payment above this amount." prefix="₹" suffix="" value={form.discountAmount} onChange={set("discountAmount")} />
+            <NumberField id="ins-discount-percent" label="Or A Large Share" hint="A discount above this share of what the payment settled (paid + discount)." suffix="%" value={form.discountPercent} onChange={set("discountPercent")} />
+            <NumberField id="ins-cancellations" label="Many Cancellations" hint="This many or more payments, invoices or expenses cancelled by one person in one day." suffix="in a day" value={form.cancellationsPerDay} onChange={set("cancellationsPerDay")} />
+            <NumberField id="ins-backdated" label="A Backdated Payment" hint="A counter payment dated more than this many days before it was entered (or last edited)." suffix="days" value={form.backdatedDays} onChange={set("backdatedDays")} />
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <button type="submit" className="math-button-primary" disabled={!changed || save.isPending}>{save.isPending ? <Loader2 size={17} className="animate-spin" /> : <CheckCircle2 size={17} />}Save</button>
-              {changed ? <button type="button" className="math-button-secondary" onClick={() => query.data && setForm(ToForm(query.data))}>Undo changes</button> : null}
+              {changed ? <button type="button" className="math-button-secondary" onClick={() => query.data && setForm(ToForm(query.data))}>Undo Changes</button> : null}
               <Link href="/admin/payments/reports?tab=insights#unusual" className="text-sm font-black text-cyan-700 hover:underline dark:text-cyan-300">See Insights</Link>
             </div>
             {save.error ? <InlineError error={save.error} /> : null}

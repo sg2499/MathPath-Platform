@@ -323,10 +323,17 @@ export function AppShell({
   //   2 a little less padding per item
   //   3 no dropdown arrows
   //   4 smaller text (small laptops only)
-  //   5 icons only, names on hover (tablet widths)
+  //   5 names only, no icons (2026-10, admin revamp: most laptops landed on
+  //     step 6 and saw eight bare icons; dropping the icons keeps every
+  //     name on show, see admin-elevate.css)
+  //   6 icons only, names on hover (tablet widths)
   const NavRef = useRef<HTMLElement | null>(null);
   const NavPillRef = useRef<HTMLDivElement | null>(null);
   const NavNeedAt = useRef<number[]>([]);
+  // Recent step changes (2026-10, admin revamp): if the menu keeps flipping
+  // between two steps, it stays on the narrower one instead of looping.
+  const NavFlips = useRef<number[]>([]);
+  const NavFontsRefitDone = useRef(false);
   const [NavLevel, setNavLevel] = useState(0);
   useLayoutEffectSafe(() => {
     if (!IsAdmin) return;
@@ -344,21 +351,45 @@ export function AppShell({
         + (parseFloat(Style.paddingLeft) || 0) + (parseFloat(Style.paddingRight) || 0);
       const Cut = Buttons.some((Button) => Need(Button) > Button.clientWidth + 1);
       const Spills = Pill.getBoundingClientRect().right > Nav.getBoundingClientRect().right + 1 || Pill.scrollWidth > Pill.clientWidth + 1;
-      if ((Cut || Spills || Needed > Nav.clientWidth + 1) && NavLevel < 5) {
+      if ((Cut || Spills || Needed > Nav.clientWidth + 1) && NavLevel < 6) {
         NavNeedAt.current[NavLevel] = Needed;
+        NavFlips.current.push(Date.now());
         setNavLevel(NavLevel + 1);
-      } else if (NavLevel > 0 && Nav.clientWidth >= (NavNeedAt.current[NavLevel - 1] ?? Infinity) + 24) {
+      } else if (
+        NavLevel > 0 &&
+        Nav.clientWidth >= (NavNeedAt.current[NavLevel - 1] ?? Infinity) + 24 &&
+        NavFlips.current.filter((At) => Date.now() - At < 2000).length < 10
+      ) {
         setNavLevel(NavLevel - 1);
       }
     };
     Measure();
     const Observer = new ResizeObserver(Measure);
     Observer.observe(Nav);
-    return () => Observer.disconnect();
+    // the display typeface arrives after the first paint and is narrower
+    // than the fallback: once it is in, fit the menu again from the start
+    // (the widths measured with the fallback no longer hold)
+    const Fonts = typeof document !== "undefined" ? document.fonts : undefined;
+    const Refit = () => {
+      NavNeedAt.current = [];
+      NavFlips.current = [];
+      setNavLevel(0);
+    };
+    Fonts?.addEventListener?.("loadingdone", Refit);
+    // and once when the page's fonts are ready (they may already have loaded
+    // before this menu mounted, in which case no "loadingdone" comes)
+    if (!NavFontsRefitDone.current && Fonts?.ready) {
+      NavFontsRefitDone.current = true;
+      Fonts.ready.then(() => Refit()).catch(() => {});
+    }
+    return () => {
+      Observer.disconnect();
+      Fonts?.removeEventListener?.("loadingdone", Refit);
+    };
   }, [IsAdmin, NavLevel]);
   const NavIconDashboard = IsAdmin && NavLevel >= 1;
   const NavNoArrows = IsAdmin && NavLevel >= 3;
-  const NavIconsOnly = IsAdmin && NavLevel >= 5;
+  const NavIconsOnly = IsAdmin && NavLevel >= 6;
   const AdminNavCompact = !IsAdmin || NavLevel < 2
     ? ""
     : NavLevel === 2 || NavLevel === 3
@@ -1277,7 +1308,7 @@ export function AppShell({
                 className="hidden min-w-0 flex-1 lg:justify-start xl:justify-center lg:flex"
                 aria-label="Primary navigation"
               >
-                <div ref={NavPillRef} className="premium-nav math-nav-spotlight relative z-[120] w-fit max-w-full overflow-visible px-1 lg:gap-0 xl:gap-1">
+                <div ref={NavPillRef} data-admin-nav-level={IsAdmin ? NavLevel : undefined} className="premium-nav math-nav-spotlight relative z-[120] w-fit max-w-full overflow-visible px-1 lg:gap-0 xl:gap-1">
                   {navGroups.map((group) => {
                     const Icon = group.icon;
                     const active = isGroupActive(group);

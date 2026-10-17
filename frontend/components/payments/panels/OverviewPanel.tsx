@@ -79,10 +79,10 @@ export function OverviewPanel() {
           </div>
           {data ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:shrink-0">
-              <PaymentsMetric label="Received today" value={<span className="text-lg sm:text-xl">{data.todayCollected.display}</span>} icon={<HandCoins size={14} />} tone="emerald" />
-              <PaymentsMetric label="Received this month" value={<span className="text-lg sm:text-xl">{data.thisMonthCollected.display}</span>} icon={<CalendarDays size={14} />} tone="cyan" />
+              <PaymentsMetric label="Received Today" value={<span className="text-lg sm:text-xl">{data.todayCollected.display}</span>} icon={<HandCoins size={14} />} tone="emerald" />
+              <PaymentsMetric label="Received This Month" value={<span className="text-lg sm:text-xl">{data.thisMonthCollected.display}</span>} icon={<CalendarDays size={14} />} tone="cyan" />
               <PaymentsMetric label="Due" value={<span className="text-lg sm:text-xl">{data.due.display}</span>} icon={<Wallet size={14} />} tone={data.due.paise ? "amber" : "emerald"} />
-              <PaymentsMetric label="Advance held" value={<span className="text-lg sm:text-xl">{data.advanceHeld.display}</span>} icon={<PiggyBank size={14} />} />
+              <PaymentsMetric label="Advance Held" value={<span className="text-lg sm:text-xl">{data.advanceHeld.display}</span>} icon={<PiggyBank size={14} />} />
             </div>
           ) : null}
         </div>
@@ -119,7 +119,7 @@ export function OverviewPanel() {
                 <p className="mt-4 text-sm font-semibold text-slate-500">Nothing received yet today.</p>
               )}
               <button type="button" className="math-button-secondary mt-5 w-full justify-center" disabled={dayClose.isPending} onClick={() => dayClose.mutate(data.today)}>
-                {dayClose.isPending ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}Day-close PDF
+                {dayClose.isPending ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}Day-Close PDF
               </button>
               <InlineError error={dayClose.error} />
             </section>
@@ -147,7 +147,7 @@ export function OverviewPanel() {
             </section>
 
             <section className="math-card p-5 sm:p-6">
-              <p className="math-block-header"><AlertTriangle size={14} />Dues by age</p>
+              <p className="math-block-header"><AlertTriangle size={14} />Dues By Age</p>
               <h2 className="text-3xl font-black tabular-nums text-slate-950 dark:text-white">{data.due.display}</h2>
               <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">{data.studentsWithDues} {data.studentsWithDues === 1 ? "student" : "students"} · {data.unpaidInvoices} unpaid {data.unpaidInvoices === 1 ? "invoice" : "invoices"} · {data.overdue.display} overdue</p>
               <ul className="mt-4 grid gap-2.5">
@@ -155,7 +155,7 @@ export function OverviewPanel() {
                   <li key={row.bucket}>
                     <Link href={`/admin/payments/reports?tab=dues&bucket=${row.bucket}`} className="block rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900/60">
                       <div className="flex items-baseline justify-between gap-3 text-xs font-bold text-slate-600 dark:text-slate-300">
-                        <span>{row.label}</span>
+                        <span className="capitalize">{row.label}</span>
                         <span className="tabular-nums text-slate-900 dark:text-white">{row.display}</span>
                       </div>
                       <div className="mt-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800">
@@ -169,11 +169,11 @@ export function OverviewPanel() {
           </div>
 
           <section className="mt-6 math-card p-5 sm:p-6">
-            <p className="math-block-header"><BarChart3 size={14} />Last six months</p>
-            <h2 className="text-2xl font-black text-slate-950 dark:text-white">Received and spent each month</h2>
+            <p className="math-block-header"><BarChart3 size={14} />Last Six Months</p>
+            <h2 className="text-2xl font-black text-slate-950 dark:text-white">Received And Spent Each Month</h2>
             <div className="mt-4 h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={4}>
+                <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" stroke={grid} vertical={false} />
                   <XAxis dataKey="label" tick={{ fill: axis, fontSize: 12, fontWeight: 700 }} axisLine={{ stroke: grid }} tickLine={false} />
                   <YAxis tick={{ fill: axis, fontSize: 12 }} axisLine={false} tickLine={false} width={56} tickFormatter={(value: number) => CompactRupees(value * 100)} />
@@ -194,9 +194,9 @@ export function OverviewPanel() {
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <div>
                 <p className="math-block-header"><HandCoins size={14} />Latest</p>
-                <h2 className="text-2xl font-black text-slate-950 dark:text-white">Recent payments</h2>
+                <h2 className="text-2xl font-black text-slate-950 dark:text-white">Recent Payments</h2>
               </div>
-              <Link href="/admin/payments/collections?tab=payments" className="text-sm font-black text-cyan-700 underline dark:text-cyan-300">See all payments</Link>
+              <Link href="/admin/payments/collections?tab=payments" className="text-sm font-black text-cyan-700 underline dark:text-cyan-300">See All Payments</Link>
             </div>
             {data.recentPayments.length ? (
               <ul className="mt-4 divide-y divide-slate-100 dark:divide-slate-800">

@@ -384,7 +384,7 @@ export default function AdminTeachersPage() {
   return (
     <AppShell title="Teacher Management">
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="ad-hero-stack relative z-10">
           <div>
             <p className="math-block-header"><GraduationCap size={14} />Teacher Directory</p>
             <h1 className="math-title">Teacher Management</h1>
@@ -393,7 +393,7 @@ export default function AdminTeachersPage() {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="ad-hero-tiles">
             <Metric label="Teachers" value={teachers.length} icon={<GraduationCap size={18} />} />
             <Metric label="Active" value={activeCount} icon={<CheckCircle2 size={18} />} />
             <Metric label="Inactive" value={inactiveCount} icon={<XCircle size={18} />} />
@@ -470,7 +470,7 @@ export default function AdminTeachersPage() {
 
         {filtered.length ? (
           <div className="math-table math-admin-directory-table math-admin-teachers-table">
-            <table>
+            <table className="ad-cards ad-cards-wide">
               <thead>
                 <tr>
                   <th><SortableHeader active={sortKey === "teacher"} direction={sortDirection} onClick={() => onHeaderSort("teacher")}>Teacher</SortableHeader></th>
@@ -487,7 +487,7 @@ export default function AdminTeachersPage() {
                   const resetPassword = resetPasswordByTeacher[teacher.teacherId] ?? "";
                   return (
                     <tr key={teacher.teacherId}>
-                      <td>
+                      <td className="ad-card-title">
                         <div className="flex items-center gap-3">
                           <ProfileAvatar
                             name={teacher.teacherName}
@@ -501,23 +501,23 @@ export default function AdminTeachersPage() {
                           </div>
                         </div>
                       </td>
-                      <td>{teacher.teacherCode}</td>
-                      <td>
-                        <p>{teacher.email || "-"}</p>
-                        <p className="text-xs text-slate-500">{teacher.phone || "-"}</p>
+                      <td data-label="Code">{teacher.teacherCode}</td>
+                      <td data-label="Contact">
+                        <p>{teacher.email || <span className="ad-empty">—</span>}</p>
+                        {teacher.phone ? <p className="text-xs text-slate-500">{teacher.phone}</p> : null}
                       </td>
-                      <td>{teacher.subjectSpecialization || "-"}</td>
-                      <td>
+                      <td data-label="Specialization">{teacher.subjectSpecialization || <span className="ad-empty">—</span>}</td>
+                      <td data-label="Students">
                         <span className="font-black">{teacher.studentCount}</span>
                         <span className="ml-2 text-xs text-slate-500">({teacher.activeStudentCount} active)</span>
                       </td>
-                      <td className="text-center">
+                      <td data-label="Status" className="text-center">
                         <span className={`math-badge math-admin-directory-status-chip ${teacher.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
-                          {teacher.isActive ? "ACTIVE" : "INACTIVE"}
+                          {teacher.isActive ? "Active" : "Inactive"}
                         </span>
                       </td>
-                      <td>
-                        <div className="math-table-actions flex-wrap justify-end">
+                      <td data-label="Action" className="ad-card-wide">
+                        <div className="ad-row-actions">
                           <button className="math-role-action-button math-role-icon-only" onClick={() => setSelectedTeacher(teacher)} title="View Teacher">
                             <Eye size={15} />
                           </button>
@@ -527,23 +527,26 @@ export default function AdminTeachersPage() {
                           <button className="math-role-action-button math-role-icon-only" onClick={() => statusMutation.mutate({ teacherId: teacher.teacherId, isActive: !teacher.isActive })} title="Activate / Deactivate">
                             <ShieldCheck size={15} />
                           </button>
-                          <input
-                            className="math-input h-10 w-28 py-2 text-xs"
-                            value={resetPassword}
-                            placeholder="New password"
-                            onChange={(e) => setResetPasswordByTeacher((prev) => ({ ...prev, [teacher.teacherId]: e.target.value }))}
-                          />
-                          <button
-                            className="math-role-action-button math-role-icon-only"
-                            disabled={!resetPassword.trim()}
-                            onClick={() => resetMutation.mutate({ teacherId: teacher.teacherId, password: resetPassword })}
-                            title="Reset Password"
-                          >
-                            <KeyRound size={15} />
-                          </button>
                           <button className="math-destructive-button border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 transition hover:-translate-y-0.5 hover:bg-rose-100 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200" onClick={() => setDeleteTarget(teacher)} title="Delete">
                             <Trash2 size={15} />
                           </button>
+                          <div className="ad-reset">
+                            <input
+                              className="math-input h-10 py-2 text-xs"
+                              value={resetPassword}
+                              placeholder="New Password"
+                              aria-label={`New password for ${teacher.teacherName}`}
+                              onChange={(e) => setResetPasswordByTeacher((prev) => ({ ...prev, [teacher.teacherId]: e.target.value }))}
+                            />
+                            <button
+                              className="math-role-action-button math-role-icon-only"
+                              disabled={!resetPassword.trim()}
+                              onClick={() => resetMutation.mutate({ teacherId: teacher.teacherId, password: resetPassword })}
+                              title="Reset Password"
+                            >
+                              <KeyRound size={15} />
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -861,11 +864,13 @@ function ImageInput({
 }
 
 function Metric({ label, value, icon }: { label: string; value: number; icon: ReactNode }) {
+  // 2026-10 (admin revamp): the shared tile (icon, label over figure), the
+  // same as every other admin and teacher page.
   return (
-    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm ring-1 ring-white/70 backdrop-blur-md dark:bg-slate-900/60 dark:ring-slate-700">
-      <div className="inline-flex rounded-2xl bg-blue-50 p-2 text-blue-700 dark:bg-cyan-950/50 dark:text-cyan-300">{icon}</div>
-      <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">{value}</p>
+    <div className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-4">
+      <div className="math-teacher-icon-chip relative z-10">{icon}</div>
+      <p className="relative z-10">{label}</p>
+      <p className="relative z-10">{value}</p>
     </div>
   );
 }

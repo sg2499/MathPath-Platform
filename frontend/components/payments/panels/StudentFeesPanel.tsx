@@ -208,7 +208,7 @@ export function StudentFeesPanel() {
               onFocus={() => setPickerOpen(true)}
               onKeyDown={(event) => { if (event.key === "Enter" && matches[0]) choose(matches[0].studentId); if (event.key === "Escape") setPickerOpen(false); }}
               placeholder={account ? "Find another student by name or student ID" : "Find a student by name or student ID"}
-              aria-label="Find a student"
+              aria-label="Find A Student"
               role="combobox"
               aria-expanded={pickerOpen && matches.length > 0}
               aria-controls="student-fees-matches"
@@ -236,7 +236,7 @@ export function StudentFeesPanel() {
       </section>
 
       {!studentId ? (
-        <div className="mt-6"><EmptyState title="Choose a student" description="Search above by name or student ID. You can also open a student from the Invoices list or the Students page." /></div>
+        <div className="mt-6"><EmptyState title="Choose A Student" description="Search above by name or student ID. You can also open a student from the Invoices list or the Students page." /></div>
       ) : accountQuery.isLoading ? (
         <div className="mt-6"><PaymentsLoading label="Loading the student's account..." variant="cards" /></div>
       ) : accountQuery.error || !account || !totals ? (
@@ -259,7 +259,7 @@ export function StudentFeesPanel() {
                 <Link href={`/admin/payments/invoices?tab=generate&studentId=${encodeURIComponent(account.student.studentId)}`} className="math-button-secondary whitespace-nowrap"><FilePlus2 size={17} />Create Invoice</Link>
                 {totals.advancePaise > 0 && totals.duePaise > 0 ? (
                   <button type="button" className="math-button-secondary whitespace-nowrap" disabled={advanceMutation.isPending} onClick={() => advanceMutation.mutate()}>
-                    {advanceMutation.isPending ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}Apply advance to dues
+                    {advanceMutation.isPending ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}Apply Advance To Dues
                   </button>
                 ) : null}
               </div>
@@ -284,7 +284,7 @@ export function StudentFeesPanel() {
                 </span>
                 <span className="flex flex-wrap gap-2">
                   <button type="button" className="math-button-secondary h-10 whitespace-nowrap" disabled={receiptPdf.isPending} onClick={() => receiptPdf.mutate(saved.payment)}>
-                    {receiptPdf.isPending ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}Download receipt
+                    {receiptPdf.isPending ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}Download Receipt
                   </button>
                   <button type="button" className="math-focus-ring rounded-full p-2" onClick={() => setSaved(null)} aria-label="Dismiss"><X size={16} /></button>
                 </span>
@@ -300,7 +300,7 @@ export function StudentFeesPanel() {
           </section>
 
           <section className="mt-6 math-card p-5 sm:p-6">
-            <div role="tablist" aria-label="Account sections" className="flex flex-wrap gap-2">
+            <div role="tablist" aria-label="Account Sections" className="flex flex-wrap gap-2">
               {([
                 ["unpaid", `Unpaid (${account.unpaidInvoices.length})`],
                 ["statement", "Statement"],
@@ -335,14 +335,14 @@ export function StudentFeesPanel() {
                     ))}
                   </ul>
                 ) : (
-                  <EmptyState title="Nothing due" description={totals.advancePaise ? `All paid. ${totals.advanceDisplay} is held as advance for the next invoices.` : "All of this student's invoices are paid."} />
+                  <EmptyState title="Nothing Due" description={totals.advancePaise ? `All paid. ${totals.advanceDisplay} is held as advance for the next invoices.` : "All of this student's invoices are paid."} />
                 )
               ) : null}
 
               {tab === "statement" ? (
                 account.statement.length ? (
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-left text-sm">
+                    <table className="ad-cards w-full min-w-[720px] text-left text-sm">
                       <thead>
                         <tr className="text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                           <th className="px-2 py-2">Date</th>
@@ -356,15 +356,15 @@ export function StudentFeesPanel() {
                       <tbody>
                         {account.statement.map((entry) => (
                           <tr key={`${entry.type}-${entry.id}`} className={`border-t border-slate-100 dark:border-slate-800 ${entry.cancelled ? "opacity-50" : ""}`}>
-                            <td className="whitespace-nowrap px-2 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">{FormatDate(entry.date)}</td>
-                            <td className="whitespace-nowrap px-2 py-3 font-black tabular-nums text-slate-900 dark:text-white">
+                            <td data-label="Date" className="whitespace-nowrap px-2 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">{FormatDate(entry.date)}</td>
+                            <td className="ad-card-title whitespace-nowrap px-2 py-3 font-black tabular-nums text-slate-900 dark:text-white">
                               {entry.number}
                               <span className="block text-xs font-semibold text-slate-500">{entry.type === "INVOICE" ? "Invoice" : "Payment"}{entry.cancelled ? " · cancelled" : ""}</span>
                             </td>
-                            <td className="max-w-[280px] px-2 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200">{entry.description}</td>
-                            <td className="whitespace-nowrap px-2 py-3 text-right font-bold tabular-nums">{entry.cancelled ? <span className="line-through">{entry.type === "INVOICE" ? entry.amountDisplay : ""}</span> : entry.chargeDisplay ?? ""}</td>
-                            <td className="whitespace-nowrap px-2 py-3 text-right font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{entry.cancelled ? <span className="line-through">{entry.type === "PAYMENT" ? entry.amountDisplay : ""}</span> : entry.creditDisplay ?? ""}</td>
-                            <td className={`whitespace-nowrap px-2 py-3 text-right font-black tabular-nums ${entry.balancePaise < 0 ? "text-violet-700 dark:text-violet-300" : "text-slate-950 dark:text-white"}`}>{entry.balanceDisplay}</td>
+                            <td data-label="Details" className="max-w-[280px] px-2 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200">{entry.description}</td>
+                            <td data-label="Charged" className="whitespace-nowrap px-2 py-3 text-right font-bold tabular-nums">{entry.cancelled ? <span className="line-through">{entry.type === "INVOICE" ? entry.amountDisplay : ""}</span> : entry.chargeDisplay ?? ""}</td>
+                            <td data-label="Paid" className="whitespace-nowrap px-2 py-3 text-right font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{entry.cancelled ? <span className="line-through">{entry.type === "PAYMENT" ? entry.amountDisplay : ""}</span> : entry.creditDisplay ?? ""}</td>
+                            <td data-label="Balance" className={`whitespace-nowrap px-2 py-3 text-right font-black tabular-nums ${entry.balancePaise < 0 ? "text-violet-700 dark:text-violet-300" : "text-slate-950 dark:text-white"}`}>{entry.balanceDisplay}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -372,7 +372,7 @@ export function StudentFeesPanel() {
                     <p className="mt-3 text-xs font-semibold text-slate-500">Newest first. Balance is what the student owes after each entry; “advance” means they are in credit. Discounts count as paid.</p>
                   </div>
                 ) : (
-                  <EmptyState title="No activity yet" description="Invoices and payments for this student will appear here." />
+                  <EmptyState title="No Activity Yet" description="Invoices and payments for this student will appear here." />
                 )
               ) : null}
 
@@ -398,7 +398,7 @@ export function StudentFeesPanel() {
                     ))}
                   </ul>
                 ) : (
-                  <EmptyState title="No payments yet" description="Use Record Payment when this student pays." />
+                  <EmptyState title="No Payments Yet" description="Use Record Payment when this student pays." />
                 )
               ) : null}
 
@@ -423,7 +423,7 @@ export function StudentFeesPanel() {
                     ))}
                   </ul>
                 ) : (
-                  <EmptyState title="No invoices yet" description="Use Create Invoice to invoice this student." />
+                  <EmptyState title="No Invoices Yet" description="Use Create Invoice to invoice this student." />
                 )
               ) : null}
             </div>

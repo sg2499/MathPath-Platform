@@ -1168,10 +1168,10 @@ html .math-role-teacher div.math-table:not(#te) { min-width: 0; max-width: 100%;
 @media (max-width: 639px) {
   html .math-role-teacher .math-shell-header a[aria-label="Open MathPath Website"] img { height: 50px; width: auto; }
   html .math-role-teacher .math-shell-header a[aria-label="Open MathPath Website"] > div:first-child { height: auto; }
-  html .math-role-teacher .math-shell-header .lg\:hidden.ml-auto { gap: 0.4rem; }
+  html .math-role-teacher .math-shell-header .lg\:hidden:is(.ml-auto, .shrink-0) { gap: 0.4rem; }
   /* four round buttons of one size: theme, demo, updates, menu */
-  html .math-role-teacher .math-shell-header .lg\:hidden.ml-auto > button:not(#te),
-  html .math-role-teacher .math-shell-header .lg\:hidden.ml-auto > div > button:not(#te) {
+  html .math-role-teacher .math-shell-header .lg\:hidden:is(.ml-auto, .shrink-0) > button:not(#te),
+  html .math-role-teacher .math-shell-header .lg\:hidden:is(.ml-auto, .shrink-0) > div > button:not(#te) {
     display: inline-flex;
     width: 2.6rem;
     min-width: 2.6rem;
@@ -1181,8 +1181,8 @@ html .math-role-teacher div.math-table:not(#te) { min-width: 0; max-width: 100%;
     padding: 0;
     border-radius: 999px;
   }
-  html .math-role-teacher .math-shell-header .lg\:hidden.ml-auto > button svg,
-  html .math-role-teacher .math-shell-header .lg\:hidden.ml-auto > div > button svg {
+  html .math-role-teacher .math-shell-header .lg\:hidden:is(.ml-auto, .shrink-0) > button svg,
+  html .math-role-teacher .math-shell-header .lg\:hidden:is(.ml-auto, .shrink-0) > div > button svg {
     width: 18px;
     height: 18px;
     flex-shrink: 0;

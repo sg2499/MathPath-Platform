@@ -108,7 +108,7 @@ export function CollectionsReportPanel() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="math-button-primary whitespace-nowrap" disabled={pdf.isPending || !data} onClick={() => pdf.mutate()}>
-              {pdf.isPending ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}{singleDay ? "Day-close PDF" : "Summary PDF"}
+              {pdf.isPending ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}{singleDay ? "Day-Close PDF" : "Summary PDF"}
             </button>
             <button type="button" className="math-button-secondary whitespace-nowrap" disabled={excel.isPending || !data?.paymentCount} onClick={() => excel.mutate()}>
               {excel.isPending ? <Loader2 size={17} className="animate-spin" /> : <FileSpreadsheet size={17} />}Excel
@@ -119,7 +119,7 @@ export function CollectionsReportPanel() {
         <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {preset === "custom" ? (
             <fieldset className="grid grid-cols-2 gap-2 sm:col-span-2 lg:col-span-1">
-              <legend className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">From / to</legend>
+              <legend className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">From / To</legend>
               <input type="date" className="math-input px-3" value={customFrom} max={today} onChange={(event) => setCustomFrom(event.target.value || today)} aria-label="From" />
               <input type="date" className="math-input px-3" value={customTo} min={customFrom} max={today} onChange={(event) => setCustomTo(event.target.value || today)} aria-label="To" />
             </fieldset>
@@ -127,13 +127,13 @@ export function CollectionsReportPanel() {
           <label className="block">
             <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Method</span>
             <select className="math-input" value={method} onChange={(event) => setMethod(event.target.value)}>
-              <option value="">All methods</option>
+              <option value="">All Methods</option>
               {COUNTER_METHODS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               <option value="RAZORPAY">Razorpay</option>
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Received by</span>
+            <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Received By</span>
             <select className="math-input" value={receivedBy} onChange={(event) => setReceivedBy(event.target.value)}>
               <option value="">Anyone</option>
               {(staffQuery.data?.staff ?? []).map((person) => <option key={person.userId} value={person.userId}>{person.name}</option>)}
@@ -142,9 +142,9 @@ export function CollectionsReportPanel() {
           <label className="block">
             <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Centre</span>
             <select className="math-input" value={centreId} onChange={(event) => setCentreId(event.target.value)}>
-              <option value="">All centres</option>
+              <option value="">All Centres</option>
               {(settingsQuery.data?.centres ?? []).map((centre) => <option key={centre.centreId} value={centre.centreId}>{centre.name}</option>)}
-              <option value="NONE">No centre set</option>
+              <option value="NONE">No Centre Set</option>
             </select>
           </label>
         </div>
@@ -158,7 +158,7 @@ export function CollectionsReportPanel() {
       ) : !data ? (
         <div className="mt-6"><ErrorState message="Collections could not be loaded." /></div>
       ) : !data.paymentCount ? (
-        <div className="mt-6"><EmptyState title="Nothing received" description={`No payments for ${periodText}${method || receivedBy || centreId ? " with these filters" : ""}.`} /></div>
+        <div className="mt-6"><EmptyState title="Nothing Received" description={`No payments for ${periodText}${method || receivedBy || centreId ? " with these filters" : ""}.`} /></div>
       ) : (
         <>
           <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
@@ -176,7 +176,7 @@ export function CollectionsReportPanel() {
 
           <div className="mt-6 grid gap-6 xl:grid-cols-2">
             <section className="math-card p-5 sm:p-6">
-              <p className="math-block-header"><UsersRound size={14} />By staff</p>
+              <p className="math-block-header"><UsersRound size={14} />By Staff</p>
               <ul className="mt-2 divide-y divide-slate-100 dark:divide-slate-800">
                 {data.byStaff.map((row) => (
                   <li key={row.userId ?? row.name} className="py-3">
@@ -193,7 +193,7 @@ export function CollectionsReportPanel() {
             </section>
             {!singleDay ? (
               <section className="math-card p-5 sm:p-6">
-                <p className="math-block-header"><CalendarDays size={14} />By day</p>
+                <p className="math-block-header"><CalendarDays size={14} />By Day</p>
                 <div className="mt-2 max-h-80 overflow-y-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
@@ -239,8 +239,8 @@ export function CollectionsReportPanel() {
                     <th className="px-2 py-2">Date</th>
                     <th className="px-2 py-2">Receipt</th>
                     <th className="px-2 py-2">Student</th>
-                    <th className="px-2 py-2">Paid with</th>
-                    <th className="px-2 py-2">Received by</th>
+                    <th className="px-2 py-2">Paid With</th>
+                    <th className="px-2 py-2">Received By</th>
                     <th className="px-2 py-2 text-right">Amount</th>
                   </tr>
                 </thead>

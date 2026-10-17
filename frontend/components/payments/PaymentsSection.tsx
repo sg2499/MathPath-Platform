@@ -74,7 +74,7 @@ function SectionInner<T extends string>({
     <AppShell title={title}>
       <PaymentsChrome>
       <nav className="mb-6" aria-label={label}>
-        <div role="tablist" aria-label={label} className="-mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
+        <div role="tablist" aria-label={label} className="flex min-w-0 flex-wrap gap-2">
           {tabs.map((item) => {
             const selected = item.key === tab;
             return (

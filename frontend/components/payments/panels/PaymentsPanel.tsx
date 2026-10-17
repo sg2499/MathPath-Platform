@@ -141,7 +141,7 @@ export function PaymentsPanel() {
 
       <section className="mt-6 math-card p-5 sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div role="tablist" aria-label="Payment status" className="flex flex-wrap gap-2">
+          <div role="tablist" aria-label="Payment Status" className="flex flex-wrap gap-2">
             {[["ALL", "All"], ["RECORDED", "Received"], ["CANCELLED", "Cancelled"]].map(([key, label]) => (
               <button key={key} type="button" role="tab" aria-selected={status === key} onClick={() => setStatus(key)} className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${status === key ? "is-active math-admin-tab-force-selected" : ""}`}>
                 {label}
@@ -162,18 +162,18 @@ export function PaymentsPanel() {
         <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6">
           <div className="relative sm:col-span-2 lg:col-span-4 2xl:col-span-2">
             <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Student, receipt number, paid by or reference" aria-label="Search payments" />
+            <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Student, receipt number, paid by or reference" aria-label="Search Payments" />
           </div>
           <label className="block">
             <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Method</span>
             <select className="math-input" value={method} onChange={(event) => setMethod(event.target.value)}>
-              <option value="">All methods</option>
+              <option value="">All Methods</option>
               {COUNTER_METHODS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               <option value="RAZORPAY">Razorpay</option>
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Received by</span>
+            <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Received By</span>
             <select className="math-input" value={receivedBy} onChange={(event) => setReceivedBy(event.target.value)}>
               <option value="">Anyone</option>
               {(staffQuery.data?.staff ?? []).map((person) => <option key={person.userId} value={person.userId}>{person.name}</option>)}
@@ -182,20 +182,20 @@ export function PaymentsPanel() {
           <label className="block">
             <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Centre</span>
             <select className="math-input" value={centreId} onChange={(event) => setCentreId(event.target.value)}>
-              <option value="">All centres</option>
+              <option value="">All Centres</option>
               {(settingsQuery.data?.centres ?? []).map((centre) => <option key={centre.centreId} value={centre.centreId}>{centre.name}</option>)}
-              <option value="NONE">No centre set</option>
+              <option value="NONE">No Centre Set</option>
             </select>
           </label>
           <fieldset className="grid grid-cols-2 gap-2">
-            <legend className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Paid from / to</legend>
-            <input type="date" className="math-input px-3" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="Paid from" />
-            <input type="date" className="math-input px-3" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} aria-label="Paid to" />
+            <legend className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Paid From / To</legend>
+            <input type="date" className="math-input px-3" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="Paid From" />
+            <input type="date" className="math-input px-3" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} aria-label="Paid To" />
           </fieldset>
         </div>
 
         {data?.totals.byMethod.length ? (
-          <div className="mt-4 flex flex-wrap gap-2" aria-label="Received by method">
+          <div className="mt-4 flex flex-wrap gap-2" aria-label="Received By Method">
             {data.totals.byMethod.map((row) => (
               <span key={row.method} className="inline-flex items-baseline gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300">
                 {row.methodLabel}<span className="tabular-nums text-slate-950 dark:text-white">{row.amountDisplay}</span>
@@ -206,8 +206,8 @@ export function PaymentsPanel() {
 
         {filtersOn ? (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
-            {studentId ? <span className="rounded-full bg-cyan-50 px-3 py-1 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">Showing one student</span> : null}
-            <button type="button" className="inline-flex items-center gap-1 underline" onClick={clearFilters}><X size={12} />Clear filters</button>
+            {studentId ? <span className="rounded-full bg-cyan-50 px-3 py-1 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">Showing One Student</span> : null}
+            <button type="button" className="inline-flex items-center gap-1 underline" onClick={clearFilters}><X size={12} />Clear Filters</button>
           </div>
         ) : null}
         {notice ? (
@@ -225,9 +225,9 @@ export function PaymentsPanel() {
             <ErrorState message="Payments could not be loaded. Refresh the page to try again." />
           ) : !payments.length ? (
             filtersOn ? (
-              <EmptyState title="No payments match" description="Try different filters, or clear them." />
+              <EmptyState title="No Payments Match" description="Try different filters, or clear them." />
             ) : (
-              <EmptyState title="No payments yet" description="Record a payment from Student Fees. The old platform's payments will appear here after the history migration." />
+              <EmptyState title="No Payments Yet" description="Record a payment from Student Fees. The old platform's payments will appear here after the history migration." />
             )
           ) : (
             <>
@@ -254,7 +254,7 @@ export function PaymentsPanel() {
                     <tr className="text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                       <th className="px-2 py-2">Receipt</th>
                       <th className="px-2 py-2">Student</th>
-                      <th className="px-2 py-2">Paid with</th>
+                      <th className="px-2 py-2">Paid With</th>
                       <th className="px-2 py-2">For</th>
                       <th className="px-2 py-2 text-right">Amount</th>
                       <th className="px-2 py-2">Status</th>
@@ -284,7 +284,7 @@ export function PaymentsPanel() {
                         <td className="px-2 py-3"><PaymentStatusChip payment={payment} /></td>
                         <td className="px-2 py-3">
                           <div className="flex justify-end gap-2">
-                            <button type="button" className="math-role-action-button h-9 px-3 text-xs" disabled={pdfOne.isPending && pdfOne.variables?.paymentId === payment.paymentId} onClick={() => pdfOne.mutate(payment)} aria-label={`Download receipt ${payment.receiptNumber}`}>
+                            <button type="button" className="math-role-action-button h-9 px-3 text-xs" disabled={pdfOne.isPending && pdfOne.variables?.paymentId === payment.paymentId} onClick={() => pdfOne.mutate(payment)} aria-label={`Download Receipt ${payment.receiptNumber}`}>
                               {pdfOne.isPending && pdfOne.variables?.paymentId === payment.paymentId ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}Receipt
                             </button>
                             <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => setViewing(payment.paymentId)}><Eye size={13} />View</button>

@@ -216,7 +216,7 @@ export function InvoicesPanel() {
 
       <section className="mt-6 math-card p-5 sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div role="tablist" aria-label="Invoice status" className="flex flex-wrap gap-2">
+          <div role="tablist" aria-label="Invoice Status" className="flex flex-wrap gap-2">
             {STATUS_TABS.map((tab) => (
               <button
                 key={tab.key}
@@ -242,7 +242,7 @@ export function InvoicesPanel() {
               title={tooManyForPdf ? "More than 500 invoices: narrow the filters to print" : undefined}
               onClick={() => pdfAll.mutate()}
             >
-              {pdfAll.isPending ? <Loader2 size={17} className="animate-spin" /> : <Printer size={17} />}PDF of these
+              {pdfAll.isPending ? <Loader2 size={17} className="animate-spin" /> : <Printer size={17} />}PDF Of These
             </button>
           </div>
         </div>
@@ -250,39 +250,39 @@ export function InvoicesPanel() {
         <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6">
           <div className="relative sm:col-span-2 lg:col-span-4 2xl:col-span-2">
             <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Student, student ID or invoice number" aria-label="Search invoices" />
+            <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Student, student ID or invoice number" aria-label="Search Invoices" />
           </div>
           <label className="block">
-            <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Fee item</span>
+            <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Fee Item</span>
             <select className="math-input" value={feeItemId} onChange={(event) => setFeeItemId(event.target.value)}>
-              <option value="">All fee items</option>
+              <option value="">All Fee Items</option>
               {fees.map((item) => <option key={item.feeItemId} value={item.feeItemId}>{item.name}{item.isActive ? "" : " (off)"}</option>)}
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Month billed (monthly fee)</span>
+            <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Month Billed (Monthly Fee)</span>
             <input type="month" className="math-input" value={period} onChange={(event) => setPeriod(event.target.value)} />
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Centre</span>
             <select className="math-input" value={centreId} onChange={(event) => setCentreId(event.target.value)}>
-              <option value="">All centres</option>
+              <option value="">All Centres</option>
               {centres.map((centre) => <option key={centre.centreId} value={centre.centreId}>{centre.name}</option>)}
-              <option value="NONE">No centre set</option>
+              <option value="NONE">No Centre Set</option>
             </select>
           </label>
           <fieldset className="grid grid-cols-2 gap-2">
-            <legend className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Invoice date from / to</legend>
-            <input type="date" className="math-input px-3" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="Invoice date from" />
-            <input type="date" className="math-input px-3" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} aria-label="Invoice date to" />
+            <legend className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Invoice Date From / To</legend>
+            <input type="date" className="math-input px-3" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="Invoice Date From" />
+            <input type="date" className="math-input px-3" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} aria-label="Invoice Date To" />
           </fieldset>
         </div>
 
         {filtersOn ? (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
             {batchId ? <span className="rounded-full bg-cyan-50 px-3 py-1 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">Showing one Generate run</span> : null}
-            {studentId ? <span className="rounded-full bg-cyan-50 px-3 py-1 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">Showing one student</span> : null}
-            <button type="button" className="inline-flex items-center gap-1 underline" onClick={clearFilters}><X size={12} />Clear filters</button>
+            {studentId ? <span className="rounded-full bg-cyan-50 px-3 py-1 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">Showing One Student</span> : null}
+            <button type="button" className="inline-flex items-center gap-1 underline" onClick={clearFilters}><X size={12} />Clear Filters</button>
           </div>
         ) : null}
 
@@ -301,9 +301,9 @@ export function InvoicesPanel() {
             <ErrorState message="Invoices could not be loaded. Refresh the page to try again." />
           ) : !invoices.length ? (
             filtersOn ? (
-              <EmptyState title="No invoices match" description="Try different filters, or clear them." />
+              <EmptyState title="No Invoices Match" description="Try different filters, or clear them." />
             ) : (
-              <EmptyState title="No invoices yet" description="Use Generate Invoices to invoice students for a fee. The old platform's invoices will appear here after the history migration." />
+              <EmptyState title="No Invoices Yet" description="Use Generate Invoices to invoice students for a fee. The old platform's invoices will appear here after the history migration." />
             )
           ) : (
             <>
@@ -402,7 +402,7 @@ export function InvoicesPanel() {
           opened ? (
             cancelling ? (
               <>
-                <button type="button" className="math-button-secondary" disabled={cancelMutation.isPending} onClick={() => setCancelling(false)}>Keep invoice</button>
+                <button type="button" className="math-button-secondary" disabled={cancelMutation.isPending} onClick={() => setCancelling(false)}>Keep Invoice</button>
                 <button type="button" className="math-button-primary !bg-rose-600 hover:!bg-rose-700" disabled={!cancelReason.trim() || cancelMutation.isPending} onClick={() => cancelMutation.mutate(opened)}>
                   {cancelMutation.isPending ? <Loader2 size={17} className="animate-spin" /> : <Ban size={17} />}Cancel {opened.invoiceNumber}
                 </button>
@@ -410,7 +410,7 @@ export function InvoicesPanel() {
             ) : (
               <>
                 {opened.status !== "CANCELLED" ? (
-                  <button type="button" className="math-button-secondary" onClick={() => { setCancelling(true); cancelMutation.reset(); }}><Ban size={17} />Cancel invoice</button>
+                  <button type="button" className="math-button-secondary" onClick={() => { setCancelling(true); cancelMutation.reset(); }}><Ban size={17} />Cancel Invoice</button>
                 ) : null}
                 {opened.balancePaise > 0 ? (
                   <Link href={`/admin/payments/collections?tab=student-fees&studentId=${encodeURIComponent(opened.studentId)}&pay=${encodeURIComponent(opened.invoiceId)}`} className="math-button-secondary"><HandCoins size={17} />Record Payment</Link>
@@ -427,7 +427,7 @@ export function InvoicesPanel() {
           <div className="grid gap-5">
             <div className="flex flex-wrap items-center gap-2">
               <InvoiceStatusChip invoice={opened} />
-              {opened.source === "MIGRATED" ? <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-black text-violet-700 dark:bg-violet-950/40 dark:text-violet-200">From old platform</span> : null}
+              {opened.source === "MIGRATED" ? <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-black text-violet-700 dark:bg-violet-950/40 dark:text-violet-200">From Old Platform</span> : null}
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
               {[
@@ -447,14 +447,14 @@ export function InvoicesPanel() {
             <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-900/60">
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{opened.description}</p>
               <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm tabular-nums sm:max-w-sm sm:ml-auto">
-                <dt className="font-semibold text-slate-600 dark:text-slate-300">Taxable amount</dt><dd className="text-right font-bold">{opened.taxableDisplay}</dd>
+                <dt className="font-semibold text-slate-600 dark:text-slate-300">Taxable Amount</dt><dd className="text-right font-bold">{opened.taxableDisplay}</dd>
                 <dt className="font-semibold text-slate-600 dark:text-slate-300">CGST</dt><dd className="text-right font-bold">{opened.cgstDisplay}</dd>
                 <dt className="font-semibold text-slate-600 dark:text-slate-300">SGST</dt><dd className="text-right font-bold">{opened.sgstDisplay}</dd>
                 <div className="col-span-2 my-0.5 border-t border-slate-200 dark:border-slate-700" aria-hidden="true" />
                 <dt className="font-black text-slate-900 dark:text-white">Total</dt><dd className="text-right font-black text-slate-900 dark:text-white">{opened.amountDisplay}</dd>
                 <dt className="font-semibold text-slate-600 dark:text-slate-300">Paid</dt><dd className="text-right font-bold">{opened.paidDisplay}</dd>
                 {opened.discountPaise ? (<><dt className="font-semibold text-slate-600 dark:text-slate-300">Discount</dt><dd className="text-right font-bold">{opened.discountDisplay}</dd></>) : null}
-                <dt className="font-black text-slate-900 dark:text-white">Balance due</dt><dd className="text-right font-black text-slate-900 dark:text-white">{opened.balanceDisplay}</dd>
+                <dt className="font-black text-slate-900 dark:text-white">Balance Due</dt><dd className="text-right font-black text-slate-900 dark:text-white">{opened.balanceDisplay}</dd>
               </dl>
             </div>
             {opened.status === "CANCELLED" ? (

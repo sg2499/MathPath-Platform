@@ -61,7 +61,7 @@ export function ExpenseCategoriesPanel() {
             <HeroSearch />
           </div>
           <div className="grid grid-cols-2 gap-3 xl:shrink-0">
-            <PaymentsMetric label="In use" value={categories.filter((row) => row.isActive).length} icon={<Tags size={14} />} tone="emerald" />
+            <PaymentsMetric label="In Use" value={categories.filter((row) => row.isActive).length} icon={<Tags size={14} />} tone="emerald" />
             <PaymentsMetric label="Off" value={categories.filter((row) => !row.isActive).length} icon={<CircleSlash size={14} />} tone="amber" />
           </div>
         </div>
@@ -69,7 +69,7 @@ export function ExpenseCategoriesPanel() {
 
       <section className="mt-6 math-card p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl font-black text-slate-950 dark:text-white">Expense categories</h2>
+          <h2 className="text-2xl font-black text-slate-950 dark:text-white">Expense Categories</h2>
           <button type="button" className="math-button-primary" onClick={() => { setAdding(true); setEditing(null); setName(""); save.reset(); }}><Plus size={17} />Add Category</button>
         </div>
         {notice ? (
@@ -98,9 +98,9 @@ export function ExpenseCategoriesPanel() {
                   <div className="flex shrink-0 gap-1">
                     <button type="button" className="math-role-action-button h-9 w-9 justify-center px-0" onClick={() => { setEditing(row); setAdding(false); setName(row.name); save.reset(); }} aria-label={`Rename ${row.name}`} title="Rename"><Pencil size={14} /></button>
                     {row.isActive ? (
-                      <button type="button" className="math-role-action-button h-9 w-9 justify-center px-0" onClick={() => { setSwitchOff(row); setReason(""); active.reset(); }} aria-label={`Switch off ${row.name}`} title="Switch off"><CircleSlash size={14} /></button>
+                      <button type="button" className="math-role-action-button h-9 w-9 justify-center px-0" onClick={() => { setSwitchOff(row); setReason(""); active.reset(); }} aria-label={`Switch Off ${row.name}`} title="Switch off"><CircleSlash size={14} /></button>
                     ) : (
-                      <button type="button" className="math-role-action-button h-9 w-9 justify-center px-0" disabled={active.isPending} onClick={() => active.mutate({ row, isActive: true })} aria-label={`Switch on ${row.name}`} title="Switch on"><RotateCcw size={14} /></button>
+                      <button type="button" className="math-role-action-button h-9 w-9 justify-center px-0" disabled={active.isPending} onClick={() => active.mutate({ row, isActive: true })} aria-label={`Switch On ${row.name}`} title="Switch on"><RotateCcw size={14} /></button>
                     )}
                   </div>
                 </li>
@@ -143,7 +143,7 @@ export function ExpenseCategoriesPanel() {
         onClose={() => { if (!active.isPending) setSwitchOff(null); }}
         footer={
           <>
-            <button type="button" className="math-button-secondary" disabled={active.isPending} onClick={() => setSwitchOff(null)}>Keep it on</button>
+            <button type="button" className="math-button-secondary" disabled={active.isPending} onClick={() => setSwitchOff(null)}>Keep It On</button>
             <button type="button" className="math-button-primary" disabled={!reason.trim() || active.isPending || !switchOff} onClick={() => switchOff && active.mutate({ row: switchOff, isActive: false })}>Switch Off</button>
           </>
         }

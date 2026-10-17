@@ -22,11 +22,11 @@ function IsBenchmarkCleared(result: AttemptResult): boolean {
 
 // Who is reading the result. The student (default) is spoken to directly; a
 // teacher reads the same facts about the student (2026-10, teacher revamp:
-// the teacher page used to say "Excellent work! You have…"). Admin pages keep
-// the default wording.
-type ResultViewer = { kind: "STUDENT" } | { kind: "TEACHER"; studentName: string };
+// the teacher page used to say "Excellent work! You have…"). The admin reads
+// the same, with the approval step as the admin's own (2026-10, admin revamp).
+type ResultViewer = { kind: "STUDENT" } | { kind: "TEACHER"; studentName: string } | { kind: "ADMIN"; studentName: string };
 
-function TeacherWorkflowText(result: AttemptResult, Name: string, IsCleared: boolean, IsManualReview: boolean) {
+function TeacherWorkflowText(result: AttemptResult, Name: string, IsCleared: boolean, IsManualReview: boolean, IsAdmin = false) {
   const Summary = (result.summary || {}) as any;
   const Benchmark = Number(Summary.benchmarkPercentage || 0);
   const Of = Benchmark ? ` (the benchmark is ${Benchmark}%)` : "";
@@ -39,7 +39,9 @@ function TeacherWorkflowText(result: AttemptResult, Name: string, IsCleared: boo
   if (IsManualReview) {
     return {
       Message: `${Name} is below the benchmark on this sheet${Of} and has used every try.`,
-      Guidance: "The next re-attempt opens once an admin approves it (Practice Tracker, Awaiting Approval).",
+      Guidance: IsAdmin
+        ? "The next re-attempt opens once you approve it (Practice Control, Awaiting Approval)."
+        : "The next re-attempt opens once an admin approves it (Practice Tracker, Awaiting Approval).",
     };
   }
   return {
@@ -81,8 +83,10 @@ function RetryWorkflowCard({ result, showStudentActions = false, viewer = { kind
       : "bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-200";
 
   const Icon = IsCleared ? <CheckCircle2 size={22} /> : IsManualReview ? <AlertTriangle size={22} /> : <BookOpenCheck size={22} />;
-  const TeacherText = viewer.kind === "TEACHER" ? TeacherWorkflowText(result, viewer.studentName, IsCleared, IsManualReview) : null;
-  const ShownTitle = viewer.kind === "TEACHER" ? (IsCleared ? "Benchmark Met" : IsManualReview ? "Waiting For Admin Approval" : "Re-Attempt Open") : Title;
+  const TeacherText = viewer.kind !== "STUDENT" ? TeacherWorkflowText(result, viewer.studentName, IsCleared, IsManualReview, viewer.kind === "ADMIN") : null;
+  const ShownTitle = viewer.kind !== "STUDENT"
+    ? (IsCleared ? "Benchmark Met" : IsManualReview ? (viewer.kind === "ADMIN" ? "Waiting For Your Approval" : "Waiting For Admin Approval") : "Re-Attempt Open")
+    : Title;
 
   return (
     <div className={`mt-5 rounded-[28px] border p-5 shadow-sm ${ToneClass}`}>
@@ -145,7 +149,7 @@ function ReattemptActionButton({ Action }: { Action: NonNullable<NonNullable<Att
 
 export function ResultSummary({ result, showStudentActions = false, viewer = { kind: "STUDENT" } }: { result: AttemptResult; showStudentActions?: boolean; viewer?: ResultViewer }) {
   const s = result.summary;
-  const IsTeacher = viewer.kind === "TEACHER";
+  const IsTeacher = viewer.kind !== "STUDENT";
 
   return (
     <>
@@ -155,7 +159,7 @@ export function ResultSummary({ result, showStudentActions = false, viewer = { k
           <div className="math-block-header mb-2"><ClipboardCheck size={14} /> Result Overview</div>
           <h1 className="mt-3 text-4xl font-black text-slate-950 dark:text-white">Score: {s.score} / {s.maxScore}</h1>
           <p className="math-subtitle">
-            {viewer.kind === "TEACHER"
+            {viewer.kind !== "STUDENT"
               ? `${viewer.studentName} answered ${s.correct} of ${Number(s.correct || 0) + Number(s.wrong || 0) + Number(s.unanswered || 0)} questions correctly.`
               : result.message || resultMessage(s.accuracyPercentage)}
           </p>

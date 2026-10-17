@@ -171,17 +171,17 @@ function ExpenseForm({ open, editing, onClose, onSaved }: { open: boolean; editi
           <input className="math-input" value={form.item} onChange={(event) => set({ item: event.target.value })} placeholder="e.g. October rent, Rajarhat" />
         </label>
         <label className="block">
-          <FieldLabel hint="optional">Paid to (vendor or shop)</FieldLabel>
+          <FieldLabel hint="optional">Paid To (Vendor Or Shop)</FieldLabel>
           <input className="math-input" value={form.vendor} onChange={(event) => set({ vendor: event.target.value })} />
         </label>
         <label className="block">
-          <FieldLabel hint="optional">Bill number</FieldLabel>
+          <FieldLabel hint="optional">Bill Number</FieldLabel>
           <input className="math-input" value={form.billNumber} onChange={(event) => set({ billNumber: event.target.value })} />
         </label>
         <label className="block">
           <FieldLabel hint="optional">Centre</FieldLabel>
           <select className="math-input" value={form.centreId} onChange={(event) => set({ centreId: event.target.value })}>
-            <option value="">Not for one centre</option>
+            <option value="">Not For One Centre</option>
             {(settingsQuery.data?.centres ?? []).filter((centre) => centre.isActive || centre.centreId === form.centreId).map((centre) => <option key={centre.centreId} value={centre.centreId}>{centre.name}</option>)}
           </select>
         </label>
@@ -192,10 +192,10 @@ function ExpenseForm({ open, editing, onClose, onSaved }: { open: boolean; editi
 
         <section className="sm:col-span-2">
           <div className="flex items-baseline justify-between gap-2">
-            <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">How it was paid</h3>
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">How It Was Paid</h3>
             {form.methods.length < 6 ? (
               <button type="button" className="inline-flex items-center gap-1 text-xs font-black text-cyan-700 underline dark:text-cyan-300" onClick={() => set({ methods: [...form.methods, { method: "UPI", amount: "", reference: "" }] })}>
-                <Plus size={13} />Split across methods
+                <Plus size={13} />Split Across Methods
               </button>
             ) : null}
           </div>
@@ -215,11 +215,11 @@ function ExpenseForm({ open, editing, onClose, onSaved }: { open: boolean; editi
                     <input className="math-input text-right tabular-nums" inputMode="decimal" value={line.amount} onChange={(event) => set({ methods: form.methods.map((item, at) => (at === index ? { ...item, amount: event.target.value } : item)) })} aria-label={`${label} amount`} />
                   </label>
                   <label className="col-span-2 block sm:col-span-1">
-                    <span className="mb-1 block text-[11px] font-black text-slate-500">Reference (optional)</span>
+                    <span className="mb-1 block text-[11px] font-black text-slate-500">Reference (Optional)</span>
                     <input className="math-input" value={line.reference} onChange={(event) => set({ methods: form.methods.map((item, at) => (at === index ? { ...item, reference: event.target.value } : item)) })} aria-label={`${label} reference`} />
                   </label>
                   {form.methods.length > 1 ? (
-                    <button type="button" className="math-focus-ring col-span-2 justify-self-end rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 sm:col-span-1 dark:hover:bg-slate-900" onClick={() => set({ methods: form.methods.filter((_, at) => at !== index) })} aria-label="Remove this method">
+                    <button type="button" className="math-focus-ring col-span-2 justify-self-end rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 sm:col-span-1 dark:hover:bg-slate-900" onClick={() => set({ methods: form.methods.filter((_, at) => at !== index) })} aria-label="Remove This Method">
                       <Trash2 size={16} />
                     </button>
                   ) : null}
@@ -236,7 +236,7 @@ function ExpenseForm({ open, editing, onClose, onSaved }: { open: boolean; editi
         </label>
         {editing ? (
           <label className="block sm:col-span-2">
-            <FieldLabel hint="required, kept in the history">Reason for the change</FieldLabel>
+            <FieldLabel hint="required, kept in the history">Reason For The Change</FieldLabel>
             <input className="math-input" value={form.reason} onChange={(event) => set({ reason: event.target.value })} placeholder="e.g. bill amount corrected" />
           </label>
         ) : null}
@@ -335,7 +335,7 @@ export function ExpensesPanel() {
 
       <section className="mt-6 math-card p-5 sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div role="tablist" aria-label="Expense status" className="flex flex-wrap gap-2">
+          <div role="tablist" aria-label="Expense Status" className="flex flex-wrap gap-2">
             {[["ALL", "All"], ["RECORDED", "Recorded"], ["CANCELLED", "Cancelled"]].map(([key, label]) => (
               <button key={key} type="button" role="tab" aria-selected={status === key} onClick={() => setStatus(key)} className={`math-role-tab-button math-admin-tab-force rounded-2xl px-4 py-2 text-sm font-black transition ${status === key ? "is-active math-admin-tab-force-selected" : ""}`}>
                 {label}
@@ -353,7 +353,7 @@ export function ExpensesPanel() {
         <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div className="relative sm:col-span-2 lg:col-span-1">
             <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Item, vendor or bill no." aria-label="Search expenses" />
+            <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Item, vendor or bill no." aria-label="Search Expenses" />
           </div>
           <label className="block">
             <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Month</span>
@@ -362,32 +362,32 @@ export function ExpensesPanel() {
           <label className="block">
             <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Category</span>
             <select className="math-input" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-              <option value="">All categories</option>
+              <option value="">All Categories</option>
               {(categoriesQuery.data ?? []).map((row) => <option key={row.categoryId} value={row.categoryId}>{row.name}</option>)}
             </select>
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Centre</span>
             <select className="math-input" value={centreId} onChange={(event) => setCentreId(event.target.value)}>
-              <option value="">All centres</option>
+              <option value="">All Centres</option>
               {(settingsQuery.data?.centres ?? []).map((centre) => <option key={centre.centreId} value={centre.centreId}>{centre.name}</option>)}
-              <option value="NONE">Not for one centre</option>
+              <option value="NONE">Not For One Centre</option>
             </select>
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Method</span>
             <select className="math-input" value={method} onChange={(event) => setMethod(event.target.value)}>
-              <option value="">All methods</option>
+              <option value="">All Methods</option>
               {COUNTER_METHODS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </label>
         </div>
         {month ? (
-          <button type="button" className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-slate-500 underline" onClick={() => setMonth("")}><X size={12} />Show every month</button>
+          <button type="button" className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-slate-500 underline" onClick={() => setMonth("")}><X size={12} />Show Every Month</button>
         ) : null}
 
         {data?.totals.byCategory.length ? (
-          <div className="mt-4 flex flex-wrap gap-2" aria-label="Spent by category">
+          <div className="mt-4 flex flex-wrap gap-2" aria-label="Spent By Category">
             {data.totals.byCategory.map((row) => (
               <span key={row.categoryName} className="inline-flex items-baseline gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300">
                 {row.categoryName}<span className="tabular-nums text-slate-950 dark:text-white">{row.amountDisplay}</span>
@@ -409,7 +409,7 @@ export function ExpensesPanel() {
           ) : query.error ? (
             <ErrorState message="Expenses could not be loaded. Refresh the page to try again." />
           ) : !data?.expenses.length ? (
-            <EmptyState title="No expenses" description={month ? `Nothing recorded for ${MonthLabel(month)}${categoryId || centreId || method || search ? " with these filters" : ""}. Use Add Expense to record one.` : "Use Add Expense to record money spent."} />
+            <EmptyState title="No Expenses" description={month ? `Nothing recorded for ${MonthLabel(month)}${categoryId || centreId || method || search ? " with these filters" : ""}. Use Add Expense to record one.` : "Use Add Expense to record money spent."} />
           ) : (
             <>
               <ul className="grid gap-3 md:hidden">
@@ -435,7 +435,7 @@ export function ExpensesPanel() {
                       <th className="px-2 py-2">Expense</th>
                       <th className="px-2 py-2">Category</th>
                       <th className="px-2 py-2">For</th>
-                      <th className="px-2 py-2">Paid with</th>
+                      <th className="px-2 py-2">Paid With</th>
                       <th className="px-2 py-2 text-right">Amount</th>
                       <th className="px-2 py-2 text-right">Actions</th>
                     </tr>
@@ -502,14 +502,14 @@ export function ExpensesPanel() {
           viewing ? (
             cancelling ? (
               <>
-                <button type="button" className="math-button-secondary" disabled={cancel.isPending} onClick={() => setCancelling(false)}>Keep expense</button>
+                <button type="button" className="math-button-secondary" disabled={cancel.isPending} onClick={() => setCancelling(false)}>Keep Expense</button>
                 <button type="button" className="math-button-primary !bg-rose-600 hover:!bg-rose-700" disabled={!cancelReason.trim() || cancel.isPending} onClick={() => cancel.mutate(viewing)}>
                   {cancel.isPending ? <Loader2 size={17} className="animate-spin" /> : <Ban size={17} />}Cancel {viewing.expenseNumber}
                 </button>
               </>
             ) : viewing.status === "RECORDED" ? (
               <>
-                <button type="button" className="math-button-secondary" onClick={() => { setCancelling(true); cancel.reset(); }}><Ban size={17} />Cancel expense</button>
+                <button type="button" className="math-button-secondary" onClick={() => { setCancelling(true); cancel.reset(); }}><Ban size={17} />Cancel Expense</button>
                 <button type="button" className="math-button-primary" onClick={() => { setEditing(viewing); setViewing(null); setFormOpen(true); }}><Pencil size={17} />Edit</button>
               </>
             ) : null

@@ -74,7 +74,7 @@ export function ActivityPanel() {
 
       <section className="math-card mt-6 p-5 sm:p-6">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div role="tablist" aria-label="Kind of activity" className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+          <div role="tablist" aria-label="Kind Of Activity" className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
             {TYPES.map((item) => {
               const Icon = item.icon;
               const active = type === item.key;
@@ -117,7 +117,7 @@ export function ActivityPanel() {
               ))}
               {query.hasNextPage ? (
                 <button type="button" className="math-button-secondary justify-self-center" disabled={query.isFetchingNextPage} onClick={() => query.fetchNextPage()}>
-                  {query.isFetchingNextPage ? <Loader2 size={16} className="animate-spin" /> : null}Show more
+                  {query.isFetchingNextPage ? <Loader2 size={16} className="animate-spin" /> : null}Show More
                 </button>
               ) : (
                 <p className="text-center text-xs font-semibold text-slate-400">That is everything{type !== "ALL" || person ? " for these filters" : ""}.</p>

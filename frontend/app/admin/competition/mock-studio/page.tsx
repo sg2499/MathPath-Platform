@@ -472,7 +472,7 @@ function AdminCompetitionMockStudioPageContent() {
       instructions: AssignmentInstructions.trim() || null,
     }),
     onSuccess: (ResultValue) => {
-      SetLastMessage(`Assigned ${ResultValue.mockExamCount} mock exam(s) to ${ResultValue.studentCount} student(s). Created: ${ResultValue.createdAssignmentCount}. Updated: ${ResultValue.updatedExistingAssignmentCount}.`);
+      SetLastMessage(`Assigned ${ResultValue.mockExamCount} ${ResultValue.mockExamCount === 1 ? "mock exam" : "mock exams"} to ${ResultValue.studentCount} ${ResultValue.studentCount === 1 ? "student" : "students"}. Created: ${ResultValue.createdAssignmentCount}. Updated: ${ResultValue.updatedExistingAssignmentCount}.`);
       QueryClient.invalidateQueries({ queryKey: ["admin", "competition"] });
     },
   });
@@ -785,7 +785,7 @@ function AdminCompetitionMockStudioPageContent() {
                   )}
                   <label className="flex cursor-pointer items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm font-black text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200">
                     <input type="checkbox" checked={AssignToAll} onChange={(EventValue) => SetAssignToAll(EventValue.target.checked)} className="h-4 w-4 accent-[var(--mp-role-primary)]" />
-                    Assign selected mock exam(s) to all active students in this level
+                    Assign the selected mock exams to all active students in this level
                   </label>
 
                   {!AssignToAll && (

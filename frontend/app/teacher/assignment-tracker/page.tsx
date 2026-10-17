@@ -1054,9 +1054,6 @@ function CompactPracticeList({
           <h2 className="math-teacher-block-title text-xl font-black text-slate-950 dark:text-white">
             {Title}
           </h2>
-          <p className="mt-1 text-sm font-semibold text-slate-500">
-            {Description}
-          </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Chip tone={Tone}>{Count}</Chip>
@@ -1071,6 +1068,11 @@ function CompactPracticeList({
           ) : null}
         </div>
       </div>
+      {/* the description runs the full width under the title row (2026-10,
+          platform rule: it wrapped beside the count and View All) */}
+      <p className="mt-1 text-sm font-semibold text-slate-500">
+        {Description}
+      </p>
       <div className="mt-4 grid gap-3">
         {Rows.length ? (
           Rows.map((Row, Index) => (
@@ -1164,9 +1166,6 @@ function ExcellenceHighlightsList({
           <h2 className="math-teacher-block-title text-xl font-black text-slate-950 dark:text-white">
             Excellence Highlights
           </h2>
-          <p className="mt-1 text-sm font-semibold text-slate-500">
-            Best reviewed practice grouped by lesson and DPS.
-          </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Chip tone="green">{TotalCount}</Chip>
@@ -1181,6 +1180,11 @@ function ExcellenceHighlightsList({
           ) : null}
         </div>
       </div>
+      {/* the description runs the full width under the title row (2026-10,
+          platform rule: it wrapped beside the count and View All) */}
+      <p className="mt-1 text-sm font-semibold text-slate-500">
+        Best reviewed practice grouped by lesson and DPS.
+      </p>
       <div className="mt-4 grid gap-3">
         {Groups.length ? (
           Groups.map((Group) => (

@@ -379,14 +379,16 @@ export default function AdminAssessmentReadinessPage() {
   return (
     <AppShell>
       <section className="math-hero">
-        <div className="relative z-10">
-          <p className="math-block-header"><ShieldCheck size={14} />Assessment Readiness</p>
-          <h1 className="math-title">Assessment Readiness</h1>
-          <p className="math-subtitle">
-            Review assessment eligibility by student, teacher, and level.
-          </p>
+        <div className="ad-hero-stack relative z-10">
+          <div>
+            <p className="math-block-header"><ShieldCheck size={14} />Assessment Readiness</p>
+            <h1 className="math-title">Assessment Readiness</h1>
+            <p className="math-subtitle">
+              Review assessment eligibility by student, teacher, and level.
+            </p>
+          </div>
 
-          <div className="mt-7 grid gap-4 sm:grid-cols-4">
+          <div className="ad-hero-tiles">
             <Metric
               label="Students Reviewed"
               value={query.data?.totalStudents ?? 0}
@@ -419,7 +421,7 @@ export default function AdminAssessmentReadinessPage() {
                   : "math-tone-success border-emerald-200 bg-emerald-50/90"
               }`}
             >
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
                 <div className="flex items-start gap-3">
                   <span
                     className={`mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
@@ -431,7 +433,7 @@ export default function AdminAssessmentReadinessPage() {
                     <ShieldCheck size={18} />
                   </span>
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
+                    <p className="text-sm font-bold text-slate-500 dark:text-slate-300">
                       Assessment Readiness Status
                     </p>
                     <h2 className="mt-1 text-base font-black text-slate-950 dark:text-white">
@@ -448,14 +450,6 @@ export default function AdminAssessmentReadinessPage() {
                       </p>
                     )}
                   </div>
-                </div>
-                <div className="rounded-[22px] border border-white/70 bg-white/80 px-4 py-3 text-center shadow-sm dark:border-slate-700 dark:bg-slate-950/70">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
-                    Not Ready
-                  </p>
-                  <p className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
-                    {readinessGate.notReadyStudentsImpacted}
-                  </p>
                 </div>
               </div>
             </div>
@@ -543,7 +537,7 @@ export default function AdminAssessmentReadinessPage() {
             onChange={(event) => setFilter(event.target.value as Filter)}
           >
             <option value="" disabled>
-              Choose Readiness Status
+              Choose Status
             </option>
             <option value="ALL">All Readiness Statuses</option>
             <option value="READY">Ready</option>
@@ -606,26 +600,29 @@ export default function AdminAssessmentReadinessPage() {
                 onCollapse={() => setBranch(skey, false)}
                 title={
                   <>
-                    {row.studentName}{" "}
-                    <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({row.studentCode})</span>
+                    {row.studentName}
+                    <span className="ad-code-inline">{row.studentCode}</span>
                     <DemoTag studentId={row.studentId} studentCode={row.studentCode} />
                   </>
                 }
                 subtitle={undefined}
                 chips={
                   <>
-                    <Chip tone="blue">{row.requiredDpsCount} DPS</Chip>
                     <Chip tone={row.eligible ? "green" : "amber"}>
                       {row.statusLabel}
                     </Chip>
-                    <Chip tone={row.belowBenchmarkDpsCount ? "red" : "green"}>
-                      {row.progressPercentage}% progress
-                    </Chip>
+                    {row.belowBenchmarkDpsCount ? (
+                      <Chip tone="red">Needs Re-Attempt: {row.belowBenchmarkDpsCount}</Chip>
+                    ) : null}
                     {activeOverride ? (
                       <Chip tone="purple">Controlled Access</Chip>
                     ) : null}
                   </>
                 }
+                meter={{
+                  percent: row.progressPercentage,
+                  label: `${row.passedDpsCount} of ${row.requiredDpsCount} DPS Cleared`,
+                }}
               >
                 <NodeCard
                   open={!!open[mkey]}
@@ -641,16 +638,16 @@ export default function AdminAssessmentReadinessPage() {
                     onToggle={() => toggle(lkey)}
                     onExpand={() => setBranch(lkey, true)}
                     onCollapse={() => setBranch(lkey, false)}
-                    title={`${row.levelCode || "Level"}${row.levelName ? ` - ${row.levelName}` : ""}`}
+                    title={`${row.levelCode || "Level"}${row.levelName ? ` · ${row.levelName}` : ""}`}
                     subtitle="Level"
                     chips={
                       <>
                         <Chip tone="blue">
-                          {row.passedDpsCount}/{row.requiredDpsCount} cleared
+                          {row.passedDpsCount}/{row.requiredDpsCount} Cleared
                         </Chip>
                         {row.missingDpsCount ? (
                           <Chip tone="amber">
-                            {row.missingDpsCount} missing
+                            {row.missingDpsCount} Not Done Yet
                           </Chip>
                         ) : null}
                         {row.belowBenchmarkDpsCount ? (
@@ -1084,6 +1081,7 @@ function NodeCard({
   title,
   subtitle,
   chips,
+  meter,
   compact,
   children,
 }: {
@@ -1094,14 +1092,15 @@ function NodeCard({
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   chips?: React.ReactNode;
+  meter?: { percent: number; label: string };
   compact?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <article
-      className={`overflow-hidden rounded-[30px] border border-slate-200 bg-white/90 shadow-sm dark:border-slate-800 dark:bg-slate-950/80 ${compact ? "mt-4" : ""}`}
+      className={`ad-node overflow-hidden rounded-[30px] border border-slate-200 bg-white/90 shadow-sm dark:border-slate-800 dark:bg-slate-950/80 ${compact ? "mt-4" : ""}`}
     >
-      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
+      <div className="ad-node-head flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
         <button
           type="button"
           onClick={onToggle}
@@ -1124,7 +1123,18 @@ function NodeCard({
             ) : null}
           </div>
         </button>
-        <BranchButtons onExpand={onExpand} onCollapse={onCollapse} />
+        {meter ? (
+          <div className="ad-meter" aria-label={`${meter.label}, ${meter.percent}%`}>
+            <div className="ad-meter-text">
+              <span>{meter.label}</span>
+              <b>{meter.percent}%</b>
+            </div>
+            <div className="ad-meter-track" aria-hidden="true">
+              <i style={{ width: `${Math.max(0, Math.min(100, meter.percent))}%` }} />
+            </div>
+          </div>
+        ) : null}
+        <BranchButtons open={open} onExpand={onExpand} onCollapse={onCollapse} />
       </div>
       {open ? (
         <div className="border-t border-slate-100 p-4 sm:p-5 dark:border-slate-800">
@@ -1135,40 +1145,31 @@ function NodeCard({
   );
 }
 
+// One labelled button instead of two unlabelled icons: "Open All" opens this
+// row and everything inside it; "Close All" closes them again.
 function BranchButtons({
+  open,
   onExpand,
   onCollapse,
 }: {
+  open: boolean;
   onExpand: () => void;
   onCollapse: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        title="Expand this branch"
-        aria-label="Expand this branch"
-        className="math-readiness-branch-button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onExpand();
-        }}
-      >
-        <Maximize2 size={15} strokeWidth={2.4} />
-      </button>
-      <button
-        type="button"
-        title="Collapse this branch"
-        aria-label="Collapse this branch"
-        className="math-readiness-branch-button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onCollapse();
-        }}
-      >
-        <Minimize2 size={15} strokeWidth={2.4} />
-      </button>
-    </div>
+    <button
+      type="button"
+      className="ad-branch-btn"
+      title={open ? "Close this and everything inside it" : "Open this and everything inside it"}
+      onClick={(event) => {
+        event.stopPropagation();
+        if (open) onCollapse();
+        else onExpand();
+      }}
+    >
+      {open ? <Minimize2 size={14} strokeWidth={2.4} /> : <Maximize2 size={14} strokeWidth={2.4} />}
+      {open ? "Close All" : "Open All"}
+    </button>
   );
 }
 
@@ -1369,7 +1370,7 @@ function TestingOverrideModal({
 
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Info label="Student" value={<>{row.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({row.studentCode})</span></>} />
+            <Info label="Student" value={<>{row.studentName}<span className="ad-code-inline">{row.studentCode}</span></>} />
             <Info label="Module" value={row.moduleName || row.moduleCode || "Module"} />
             <Info label="Level" value={`${row.levelCode || "Level"}${row.levelName ? ` - ${row.levelName}` : ""}`} />
             <Info label="Readiness" value={row.statusLabel} />
@@ -1424,14 +1425,10 @@ function Metric({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm dark:border dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]">
-      <div className="text-blue-600 dark:text-blue-200">{icon}</div>
-      <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-200">
-        {label}
-      </p>
-      <p className="mt-2 text-3xl font-black text-slate-950 dark:text-white">
-        {value}
-      </p>
+    <div className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-5">
+      <div className="math-teacher-icon-chip relative z-10">{icon}</div>
+      <p className="relative z-10">{label}</p>
+      <p className="relative z-10">{value}</p>
     </div>
   );
 }

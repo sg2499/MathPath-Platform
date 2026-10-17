@@ -138,19 +138,20 @@ export default function CreateAssessmentPage() {
 
   return (
     <AppShell title="Create Assessment">
-      <div className="space-y-8">
+      <div className="space-y-6">
+        <div className="ad-back-row">
+          <button type="button" className="ad-back" onClick={() => router.push("/admin/assessments")}>
+            <ArrowLeft size={16} />
+            Back To Assessment Control
+          </button>
+        </div>
         <section className="math-hero math-slide-up">
-          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="math-block-header"><Wrench size={14} />Assessment builder</p>
-              <h1 className="math-title">Create Formal Assessment</h1>
-              <p className="math-subtitle">
-                Select a DPS and target. Students receive one normal attempt; extra attempts require admin approval.
-              </p>
-            </div>
-            <button className="math-button-secondary" type="button" onClick={() => router.push("/admin/assessments")}>
-              <ArrowLeft size={17} /> Back to Assessments
-            </button>
+          <div className="relative z-10">
+            <p className="math-block-header"><Wrench size={14} />Assessment Builder</p>
+            <h1 className="math-title">Create Formal Assessment</h1>
+            <p className="math-subtitle">
+              Select a DPS and target. Students receive one normal attempt; extra attempts require admin approval.
+            </p>
           </div>
         </section>
 
@@ -159,10 +160,7 @@ export default function CreateAssessmentPage() {
 
         <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_430px]">
           <section className="math-card p-6 sm:p-8">
-            <div className="mb-7 flex items-start gap-4">
-              <div className="rounded-2xl bg-violet-50 p-3 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
-                <GraduationCap size={25} />
-              </div>
+            <div className="mb-7">
               <div>
                 <p className="math-block-header"><Rocket size={14} />Step 1</p>
                 <h2 className="text-3xl font-black text-slate-950 dark:text-white">Assessment Setup</h2>
@@ -173,10 +171,10 @@ export default function CreateAssessmentPage() {
             </div>
 
             <div className="grid gap-5 lg:grid-cols-2">
-              <SelectField label="Module" value={selectedModuleId} onChange={setSelectedModuleId} disabled={mutation.isPending} options={(modulesQuery.data ?? []).map((moduleItem: ModuleItem) => ({ value: moduleItem.moduleId, label: `${moduleItem.moduleCode} - ${moduleItem.moduleName}` }))} />
-              <SelectField label="Level" value={selectedLevelId} onChange={setSelectedLevelId} disabled={!selectedModuleId || mutation.isPending} options={(levelsQuery.data ?? []).map((level: LevelItem) => ({ value: level.levelId, label: `${level.levelCode} - ${level.levelName}` }))} />
-              <SelectField label="Lesson" value={selectedLessonId} onChange={setSelectedLessonId} disabled={!selectedLevelId || mutation.isPending} options={(lessonsQuery.data ?? []).map((lesson: LessonItem) => ({ value: lesson.lessonId, label: `Lesson ${lesson.lessonNumber} - ${lesson.lessonTitle}` }))} />
-              <SelectField label="DPS" value={selectedDpsId} onChange={setSelectedDpsId} disabled={!selectedLessonId || mutation.isPending} options={(dpsQuery.data ?? []).slice().sort((a, b) => Number(a.dpsNumber || 0) - Number(b.dpsNumber || 0)).map((dps: DpsItem) => ({ value: dps.dpsId, label: `DPS ${dps.dpsNumber} - ${dps.dpsTitle}` }))} />
+              <SelectField label="Module" value={selectedModuleId} onChange={setSelectedModuleId} disabled={mutation.isPending} options={(modulesQuery.data ?? []).map((moduleItem: ModuleItem) => ({ value: moduleItem.moduleId, label: `${moduleItem.moduleCode} · ${moduleItem.moduleName}` }))} />
+              <SelectField label="Level" value={selectedLevelId} onChange={setSelectedLevelId} disabled={!selectedModuleId || mutation.isPending} options={(levelsQuery.data ?? []).map((level: LevelItem) => ({ value: level.levelId, label: `${level.levelCode} · ${level.levelName}` }))} />
+              <SelectField label="Lesson" value={selectedLessonId} onChange={setSelectedLessonId} disabled={!selectedLevelId || mutation.isPending} options={(lessonsQuery.data ?? []).map((lesson: LessonItem) => ({ value: lesson.lessonId, label: `Lesson ${lesson.lessonNumber} · ${lesson.lessonTitle}` }))} />
+              <SelectField label="DPS" value={selectedDpsId} onChange={setSelectedDpsId} disabled={!selectedLessonId || mutation.isPending} options={(dpsQuery.data ?? []).slice().sort((a, b) => Number(a.dpsNumber || 0) - Number(b.dpsNumber || 0)).map((dps: DpsItem) => ({ value: dps.dpsId, label: `DPS ${dps.dpsNumber} · ${dps.dpsTitle}` }))} />
 
               <div>
                 <label className="math-label">Assign To Type</label>
@@ -188,7 +186,7 @@ export default function CreateAssessmentPage() {
               </div>
 
               {assignedToType === "LEVEL" ? (
-                <Field label="Assigned Level" value={selectedLevel ? `${selectedLevel.levelCode} - ${selectedLevel.levelName}` : ""} onChange={() => undefined} disabled helperText="Auto-filled from the selected level." />
+                <Field label="Assigned Level" value={selectedLevel ? `${selectedLevel.levelCode} · ${selectedLevel.levelName}` : ""} onChange={() => undefined} disabled helperText="Auto-filled from the selected level." />
               ) : assignedToType === "STUDENT" ? (
                 <SelectField
                   label="Assigned Student"
@@ -213,10 +211,7 @@ export default function CreateAssessmentPage() {
 
           <aside className="space-y-5">
             <section className="math-card p-6">
-              <div className="flex items-start gap-4">
-                <div className="rounded-2xl bg-violet-50 p-3 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
-                  <LockKeyhole size={22} />
-                </div>
+              <div>
                 <div>
                   <p className="math-block-header"><LockKeyhole size={14} />Rules</p>
                   <h2 className="text-2xl font-black text-slate-950 dark:text-white">Controlled Re-Attempts</h2>
@@ -227,14 +222,14 @@ export default function CreateAssessmentPage() {
               </div>
 
               <div className="mt-5 space-y-3">
-                <SummaryItem icon={<Layers3 size={18} />} label="Module" value={selectedModule ? `${selectedModule.moduleCode} - ${selectedModule.moduleName}` : "Not selected"} />
-                <SummaryItem icon={<GraduationCap size={18} />} label="Level" value={selectedLevel ? `${selectedLevel.levelCode} - ${selectedLevel.levelName}` : "Not selected"} />
-                <SummaryItem icon={<BookOpen size={18} />} label="Lesson" value={selectedLesson ? `Lesson ${selectedLesson.lessonNumber} - ${selectedLesson.lessonTitle}` : "Not selected"} />
-                <SummaryItem icon={<ClipboardCheck size={18} />} label="DPS" value={selectedDps ? `DPS ${selectedDps.dpsNumber} - ${selectedDps.dpsTitle}` : "Not selected"} />
+                <SummaryItem icon={<Layers3 size={18} />} label="Module" value={selectedModule ? `${selectedModule.moduleCode} · ${selectedModule.moduleName}` : "Not Selected"} />
+                <SummaryItem icon={<GraduationCap size={18} />} label="Level" value={selectedLevel ? `${selectedLevel.levelCode} · ${selectedLevel.levelName}` : "Not Selected"} />
+                <SummaryItem icon={<BookOpen size={18} />} label="Lesson" value={selectedLesson ? `Lesson ${selectedLesson.lessonNumber} · ${selectedLesson.lessonTitle}` : "Not Selected"} />
+                <SummaryItem icon={<ClipboardCheck size={18} />} label="DPS" value={selectedDps ? `DPS ${selectedDps.dpsNumber} · ${selectedDps.dpsTitle}` : "Not Selected"} />
                 <SummaryItem
                   icon={assignedToType === "STUDENT" ? <UserRound size={18} /> : <UsersRound size={18} />}
                   label="Assigned To"
-                  value={assignedToType === "STUDENT" ? (selectedStudent ? <>{selectedStudent.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({selectedStudent.studentCode})</span></> : "Select student") : assignedToType === "LEVEL" ? (selectedLevel ? `${selectedLevel.levelCode} - Full Level` : "Selected level") : "Batch"}
+                  value={assignedToType === "STUDENT" ? (selectedStudent ? <>{selectedStudent.studentName}<span className="ad-code-inline">{selectedStudent.studentCode}</span></> : "Select Student") : assignedToType === "LEVEL" ? (selectedLevel ? `${selectedLevel.levelCode} · Full Level` : "Selected Level") : "Batch"}
                 />
               </div>
 
@@ -276,7 +271,7 @@ function SummaryItem({ icon, label, value }: { icon: React.ReactNode; label: str
   return (
     <div className="rounded-[22px] border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-900/60">
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 rounded-xl bg-violet-50 p-2 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">{icon}</div>
+        <div className="mt-0.5 rounded-xl bg-blue-50 p-2 text-blue-700 dark:bg-blue-950/50 dark:text-blue-200">{icon}</div>
         <div>
           <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{label}</p>
           <p className="mt-1 text-sm font-black text-slate-950 dark:text-white">{value}</p>

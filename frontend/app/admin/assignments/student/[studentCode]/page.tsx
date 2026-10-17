@@ -173,7 +173,7 @@ function AdminStudentAssignmentsWorkspacePageContent() {
           ) : null}
           <RecordWorkspace
             title={studentName}
-            subtitle={`Student Code: ${studentCode}${ScopeModuleCode ? ` • Module: ${ScopeModuleCode}` : ""}${ScopeLevelCode ? ` • Level: ${ScopeLevelCode}` : ""}`}
+            subtitle={[studentCode, ScopeModuleCode, ScopeLevelCode].filter(Boolean).join(" · ")}
             backLabel="Back to Practice Control"
             onBack={() => router.push("/admin/assignments")}
             rows={studentRows}

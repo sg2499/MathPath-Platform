@@ -18,7 +18,7 @@ export default function CollectionsSectionPage() {
   return (
     <PaymentsSection<Tab>
       title="Collections"
-      label="Collections sections"
+      label="Collections Sections"
       fallback="student-fees"
       tabs={[
         { key: "student-fees", label: "Student Fees", icon: <UserRound size={16} /> },

@@ -144,7 +144,7 @@ function assessmentBackRoute(ViewerRole?: "ADMIN" | "TEACHER" | "STUDENT" | null
 // A teacher reads the result about the student, not words of encouragement
 // written to the student (2026-10, teacher revamp). Students and admins keep
 // the feedback above.
-function TeacherResultFeedback(Result: any) {
+function TeacherResultFeedback(Result: any, ForAdmin = false) {
   const Accuracy = Math.min(Math.max(Number(Result?.accuracyPercentage || 0), 0), 100);
   const Benchmark = Number(Result?.benchmarkPercentage || 0);
   const Of = Benchmark ? ` (the benchmark is ${CleanNumber(Benchmark)}%)` : "";
@@ -152,7 +152,9 @@ function TeacherResultFeedback(Result: any) {
     return {
       Title: "Assessment Cleared",
       Message: `The student cleared this assessment with ${CleanNumber(Accuracy)}% accuracy${Of}.`,
-      NextStep: "Promotion to the next level is handled by the admin. A short remark below helps the student see what went well.",
+      NextStep: ForAdmin
+        ? "Promote the student from Assessment Control when ready. A short remark below helps the student see what went well."
+        : "Promotion to the next level is handled by the admin. A short remark below helps the student see what went well.",
       Tone: "success" as const,
       Icon: <Sparkles size={24} />,
     };
@@ -160,17 +162,21 @@ function TeacherResultFeedback(Result: any) {
   return {
     Title: "Below The Benchmark",
     Message: `The student scored ${CleanNumber(Accuracy)}% on this assessment${Of}.`,
-    NextStep: "Write a remark below on what to practise. A re-attempt needs the admin to approve a different version of the assessment.",
+    NextStep: ForAdmin
+      ? "Write a remark below on what to practise. A re-attempt opens once you approve a different version of the assessment (Assessment Control, Re-Attempt Approvals)."
+      : "Write a remark below on what to practise. A re-attempt needs the admin to approve a different version of the assessment.",
     Tone: "danger" as const,
     Icon: <ShieldAlert size={24} />,
   };
 }
 
-function AssessmentFeedbackCard({ Result, ForTeacher = false }: { Result: any; ForTeacher?: boolean }) {
-  const Feedback = ForTeacher ? TeacherResultFeedback(Result) : ResultFeedback(Result);
+// The admin reads the same facts as the teacher (2026-10, admin revamp: it
+// used to show the student's "Keep Going — You're Learning!").
+function AssessmentFeedbackCard({ Result, ForTeacher = false, ForAdmin = false }: { Result: any; ForTeacher?: boolean; ForAdmin?: boolean }) {
+  const Feedback = ForTeacher || ForAdmin ? TeacherResultFeedback(Result, ForAdmin) : ResultFeedback(Result);
   return (
     <PremiumResultFeedbackCard
-      Kicker={ForTeacher ? "Assessment Outcome" : "Assessment Feedback"}
+      Kicker={ForTeacher || ForAdmin ? "Assessment Outcome" : "Assessment Feedback"}
       Title={Feedback.Title}
       Message={Feedback.Message}
       NextStep={Feedback.NextStep}
@@ -226,6 +232,14 @@ function StudentAssessmentResultPageContent() {
 
       {Query.data ? (
         <div className="space-y-6">
+          {ReviewViewer === "ADMIN" ? (
+            <div className="ad-back-row">
+              <button type="button" className="ad-back" onClick={() => Router.push(assessmentBackRoute(ViewerRole))}>
+                <ArrowLeft size={16} />
+                Back To Assessment Control
+              </button>
+            </div>
+          ) : null}
           <section className="relative overflow-hidden rounded-[34px] border border-white/70 bg-gradient-to-br from-white via-sky-50 to-cyan-100 p-5 shadow-xl dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900 sm:p-6">
             <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-cyan-300/25 blur-3xl" />
             <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -234,7 +248,7 @@ function StudentAssessmentResultPageContent() {
                 <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-4xl">Score: {CleanNumber(CappedScore(Query.data.score, Query.data.maxScore))} / {CleanNumber(Query.data.maxScore)}</h1>
                 <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{Query.data.assignmentTitle}</p>
               </div>
-              <div className={`rounded-2xl px-4 py-3 text-right shadow-sm ring-1 ${Query.data.status === "CLEARED" ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-rose-50 text-rose-800 ring-rose-200"}`}>
+              <div className={`w-fit rounded-2xl px-4 py-3 text-left shadow-sm ring-1 lg:text-right ${Query.data.status === "CLEARED" ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-rose-50 text-rose-800 ring-rose-200"}`}>
                 <p className="text-[10px] font-black uppercase tracking-[0.16em]">{Query.data.status === "CLEARED" ? "Cleared" : "Needs Re-Attempt"}</p>
                 <p className="text-2xl font-black">{CleanNumber(Math.min(Math.max(Number(Query.data.accuracyPercentage || 0), 0), 100))}%</p>
               </div>
@@ -249,7 +263,7 @@ function StudentAssessmentResultPageContent() {
             </div>
           </section>
 
-          <AssessmentFeedbackCard Result={Query.data} ForTeacher={ReviewViewer === "TEACHER"} />
+          <AssessmentFeedbackCard Result={Query.data} ForTeacher={ReviewViewer === "TEACHER"} ForAdmin={ReviewViewer === "ADMIN"} />
 
           <AssessmentRemarksPanel
             AttemptId={Params.attemptId}
@@ -259,10 +273,12 @@ function StudentAssessmentResultPageContent() {
           />
 
           <div className="flex flex-wrap items-center gap-3">
-            <button className="math-role-action-button px-4 py-3" onClick={() => Router.push(assessmentBackRoute(ViewerRole))}>
-              <ArrowLeft size={16} />
-              Back To Assessments
-            </button>
+            {ReviewViewer === "ADMIN" ? null : (
+              <button className="math-role-action-button px-4 py-3" onClick={() => Router.push(assessmentBackRoute(ViewerRole))}>
+                <ArrowLeft size={16} />
+                Back To Assessments
+              </button>
+            )}
             <div className={`math-badge ${Query.data.status === "CLEARED" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
               {Query.data.performanceBand}
             </div>

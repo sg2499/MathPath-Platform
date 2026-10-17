@@ -654,7 +654,7 @@ function StudentAssessmentsPageContent() {
                     <h2 className="text-2xl font-black text-slate-950 dark:text-white">{moduleGroup.label}</h2>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{moduleGroup.levels.length} Level(s)</span>
+                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{moduleGroup.levels.length} {moduleGroup.levels.length === 1 ? "Level" : "Levels"}</span>
                     <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">{ModuleRows.filter((Row) => statusDisplay(Row.status).includes("Cleared")).length} Cleared</span>
                     <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300"><ChevronDown className={isModuleOpen ? "rotate-180 transition" : "transition"} size={18} /></span>
                   </div>
@@ -672,7 +672,7 @@ function StudentAssessmentsPageContent() {
                               <h3 className="mt-1 text-lg font-black text-slate-950 dark:text-white">{levelGroup.label}</h3>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{levelGroup.rows.length} Assessment(s)</span>
+                              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{levelGroup.rows.length} {levelGroup.rows.length === 1 ? "Assessment" : "Assessments"}</span>
                               <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300"><ChevronDown className={isLevelOpen ? "rotate-180 transition" : "transition"} size={18} /></span>
                             </div>
                           </button>
@@ -718,7 +718,7 @@ function StudentProgressionBanner({ State }: { State: ReturnType<typeof progress
       <div className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full bg-violet-300/30 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-20 left-24 h-40 w-40 rounded-full bg-cyan-300/25 blur-3xl" />
       <div className="relative flex flex-col gap-4 rounded-[29px] bg-white/74 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6 dark:bg-slate-950/60">
-        <div className="flex min-w-0 gap-4">
+        <div className="flex min-w-0 flex-1 gap-4">
           <span className={`inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl border shadow-sm ${ToneClass}`}>
             <Trophy size={25} />
           </span>
@@ -726,15 +726,17 @@ function StudentProgressionBanner({ State }: { State: ReturnType<typeof progress
             <div className="flex flex-wrap items-center gap-2.5">
               <div className="math-block-header"><Milestone size={14} /> Next Level Journey</div>
               <span className={`rounded-full border px-3.5 py-1.5 text-[11px] font-black shadow-sm ${ToneClass}`}>{State.label}</span>
+              {/* on the chip row (2026-10, platform rule): the message under
+                  the title runs the full width of the card */}
+              <span className="ml-auto inline-flex shrink-0 items-center gap-2 rounded-2xl border border-white/80 bg-white/90 px-3.5 py-2.5 text-xs font-black text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-100">
+                <Sparkles size={14} />
+                Keep Going
+              </span>
             </div>
             <h2 className="mt-2.5 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[1.65rem]">{State.title}</h2>
             <p className="mt-2 max-w-4xl text-[0.95rem] leading-7 text-slate-650 dark:text-slate-200">{State.message}</p>
           </div>
         </div>
-        <span className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-white/80 bg-white/90 px-3.5 py-2.5 text-xs font-black text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-100">
-          <Sparkles size={14} />
-          Keep Going
-        </span>
       </div>
     </section>
   );

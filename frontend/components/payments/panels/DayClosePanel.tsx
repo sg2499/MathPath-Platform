@@ -62,7 +62,7 @@ function DifferenceText(paise: number): string {
 }
 
 export function StatePill({ state, changed }: { state: DayCloseState; changed?: boolean }) {
-  if (state === "CLOSED" && changed) return <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"><AlertTriangle size={12} />Changed after closing</span>;
+  if (state === "CLOSED" && changed) return <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"><AlertTriangle size={12} />Changed After Closing</span>;
   if (state === "CLOSED") return <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"><CheckCircle2 size={12} />Closed</span>;
   if (state === "REOPENED") return <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-violet-100 px-2.5 py-1 text-xs font-black text-violet-800 dark:bg-violet-950/40 dark:text-violet-200"><LockOpen size={12} />Reopened</span>;
   return <span className="inline-flex items-center whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">Open</span>;
@@ -121,7 +121,7 @@ export function DayClosePanel() {
           {data ? (
             <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 xl:shrink-0">
               <PaymentsMetric label="Taken" value={<span className="text-lg sm:text-xl">{data.figures.total.display}</span>} icon={<Wallet size={14} />} tone="emerald" />
-              <PaymentsMetric label="Cash expected" value={<span className="text-lg sm:text-xl">{data.figures.expectedCash.display}</span>} icon={<Scale size={14} />} tone="cyan" />
+              <PaymentsMetric label="Cash Expected" value={<span className="text-lg sm:text-xl">{data.figures.expectedCash.display}</span>} icon={<Scale size={14} />} tone="cyan" />
               <PaymentsMetric label="Day" value={<span className="text-lg sm:text-xl">{data.state === "CLOSED" ? (data.close?.changedAfterClose ? "Changed" : "Closed") : data.state === "REOPENED" ? "Reopened" : "Open"}</span>} icon={<CalendarCheck size={14} />} tone={data.state === "CLOSED" && !data.close?.changedAfterClose ? "emerald" : "amber"} />
             </div>
           ) : null}
@@ -131,7 +131,7 @@ export function DayClosePanel() {
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2">
           <span className="text-sm font-black text-slate-700 dark:text-slate-200">Day</span>
-          <input type="date" className="math-input h-11 w-auto px-3" value={day} max={today} onChange={(event) => event.target.value && choose(event.target.value)} aria-label="Day to close" />
+          <input type="date" className="math-input h-11 w-auto px-3" value={day} max={today} onChange={(event) => event.target.value && choose(event.target.value)} aria-label="Day To Close" />
         </label>
         {day !== today ? <button type="button" className="math-button-secondary h-11" onClick={() => choose(today)}>Today</button> : null}
         <span className="text-sm font-bold text-slate-500 dark:text-slate-400">{LongDay(day)}</span>
@@ -164,32 +164,32 @@ function OpeningLabel(f: DaySummary["figures"]) {
 function DayFiguresCard({ data }: { data: DaySummary }) {
   const f = data.figures;
   return (
-    <Card title="What came in" icon={<Wallet size={18} className="text-emerald-600 dark:text-emerald-400" />} action={<span className="text-sm font-bold text-slate-500 dark:text-slate-400">{f.paymentCount} payment{f.paymentCount === 1 ? "" : "s"}</span>}>
+    <Card title="What Came In" icon={<Wallet size={18} className="text-emerald-600 dark:text-emerald-400" />} action={<span className="text-sm font-bold text-slate-500 dark:text-slate-400">{f.paymentCount} payment{f.paymentCount === 1 ? "" : "s"}</span>}>
       {f.byMethod.length === 0 ? (
         <p className="grid min-h-[96px] place-items-center rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-400">No payments on this day.</p>
       ) : (
         <div>
           {f.byMethod.map((row) => <Row key={row.method} label={row.methodLabel} value={row.display} />)}
-          <Row label="Total taken" value={f.total.display} strong />
+          <Row label="Total Taken" value={f.total.display} strong />
         </div>
       )}
       <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-2 dark:bg-slate-900/60">
         <Row label={OpeningLabel(f)} value={f.openingCash.display} />
-        <Row label="Cash received" value={f.cashReceived.display} />
+        <Row label="Cash Received" value={f.cashReceived.display} />
         <Row label={`Less cash paid for expenses${f.expenseCount ? ` (${f.expenseCount})` : ""}`} value={f.cashSpent.paise ? `− ${f.cashSpent.display}` : f.cashSpent.display} />
-        <Row label="Cash expected in hand" value={f.expectedCash.display} strong />
+        <Row label="Cash Expected In Hand" value={f.expectedCash.display} strong />
       </div>
       {f.byCentre.length > 1 || f.byStaff.length > 1 ? (
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {f.byCentre.length > 1 ? (
             <div className="min-w-0">
-              <h3 className="mb-1 text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">By centre</h3>
+              <h3 className="mb-1 text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">By Centre</h3>
               {f.byCentre.map((row) => <Row key={row.name} label={row.name} value={<>{row.display}<span className="block text-xs font-semibold text-slate-500">cash {row.cash.display}</span></>} />)}
             </div>
           ) : null}
           {f.byStaff.length > 1 ? (
             <div className="min-w-0">
-              <h3 className="mb-1 text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">By staff</h3>
+              <h3 className="mb-1 text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">By Staff</h3>
               {f.byStaff.map((row) => <Row key={row.name} label={row.name} value={<>{row.display}<span className="block text-xs font-semibold text-slate-500">cash {row.cash.display}</span></>} />)}
             </div>
           ) : null}
@@ -231,14 +231,14 @@ function CountCard({ data }: { data: DaySummary }) {
 
   const pdfButton = (
     <button type="button" className="math-button-secondary" disabled={pdf.isPending} onClick={() => pdf.mutate()}>
-      {pdf.isPending ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}Day close PDF
+      {pdf.isPending ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}Day-Close PDF
     </button>
   );
 
   if (data.state === "CLOSED" && close) {
     const tone = close.difference.paise === 0 ? "text-emerald-700 dark:text-emerald-300" : close.difference.paise < 0 ? "text-rose-700 dark:text-rose-300" : "text-amber-700 dark:text-amber-300";
     return (
-      <Card title="Day closed" icon={<CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />} action={<StatePill state="CLOSED" changed={close.changedAfterClose} />}>
+      <Card title="Day Closed" icon={<CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />} action={<StatePill state="CLOSED" changed={close.changedAfterClose} />}>
         {close.changedAfterClose && close.changes ? (
           <div role="status" className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
             {close.changes.openingChanged
@@ -247,19 +247,19 @@ function CountCard({ data }: { data: DaySummary }) {
             Cash expected: {close.changes.cashAtClose.display} then, {close.changes.cashNow.display} now. Reopen the day to count and close it again.
           </div>
         ) : null}
-        <Row label="Opening cash" value={close.openingCash.display} />
-        <Row label="Cash expected (at closing)" value={close.expectedCash.display} />
-        <Row label="Cash counted" value={close.countedCash.display} />
+        <Row label="Opening Cash" value={close.openingCash.display} />
+        <Row label="Cash Expected (At Closing)" value={close.expectedCash.display} />
+        <Row label="Cash Counted" value={close.countedCash.display} />
         <Row label="Difference" value={DifferenceText(close.difference.paise)} strong tone={tone} />
         {close.handedOver.paise ? <Row label={`Taken out at close${close.handoverTo ? ` (${close.handoverTo})` : ""}`} value={`− ${close.handedOver.display}`} /> : null}
-        <Row label="Left in the drawer (next day's opening)" value={close.keptInDrawer.display} strong />
+        <Row label="Left In The Drawer (Next Day's Opening)" value={close.keptInDrawer.display} strong />
         {close.note ? <p className="mt-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 dark:bg-slate-900/60 dark:text-slate-200">Note: {close.note}</p> : null}
         <p className="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
           Closed by {close.closedByName ?? "someone"} on {When(close.closedAt)}{close.closeCount > 1 ? ` (closed ${close.closeCount} times)` : ""}.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {pdfButton}
-          {!reopening ? <button type="button" className="math-button-secondary" onClick={() => setReopening(true)}><LockOpen size={17} />Reopen day</button> : null}
+          {!reopening ? <button type="button" className="math-button-secondary" onClick={() => setReopening(true)}><LockOpen size={17} />Reopen Day</button> : null}
         </div>
         {reopening ? (
           <form className="mt-4 grid gap-2 rounded-2xl border border-slate-200 p-4 dark:border-slate-800" onSubmit={(event) => { event.preventDefault(); if (reason.trim()) reopenMutation.mutate(); }}>
@@ -282,30 +282,30 @@ function CountCard({ data }: { data: DaySummary }) {
 
   const differenceTone = !valid ? "text-slate-400" : difference === 0 ? "text-emerald-700 dark:text-emerald-300" : difference < 0 ? "text-rose-700 dark:text-rose-300" : "text-amber-700 dark:text-amber-300";
   return (
-    <Card title="Count the cash" icon={<Scale size={18} className="text-cyan-600 dark:text-cyan-400" />} action={<StatePill state={data.state} />}>
+    <Card title="Count The Cash" icon={<Scale size={18} className="text-cyan-600 dark:text-cyan-400" />} action={<StatePill state={data.state} />}>
       {data.state === "REOPENED" && close ? (
         <p className="mb-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-900 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100">
           Reopened by {close.reopenedByName ?? "someone"} on {When(close.reopenedAt)}: {close.reopenReason}. Count again and close it.
         </p>
       ) : null}
       <form className="grid gap-4" onSubmit={(event) => { event.preventDefault(); setTried(true); if (!problems.length && !closeMutation.isPending) closeMutation.mutate(); }}>
-        <Row label="Cash expected in hand" value={data.figures.expectedCash.display} />
+        <Row label="Cash Expected In Hand" value={data.figures.expectedCash.display} />
         <label className="grid gap-1.5">
-          <span className="text-sm font-black text-slate-900 dark:text-white">Cash counted (₹)</span>
+          <span className="text-sm font-black text-slate-900 dark:text-white">Cash Counted (₹)</span>
           <input autoFocus={data.isToday} className="math-input text-lg font-black tabular-nums" inputMode="decimal" value={counted} onChange={(event) => setCounted(event.target.value)} placeholder={data.figures.expectedCash.display.replace("₹", "")} aria-invalid={tried && !valid} />
         </label>
         <Row label="Difference" value={valid ? DifferenceText(difference) : "—"} strong tone={differenceTone} />
         <div className="grid gap-3 rounded-2xl border border-slate-200 p-3 sm:grid-cols-2 dark:border-slate-800">
           <label className="grid gap-1.5">
-            <span className="text-sm font-black text-slate-900 dark:text-white">Cash taken out now (₹)</span>
+            <span className="text-sm font-black text-slate-900 dark:text-white">Cash Taken Out Now (₹)</span>
             <input className="math-input tabular-nums" inputMode="decimal" value={handed} onChange={(event) => setHanded(event.target.value)} placeholder="0" aria-invalid={tried && !handedValid} />
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Banked or handed over at closing. 0 if it all stays in the drawer.</span>
           </label>
           <label className="grid gap-1.5">
-            <span className="text-sm font-black text-slate-900 dark:text-white">Where it went {handedValid && (handedPaise as number) > 0 ? <span className="text-rose-600 dark:text-rose-300">(needed)</span> : null}</span>
+            <span className="text-sm font-black text-slate-900 dark:text-white">Where It Went {handedValid && (handedPaise as number) > 0 ? <span className="text-rose-600 dark:text-rose-300">(needed)</span> : null}</span>
             <input className="math-input" maxLength={200} value={handoverTo} onChange={(event) => setHandoverTo(event.target.value)} placeholder="For example: deposited in HDFC, or handed to Shailesh" />
           </label>
-          <div className="sm:col-span-2"><Row label="Left in the drawer for the next day" value={kept === null ? "—" : FormatRupees(Math.max(0, kept))} strong /></div>
+          <div className="sm:col-span-2"><Row label="Left In The Drawer For The Next Day" value={kept === null ? "—" : FormatRupees(Math.max(0, kept))} strong /></div>
         </div>
         <label className="grid gap-1.5">
           <span className="text-sm font-black text-slate-900 dark:text-white">Note {valid && difference ? <span className="text-rose-600 dark:text-rose-300">(needed: the count does not match)</span> : <span className="font-semibold text-slate-500">(optional)</span>}</span>
@@ -319,7 +319,7 @@ function CountCard({ data }: { data: DaySummary }) {
         {closeMutation.error ? <InlineError error={closeMutation.error} /> : null}
         <div className="flex flex-wrap gap-2">
           <button type="submit" className="math-button-primary" disabled={closeMutation.isPending}>
-            {closeMutation.isPending ? <Loader2 size={17} className="animate-spin" /> : <CalendarCheck size={17} />}Close the day
+            {closeMutation.isPending ? <Loader2 size={17} className="animate-spin" /> : <CalendarCheck size={17} />}Close The Day
           </button>
           {pdfButton}
         </div>
@@ -355,19 +355,19 @@ function RecentDays({ rows, loading, selected, onPick }: { rows: RecentDay[]; lo
   return (
     <section className="math-card mt-6 p-5 sm:p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 dark:text-white"><History size={18} className="text-slate-500" />Last 30 days</h2>
+        <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 dark:text-white"><History size={18} className="text-slate-500" />Last 30 Days</h2>
       </div>
       {loading ? (
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-500"><Loader2 size={16} className="animate-spin" />Loading…</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm [&_th]:!bg-transparent">
+          <table className="ad-cards w-full min-w-[640px] text-sm [&_th]:!bg-transparent">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 <th className="py-2 pr-3">Day</th>
                 <th className="py-2 pr-3 text-right">Payments</th>
                 <th className="py-2 pr-3 text-right">Taken</th>
-                <th className="py-2 pr-3 text-right">Cash expected</th>
+                <th className="py-2 pr-3 text-right">Cash Expected</th>
                 <th className="py-2 pr-3 text-right">Counted</th>
                 <th className="py-2 pr-3 text-right">Difference</th>
                 <th className="py-2">Status</th>
@@ -376,17 +376,17 @@ function RecentDays({ rows, loading, selected, onPick }: { rows: RecentDay[]; lo
             <tbody>
               {rows.map((row) => (
                 <tr key={row.date} className={`cursor-pointer border-b border-slate-100 transition hover:bg-slate-50 dark:border-slate-800/70 dark:hover:bg-slate-900/50 ${row.date === selected ? "bg-cyan-50/60 dark:bg-cyan-950/20" : ""}`} onClick={() => onPick(row.date)}>
-                  <td className="py-2.5 pr-3 font-black text-slate-900 dark:text-white">
+                  <td className="ad-card-title py-2.5 pr-3 font-black text-slate-900 dark:text-white">
                     <button type="button" className="text-left hover:underline" onClick={(event) => { event.stopPropagation(); onPick(row.date); }}>{row.isToday ? "Today" : FormatDate(row.date)}</button>
                   </td>
-                  <td className="py-2.5 pr-3 text-right tabular-nums">{row.paymentCount}</td>
-                  <td className="py-2.5 pr-3 text-right font-black tabular-nums">{row.total.display}</td>
-                  <td className="py-2.5 pr-3 text-right tabular-nums">{row.expectedCash.display}</td>
-                  <td className="py-2.5 pr-3 text-right tabular-nums">{row.countedCash?.display ?? "—"}</td>
-                  <td className={`py-2.5 pr-3 text-right font-bold tabular-nums ${!row.difference ? "text-slate-400" : row.difference.paise === 0 ? "text-emerald-700 dark:text-emerald-300" : row.difference.paise < 0 ? "text-rose-700 dark:text-rose-300" : "text-amber-700 dark:text-amber-300"}`}>
+                  <td data-label="Payments" className="py-2.5 pr-3 text-right tabular-nums">{row.paymentCount}</td>
+                  <td data-label="Taken" className="py-2.5 pr-3 text-right font-black tabular-nums">{row.total.display}</td>
+                  <td data-label="Cash Expected" className="py-2.5 pr-3 text-right tabular-nums">{row.expectedCash.display}</td>
+                  <td data-label="Counted" className="py-2.5 pr-3 text-right tabular-nums">{row.countedCash?.display ?? "—"}</td>
+                  <td data-label="Difference" className={`py-2.5 pr-3 text-right font-bold tabular-nums ${!row.difference ? "text-slate-400" : row.difference.paise === 0 ? "text-emerald-700 dark:text-emerald-300" : row.difference.paise < 0 ? "text-rose-700 dark:text-rose-300" : "text-amber-700 dark:text-amber-300"}`}>
                     {row.difference ? (row.difference.paise === 0 ? "Matches" : row.difference.paise > 0 ? `+${row.difference.display}` : row.difference.display) : "—"}
                   </td>
-                  <td className="py-2.5"><StatePill state={row.state} changed={row.changedAfterClose} /></td>
+                  <td data-label="Status" className="py-2.5"><StatePill state={row.state} changed={row.changedAfterClose} /></td>
                 </tr>
               ))}
             </tbody>

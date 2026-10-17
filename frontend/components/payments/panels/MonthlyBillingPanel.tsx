@@ -105,7 +105,7 @@ export function MonthlyBillingPanel() {
             <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 xl:shrink-0">
               <PaymentsMetric label="Waiting" value={data.counts.waiting} icon={<FilePlus2 size={14} />} tone={data.counts.waiting ? "amber" : "slate"} />
               <PaymentsMetric label="Invoiced" value={data.counts.invoiced} icon={<CheckCircle2 size={14} />} tone="emerald" />
-              <PaymentsMetric label="Not billed" value={data.counts.notBilled} icon={<UserX size={14} />} tone={data.counts.notBilled ? "amber" : "slate"} />
+              <PaymentsMetric label="Not Billed" value={data.counts.notBilled} icon={<UserX size={14} />} tone={data.counts.notBilled ? "amber" : "slate"} />
             </div>
           ) : null}
         </div>
@@ -159,13 +159,13 @@ function MonthBody({ data, onPeriod, onMonth }: { data: BillingMonth; onPeriod: 
     <>
       <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex items-center gap-2">
-          <button type="button" className="math-button-secondary !h-11 !w-11 shrink-0 !justify-center !px-0" onClick={() => onPeriod(data.previousPeriod)} aria-label="Previous month"><ChevronLeft size={17} /></button>
+          <button type="button" className="math-button-secondary !h-11 !w-11 shrink-0 !justify-center !px-0" onClick={() => onPeriod(data.previousPeriod)} aria-label="Previous Month"><ChevronLeft size={17} /></button>
           <span className="min-w-[10rem] flex-1 text-center text-base font-black text-slate-900 dark:text-white sm:flex-none">{data.periodLabel}</span>
-          <button type="button" className="math-button-secondary !h-11 !w-11 shrink-0 !justify-center !px-0" disabled={!data.nextPeriod} onClick={() => data.nextPeriod && onPeriod(data.nextPeriod)} aria-label="Next month"><ChevronRight size={17} /></button>
+          <button type="button" className="math-button-secondary !h-11 !w-11 shrink-0 !justify-center !px-0" disabled={!data.nextPeriod} onClick={() => data.nextPeriod && onPeriod(data.nextPeriod)} aria-label="Next Month"><ChevronRight size={17} /></button>
         </div>
         <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 sm:ml-1">
           {data.settings.autoDraftsEnabled ? `Drafts are made automatically on the 1st${data.settings.autoFromLabel ? `, from ${data.settings.autoFromLabel}` : ""}.` : "Automatic drafts are off."}{" "}
-          <Link href="/admin/payments/settings?tab=billing" className="font-black text-cyan-700 hover:underline dark:text-cyan-300">Billing settings</Link>
+          <Link href="/admin/payments/settings?tab=billing" className="font-black text-cyan-700 hover:underline dark:text-cyan-300">Billing Settings</Link>
         </span>
       </div>
 
@@ -180,9 +180,9 @@ function MonthBody({ data, onPeriod, onMonth }: { data: BillingMonth; onPeriod: 
       <div className="mt-6"><Steps step={1} /></div>
 
       <Card
-        title={`Waiting to be released (${waiting.length})`}
+        title={`Waiting To Be Released (${waiting.length})`}
         icon={<FilePlus2 size={18} className="text-amber-600 dark:text-amber-400" />}
-        action={releasable.length ? <button type="button" className="text-sm font-black text-cyan-700 hover:underline dark:text-cyan-300" onClick={() => setSelected(allTicked ? new Set() : new Set(releasable.map((row) => row.draftId)))}>{allTicked ? "Untick all" : "Tick all"}</button> : null}
+        action={releasable.length ? <button type="button" className="text-sm font-black text-cyan-700 hover:underline dark:text-cyan-300" onClick={() => setSelected(allTicked ? new Set() : new Set(releasable.map((row) => row.draftId)))}>{allTicked ? "Untick All" : "Tick All"}</button> : null}
       >
         {waiting.length === 0 ? (
           <p className="grid min-h-[96px] place-items-center rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-400">
@@ -190,35 +190,35 @@ function MonthBody({ data, onPeriod, onMonth }: { data: BillingMonth; onPeriod: 
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm [&_th]:!bg-transparent">
+            <table className="ad-cards w-full min-w-[720px] text-left text-sm [&_th]:!bg-transparent">
               <thead className="text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                 <tr className="border-b border-slate-200 dark:border-slate-800">
                   <th className="w-10 py-2 pr-3" />
                   <th className="py-2 pr-3">Student</th>
                   <th className="py-2 pr-3">Mode</th>
                   <th className="py-2 pr-3 text-right">Fee</th>
-                  <th className="py-2 pr-3 text-right">From advance</th>
-                  <th className="py-2 pr-3 text-right">To pay</th>
+                  <th className="py-2 pr-3 text-right">From Advance</th>
+                  <th className="py-2 pr-3 text-right">To Pay</th>
                   <th className="py-2 text-right" />
                 </tr>
               </thead>
               <tbody>
                 {waiting.map((row) => (
                   <tr key={row.draftId} className="border-b border-slate-100 align-top dark:border-slate-800/70">
-                    <td className="py-3 pr-3">
+                    <td className="ad-card-check py-3 pr-3">
                       <input type="checkbox" className="h-4 w-4 accent-cyan-600" disabled={Boolean(row.issue)} checked={!row.issue && selected.has(row.draftId)} onChange={() => toggle(row.draftId)} aria-label={`Bill ${row.studentName}`} />
                     </td>
-                    <td className="py-3 pr-3">
+                    <td className="ad-card-title py-3 pr-3">
                       <StudentLink studentId={row.studentId} className="block font-black text-slate-900 hover:underline dark:text-white">{row.studentName}</StudentLink>
                       <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{[row.studentCode, row.levelCode, row.centreName].filter(Boolean).join(" · ")}</span>
                       {row.issue ? <span className="mt-1 flex items-start gap-1 text-xs font-bold text-amber-700 dark:text-amber-300"><AlertTriangle size={12} className="mt-0.5 shrink-0" />{row.issue}</span> : null}
                     </td>
-                    <td className="py-3 pr-3"><ModePill mode={row.billingMode} /></td>
-                    <td className="py-3 pr-3 text-right font-black tabular-nums text-slate-900 dark:text-white">{row.fee?.display ?? "—"}<span className="block text-xs font-semibold text-slate-500">{row.fee?.name}</span></td>
-                    <td className="py-3 pr-3 text-right tabular-nums text-violet-700 dark:text-violet-300">{row.advanceToApply.paise ? row.advanceToApply.display : "—"}</td>
-                    <td className="py-3 pr-3 text-right font-black tabular-nums text-slate-900 dark:text-white">{row.fee ? row.dueAfterAdvance.display : "—"}</td>
-                    <td className="py-3 text-right">
-                      <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => setDropping(row)}><UserX size={13} />Don&apos;t bill</button>
+                    <td data-label="Mode" className="py-3 pr-3"><ModePill mode={row.billingMode} /></td>
+                    <td data-label="Fee" className="py-3 pr-3 text-right font-black tabular-nums text-slate-900 dark:text-white">{row.fee?.display ?? "—"}<span className="block text-xs font-semibold text-slate-500">{row.fee?.name}</span></td>
+                    <td data-label="From Advance" className="py-3 pr-3 text-right tabular-nums text-violet-700 dark:text-violet-300">{row.advanceToApply.paise ? row.advanceToApply.display : "—"}</td>
+                    <td data-label="To Pay" className="py-3 pr-3 text-right font-black tabular-nums text-slate-900 dark:text-white">{row.fee ? row.dueAfterAdvance.display : "—"}</td>
+                    <td className="ad-card-wide py-3 text-right">
+                      <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => setDropping(row)}><UserX size={13} />Don&apos;t Bill</button>
                     </td>
                   </tr>
                 ))}
@@ -233,18 +233,18 @@ function MonthBody({ data, onPeriod, onMonth }: { data: BillingMonth; onPeriod: 
               {advance ? <span className="text-violet-700 dark:text-violet-300"> · {FormatRupees(advance)} from advance</span> : null}
             </p>
             <button type="button" className="math-button-primary" disabled={!chosen.length || blocked} onClick={() => setReviewing(true)}>
-              <Send size={17} />Review and release {chosen.length || ""}
+              <Send size={17} />Review And Release {chosen.length || ""}
             </button>
           </div>
         ) : null}
       </Card>
 
       <Card
-        title={`Not billed yet (${data.notBilled.length})`}
+        title={`Not Billed Yet (${data.notBilled.length})`}
         icon={<UserX size={18} className="text-rose-600 dark:text-rose-400" />}
         action={data.notBilled.length ? (
           <button type="button" className="math-button-secondary" disabled={create.isPending} onClick={() => create.mutate(undefined)}>
-            {create.isPending ? <Loader2 size={16} className="animate-spin" /> : <CalendarPlus size={16} />}Add drafts for all {data.notBilled.length}
+            {create.isPending ? <Loader2 size={16} className="animate-spin" /> : <CalendarPlus size={16} />}Add Drafts For All {data.notBilled.length}
           </button>
         ) : null}
       >
@@ -256,7 +256,7 @@ function MonthBody({ data, onPeriod, onMonth }: { data: BillingMonth; onPeriod: 
               <li key={row.studentId} className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
                 <span className="min-w-0 flex-1">
                   <StudentLink studentId={row.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{row.studentName}</StudentLink>
-                  <span className="block truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{row.studentCode} · {row.billingModeLabel} · {row.fee?.display ?? "no fee chosen"}</span>
+                  <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{row.studentCode} · {row.billingModeLabel} · {row.fee?.display ?? "No Fee Chosen"}</span>
                 </span>
                 <button type="button" className="math-role-action-button h-9 shrink-0 px-3 text-xs" disabled={create.isPending} onClick={() => create.mutate([row.studentId])}><CalendarPlus size={13} />Add</button>
               </li>
@@ -307,7 +307,7 @@ function MonthBody({ data, onPeriod, onMonth }: { data: BillingMonth; onPeriod: 
                       <StudentLink studentId={row.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{row.studentName}</StudentLink>
                       <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{row.dropReason}{row.droppedByName ? ` · ${row.droppedByName}` : ""}</span>
                     </span>
-                    <button type="button" className="math-role-action-button h-9 shrink-0 px-3 text-xs" disabled={restore.isPending} onClick={() => restore.mutate(row.draftId)}><RotateCcw size={13} />Put back</button>
+                    <button type="button" className="math-role-action-button h-9 shrink-0 px-3 text-xs" disabled={restore.isPending} onClick={() => restore.mutate(row.draftId)}><RotateCcw size={13} />Put Back</button>
                   </li>
                 ))}
               </ul>
@@ -430,7 +430,7 @@ function ReleasedDialog({ result, periodLabel, onClose }: { result: BillingRelea
             <ul className="mt-1 grid gap-0.5">{result.notReleased.map((row) => <li key={`${row.studentName}-${row.reason}`}>{row.studentName}: {row.reason}</li>)}</ul>
           </div>
         ) : null}
-        <Link href="/admin/payments/invoices?tab=all" onClick={onClose} className="math-button-secondary justify-center">See all invoices</Link>
+        <Link href="/admin/payments/invoices?tab=all" onClick={onClose} className="math-button-secondary justify-center">See All Invoices</Link>
       </div>
     </PaymentsDialog>
   );

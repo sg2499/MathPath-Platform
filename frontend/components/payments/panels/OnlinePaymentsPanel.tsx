@@ -28,10 +28,10 @@ const PAGE_SIZE = 50;
 const STATUS_TABS: [string, string][] = [
   ["ALL", "All"],
   ["PAID", "Paid"],
-  ["ATTENTION", "Needs attention"],
+  ["ATTENTION", "Needs Attention"],
   ["FAILED", "Failed"],
-  ["ABANDONED", "Not completed"],
-  ["CREATED", "In progress"],
+  ["ABANDONED", "Not Completed"],
+  ["CREATED", "In Progress"],
 ];
 
 function When(iso: string | null | undefined): string {
@@ -82,14 +82,14 @@ function OrderDialog({ orderRef, onClose, onChanged }: { orderRef: string | null
     <PaymentsDialog
       open={Boolean(orderRef)}
       wide
-      kicker="Online payment"
+      kicker="Online Payment"
       title={order ? `${order.studentName} · ${order.amountDisplay}` : "Online payment"}
       onClose={onClose}
       footer={
         order ? (
           <>
             {order.paymentId ? (
-              <Link className="math-button-secondary" href={`/admin/payments/collections?tab=payments&studentId=${encodeURIComponent(order.studentId)}`}>Open payments</Link>
+              <Link className="math-button-secondary" href={`/admin/payments/collections?tab=payments&studentId=${encodeURIComponent(order.studentId)}`}>Open Payments</Link>
             ) : null}
             <button type="button" className="math-button-primary" disabled={check.isPending} onClick={() => check.mutate()}>
               {check.isPending ? <Loader2 size={17} className="animate-spin" /> : <RefreshCw size={17} />}Check with Razorpay
@@ -107,7 +107,7 @@ function OrderDialog({ orderRef, onClose, onChanged }: { orderRef: string | null
           <div className="flex flex-wrap items-center gap-2">
             <OnlineStatusChip status={order.status} label={order.statusLabel} />
             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300">{order.sourceLabel}</span>
-            {order.keyMode === "TEST" ? <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">Test mode</span> : null}
+            {order.keyMode === "TEST" ? <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">Test Mode</span> : null}
           </div>
           {order.lastError && order.status !== "PAID" ? (
             <p className={`rounded-2xl border px-4 py-3 text-sm font-bold ${order.status === "ATTENTION" ? "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200" : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"}`}>{order.lastError}</p>
@@ -139,7 +139,7 @@ function OrderDialog({ orderRef, onClose, onChanged }: { orderRef: string | null
             </ul>
           </div>
           <div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-white">What happened</h3>
+            <h3 className="text-sm font-black text-slate-900 dark:text-white">What Happened</h3>
             <ol className="mt-3 grid gap-0 border-l-2 border-slate-200 pl-4 dark:border-slate-800">
               {(order.events ?? []).map((event) => (
                 <li key={event.eventId} className="relative pb-3 last:pb-0">
@@ -240,7 +240,7 @@ export function OnlinePaymentsPanel() {
       ) : null}
 
       <section className="mt-6 math-card p-5 sm:p-6">
-        <div role="tablist" aria-label="Online payment status" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        <div role="tablist" aria-label="Online Payment Status" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {STATUS_TABS.map(([key, label]) => {
             const count = key === "ALL" ? null : data?.counts[key as OnlineOrderStatus];
             return (
@@ -255,26 +255,26 @@ export function OnlinePaymentsPanel() {
         <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative sm:col-span-2">
             <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Student, receipt, or Razorpay order or payment id" aria-label="Search online payments" />
+            <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Student, receipt, or Razorpay order or payment id" aria-label="Search Online Payments" />
           </div>
           <label className="block">
-            <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Paid from</span>
+            <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Paid From</span>
             <select className="math-input" value={source} onChange={(event) => setSource(event.target.value)}>
               <option value="">Anywhere</option>
-              <option value="STUDENT">Student login</option>
-              <option value="PAY_LINK">Pay link</option>
+              <option value="STUDENT">Student Login</option>
+              <option value="PAY_LINK">Pay Link</option>
             </select>
           </label>
           <fieldset className="grid grid-cols-2 gap-2">
-            <legend className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Started from / to</legend>
-            <input type="date" className="math-input px-3" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="Started from" />
-            <input type="date" className="math-input px-3" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} aria-label="Started to" />
+            <legend className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Started From / To</legend>
+            <input type="date" className="math-input px-3" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="Started From" />
+            <input type="date" className="math-input px-3" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} aria-label="Started To" />
           </fieldset>
         </div>
         {filtersOn ? (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
-            {studentId ? <span className="rounded-full bg-cyan-50 px-3 py-1 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">Showing one student</span> : null}
-            <button type="button" className="inline-flex items-center gap-1 underline" onClick={clearFilters}><X size={12} />Clear filters</button>
+            {studentId ? <span className="rounded-full bg-cyan-50 px-3 py-1 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">Showing One Student</span> : null}
+            <button type="button" className="inline-flex items-center gap-1 underline" onClick={clearFilters}><X size={12} />Clear Filters</button>
           </div>
         ) : null}
 
@@ -285,9 +285,9 @@ export function OnlinePaymentsPanel() {
             <ErrorState message="Online payments could not be loaded. Refresh the page to try again." />
           ) : !orders.length ? (
             filtersOn ? (
-              <EmptyState title="No online payments match" description="Try different filters, or clear them." />
+              <EmptyState title="No Online Payments Match" description="Try different filters, or clear them." />
             ) : (
-              <EmptyState title="No online payments yet" description="Payments started from the student login or a pay link appear here, including ones that failed or were not completed." />
+              <EmptyState title="No Online Payments Yet" description="Payments started from the student login or a pay link appear here, including ones that failed or were not completed." />
             )
           ) : (
             <>

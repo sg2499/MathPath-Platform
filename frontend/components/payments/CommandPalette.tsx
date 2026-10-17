@@ -46,20 +46,20 @@ type Item = {
 };
 
 const SHORTCUTS: { title: string; detail: string; href: string; icon: LucideIcon; words: string; quickPay?: boolean }[] = [
-  { title: "Record a payment", detail: "Quick Pay", href: "/admin/payments/collections?tab=student-fees", icon: HandCoins, words: "record payment receive collect cash upi counter quick pay", quickPay: true },
-  { title: "Close the day", detail: "Collections › Day Close", href: "/admin/payments/collections?tab=day-close", icon: CalendarCheck, words: "day close cash count drawer end of day today" },
-  { title: "Bill this month", detail: "Invoices › Monthly Billing", href: "/admin/payments/invoices?tab=monthly", icon: CalendarCheck, words: "bill month monthly fee drafts release billing january february march april may june july august september october november december" },
-  { title: "Generate invoices", detail: "Invoices › Generate (one-time items)", href: "/admin/payments/invoices?tab=generate", icon: FilePlus2, words: "generate invoices bill one time registration book bag raise" },
-  { title: "Collections report", detail: "Reports › Collections", href: "/admin/payments/reports?tab=collections", icon: BarChart3, words: "today collection report method staff" },
+  { title: "Record A Payment", detail: "Quick Pay", href: "/admin/payments/collections?tab=student-fees", icon: HandCoins, words: "record payment receive collect cash upi counter quick pay", quickPay: true },
+  { title: "Close The Day", detail: "Collections › Day Close", href: "/admin/payments/collections?tab=day-close", icon: CalendarCheck, words: "day close cash count drawer end of day today" },
+  { title: "Bill This Month", detail: "Invoices › Monthly Billing", href: "/admin/payments/invoices?tab=monthly", icon: CalendarCheck, words: "bill month monthly fee drafts release billing january february march april may june july august september october november december" },
+  { title: "Generate Invoices", detail: "Invoices › Generate (one-time items)", href: "/admin/payments/invoices?tab=generate", icon: FilePlus2, words: "generate invoices bill one time registration book bag raise" },
+  { title: "Collections Report", detail: "Reports › Collections", href: "/admin/payments/reports?tab=collections", icon: BarChart3, words: "today collection report method staff" },
   { title: "Follow-ups", detail: "Collections › Follow-ups", href: "/admin/payments/collections?tab=follow-ups", icon: Wallet, words: "follow up followups chase remind reminder call promise dues pending overdue" },
   { title: "Insights", detail: "Reports › Insights", href: "/admin/payments/reports?tab=insights", icon: BarChart3, words: "insights collection rate days to pay forecast unusual activity discount backdated cancellations trend" },
   { title: "Activity", detail: "Reports › Activity (who did what)", href: "/admin/payments/reports?tab=activity", icon: History, words: "activity history log audit who changed what feed" },
   { title: "Dues", detail: "Reports › Dues", href: "/admin/payments/reports?tab=dues", icon: Wallet, words: "dues pending unpaid overdue outstanding" },
-  { title: "Online payments", detail: "Collections › Online Payments", href: "/admin/payments/collections?tab=online", icon: CreditCard, words: "online razorpay failed attention pay link" },
-  { title: "All invoices", detail: "Invoices", href: "/admin/payments/invoices?tab=all", icon: FileText, words: "invoices list all" },
-  { title: "All payments", detail: "Collections › Payments", href: "/admin/payments/collections?tab=payments", icon: ReceiptText, words: "payments receipts list all" },
-  { title: "Add an expense", detail: "Expenses", href: "/admin/payments/expenses?tab=expenses", icon: BarChart3, words: "expense spend bill add" },
-  { title: "Payment settings", detail: "Business details, numbering, fees, online", href: "/admin/payments/settings", icon: Settings, words: "settings numbering business centres fee setup online razorpay" },
+  { title: "Online Payments", detail: "Collections › Online Payments", href: "/admin/payments/collections?tab=online", icon: CreditCard, words: "online razorpay failed attention pay link" },
+  { title: "All Invoices", detail: "Invoices", href: "/admin/payments/invoices?tab=all", icon: FileText, words: "invoices list all" },
+  { title: "All Payments", detail: "Collections › Payments", href: "/admin/payments/collections?tab=payments", icon: ReceiptText, words: "payments receipts list all" },
+  { title: "Add An Expense", detail: "Expenses", href: "/admin/payments/expenses?tab=expenses", icon: BarChart3, words: "expense spend bill add" },
+  { title: "Payment Settings", detail: "Business details, numbering, fees, online", href: "/admin/payments/settings", icon: Settings, words: "settings numbering business centres fee setup online razorpay" },
 ];
 
 function useDebounced<T>(value: T, delay = 180): T {
@@ -79,11 +79,11 @@ export function PaymentsSearchButton({ onOpen, block = false }: { onOpen: () => 
       type="button"
       onClick={onOpen}
       className={`math-focus-ring inline-flex h-11 min-w-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-3.5 text-sm font-bold text-slate-500 shadow-sm transition hover:border-cyan-300 hover:text-slate-700 dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400 dark:hover:border-cyan-700 dark:hover:text-slate-200 ${block ? "w-full" : "w-full sm:w-auto sm:min-w-[300px]"}`}
-      aria-label="Search payments"
+      aria-label="Search Payments"
       aria-keyshortcuts={mac ? "Meta+K" : "Control+K"}
     >
       <Search size={16} />
-      <span className="min-w-0 flex-1 truncate text-left"><span className="sm:hidden">Search student, invoice, receipt</span><span className="hidden sm:inline">Search a student, invoice or receipt…</span></span>
+      <span className="min-w-0 flex-1 truncate text-left"><span className="sm:hidden">Search Student, Invoice, Receipt</span><span className="hidden sm:inline">Search a student, invoice or receipt…</span></span>
       <kbd className="hidden rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-black text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 sm:inline">{mac ? "⌘K" : "Ctrl K"}</kbd>
     </button>
   );
@@ -276,7 +276,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Search payments"
+        aria-label="Search Payments"
         className="mp-drop-in mp-panel-head flex max-h-[75vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 shadow-[0_30px_90px_-20px_rgba(15,23,42,0.55)] dark:border-slate-800"
         onKeyDown={onKeyDown}
       >
@@ -290,7 +290,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             placeholder="Search a student, mobile, invoice, receipt, expense or Razorpay id…"
             className="h-14 min-w-0 flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 dark:text-white"
             role="combobox"
-            aria-label="Search payments"
+            aria-label="Search Payments"
             aria-expanded="true"
             aria-controls="mp-palette-list"
             aria-activedescendant={items[active] ? `mp-palette-${items[active].key}` : undefined}

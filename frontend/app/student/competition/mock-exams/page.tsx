@@ -335,7 +335,7 @@ function StudentCompetitionMockExamsContent() {
     <AppShell title="Competition Mock Exams">
       <section className="space-y-6">
         <div className="math-card p-6 flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
-          <div className="flex-1 pr-8">
+          <div className="flex-1">
             <div className="math-block-header mb-2"><Swords size={14} /> Mock Exams</div>
             <h1 className="math-title">Mock Exams</h1>
             <p className="math-subtitle max-w-none">

@@ -1412,12 +1412,12 @@ function ModulePracticeBlock({
             {moduleTitle(Group.Sample)}
           </h3>
           <p className="mt-1 text-sm font-semibold text-slate-500">
-            {Group.Levels.length} level(s) and {Group.Lessons.length} lesson(s)
+            {Group.Levels.length} {Group.Levels.length === 1 ? "level" : "levels"} and {Group.Lessons.length} {Group.Lessons.length === 1 ? "lesson" : "lessons"}
             in the selected scope.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Chip tone="blue">{Group.Levels.length} Level(s)</Chip>
+          <Chip tone="blue">{Group.Levels.length} {Group.Levels.length === 1 ? "Level" : "Levels"}</Chip>
           <Chip tone="blue">{uniqueAssignedConceptCount(Group.Rows)} DPS</Chip>
           <Chip tone="green">{ClearedCount} Cleared</Chip>
           {Average === null ? null : (
@@ -1484,7 +1484,7 @@ function LevelPracticeBlock({
           </h4>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Chip tone="blue">{Group.Lessons.length} Lesson(s)</Chip>
+          <Chip tone="blue">{Group.Lessons.length} {Group.Lessons.length === 1 ? "Lesson" : "Lessons"}</Chip>
           <Chip tone="green">{ClearedCount} Cleared</Chip>
           {Average === null ? null : (
             <Chip tone={accuracyTone(Average)}>{Average}% Avg</Chip>

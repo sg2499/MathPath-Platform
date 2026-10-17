@@ -46,7 +46,7 @@ export function PayLinkCard({ studentId, studentName, compact = false }: { stude
         <div className="flex min-w-0 items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-200"><Link2 size={18} /></span>
           <div className="min-w-0">
-            <p className="font-black text-slate-950 dark:text-white">Pay link for parents</p>
+            <p className="font-black text-slate-950 dark:text-white">Pay Link For Parents</p>
             <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
               {link
                 ? `Opened ${link.openCount} time${link.openCount === 1 ? "" : "s"} · works until ${FormatDate(link.expiresAt?.slice(0, 10))}. Shows what is due when it is opened.`
@@ -59,7 +59,7 @@ export function PayLinkCard({ studentId, studentName, compact = false }: { stude
         <div className="flex shrink-0 flex-wrap gap-2">
           {!link && onlinePaymentsLive ? (
             <button type="button" className="math-button-primary h-10 whitespace-nowrap" disabled={create.isPending} onClick={() => create.mutate()}>
-              {create.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}Create pay link
+              {create.isPending ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}Create Pay Link
             </button>
           ) : null}
           {!link && !onlinePaymentsLive ? (
@@ -86,10 +86,10 @@ export function PayLinkCard({ studentId, studentName, compact = false }: { stude
                   <button type="button" className="math-role-action-button h-10 whitespace-nowrap px-3 text-xs !text-rose-700 dark:!text-rose-300" disabled={revoke.isPending} onClick={() => revoke.mutate(link.linkId)}>
                     {revoke.isPending ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}Yes, switch it off
                   </button>
-                  <button type="button" className="math-role-action-button h-10 whitespace-nowrap px-3 text-xs" onClick={() => setConfirmOff(false)}>Keep it</button>
+                  <button type="button" className="math-role-action-button h-10 whitespace-nowrap px-3 text-xs" onClick={() => setConfirmOff(false)}>Keep It</button>
                 </>
               ) : (
-                <button type="button" className="math-role-action-button h-10 whitespace-nowrap px-3 text-xs" onClick={() => setConfirmOff(true)}><XCircle size={15} />Switch off</button>
+                <button type="button" className="math-role-action-button h-10 whitespace-nowrap px-3 text-xs" onClick={() => setConfirmOff(true)}><XCircle size={15} />Switch Off</button>
               )}
             </>
           ) : null}

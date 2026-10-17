@@ -8,11 +8,11 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
-import { getAdminCompetitionMockResult } from "@/lib/api/admin";
+import { getAdminCompetitionMockResult, getAdminStudents } from "@/lib/api/admin";
 import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   Award,
-  BookMarked,
   BookOpenCheck,
   Brain,
   CheckCircle2,
@@ -150,6 +150,67 @@ function buildCompetitionMessage(
   };
 }
 
+// 2026-10 (admin revamp, from the teacher revamp): the coach panel spoke to the student ("Maintain
+// your perfect form"). A teacher reads it about the student instead, with
+// the same bands, focus topics and next target. The admin reads the same.
+function buildTeacherCoachMessage(
+  result: Awaited<ReturnType<typeof getAdminCompetitionMockResult>>,
+  FirstName: string,
+): CompetitionMessage {
+  const Base = buildCompetitionMessage(result);
+  const Percentage = Number(result.percentage ?? result.accuracyPercentage ?? 0);
+  const Band = competitionBandKey(Percentage);
+  const Rounded = Math.round(Percentage);
+  const Headline: Record<string, string> = {
+    perfect: `${FirstName} Scored A Perfect ${Rounded}%`,
+    champion: `${FirstName} Is In The Champion Zone At ${Rounded}%`,
+    strong: `${FirstName} Had A Strong Mock At ${Rounded}%`,
+    momentum: `${FirstName} Is Building Momentum At ${Rounded}%`,
+    practice: `${FirstName} Needs More Practice At ${Rounded}%`,
+    restart: `${FirstName} Needs A Fresh Start At ${Rounded}%`,
+  };
+  const Message: Record<string, string> = {
+    perfect: `Every question was right. Keep ${FirstName} on full mocks to hold this form.`,
+    champion: `${FirstName} is close to flawless. The few mistakes left are worth going through together.`,
+    strong: `${FirstName} has a solid base. The weaker topics below are what stand between this and the Champion Zone.`,
+    momentum: `${FirstName} is getting there. Section-wise practice on the topics below will lift the score fastest.`,
+    practice: `${FirstName} is finding several topics hard. Go over the basics of the topics below before the next mock.`,
+    restart: `${FirstName} struggled on this mock. Start with the weakest topic below and build up one section at a time.`,
+  };
+  const Unanswered = Number(result.unanswered || 0);
+  const Utilisation = Number(result.timeUtilizationPercentage || 0);
+  const Notes = [
+    Unanswered > 0 ? `${Unanswered} question${Unanswered === 1 ? " was" : "s were"} left unanswered.` : "",
+    Utilisation > 85
+      ? `${FirstName} used most of the time, so watch for accuracy dropping near the end.`
+      : Utilisation < 25
+        ? `${FirstName} finished quickly; encourage using the spare time to check answers.`
+        : `${FirstName}'s pace leaves room to balance speed with accuracy.`,
+  ].filter(Boolean);
+  const NextTarget =
+    Percentage >= 100
+      ? "Hold 100% on the next mock."
+      : Percentage >= 95
+        ? "Reach a flawless 100%."
+        : Percentage >= 90
+          ? "Reach 95% or more with no careless slips."
+          : Percentage >= 75
+            ? "Reach the 90% Champion Zone."
+            : Percentage >= 60
+              ? "Reach 75% or more by working on the weaker sections."
+              : Percentage >= 40
+                ? "Reach 60% or more with cleaner basics."
+                : "A first big jump through section-wise practice.";
+  return {
+    ...Base,
+    title: Headline[Band],
+    message: Message[Band],
+    coachNote: Notes.join(" "),
+    focusAreas: Percentage >= 100 ? ["Keep practising full mocks"] : Base.focusAreas,
+    nextTarget: NextTarget,
+  };
+}
+
 function TeacherCompetitionResultDarkHoverStyles() {
   return (
     <style>{`
@@ -239,6 +300,9 @@ export default function AdminCompetitionMockResultPage() {
     queryFn: () => getAdminCompetitionMockResult(attemptId),
     enabled: ready && Boolean(attemptId),
   });
+  // The result carries only the student's id; the name comes from the
+  // admin's student list (the same query Students uses, usually cached).
+  const studentsQuery = useQuery({ queryKey: ["admin-students"], queryFn: getAdminStudents, enabled: ready });
 
   if (!ready) return null;
 
@@ -269,7 +333,11 @@ export default function AdminCompetitionMockResultPage() {
 
   const mock = result.mockExam || {};
   const questionReview = result.questionReview || [];
-  const competitionMessage = buildCompetitionMessage(result);
+  const student = (studentsQuery.data || []).find((item) => item.studentId === result.studentId);
+  const studentName = student?.studentName || "";
+  const firstName = studentName.split(" ")[0] || "The student";
+  const competitionMessage = buildTeacherCoachMessage(result, firstName);
+  const backHref = `/admin/competition/mock-tracker?studentId=${result.studentId || ""}&moduleCode=${mock.moduleCode || ""}&levelCode=${mock.levelCode || ""}`;
 
   // Focus-area buttons pass a concept name (e.g. "BODMAS"), not a section
   // title -- several concepts share one section -- so map the concept back to
@@ -286,17 +354,23 @@ export default function AdminCompetitionMockResultPage() {
     <AppShell title="Competition Mock Result">
       <TeacherCompetitionResultDarkHoverStyles />
       <section className="teacher-competition-dark-hover-scope space-y-5">
-        <div className="math-card p-6">
-          <button
-            className="math-button-secondary mb-4 px-4 py-2 text-sm"
-            onClick={() => router.push(`/admin/competition/mock-tracker?studentId=${result.studentId || ""}&moduleCode=${mock.moduleCode || ""}&levelCode=${mock.levelCode || ""}`)}
-          >
+        <div className="ad-back-row">
+          <button type="button" className="ad-back" onClick={() => router.push(backHref)}>
+            <ArrowLeft size={16} />
             Back To Mock Tracker
           </button>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        </div>
+        <div className="math-card p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="math-block-header"><Award size={14} />Mock Result</p>
               <h1 className="math-title">{mock.title || "Mock Result"}</h1>
+              {studentName ? (
+                <p className="ad-result-student">
+                  <span className="ad-name">{studentName}</span>
+                  {student?.studentCode ? <span className="ad-code-inline">{student.studentCode}</span> : null}
+                </p>
+              ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 {mock.mockCode ? <Chip label={mock.mockCode} /> : null}
                 <Chip
@@ -304,15 +378,12 @@ export default function AdminCompetitionMockResultPage() {
                 />
               </div>
               <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-300">
-                Submitted {formatDate(result.completedAt || result.submittedAt)}
-                . Review the student mock answers, correct solutions, and section
-                performance below.
+                Submitted {formatDate(result.completedAt || result.submittedAt)}. Below are{" "}
+                {studentName ? `${firstName}'s` : "the student's"} answers, the correct solutions and how each section went.
               </p>
             </div>
             <div className="rounded-[24px] border border-[#2563eb]/25 bg-[#2563eb]/5 px-6 py-4 text-center dark:border-cyan-300/30 dark:bg-cyan-400/10">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2563eb] dark:text-cyan-100">
-                Score
-              </p>
+              <p className="ad-mini-label">Score</p>
               <p className="mt-1 text-4xl font-black text-slate-950 dark:text-white">
                 {formatNumber(result.score)}/{formatNumber(result.maxScore)}
               </p>
@@ -323,28 +394,28 @@ export default function AdminCompetitionMockResultPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             icon={<Target size={18} />}
-            label="ACCURACY"
+            label="Accuracy"
             value={`${formatNumber(result.accuracyPercentage)}%`}
             helper="Attempted answers"
           />
           <MetricCard
             icon={<CheckCircle2 size={18} />}
-            label="CORRECT"
+            label="Correct"
             value={result.correct}
             helper={`${result.totalQuestions} total questions`}
           />
           <MetricCard
             icon={<XCircle size={18} />}
-            label="UNANSWERED"
+            label="Unanswered"
             value={result.unanswered}
             helper="Scored as zero"
           />
           <MetricCard
             icon={<Clock3 size={18} />}
-            label="TIME TAKEN"
+            label="Time Taken"
             value={formatDuration(result.timeTakenSeconds)}
             helper={`${formatNumber(result.timeUtilizationPercentage)}% time used`}
           />
@@ -383,14 +454,17 @@ function CompetitionMessageBox({
     <article className="relative overflow-hidden rounded-[32px] border border-[#2563eb]/25 bg-gradient-to-br from-white via-[#2563eb]/5 to-[#e6b8a2]/10 p-5 shadow-xl shadow-[#2563eb]/10 dark:border-cyan-300/30 dark:from-slate-950 dark:via-cyan-950/20 dark:to-slate-900 dark:shadow-cyan-950/20">
       <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-[#2563eb]/20 blur-3xl" />
       <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2563eb] to-[#b76e79] text-white shadow-lg shadow-[#2563eb]/20 dark:shadow-cyan-950/40">
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2563eb] to-[#4f46e5] text-white shadow-lg shadow-[#2563eb]/20 dark:shadow-cyan-950/40">
             <Icon size={26} />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="math-block-header"><Megaphone size={14} />Competition Coach</p>
-              <span className="rounded-full border border-[#2563eb]/20 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-100">
+              <p className="math-block-header">
+                <Megaphone size={14} />
+                Coach&apos;s Read
+              </p>
+              <span className="rounded-full border border-[#2563eb]/20 bg-white px-3 py-1 text-xs font-black text-[#2563eb] dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-100">
                 {message.badge}
               </span>
             </div>
@@ -408,9 +482,7 @@ function CompetitionMessageBox({
 
         <div className="grid min-w-0 gap-3 lg:w-[360px]">
           <div className="rounded-[24px] border border-[#2563eb]/20 bg-white/90 p-4 dark:border-cyan-300/30 dark:bg-slate-950/70">
-            <p className="math-block-header text-[#2563eb] dark:text-cyan-100">
-              <ArrowRight size={14} />Focus Next
-            </p>
+            <p className="ad-mini-label">Focus Next</p>
             <div className="mt-3 grid gap-2">
               {message.focusAreas.map((area: any) => (
                 <button
@@ -425,9 +497,7 @@ function CompetitionMessageBox({
             </div>
           </div>
           <div className="rounded-[24px] border border-[#e6b8a2]/50 bg-[#e6b8a2]/15 p-4 dark:border-[#e6b8a2]/30 dark:bg-[#e6b8a2]/10">
-            <p className="math-block-header text-[#2563eb] dark:text-cyan-100">
-              <Target size={14} />Next Target
-            </p>
+            <p className="ad-mini-label">Next Target</p>
             <p className="mt-2 text-base font-black leading-6 text-slate-950 dark:text-white">
               {message.nextTarget}
             </p>
@@ -450,19 +520,12 @@ function MetricCard({
   helper: string;
 }) {
   return (
-    <article className="math-card p-5">
-      <div className="inline-flex rounded-2xl bg-[#2563eb]/5 p-2 text-[#2563eb] dark:bg-cyan-400/10 dark:text-cyan-100">
-        {icon}
-      </div>
-      <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 dark:text-slate-300">
-        {label}
-      </p>
-      <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
-        {value}
-      </p>
-      <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-300">
-        {helper}
-      </p>
-    </article>
+    // the admin number tile (label over value, helper under)
+    <div className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-5">
+      {icon ? <div className="math-teacher-icon-chip relative z-10">{icon}</div> : null}
+      <p className="relative z-10">{label}</p>
+      <p className="relative z-10">{value}</p>
+      <p className="relative z-10">{helper}</p>
+    </div>
   );
 }

@@ -177,7 +177,7 @@ function marksValidationCopy(marks: number | null) {
 }
 
 function marksPerQuestion(totalQuestions: number) {
-  return totalQuestions ? "Auto-Balanced" : "-";
+  return totalQuestions ? "Auto-Balanced" : "—";
 }
 
 // MM is flat 1 mark/question everywhere. PM, BM, and IM (and any future
@@ -502,23 +502,25 @@ export default function AdminAssessmentBlueprintBuilderPage() {
     <AppShell>
       <section className="math-hero math-admin-studio-hero">
         <div className="math-admin-studio-glow" />
-        <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <div className="ad-hero-stack relative z-10">
           <div>
             <div className="math-block-header">
               <Sparkles size={14} /> Assessment Studio
             </div>
-            <h1 className="mt-4 max-w-4xl text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">Assessment Studio</h1>
-            <p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-slate-600 dark:text-slate-300">Build, validate, publish, and manage level-wide assessments from one focused workspace.</p>
+            <h1 className="math-title">Assessment Studio</h1>
+            <p className="math-subtitle">Build, validate, publish, and manage level-wide assessments from one focused workspace.</p>
+          </div>
+          {/* the five settings as the admin tiles (2026-10, admin revamp):
+              label over value, as on every admin page; the figures used to
+              sit on the right with their labels on the left */}
+          <div className="ad-hero-tiles ad-hero-tiles-5">
+            <StudioMetric icon={<FilePenLine size={17} />} label="Assessments" value={blueprintsQuery.data?.total ?? 0} helper="Saved Structures" />
+            <StudioMetric icon={<ShieldCheck size={17} />} label="Total Marks" value="100" helper="Fixed Convention" />
+            <StudioMetric icon={<Target size={17} />} label="Benchmark" value="70%" helper="Minimum Pass Mark" />
+            <StudioMetric icon={<Clock size={17} />} label="Duration" value="60 Mins" helper="Fixed Assessment Time" />
+            <StudioMetric icon={<Layers3 size={17} />} label="Coverage" value="All Lessons" helper="Level-Wide Coverage" />
           </div>
         </div>
-      </section>
-
-      <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <StudioMetric icon={<FilePenLine size={17} />} label="Assessments" value={blueprintsQuery.data?.total ?? 0} helper="Saved Structures" />
-        <StudioMetric icon={<ShieldCheck size={17} />} label="Total Marks" value="100" helper="Fixed Convention" />
-        <StudioMetric icon={<Target size={17} />} label="Benchmark" value="70%" helper="Minimum Pass Mark" />
-        <StudioMetric icon={<Clock size={17} />} label="Duration" value="60 Mins" helper="Fixed Assessment Time" />
-        <StudioMetric icon={<Layers3 size={17} />} label="Coverage" value="All Lessons" helper="Level-Wide Coverage" />
       </section>
 
       <section className="mt-5 rounded-[32px] border border-white/70 bg-white/88 p-4 shadow-lg dark:border-slate-800 dark:bg-slate-950/80 sm:p-5">
@@ -550,7 +552,7 @@ export default function AdminAssessmentBlueprintBuilderPage() {
             <div><p className="math-block-header"><PlayCircle size={14} />Create Assessment</p><h2 className="text-3xl font-black text-slate-950 dark:text-white">Build Assessment Structure</h2><p className="mt-2 max-w-3xl text-sm font-semibold text-slate-500">Complete the setup, review the distribution matrix, then save as draft or publish.</p></div>
             <div className={`rounded-[24px] border px-5 py-4 ${validDistribution ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><p className={`text-xs font-black uppercase tracking-[0.14em] ${validDistribution ? "text-emerald-700" : "text-amber-700"}`}>{validDistribution ? "Ready To Publish" : "Distribution Pending"}</p><p className={`mt-1 text-sm font-black ${validDistribution ? "text-emerald-800" : "text-amber-800"}`}>{isSectionWiseLevel ? `${distributionMarks ?? 0} / 100 marks` : `${distributionTotal} / ${totalQuestions} questions`}</p></div>
           </div>
-          <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.4fr)]">
+          <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.4fr)]">
             <div className="rounded-[30px] border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-800 dark:bg-slate-900/40">
               <p className="math-block-header"><Rocket size={14} />Step 1</p><h3 className="text-xl font-black text-slate-950 dark:text-white">Assessment Details</h3>
               <div className="mt-5 space-y-4">
@@ -563,10 +565,10 @@ export default function AdminAssessmentBlueprintBuilderPage() {
             </div>
             <div className="rounded-[30px] border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between"><div><p className="math-block-header"><Calculator size={14} />Step 2</p><h3 className="text-xl font-black text-slate-950 dark:text-white">Distribution Matrix</h3><p className="mt-1 text-sm font-semibold text-slate-500">{isSectionWiseLevel ? "One clean matrix for every section this level's mock exam uses." : "One clean matrix for every active lesson in the selected level."}</p></div><div className="flex flex-wrap gap-2"><button type="button" className="math-button-secondary px-3 py-2" disabled={!distributionSourceCount} onClick={() => setDistribution(isSectionWiseLevel ? (hasWeightedSections ? distributeWeighted100(sections, weightedQuestionCount) : distributeEvenlyFromSections(sections, 100)) : distributeEvenlyFromLessons(lessons, totalQuestions))}><Zap size={15} />Auto Balance</button><button type="button" className="math-button-secondary px-3 py-2" disabled={!distributionSourceCount} onClick={() => setDistribution((current) => current.map((item) => ({ ...item, questionCount: 1 })))}><Minus size={15} />Clear</button></div></div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-4"><Info label="Module" value={selectedModule?.moduleCode || "-"} /><Info label="Level" value={selectedLevel?.levelCode || "-"} /><Info label={isSectionWiseLevel ? "Sections" : "Lessons"} value={distributionSourceCount || "-"} /><Info label="Marks/Question" value={selectedModule ? marksModeLabel(selectedModule.moduleCode) : marksPerQuestion(totalQuestions) || "-"} /></div>
-              {isSectionWiseLevel ? <div className="mt-3 grid gap-3 sm:grid-cols-2"><Info label="Total Questions" value={submittedTotalQuestions || "-"} /><Info label="Total Marks" value={distributionMarks ?? "-"} /></div> : null}
+              <div className="mt-5 grid gap-3 sm:grid-cols-4"><Info label="Module" value={selectedModule?.moduleCode || "—"} /><Info label="Level" value={selectedLevel?.levelCode || "—"} /><Info label={isSectionWiseLevel ? "Sections" : "Lessons"} value={distributionSourceCount || "—"} /><Info label="Marks Per Question" value={selectedModule ? marksModeLabel(selectedModule.moduleCode) : marksPerQuestion(totalQuestions) || "—"} /></div>
+              {isSectionWiseLevel ? <div className="mt-3 grid gap-3 sm:grid-cols-2"><Info label="Total Questions" value={submittedTotalQuestions || "—"} /><Info label="Total Marks" value={distributionMarks ?? "—"} /></div> : null}
               <div className={`mt-5 rounded-[24px] border p-4 ${validDistribution ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className={`text-xs font-black uppercase tracking-[0.14em] ${validDistribution ? "text-emerald-700" : "text-amber-700"}`}>Validation</p><p className={`mt-1 text-sm font-black ${validDistribution ? "text-emerald-800" : "text-amber-800"}`}>{isSectionWiseLevel ? marksValidationCopy(distributionMarks) : differenceCopy(distributionDifference)}</p></div><div className={`rounded-2xl px-4 py-2 text-sm font-black ${validDistribution ? "bg-white text-emerald-700" : "bg-white text-amber-700"}`}>{isSectionWiseLevel ? `Marks: ${distributionMarks ?? 0} / 100` : <>Difference: {distributionDifference > 0 ? "+" : ""}{distributionDifference}</>}</div></div></div>
-              <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200 dark:border-slate-800"><div className="grid grid-cols-[70px_1fr_130px_110px_120px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900"><div>{itemNoun}</div><div>Topic</div><div>Questions</div><div>Weight</div><div>Status</div></div><div className="max-h-[430px] overflow-y-auto bg-white dark:bg-slate-950">{lessonsQuery.isLoading || sectionsQuery.isLoading ? <LoadingState label={`Loading ${itemNoun.toLowerCase()}s...`} /> : null}{!levelId ? <div className="p-6 text-sm font-semibold text-slate-500">Select a module and level to load the distribution matrix.</div> : null}{levelId && !lessonsQuery.isLoading && !sectionsQuery.isLoading && !distributionSourceCount ? <div className="p-6 text-sm font-semibold text-slate-500">No active {itemNoun.toLowerCase()}s found for this level.</div> : null}{distribution.map((item) => { const weight = submittedTotalQuestions ? ((item.questionCount / submittedTotalQuestions) * 100).toFixed(1) : "0"; return <div key={item.itemId} className="grid grid-cols-[70px_1fr_130px_110px_120px] gap-3 border-t border-slate-100 px-4 py-3 text-sm dark:border-slate-800"><div className="flex items-center"><span className="math-admin-studio-chip rounded-2xl px-3 py-2 text-xs font-black">{item.isSection ? "S" : "L"}{item.itemNumber}</span></div><div className="min-w-0"><p className="truncate font-black text-slate-950 dark:text-white">{item.itemTitle}</p><p className="mt-1 text-xs font-semibold text-slate-500">Full-level coverage required</p></div><input className="math-input h-11" type="number" min={1} value={item.questionCount} onChange={(event) => updateDistribution(item.itemId, Number(event.target.value))} /><div className="flex items-center font-black text-slate-700 dark:text-slate-200">{weight}%</div><div className="flex items-center"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Included</span></div></div>; })}</div></div>
+              <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200 dark:border-slate-800"><div className="ad-matrix-head grid grid-cols-[70px_1fr_130px_110px_120px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900"><div>{itemNoun}</div><div>Topic</div><div>Questions</div><div>Weight</div><div>Status</div></div><div className="max-h-[430px] overflow-y-auto bg-white dark:bg-slate-950">{lessonsQuery.isLoading || sectionsQuery.isLoading ? <LoadingState label={`Loading ${itemNoun.toLowerCase()}s...`} /> : null}{!levelId ? <div className="p-6 text-sm font-semibold text-slate-500">Select a module and level to load the distribution matrix.</div> : null}{levelId && !lessonsQuery.isLoading && !sectionsQuery.isLoading && !distributionSourceCount ? <div className="p-6 text-sm font-semibold text-slate-500">No active {itemNoun.toLowerCase()}s found for this level.</div> : null}{distribution.map((item) => { const weight = submittedTotalQuestions ? ((item.questionCount / submittedTotalQuestions) * 100).toFixed(1) : "0"; return <div key={item.itemId} className="ad-matrix-row grid grid-cols-[70px_1fr_130px_110px_120px] gap-3 border-t border-slate-100 px-4 py-3 text-sm dark:border-slate-800"><div className="flex items-center"><span className="math-admin-studio-chip rounded-2xl px-3 py-2 text-xs font-black">{item.isSection ? "S" : "L"}{item.itemNumber}</span></div><div className="min-w-0"><p className="truncate font-black text-slate-950 dark:text-white">{item.itemTitle}</p><p className="mt-1 text-xs font-semibold text-slate-500">Full-level coverage required</p></div><input className="math-input h-11" type="number" min={1} value={item.questionCount} onChange={(event) => updateDistribution(item.itemId, Number(event.target.value))} /><div className="ad-matrix-weight flex items-center font-black text-slate-700 dark:text-slate-200">{weight}%</div><div className="flex items-center"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Included</span></div></div>; })}</div></div>
               {createMutation.error ? <div className="mt-4"><ErrorState message={apiErrorMessage(createMutation.error)} /></div> : null}
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">{editingBlueprint ? <button type="button" className="math-button-secondary" onClick={cancelEditBlueprint} disabled={updateMutation.isPending}>Cancel Edit</button> : null}<button type="button" className="math-button-secondary" disabled={!canCreate || createMutation.isPending || updateMutation.isPending} title={!canCreate ? (isSectionWiseLevel ? marksValidationCopy(distributionMarks) : differenceCopy(distributionDifference)) : editingBlueprint ? "Save assessment changes" : "Save as draft"} onClick={() => editingBlueprint ? updateMutation.mutate() : createMutation.mutate("DRAFT")}><Save size={17} />{editingBlueprint ? "Save Changes" : "Save Draft"}</button>{!editingBlueprint ? <button type="button" className="math-button-primary" disabled={!canCreate || createMutation.isPending} title={!canCreate ? (isSectionWiseLevel ? marksValidationCopy(distributionMarks) : differenceCopy(distributionDifference)) : "Create and publish"} onClick={() => createMutation.mutate("PUBLISHED")}><Rocket size={17} />Create & Publish</button> : null}</div>
             </div>
@@ -1082,16 +1084,11 @@ function DetailMetric({ icon, label, value, helper }: { icon: React.ReactNode; l
 }
 function StudioMetric({ icon, label, value, helper }: { icon: React.ReactNode; label: string; value: string | number; helper: string }) {
   return (
-    <div className="group relative overflow-hidden rounded-[20px] border border-white/70 bg-white/88 p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]">
-      <div className="pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full math-admin-studio-card-glow blur-2xl transition" />
-      <div className="relative z-10 flex items-start justify-between gap-3">
-        <div className="math-icon-shell inline-flex h-8 w-8 items-center justify-center rounded-xl border shadow-sm">
-          {icon}
-        </div>
-        <p className="text-2xl font-black text-slate-950 dark:text-white">{value}</p>
-      </div>
-      <p className="relative z-10 mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">{label}</p>
-      <p className="relative z-10 mt-0.5 text-xs font-bold text-slate-600 dark:text-slate-300">{helper}</p>
+    <div className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-5">
+      <div className="math-teacher-icon-chip relative z-10">{icon}</div>
+      <p className="relative z-10">{label}</p>
+      <p className="relative z-10">{value}</p>
+      <p className="relative z-10">{helper}</p>
     </div>
   );
 }

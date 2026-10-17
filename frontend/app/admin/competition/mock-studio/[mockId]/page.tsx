@@ -334,43 +334,52 @@ export default function AdminCompetitionMockDetailPage() {
 
         {mock ? (
           <>
-            <section className="math-admin-studio-detail-hero relative overflow-hidden rounded-[28px] border p-3 shadow-[0_16px_42px_rgba(15,23,42,0.07)] sm:p-4">
-              <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-                <div className="min-w-0">
-                  <button type="button" onClick={() => router.push("/admin/competition/mock-studio?tab=manage")} className="math-role-action-button h-9 px-3 text-xs">
-                    <ArrowLeft size={14} /> Back To Mock Studio
-                  </button>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${statusTone(mock.status)}`}>{mock.status}</span>
-                    <span className="math-admin-studio-chip rounded-full px-2.5 py-0.5 text-[10px] font-black">{mock.moduleCode || "-"} · {mock.levelCode || "-"}</span>
-                    <span className="math-admin-studio-chip rounded-full px-2.5 py-0.5 text-[10px] font-black">Code: {mock.mockCode || "-"}</span>
-                    <span className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-800 shadow-sm dark:border-emerald-700/70 dark:bg-emerald-950/30 dark:text-emerald-200">MOCK</span>
+            {/* 2026-10 (admin revamp): Back above the card at the right, the
+                usual pill, title and description, the actions on the title's
+                row, and the four settings as admin tiles under them */}
+            <div className="ad-back-row">
+              <button type="button" className="ad-back" onClick={() => router.push("/admin/competition/mock-studio?tab=manage")}>
+                <ArrowLeft size={16} />
+                Back To Mock Studio
+              </button>
+            </div>
+
+            <section className="math-hero">
+              <div className="ad-hero-stack relative z-10">
+                <div className="mp-headbar">
+                  <div className="mp-headbar-head min-w-0">
+                    <p className="math-block-header"><FileText size={14} />Mock Details</p>
+                    <h1 className="math-title">{mock.title}</h1>
                   </div>
-                  <p className="math-block-header mt-2"><FileText size={14} />Mock Details</p>
-                  <h1 className="mt-0.5 max-w-4xl truncate text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">{mock.title}</h1>
-                  <p className="mt-1 max-w-3xl text-sm font-bold leading-5 text-slate-700 dark:text-slate-200">Full-page competition mock preview with section coverage and generated question details.</p>
-                </div>
-                <div className="flex flex-wrap gap-2 xl:justify-end">
-                  <button type="button" className="math-role-action-button min-h-9 px-4 py-2 text-[13px]" onClick={() => setShowAnswers((current) => !current)}>
-                    <Eye size={15} />{showAnswers ? "Hide Answers" : "Show Answers"}
-                  </button>
-                  {!isArchived ? (
-                    <button type="button" className="math-role-action-button min-h-9 px-4 py-2 text-[13px]" onClick={() => setArchiveOpen(true)}>
-                      <Archive size={15} />Archive
+                  <div className="mp-headbar-desc">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-black ${statusTone(mock.status)}`}>{InitCapsWord(mock.status)}</span>
+                      <span className="math-admin-studio-chip rounded-full px-2.5 py-0.5 text-xs font-black">{mock.moduleCode || "—"} · {mock.levelCode || "—"}</span>
+                      {mock.mockCode ? <span className="math-admin-studio-chip rounded-full px-2.5 py-0.5 text-xs font-black">{mock.mockCode}</span> : null}
+                    </div>
+                    <p className="math-subtitle">Full-page competition mock preview with section coverage and generated question details.</p>
+                  </div>
+                  <div className="mp-headbar-act flex flex-wrap gap-2 xl:justify-end">
+                    <button type="button" className="math-button-secondary" onClick={() => setShowAnswers((current) => !current)}>
+                      <Eye size={15} />{showAnswers ? "Hide Answers" : "Show Answers"}
                     </button>
-                  ) : null}
-                  <button type="button" className="inline-flex min-h-9 items-center justify-center gap-2 rounded-2xl border border-rose-300 bg-rose-50 px-4 py-2 text-[13px] font-black text-rose-700 shadow-sm shadow-rose-900/10 transition hover:-translate-y-0.5 hover:border-rose-600 hover:bg-rose-600 hover:text-white hover:shadow-lg hover:shadow-rose-900/20 dark:border-rose-700/70 dark:bg-rose-950/30 dark:text-rose-200 dark:hover:border-rose-600 dark:hover:bg-rose-700 dark:hover:text-white" onClick={() => setDeleteOpen(true)}>
-                    <Trash2 size={15} />Delete
-                  </button>
+                    {!isArchived ? (
+                      <button type="button" className="math-button-secondary" onClick={() => setArchiveOpen(true)}>
+                        <Archive size={15} />Archive
+                      </button>
+                    ) : null}
+                    <button type="button" className="math-button-danger" onClick={() => setDeleteOpen(true)}>
+                      <Trash2 size={15} />Delete
+                    </button>
+                  </div>
+                </div>
+                <div className="ad-hero-tiles">
+                  <DetailMetric icon={<Target size={16} />} label="Questions" value={mock.totalQuestions} helper="Mock Length" />
+                  <DetailMetric icon={<ShieldCheck size={16} />} label="Total Marks" value={mock.totalMarks} helper="Competition Total" />
+                  <DetailMetric icon={<FileText size={16} />} label="Marks Per Question" value={describeMarksPerQuestion(mock.questions || [], mock.marksPerQuestion)} helper="Configured Marking" />
+                  <DetailMetric icon={<Clock size={16} />} label="Duration" value={formatDuration(mock.durationSeconds)} helper="Competition Time" />
                 </div>
               </div>
-            </section>
-
-            <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              <DetailMetric icon={<Target size={16} />} label="Questions" value={mock.totalQuestions} helper="Mock Length" />
-              <DetailMetric icon={<ShieldCheck size={16} />} label="Total Marks" value={mock.totalMarks} helper="Competition Total" />
-              <DetailMetric icon={<FileText size={16} />} label="Marks/Question" value={describeMarksPerQuestion(mock.questions || [], mock.marksPerQuestion)} helper="Configured Marking" />
-              <DetailMetric icon={<Clock size={16} />} label="Duration" value={formatDuration(mock.durationSeconds)} helper="Competition Time" />
             </section>
 
             {(archiveMutation.error || deleteMutation.error) ? <ErrorState message={apiErrorMessage(archiveMutation.error || deleteMutation.error)} /> : null}
@@ -415,19 +424,19 @@ function MockOverviewTab({ mock }: { mock: CompetitionMockExamDetail }) {
         <div className="rounded-[26px] border border-slate-200 p-5 dark:border-slate-800">
           <p className="math-block-header"><Info size={14} />Instructions</p>
           <h3 className="mt-2 text-xl font-black text-slate-950 dark:text-white">Student Instructions</h3>
-          <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{mock.instructions || "Complete the mock under competition timing without taking breaks."}</p>
+          <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{TidyPlurals(mock.instructions || "Complete the mock under competition timing without taking breaks.")}</p>
           <div className="mt-4 rounded-[22px] bg-slate-50 p-4 text-sm font-bold leading-6 text-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
             Questions are generated from the selected level syllabus and split into competition sections.
           </div>
         </div>
 
         <div className="overflow-hidden rounded-[26px] border border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between gap-3 bg-slate-50 px-5 py-3 dark:bg-slate-900">
+          <div className="flex items-center justify-between gap-3 bg-slate-50 px-5 pb-3 pt-5 dark:bg-slate-900">
             <div>
               <p className="math-block-header"><Calculator size={14} />Section Matrix</p>
               <h3 className="text-xl font-black text-slate-950 dark:text-white">Section-Wise Questions</h3>
             </div>
-            <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">{sections.length} Sections</span>
+            <span className="rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">{sections.length} {sections.length === 1 ? "Section" : "Sections"}</span>
           </div>
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {sections.map((section) => (
@@ -619,16 +628,26 @@ function DeleteDialog({ busy, onCancel, onConfirm }: { busy: boolean; onCancel: 
 }
 
 function DetailMetric({ icon, label, value, helper }: { icon: ReactNode; label: string; value: string | number; helper: string }) {
+  // the admin number tile (label over value, helper under)
   return (
-    <div className="group relative overflow-hidden rounded-[22px] border border-white/70 bg-white/88 p-4 shadow-md transition hover:-translate-y-0.5 hover:shadow-xl dark:border-blue-300/20 dark:bg-slate-950/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(2,6,23,0.28)]">
-      <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full math-admin-studio-card-glow blur-2xl transition" />
-      <div className="relative z-10 flex items-start justify-between gap-3">
-        <div className="math-icon-shell inline-flex h-9 w-9 items-center justify-center rounded-2xl border shadow-sm">{icon}</div>
-        <p className="text-xl font-black text-slate-950 dark:text-white">{value}</p>
-      </div>
-      <p className="relative z-10 mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">{label}</p>
-      <p className="relative z-10 mt-0.5 text-xs font-bold text-slate-800 dark:text-slate-200">{helper}</p>
+    <div className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-5">
+      <div className="math-teacher-icon-chip relative z-10">{icon}</div>
+      <p className="relative z-10">{label}</p>
+      <p className="relative z-10">{value}</p>
+      <p className="relative z-10">{helper}</p>
     </div>
   );
 }
 
+// "DRAFT" -> "Draft"
+function InitCapsWord(Value?: string | null) {
+  const Text = String(Value || "Draft").replace(/_/g, " ").toLowerCase();
+  return Text.replace(/(^|\s)([a-z])/g, (Match, Lead, Letter) => `${Lead}${Letter.toUpperCase()}`);
+}
+
+// generated instructions written before the house style ("1 section(s)", " -- ")
+function TidyPlurals(Text: string) {
+  return Text
+    .replace(/(\d+)\s+([A-Za-z]+)\(s\)/g, (Match, Count, Word) => `${Count} ${Number(Count) === 1 ? Word : `${Word}s`}`)
+    .replace(/\s--\s/g, " — ");
+}

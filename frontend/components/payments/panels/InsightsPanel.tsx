@@ -73,10 +73,10 @@ export function InsightsPanel() {
           </div>
           {data ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:shrink-0">
-              <PaymentsMetric label="Billing paid" value={<span className="text-lg sm:text-xl">{Percent(data.collection.rate)}</span>} icon={<TrendingUp size={14} />} tone="cyan" />
-              <PaymentsMetric label="Days to pay" value={<span className="text-lg sm:text-xl">{data.collection.averageDaysToPay ?? "—"}</span>} icon={<Clock3 size={14} />} />
+              <PaymentsMetric label="Billing Paid" value={<span className="text-lg sm:text-xl">{Percent(data.collection.rate)}</span>} icon={<TrendingUp size={14} />} tone="cyan" />
+              <PaymentsMetric label="Days To Pay" value={<span className="text-lg sm:text-xl">{data.collection.averageDaysToPay ?? "—"}</span>} icon={<Clock3 size={14} />} />
               <PaymentsMetric label="Overdue" value={<span className="text-lg sm:text-xl">{data.overdueNow.display}</span>} icon={<AlertTriangle size={14} />} tone={data.overdueNow.paise ? "amber" : "emerald"} />
-              <PaymentsMetric label="To review" value={<span className="text-lg sm:text-xl">{data.unusual.openCount}</span>} icon={<ShieldAlert size={14} />} tone={data.unusual.openCount ? "amber" : "emerald"} />
+              <PaymentsMetric label="To Review" value={<span className="text-lg sm:text-xl">{data.unusual.openCount}</span>} icon={<ShieldAlert size={14} />} tone={data.unusual.openCount ? "amber" : "emerald"} />
             </div>
           ) : null}
         </div>
@@ -99,16 +99,16 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
   const parts = [
     { key: "collected", label: "Paid", value: forecast.collected, colour: pick(COLOURS.collected) },
     { key: "overdue", label: "Overdue", value: forecast.overdue, colour: pick(COLOURS.overdue) },
-    { key: "soon", label: `Due by ${FormatDate(forecast.monthEnd).replace(/ \d{4}$/, "")}`, value: forecast.dueByMonthEnd, colour: pick(COLOURS.dueSoon) },
-    { key: "later", label: "Due later", value: forecast.dueLater, colour: pick(COLOURS.later) },
+    { key: "soon", label: `Due By ${FormatDate(forecast.monthEnd).replace(/ \d{4}$/, "")}`, value: forecast.dueByMonthEnd, colour: pick(COLOURS.dueSoon) },
+    { key: "later", label: "Due Later", value: forecast.dueLater, colour: pick(COLOURS.later) },
   ];
   const whole = Math.max(1, parts.reduce((sum, part) => sum + part.value.paise, 0));
   const collection = data.collection;
   const chartData = data.months.map((month) => ({
     label: month.label,
     Billed: month.billed.paise / 100,
-    "Billing paid": month.collected.paise / 100,
-    "Overdue at month end": month.overdue.paise / 100,
+    "Billing Paid": month.collected.paise / 100,
+    "Overdue At Month End": month.overdue.paise / 100,
   }));
   const grid = dark ? "#334155" : "#e2e8f0";
   const axis = dark ? "#cbd5e1" : "#475569";
@@ -117,7 +117,7 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
   return (
     <>
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card title={`${data.thisMonthLabel} so far`} icon={<CalendarClock size={18} className="text-cyan-600 dark:text-cyan-400" />}>
+        <Card title={`${data.thisMonthLabel} So Far`} icon={<CalendarClock size={18} className="text-cyan-600 dark:text-cyan-400" />}>
           <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Still to come from this month&apos;s billing</p>
           <p className="mt-1 text-3xl font-black tabular-nums text-slate-950 dark:text-white">{forecast.stillToCome.display}</p>
           <div className="mt-4 flex h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800" role="img" aria-label={parts.map((part) => `${part.label} ${part.value.display}`).join(", ")}>
@@ -137,25 +137,25 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
           </p>
         </Card>
 
-        <Card title="Paying on time" icon={<Clock3 size={18} className="text-emerald-600 dark:text-emerald-400" />}>
-          <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Average days from invoice to paid</p>
+        <Card title="Paying On Time" icon={<Clock3 size={18} className="text-emerald-600 dark:text-emerald-400" />}>
+          <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Average Days From Invoice To Paid</p>
           <p className="mt-1 text-3xl font-black tabular-nums text-slate-950 dark:text-white">{collection.averageDaysToPay === null ? "—" : `${collection.averageDaysToPay} day${collection.averageDaysToPay === 1 ? "" : "s"}`}</p>
           <dl className="mt-4 grid gap-2.5 text-sm">
             <div className="flex items-baseline justify-between gap-3">
-              <dt className="font-bold text-slate-600 dark:text-slate-300">Half are paid within</dt>
+              <dt className="font-bold text-slate-600 dark:text-slate-300">Half Are Paid Within</dt>
               <dd className="font-black tabular-nums text-slate-950 dark:text-white">{collection.medianDaysToPay === null ? "—" : `${collection.medianDaysToPay} day${collection.medianDaysToPay === 1 ? "" : "s"}`}</dd>
             </div>
             <div className="flex items-baseline justify-between gap-3">
-              <dt className="font-bold text-slate-600 dark:text-slate-300">Paid by the due date</dt>
+              <dt className="font-bold text-slate-600 dark:text-slate-300">Paid By The Due Date</dt>
               <dd className="font-black tabular-nums text-slate-950 dark:text-white">{Percent(collection.onTimePercent)}</dd>
             </div>
             <div className="flex items-baseline justify-between gap-3 border-t border-slate-200 pt-2.5 dark:border-slate-700">
-              <dt className="font-bold text-slate-600 dark:text-slate-300">{data.thisMonthLabel} billing paid</dt>
+              <dt className="font-bold text-slate-600 dark:text-slate-300">{data.thisMonthLabel} Billing Paid</dt>
               <dd className="font-black tabular-nums text-slate-950 dark:text-white">{Percent(collection.rate)}</dd>
             </div>
             {collection.previousLabel ? (
               <div className="flex items-baseline justify-between gap-3">
-                <dt className="font-bold text-slate-600 dark:text-slate-300">{collection.previousLabel} billing paid</dt>
+                <dt className="font-bold text-slate-600 dark:text-slate-300">{collection.previousLabel} Billing Paid</dt>
                 <dd className="font-black tabular-nums text-slate-950 dark:text-white">{Percent(collection.previousRate)}</dd>
               </div>
             ) : null}
@@ -169,11 +169,11 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
       <UnusualCard initial={data.unusual} />
 
       <div className="mt-6">
-        <Card title="Last six months" icon={<BarChart3 size={18} className="text-cyan-600 dark:text-cyan-400" />}>
+        <Card title="Last Six Months" icon={<BarChart3 size={18} className="text-cyan-600 dark:text-cyan-400" />}>
           <p className="-mt-2 mb-3 text-sm font-semibold text-slate-600 dark:text-slate-300">What each month billed, how much of it has come in, and how much was overdue at the end of the month.</p>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={4}>
+              <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }} barGap={4}>
                 <CartesianGrid strokeDasharray="3 3" stroke={grid} vertical={false} />
                 <XAxis dataKey="label" tick={{ fill: axis, fontSize: 12, fontWeight: 700 }} axisLine={{ stroke: grid }} tickLine={false} />
                 <YAxis tick={{ fill: axis, fontSize: 12 }} axisLine={false} tickLine={false} width={56} tickFormatter={(value: number) => CompactRupees(value * 100)} />
@@ -184,32 +184,32 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
                 />
                 <Legend wrapperStyle={{ color: axis, fontWeight: 700, fontSize: 12 }} />
                 <Bar dataKey="Billed" fill={pick(COLOURS.billed)} radius={[6, 6, 0, 0]} maxBarSize={30} />
-                <Bar dataKey="Billing paid" fill={pick(COLOURS.collected)} radius={[6, 6, 0, 0]} maxBarSize={30} />
-                <Line type="monotone" dataKey="Overdue at month end" stroke={pick(COLOURS.overdue)} strokeWidth={2.5} dot={{ r: 3.5, fill: pick(COLOURS.overdue) }} />
+                <Bar dataKey="Billing Paid" fill={pick(COLOURS.collected)} radius={[6, 6, 0, 0]} maxBarSize={30} />
+                <Line type="monotone" dataKey="Overdue At Month End" stroke={pick(COLOURS.overdue)} strokeWidth={2.5} dot={{ r: 3.5, fill: pick(COLOURS.overdue) }} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
           <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[640px] whitespace-nowrap text-sm">
+            <table className="ad-cards w-full min-w-[640px] whitespace-nowrap text-sm">
               <thead>
                 <tr className="text-left text-xs font-black uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
                   <th className="py-2 pr-3">Month</th>
                   <th className="py-2 pr-3 text-right">Billed</th>
-                  <th className="py-2 pr-3 text-right">Billing paid</th>
+                  <th className="py-2 pr-3 text-right">Billing Paid</th>
                   <th className="py-2 pr-3 text-right">Rate</th>
-                  <th className="py-2 pr-3 text-right">Days to pay</th>
-                  <th className="py-2 text-right">Overdue at month end</th>
+                  <th className="py-2 pr-3 text-right">Days To Pay</th>
+                  <th className="py-2 text-right">Overdue At Month End</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {[...data.months].reverse().map((month) => (
                   <tr key={month.month} className="tabular-nums">
-                    <td className="py-2 pr-3 font-black text-slate-900 dark:text-white">{month.longLabel}</td>
-                    <td className="py-2 pr-3 text-right font-semibold text-slate-700 dark:text-slate-200">{month.billed.display}</td>
-                    <td className="py-2 pr-3 text-right font-semibold text-slate-700 dark:text-slate-200">{month.collected.display}</td>
-                    <td className="py-2 pr-3 text-right font-black text-slate-900 dark:text-white">{Percent(month.rate)}</td>
-                    <td className="py-2 pr-3 text-right font-semibold text-slate-700 dark:text-slate-200">{month.averageDaysToPay ?? "—"}</td>
-                    <td className={`py-2 text-right font-black ${month.overdue.paise ? "text-rose-700 dark:text-rose-300" : "text-slate-500"}`}>{month.overdue.display}{month.month === data.months[data.months.length - 1]?.month ? <span className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">so far (month not over)</span> : null}</td>
+                    <td className="ad-card-title py-2 pr-3 font-black text-slate-900 dark:text-white">{month.longLabel}</td>
+                    <td data-label="Billed" className="py-2 pr-3 text-right font-semibold text-slate-700 dark:text-slate-200">{month.billed.display}</td>
+                    <td data-label="Billing Paid" className="py-2 pr-3 text-right font-semibold text-slate-700 dark:text-slate-200">{month.collected.display}</td>
+                    <td data-label="Rate" className="py-2 pr-3 text-right font-black text-slate-900 dark:text-white">{Percent(month.rate)}</td>
+                    <td data-label="Days To Pay" className="py-2 pr-3 text-right font-semibold text-slate-700 dark:text-slate-200">{month.averageDaysToPay ?? "—"}</td>
+                    <td data-label="Overdue At Month End" className={`py-2 text-right font-black ${month.overdue.paise ? "text-rose-700 dark:text-rose-300" : "text-slate-500"}`}>{month.overdue.display}{month.month === data.months[data.months.length - 1]?.month ? <span className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">so far (month not over)</span> : null}</td>
                   </tr>
                 ))}
               </tbody>
@@ -220,7 +220,7 @@ function InsightsBody({ data }: { data: PaymentsInsights }) {
 
       <div className="mt-6">
         <Card
-          title="Biggest dues"
+          title="Biggest Dues"
           icon={<Wallet size={18} className="text-rose-600 dark:text-rose-400" />}
           action={<Link href="/admin/payments/collections?tab=follow-ups" className="inline-flex items-center gap-1 text-sm font-black text-cyan-700 hover:underline dark:text-cyan-300">Follow-ups<ArrowRight size={14} /></Link>}
         >
@@ -276,7 +276,7 @@ function UnusualCard({ initial }: { initial: UnusualActivity }) {
   return (
     <div className="mt-6" id="unusual">
       <Card
-        title="Unusual activity"
+        title="Unusual Activity"
         icon={<ShieldAlert size={18} className="text-violet-600 dark:text-violet-400" />}
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -284,7 +284,7 @@ function UnusualCard({ initial }: { initial: UnusualActivity }) {
               {initial.windows.map((value) => (
                 <button key={value} type="button" aria-pressed={days === value} onClick={() => setDays(value)}
                   className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${days === value ? "bg-slate-900 text-white dark:bg-cyan-500 dark:text-slate-950" : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"}`}>
-                  {value} days
+                  {value} Days
                 </button>
               ))}
             </div>
@@ -295,7 +295,7 @@ function UnusualCard({ initial }: { initial: UnusualActivity }) {
         <p className="-mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
           Flagged: a discount over {settings.discountAmount.display} or {settings.discountPercent}% on one payment; {settings.cancellationsPerDay} or more cancellations by one person in a day; a payment dated more than {settings.backdatedDays} days before it was entered.
         </p>
-        <div role="tablist" aria-label="Unusual activity" className="mt-4 grid grid-cols-2 gap-2 sm:inline-grid sm:grid-cols-[auto_auto]">
+        <div role="tablist" aria-label="Unusual Activity" className="mt-4 grid grid-cols-2 gap-2 sm:inline-grid sm:grid-cols-[auto_auto]">
           {(["OPEN", "REVIEWED"] as const).map((key) => {
             const count = key === "OPEN" ? data?.openCount ?? 0 : data?.reviewedCount ?? 0;
             const active = view === key;
@@ -365,16 +365,16 @@ function UnusualRow({ item }: { item: UnusualItem }) {
           {item.href ? <Link href={item.href} className="math-button-secondary !px-3 !py-2 text-sm"><ExternalLink size={14} />Open</Link> : null}
           {item.reviewed ? (
             <button type="button" className="math-button-secondary !px-3 !py-2 text-sm" disabled={undo.isPending} onClick={() => undo.mutate()}>
-              {undo.isPending ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}Back to review
+              {undo.isPending ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}Back To Review
             </button>
           ) : !noting ? (
-            <button type="button" className="math-button-primary !px-3 !py-2 text-sm" onClick={() => setNoting(true)}><Check size={14} />Mark reviewed</button>
+            <button type="button" className="math-button-primary !px-3 !py-2 text-sm" onClick={() => setNoting(true)}><Check size={14} />Mark Reviewed</button>
           ) : null}
         </div>
       </div>
       {noting && !item.reviewed ? (
         <form className="mt-3 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); review.mutate(); }}>
-          <input className="math-input min-w-0 flex-1" value={note} maxLength={300} onChange={(event) => setNote(event.target.value)} placeholder="Note (optional), e.g. sibling discount agreed" aria-label="Review note" autoFocus />
+          <input className="math-input min-w-0 flex-1" value={note} maxLength={300} onChange={(event) => setNote(event.target.value)} placeholder="Note (optional), e.g. sibling discount agreed" aria-label="Review Note" autoFocus />
           <div className="grid grid-cols-2 gap-2 sm:flex">
             <button type="button" className="math-button-secondary justify-center" onClick={() => { setNoting(false); setNote(""); }}>Cancel</button>
             <button type="submit" className="math-button-primary justify-center" disabled={review.isPending}>{review.isPending ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}Save</button>

@@ -126,14 +126,14 @@ export function FeeItemPicker({
                 ref={searchRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search Fee Items"
-                aria-label="Search fee items"
+                placeholder="Search fee items"
+                aria-label="Search Fee Items"
                 className="h-10 w-full min-w-0 appearance-none border-0 bg-transparent p-0 text-sm font-semibold text-slate-900 shadow-none outline-none ring-0 placeholder:text-slate-400 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0 dark:text-white"
                 style={{ boxShadow: "none", outline: "none" }}
               />
             </div>
           </div>
-          <div ref={listRef} role="listbox" aria-multiselectable="true" aria-label="Fee items" className="max-h-[360px] overflow-y-auto py-1">
+          <div ref={listRef} role="listbox" aria-multiselectable="true" aria-label="Fee Items" className="max-h-[360px] overflow-y-auto py-1">
             {!groups.length ? (
               <p className="px-4 py-6 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">No fee item matches “{query.trim()}”.</p>
             ) : (

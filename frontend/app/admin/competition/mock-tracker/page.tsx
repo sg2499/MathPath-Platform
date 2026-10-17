@@ -238,20 +238,13 @@ type StudentMockGroup = {
 };
 
 function MetricCard({ Icon, Label, Value }: { Icon: typeof Trophy; Label: string; Value: string | number }) {
+  // the admin number tile (2026-10, admin revamp)
   return (
-    <article className="math-admin-light-metric-card rounded-[24px] border border-cyan-200/70 bg-white/85 p-4 shadow-sm ring-1 ring-cyan-100/80 dark:border-white/10 dark:bg-slate-950/75 dark:ring-white/10">
-      <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-        <span className="tc-dark-hover-control inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border border-[#2563eb]/20 bg-[#2563eb]/5 text-[#2563eb] dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-100">
-          <Icon size={15} />
-        </span>
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-[#2563eb] dark:text-cyan-100">
-          {Label}
-        </p>
-      </div>
-      <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
-        {Value}
-      </p>
-    </article>
+    <div className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-5">
+      <div className="math-teacher-icon-chip relative z-10"><Icon size={18} /></div>
+      <p className="relative z-10">{Label}</p>
+      <p className="relative z-10">{Value}</p>
+    </div>
   );
 }
 
@@ -497,7 +490,7 @@ function AdminCompetitionMockTrackerContent() {
           <p className="math-block-header"><Flag size={14} />Competition Tracker</p>
           <h1 className="math-title">Competition Mock Tracker</h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">
-            Monitor Admin-assigned mock exams, student completion, scores, accuracy, timing, strengths, and weak areas. Monitor all student mock exams, completion status, scores, accuracy, timing, strengths, and weak areas across the platform.
+            Every assigned mock exam across the platform: who has finished, their scores, accuracy and timing, and each student&apos;s strong and weak areas.
           </p>
         </div>
 
@@ -507,12 +500,12 @@ function AdminCompetitionMockTrackerContent() {
           <ErrorState title="Could not load competition tracker" message={apiErrorMessage(Query.error)} />
         ) : (
           <>
-            <div className="grid gap-4 xl:grid-cols-5 md:grid-cols-2">
+            <div className="ad-hero-tiles ad-hero-tiles-5">
               <MetricCard Icon={UsersRound} Label="Assigned" Value={FilteredSummary.assignedCount} />
               <MetricCard Icon={ShieldCheck} Label="Completed" Value={FilteredSummary.completedCount} />
               <MetricCard Icon={Clock3} Label="Pending" Value={FilteredSummary.pendingCount} />
-              <MetricCard Icon={Trophy} Label="Avg Score" Value={FilteredSummary.averageScore} />
-              <MetricCard Icon={BarChart3} Label="Avg Accuracy" Value={`${FilteredSummary.averageAccuracy}%`} />
+              <MetricCard Icon={Trophy} Label="Average Score" Value={FilteredSummary.averageScore} />
+              <MetricCard Icon={BarChart3} Label="Average Accuracy" Value={`${FilteredSummary.averageAccuracy}%`} />
             </div>
 
             <div className="grid gap-5">
@@ -524,7 +517,7 @@ function AdminCompetitionMockTrackerContent() {
                     <p className="math-block-header"><Radar size={14} />Monitor</p>
                     <h2 className="text-2xl font-black text-slate-950 dark:text-white">Student Mock Outcomes</h2>
                     <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      Review completion status, score, accuracy, and time taken for your students.
+                      Review completion status, score, accuracy, and time taken for every student.
                     </p>
                   </div>
                   <div className="grid w-full gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[minmax(220px,1fr)_200px_170px_170px_170px_220px]">
@@ -590,7 +583,7 @@ function AdminCompetitionMockTrackerContent() {
 
                 <div className="mt-5 space-y-3">
                   {GroupedRows.length === 0 ? (
-                    <EmptyState title="No competition mock records" message="Assigned competition mock outcomes for your students will appear here." />
+                    <EmptyState title="No competition mock records" message="Mock exam outcomes appear here once students are assigned mocks." />
                   ) : (
                     GroupedRows.map((StudentGroup) => {
                       const StudentOpen = ExpandedStudents.has(StudentGroup.key);

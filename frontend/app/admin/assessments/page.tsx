@@ -1624,7 +1624,11 @@ function AdminAssessmentControlPageContent() {
             </div>
 
             <div className="math-operation-panel">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              {/* 2026-10 (platform rule): the description runs the full
+                  width; the filters sit on their own row under it, as on
+                  every other admin list (they squeezed the description into
+                  a narrow column and cut the search box's text) */}
+              <div className="flex flex-col gap-5">
                 <div>
                   <p className="math-block-header"><Scale size={14} />Assessment Governance</p>
                   <h2 className="text-2xl font-black">Re-Attempt Approvals</h2>
@@ -1633,7 +1637,7 @@ function AdminAssessmentControlPageContent() {
                     assessment version will be assigned.
                   </p>
                 </div>
-                <div className="grid w-full gap-3 lg:max-w-4xl lg:grid-cols-[1fr_180px_180px_220px]">
+                <div className="grid w-full gap-3 lg:grid-cols-[1fr_210px_210px_230px]">
                   <div className="relative">
                     <Search
                       size={18}
@@ -2208,7 +2212,7 @@ function AdminAssessmentStudentTable({
                 if (Event.key === "Enter" || Event.key === " ")
                   ToggleStudent(Student.key);
               }}
-              className="math-hierarchy-row flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+              className="math-hierarchy-row flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <button
@@ -2891,7 +2895,7 @@ function PromotionHistoryTable({
                   <p className="truncate text-sm font-black text-slate-950 dark:text-white">
                     {Group.StudentName}
                   </p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">
+                  <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">
                     {Group.StudentCode}
                   </p>
                 </div>
@@ -3389,7 +3393,7 @@ function ParentReportGenerateTable({
                       <p className="truncate text-sm font-black text-slate-950 dark:text-white">
                         {StudentGroup.StudentName}
                       </p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">
+                      <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">
                         {StudentGroup.StudentCode}
                       </p>
                     </div>
@@ -4179,7 +4183,7 @@ function ParentReportDeliveryHistoryTable({
                       <p className="truncate text-sm font-black text-slate-950 dark:text-white">
                         {StudentGroup.StudentName}
                       </p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">
+                      <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">
                         {StudentGroup.StudentCode}
                       </p>
                     </div>

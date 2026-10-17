@@ -177,6 +177,7 @@ export function ResultReviewTabs({
   Heading,
   FocusRequest,
   ScorecardContent,
+  OpenSingleSection = true,
 }: {
   Questions: ReviewQuestion[];
   // The paper's sections when known, so a section with no questions still
@@ -192,6 +193,11 @@ export function ResultReviewTabs({
   // Competition keeps its plain marks scorecard: no strengths or weak areas
   // (that is what mock insights are for), and no accuracy for students.
   ScorecardContent?: React.ReactNode;
+  // A one-section paper opens straight away. The admin's annual result
+  // passes false (2026-10, admin revamp, item F): a 100-question section
+  // opened by itself made the page 37,500px tall on a phone; the admin opens
+  // it when needed.
+  OpenSingleSection?: boolean;
 }) {
   // Pages build their rows inline, so the input is compared by content
   // (question keys and answers) rather than by array identity.
@@ -213,7 +219,7 @@ export function ResultReviewTabs({
 
   // A paper with one section opens straight away: there is nothing to choose.
   // Once the viewer has opened or closed a block themselves, that stands.
-  const OnlyKey = Sections.length === 1 ? Sections[0].key : null;
+  const OnlyKey = OpenSingleSection && Sections.length === 1 ? Sections[0].key : null;
   useEffect(() => {
     if (OnlyKey && !ChosenRef.current) SetOpenKey(OnlyKey);
   }, [OnlyKey]);

@@ -302,12 +302,12 @@ export function PaymentForm({
 
         <section>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Invoices being paid</h3>
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Invoices Being Paid</h3>
             <div className="flex flex-wrap items-center gap-3">
-              {choices.length > 1 ? <button type="button" className="text-xs font-black text-cyan-700 underline dark:text-cyan-300" onClick={toggleAll}>{allChecked ? "Untick all" : "Tick all"}</button> : null}
+              {choices.length > 1 ? <button type="button" className="text-xs font-black text-cyan-700 underline dark:text-cyan-300" onClick={toggleAll}>{allChecked ? "Untick All" : "Tick All"}</button> : null}
               <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-black text-slate-600 dark:text-slate-300">
                 <input type="checkbox" className="h-4 w-4" checked={showDiscount} onChange={(event) => setShowDiscount(event.target.checked)} />
-                Give a discount
+                Give A Discount
               </label>
             </div>
           </div>
@@ -338,7 +338,7 @@ export function PaymentForm({
                         {showDiscount ? (
                           <label className="block">
                             <span className="mb-1 block text-[11px] font-black text-slate-500">Discount (₹)</span>
-                            <input className="math-input px-3 text-right tabular-nums" inputMode="decimal" value={line.row.discount} onChange={(event) => setRow(line.invoice.invoiceId, { discount: event.target.value })} aria-label={`Discount on ${line.invoice.invoiceNumber}`} />
+                            <input className="math-input px-3 text-right tabular-nums" inputMode="decimal" value={line.row.discount} onChange={(event) => setRow(line.invoice.invoiceId, { discount: event.target.value })} aria-label={`Discount On ${line.invoice.invoiceNumber}`} />
                           </label>
                         ) : null}
                       </div>
@@ -351,7 +351,7 @@ export function PaymentForm({
           )}
           {showDiscount && discountTotal > 0 ? (
             <label className="mt-3 block">
-              <FieldLabel hint="required, printed on the receipt">Reason for the discount</FieldLabel>
+              <FieldLabel hint="required, printed on the receipt">Reason For The Discount</FieldLabel>
               <input className="math-input" value={discountReason} onChange={(event) => setDiscountReason(event.target.value)} placeholder="e.g. sibling concession" />
             </label>
           ) : null}
@@ -359,10 +359,10 @@ export function PaymentForm({
 
         <section>
           <div className="flex items-baseline justify-between gap-2">
-            <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">How it was paid</h3>
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">How It Was Paid</h3>
             {methods.length < 6 && !isOnline ? (
               <button type="button" className="inline-flex items-center gap-1 text-xs font-black text-cyan-700 underline dark:text-cyan-300" onClick={() => { setMethodTouched(true); setMethods([...methods, { method: "UPI", amount: "", reference: "" }]); }}>
-                <Plus size={13} />Split across methods
+                <Plus size={13} />Split Across Methods
               </button>
             ) : null}
           </div>
@@ -392,7 +392,7 @@ export function PaymentForm({
                     <input className="math-input" value={line.reference} onChange={(event) => setMethods(methods.map((item, at) => (at === index ? { ...item, reference: event.target.value } : item)))} placeholder={line.method === "UPI" ? "UTR / transaction ID" : line.method === "CHEQUE" ? "Cheque number" : ""} aria-label={`${info?.label ?? "Method"} reference`} />
                   </label>
                   {methods.length > 1 ? (
-                    <button type="button" className="math-focus-ring col-span-2 justify-self-end rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 sm:col-span-1 dark:hover:bg-slate-900" onClick={() => setMethods(methods.filter((_, at) => at !== index))} aria-label="Remove this method">
+                    <button type="button" className="math-focus-ring col-span-2 justify-self-end rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 sm:col-span-1 dark:hover:bg-slate-900" onClick={() => setMethods(methods.filter((_, at) => at !== index))} aria-label="Remove This Method">
                       <Trash2 size={16} />
                     </button>
                   ) : null}
@@ -413,15 +413,15 @@ export function PaymentForm({
 
         <section className="grid gap-4 sm:grid-cols-3">
           <label className="block">
-            <FieldLabel>Payment date</FieldLabel>
+            <FieldLabel>Payment Date</FieldLabel>
             <input type="date" className="math-input" value={paymentDate} max={today} onChange={(event) => setPaymentDate(event.target.value)} />
           </label>
           <label className="block">
-            <FieldLabel hint="optional">Paid by</FieldLabel>
+            <FieldLabel hint="optional">Paid By</FieldLabel>
             <input className="math-input" value={payBy} onChange={(event) => setPayBy(event.target.value)} placeholder="e.g. father's name" />
           </label>
           <label className="block">
-            <FieldLabel>Received by</FieldLabel>
+            <FieldLabel>Received By</FieldLabel>
             {isOnline ? <p className="math-input flex items-center text-slate-600 dark:text-slate-300">{editing?.receivedByName ?? "Online (Razorpay)"}</p> : null}
             <select className={`math-input ${isOnline ? "hidden" : ""}`} value={receivedBy} onChange={(event) => setReceivedBy(event.target.value)}>
               {(staffQuery.data?.staff ?? []).map((person) => <option key={person.userId} value={person.userId}>{person.name}</option>)}
@@ -436,7 +436,7 @@ export function PaymentForm({
           </label>
           {editing ? (
             <label className="block sm:col-span-3">
-              <FieldLabel hint="required, kept in the history">Reason for the change</FieldLabel>
+              <FieldLabel hint="required, kept in the history">Reason For The Change</FieldLabel>
               <input className="math-input" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="e.g. wrong amount entered" />
             </label>
           ) : null}
@@ -444,13 +444,13 @@ export function PaymentForm({
 
         <section className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-900/60" aria-live="polite">
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm tabular-nums sm:grid-cols-[1fr_auto]">
-            <dt className="font-semibold text-slate-600 dark:text-slate-300">Due before</dt><dd className="text-right font-bold">{FormatRupees(dueBefore)}</dd>
-            <dt className="font-semibold text-slate-600 dark:text-slate-300">Received now</dt><dd className="text-right font-bold">{FormatRupees(received)}</dd>
-            <dt className="font-semibold text-slate-600 dark:text-slate-300">Applied to invoices</dt><dd className="text-right font-bold">{FormatRupees(applied)}</dd>
+            <dt className="font-semibold text-slate-600 dark:text-slate-300">Due Before</dt><dd className="text-right font-bold">{FormatRupees(dueBefore)}</dd>
+            <dt className="font-semibold text-slate-600 dark:text-slate-300">Received Now</dt><dd className="text-right font-bold">{FormatRupees(received)}</dd>
+            <dt className="font-semibold text-slate-600 dark:text-slate-300">Applied To Invoices</dt><dd className="text-right font-bold">{FormatRupees(applied)}</dd>
             {discountTotal ? (<><dt className="font-semibold text-slate-600 dark:text-slate-300">Discount</dt><dd className="text-right font-bold">{FormatRupees(discountTotal)}</dd></>) : null}
-            {extra > 0 ? (<><dt className="font-semibold text-violet-700 dark:text-violet-300">Kept as advance</dt><dd className="text-right font-bold text-violet-700 dark:text-violet-300">{keepAdvance ? FormatRupees(extra) : "—"}</dd></>) : null}
+            {extra > 0 ? (<><dt className="font-semibold text-violet-700 dark:text-violet-300">Kept As Advance</dt><dd className="text-right font-bold text-violet-700 dark:text-violet-300">{keepAdvance ? FormatRupees(extra) : "—"}</dd></>) : null}
             <div className="col-span-2 my-0.5 border-t border-slate-200 dark:border-slate-700" aria-hidden="true" />
-            <dt className="font-black text-slate-900 dark:text-white">Due after</dt><dd className="text-right font-black text-slate-900 dark:text-white">{FormatRupees(dueAfter)}</dd>
+            <dt className="font-black text-slate-900 dark:text-white">Due After</dt><dd className="text-right font-black text-slate-900 dark:text-white">{FormatRupees(dueAfter)}</dd>
           </dl>
         </section>
 
