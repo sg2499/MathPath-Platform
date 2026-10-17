@@ -280,7 +280,7 @@ export function AnnualLiveMonitoringTable({
   // a narrow screen the board scrolls sideways instead.
   return (
     <div className="mt-4 overflow-x-auto">
-      <table className="te-cards w-full min-w-[980px] text-left text-sm font-bold">
+      <table className="te-cards ad-cards w-full min-w-[980px] text-left text-sm font-bold">
         <colgroup>
           <col />
           <col />
@@ -304,7 +304,7 @@ export function AnnualLiveMonitoringTable({
         <tbody>
           {Rows.map((Row) => (
             <tr key={Row.assignmentId} className="border-t border-[color:var(--mp-role-border)]">
-              <td className="te-card-title whitespace-nowrap px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+              <td className="te-card-title ad-card-title whitespace-nowrap px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
               <td data-label="Level" className="whitespace-nowrap px-2 py-2">{FormatCompetitionLevelLabel(Row.assignedLevelCode)}</td>
               <td data-label="Slot" className="whitespace-nowrap px-2 py-2">
                 {Row.slot ? (

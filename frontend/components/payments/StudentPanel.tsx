@@ -179,7 +179,7 @@ function StudentPanel({ studentId, onClose }: { studentId: string | null; onClos
               </div>
 
               <section aria-labelledby="sp-unpaid">
-                <h3 id="sp-unpaid" className="text-sm font-black text-slate-900 dark:text-white">Unpaid invoices <span className="font-bold text-slate-400">({unpaid.length})</span></h3>
+                <h3 id="sp-unpaid" className="text-sm font-black text-slate-900 dark:text-white">Unpaid Invoices <span className="font-bold text-slate-400">({unpaid.length})</span></h3>
                 {unpaid.length ? (
                   <ul className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-1.5">
                     {unpaid.slice(0, 6).map((invoice) => (
@@ -210,7 +210,7 @@ function StudentPanel({ studentId, onClose }: { studentId: string | null; onClos
               </section>
 
               <section aria-labelledby="sp-payments">
-                <h3 id="sp-payments" className="text-sm font-black text-slate-900 dark:text-white">Last payments</h3>
+                <h3 id="sp-payments" className="text-sm font-black text-slate-900 dark:text-white">Last Payments</h3>
                 {payments.length ? (
                   <ul className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-1.5">
                     {payments.map((payment) => (
@@ -244,13 +244,13 @@ function StudentPanel({ studentId, onClose }: { studentId: string | null; onClos
             <button type="button" onClick={() => statement.mutate(account.student.studentId)} disabled={statement.isPending} className="math-button-secondary order-3 justify-center whitespace-nowrap sm:order-none">
               {statement.isPending ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}Statement PDF
             </button>
-            <Link href={`/admin/payments/invoices?tab=generate&studentId=${encodeURIComponent(account.student.studentId)}`} onClick={onClose} className="math-button-secondary order-4 justify-center whitespace-nowrap sm:order-none sm:mr-auto"><FilePlus2 size={16} />New invoice</Link>
+            <Link href={`/admin/payments/invoices?tab=generate&studentId=${encodeURIComponent(account.student.studentId)}`} onClick={onClose} className="math-button-secondary order-4 justify-center whitespace-nowrap sm:order-none sm:mr-auto"><FilePlus2 size={16} />New Invoice</Link>
             {quickPay ? (
               <button type="button" onClick={() => { onClose(); quickPay.open(account.student.studentId); }} className="math-button-primary order-1 justify-center whitespace-nowrap sm:order-none"><HandCoins size={17} />Record Payment</button>
             ) : (
               <Link href={AccountHref(account.student.studentId, "new")} onClick={onClose} className="math-button-primary order-1 justify-center whitespace-nowrap sm:order-none"><HandCoins size={17} />Record Payment</Link>
             )}
-            <Link href={AccountHref(account.student.studentId)} onClick={onClose} className="math-button-secondary order-2 justify-center whitespace-nowrap sm:order-none">Full account<ArrowRight size={16} /></Link>
+            <Link href={AccountHref(account.student.studentId)} onClick={onClose} className="math-button-secondary order-2 justify-center whitespace-nowrap sm:order-none">Full Account<ArrowRight size={16} /></Link>
             {statement.error ? <div className="order-5 col-span-2 w-full"><InlineError error={statement.error} /></div> : null}
           </footer>
         ) : null}
@@ -300,13 +300,13 @@ function PanelFollowUp({ studentId, studentName, owes, onLeave }: { studentId: s
         </ul>
       ) : null}
       <form className="mt-2 flex gap-2" onSubmit={(event) => { event.preventDefault(); if (note.trim() && !add.isPending) add.mutate(); }}>
-        <input className="math-input h-9 min-w-0 flex-1 px-3 text-xs" value={note} maxLength={1000} onChange={(event) => setNote(event.target.value)} placeholder="Add a note" aria-label="Add a follow-up note" />
+        <input className="math-input h-9 min-w-0 flex-1 px-3 text-xs" value={note} maxLength={1000} onChange={(event) => setNote(event.target.value)} placeholder="Add a note" aria-label="Add A Follow-up Note" />
         <button type="submit" className={`${PANEL_BUTTON} shrink-0`} disabled={!note.trim() || add.isPending}>Add</button>
       </form>
       {add.error ? <div className="mt-2"><InlineError error={add.error} /></div> : null}
       {followUp && owes ? (
         <div className="mt-2 flex flex-wrap gap-2">
-          <button type="button" className={PANEL_BUTTON} onClick={() => { onLeave(); followUp.logContact([target]); }}><MessageSquarePlus size={13} />Log contact</button>
+          <button type="button" className={PANEL_BUTTON} onClick={() => { onLeave(); followUp.logContact([target]); }}><MessageSquarePlus size={13} />Log Contact</button>
           <button type="button" className={PANEL_BUTTON} onClick={() => { onLeave(); followUp.reminder(target, data.inAppAvailable); }}><BellRing size={13} />Reminder</button>
           {data.mobile ? <a href={`tel:${data.mobile.replace(/[^\d+]/g, "")}`} className={PANEL_BUTTON}><Phone size={13} />Call</a> : null}
         </div>

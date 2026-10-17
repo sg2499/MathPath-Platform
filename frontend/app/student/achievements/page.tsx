@@ -128,7 +128,17 @@ function TrophyRoomPageContent() {
           <div className="pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full bg-orange-300/18 blur-3xl" />
           <div className="pointer-events-none absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-pink-300/16 blur-3xl" />
 
-          <div className="relative flex items-start justify-between gap-5">
+          {/* 2026-10 (platform rule): Back sits at the top right, level with
+              the chip, so the description runs the full width of the card */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="math-dashboard-secondary-action absolute right-0 top-0 z-10 shrink-0"
+            >
+              <ChevronLeft size={15} />
+              Back
+            </button>
             <div className="flex flex-col gap-5">
               <div className="math-block-header w-fit">
                 <Award size={14} />
@@ -139,20 +149,11 @@ function TrophyRoomPageContent() {
                 <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-[2.35rem]">
                   The Trophy Room
                 </h1>
-                <p className="math-subtitle max-w-4xl lg:whitespace-nowrap">
+                <p className="math-subtitle">
                   Complete challenges, maintain streaks, and dominate Mock Exams to unlock exclusive badges.
                 </p>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="math-dashboard-secondary-action shrink-0"
-            >
-              <ChevronLeft size={15} />
-              Back
-            </button>
           </div>
         </section>
 

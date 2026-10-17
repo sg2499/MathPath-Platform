@@ -21,7 +21,7 @@ export default function PaymentSettingsSectionPage() {
   return (
     <PaymentsSection<Tab>
       title="Payment Settings"
-      label="Payment settings sections"
+      label="Payment Settings Sections"
       fallback="business"
       tabs={[
         { key: "business", label: "Business Details", short: "Business", icon: <Building2 size={16} />, flag: flags.business },

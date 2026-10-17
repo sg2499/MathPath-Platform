@@ -12,7 +12,7 @@ export default function ExpensesSectionPage() {
   return (
     <PaymentsSection<Tab>
       title="Expenses"
-      label="Expenses sections"
+      label="Expenses Sections"
       fallback="expenses"
       tabs={[
         { key: "expenses", label: "Expenses", icon: <ReceiptText size={16} /> },

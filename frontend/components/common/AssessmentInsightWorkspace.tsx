@@ -242,7 +242,17 @@ function Chip({ children, tone = "slate" }: { children: ReactNode; tone?: Tone }
   return <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${Tones[tone]}`}>{children}</span>;
 }
 
-function Metric({ Label, Value, Icon }: { Label: string; Value: string | number; Icon: ReactNode }) {
+function Metric({ Label, Value, Icon, Admin = false }: { Label: string; Value: string | number; Icon: ReactNode; Admin?: boolean }) {
+  // the admin number tile (icon left, label over value), as on every admin page
+  if (Admin) {
+    return (
+      <div className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-5">
+        <div className="math-teacher-icon-chip relative z-10">{Icon}</div>
+        <p className="relative z-10">{Label}</p>
+        <p className="relative z-10">{Value}</p>
+      </div>
+    );
+  }
   return (
     <div className="rounded-[24px] bg-white/75 p-4 shadow-sm dark:bg-slate-950/75">
       <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
@@ -370,8 +380,11 @@ export function AssessmentInsightWorkspace({
   }
 
   return (
-    <div className={role === "teacher" ? "" : "mx-auto max-w-[1500px] px-6 py-8"}>
+    // 2026-10 (admin revamp): the admin gets the teacher's version of this
+    // page (page width, code chip, five tiles, no repeated snapshot).
+    <div className={role !== "student" ? "" : "mx-auto max-w-[1500px] px-6 py-8"}>
       <div className="math-hero">
+        <div className={role === "admin" ? "ad-hero-stack relative z-10" : ""}>
         <div>
           <p className="math-block-header">
             {role === "student" ? <TrendingUp size={14} /> : <Activity size={14} />}
@@ -379,14 +392,15 @@ export function AssessmentInsightWorkspace({
           </p>
           <h1 className="math-title">{title}</h1>
           <p className="math-subtitle">Review module-level assessment completion, outcomes, and re-attempt history for this student.</p>
-          {subtitle ? <p className={role === "teacher" ? "te-hero-code" : "mt-2 text-sm font-bold text-slate-500"}>{subtitle}</p> : null}
+          {subtitle ? <p className={role === "teacher" ? "te-hero-code" : role === "admin" ? "ad-hero-code" : "mt-2 text-sm font-bold text-slate-500"}>{subtitle}</p> : null}
         </div>
-        <div className={role === "teacher" ? "grid grid-cols-2 gap-3 lg:grid-cols-5" : "grid grid-cols-4 gap-3"}>
-          <Metric Label="Assigned Assessments" Value={CurrentStats.Total} Icon={<Layers3 size={15} />} />
-          <Metric Label="Cleared" Value={CurrentStats.Cleared} Icon={<CheckCircle2 size={15} />} />
-          <Metric Label="Pending" Value={CurrentStats.Pending} Icon={<CalendarClock size={15} />} />
-          <Metric Label="Needs Re-Attempt" Value={CurrentStats.Reattempt} Icon={<AlertTriangle size={15} />} />
-          {role === "teacher" ? <Metric Label="Levels Reviewed" Value={new Set(FilteredRows.map(LevelKey)).size} Icon={<Target size={15} />} /> : null}
+        <div className={role === "admin" ? "ad-hero-tiles ad-hero-tiles-5" : role === "teacher" ? "grid grid-cols-2 gap-3 lg:grid-cols-5" : "grid grid-cols-4 gap-3"}>
+          <Metric Admin={role === "admin"} Label="Assigned Assessments" Value={CurrentStats.Total} Icon={<Layers3 size={15} />} />
+          <Metric Admin={role === "admin"} Label="Cleared" Value={CurrentStats.Cleared} Icon={<CheckCircle2 size={15} />} />
+          <Metric Admin={role === "admin"} Label="Pending" Value={CurrentStats.Pending} Icon={<CalendarClock size={15} />} />
+          <Metric Admin={role === "admin"} Label="Needs Re-Attempt" Value={CurrentStats.Reattempt} Icon={<AlertTriangle size={15} />} />
+          {role !== "student" ? <Metric Admin={role === "admin"} Label="Levels Reviewed" Value={new Set(FilteredRows.map(LevelKey)).size} Icon={<Target size={15} />} /> : null}
+        </div>
         </div>
       </div>
 
@@ -427,7 +441,7 @@ export function AssessmentInsightWorkspace({
 
       <div className="mt-6">
         {Tab === "overview" ? (
-          <AssessmentOverview Rows={FilteredRows} onView={onView} HideSnapshot={role === "teacher"} />
+          <AssessmentOverview Rows={FilteredRows} onView={onView} HideSnapshot={role !== "student"} HideIcons={role === "admin"} />
         ) : null}
 
         {Tab === "insights" ? (
@@ -445,7 +459,7 @@ export function AssessmentInsightWorkspace({
 // HideSnapshot (teacher page, 2026-10): the snapshot's counts repeat the
 // tiles at the top of the page, so the teacher sees the two lists side by
 // side instead. The admin page keeps the snapshot.
-function AssessmentOverview({ Rows, onView, HideSnapshot = false }: { Rows: AssessmentRow[]; onView?: (row: AssessmentRow) => void; HideSnapshot?: boolean }) {
+function AssessmentOverview({ Rows, onView, HideSnapshot = false, HideIcons = false }: { Rows: AssessmentRow[]; onView?: (row: AssessmentRow) => void; HideSnapshot?: boolean; HideIcons?: boolean }) {
   const CurrentStats = Stats(Rows);
   const PriorityRows = Rows.filter((Row) => IsPending(Row) || NeedsReattempt(Row));
   const RecentRows = [...Rows].sort((First, Second) => RowTime(Second) - RowTime(First)).slice(0, 4);
@@ -473,7 +487,7 @@ function AssessmentOverview({ Rows, onView, HideSnapshot = false }: { Rows: Asse
       <section className={HideSnapshot ? "te-pair grid gap-6 xl:grid-cols-2" : "grid gap-6"}>
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
           <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-amber-50 p-3 text-amber-700"><AlertTriangle size={20} /></div>
+            {HideIcons ? null : <div className="rounded-2xl bg-amber-50 p-3 text-amber-700"><AlertTriangle size={20} /></div>}
             <div>
               <p className="math-block-header">
                 <ListOrdered size={14} />
@@ -495,7 +509,7 @@ function AssessmentOverview({ Rows, onView, HideSnapshot = false }: { Rows: Asse
 
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
           <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-blue-50 p-3 text-blue-700"><CalendarClock size={20} /></div>
+            {HideIcons ? null : <div className="rounded-2xl bg-blue-50 p-3 text-blue-700"><CalendarClock size={20} /></div>}
             <div>
               <p className="math-block-header">
                 <Clock size={14} />
@@ -550,7 +564,7 @@ function AssessmentInsights({ Groups, OpenModules, OpenLevels, ToggleModule, Tog
               <h3 className="text-xl font-black text-slate-950 dark:text-white">{ModuleLabel(ModuleGroup.Sample)}</h3>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Chip tone="blue">{ModuleGroup.LevelGroups.length} Level(s)</Chip>
+              <Chip tone="blue">{ModuleGroup.LevelGroups.length} {ModuleGroup.LevelGroups.length === 1 ? "Level" : "Levels"}</Chip>
               <Chip tone="green">{ModuleRows.filter(IsCleared).length} Cleared</Chip>
               <span className="rounded-2xl bg-slate-50 p-2 text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300"><ChevronDown className={IsModuleOpen ? "rotate-180 transition" : "transition"} size={18} /></span>
             </div>
@@ -568,7 +582,7 @@ function AssessmentInsights({ Groups, OpenModules, OpenLevels, ToggleModule, Tog
                       <h4 className="mt-1 text-lg font-black">{LevelLabel(LevelGroup.Sample)}</h4>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Chip tone="blue">{LevelGroup.Rows.length} Assessment(s)</Chip>
+                      <Chip tone="blue">{LevelGroup.Rows.length} {LevelGroup.Rows.length === 1 ? "Assessment" : "Assessments"}</Chip>
                       <Chip tone="green">{GroupStats.Cleared} Cleared</Chip>
                       <Chip tone={GroupStats.Reattempt ? "red" : "green"}>{GroupStats.Reattempt} Needs Re-Attempt</Chip>
                       <Chip tone={AccuracyTone(GroupStats.Average)}>{typeof GroupStats.Average === "number" ? `${GroupStats.Average}% Avg` : "— Avg"}</Chip>

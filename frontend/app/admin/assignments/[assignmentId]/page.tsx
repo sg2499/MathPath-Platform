@@ -28,9 +28,17 @@ function formatDate(value?: string | null) {
   return formatMathPathDateTime(value);
 }
 
+// "COMPLETED" / "STUDENT" / "ADMIN" from the server read as Init Caps
+function InitCaps(value?: string | null) {
+  return String(value || "")
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/(^|[\s-])([a-z])/g, (Match, Lead, Letter) => `${Lead}${Letter.toUpperCase()}`);
+}
+
 function formatTimeTaken(value?: number | string | null) {
   const Seconds = Math.round(Number(value));
-  if (!Number.isFinite(Seconds) || Seconds <= 0) return "-";
+  if (!Number.isFinite(Seconds) || Seconds <= 0) return "—";
 
   const Minutes = Math.floor(Seconds / 60);
   const RemainingSeconds = Seconds % 60;
@@ -80,23 +88,24 @@ export default function AdminAssignmentDetailPage() {
 
       {assignment ? (
         <div className="space-y-6">
+          <div className="ad-back-row">
+            <button type="button" className="ad-back" onClick={() => router.push("/admin/assignments")}>
+              <ArrowLeft size={16} />
+              Back To Practice Control
+            </button>
+          </div>
+
           <section className="math-hero">
-            <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="math-block-header"><Eye size={14} />Assignment detail</p>
-                <h1 className="math-title">{assignment.title}</h1>
-                <p className="math-subtitle">
-                  {assignment.levelCode || "-"} · Lesson {assignment.lessonNumber ?? "-"} · DPS {assignment.dpsNumber ?? "-"} — {assignment.dpsTitle || "-"}
-                </p>
-              </div>
-              <button className="math-button-secondary" onClick={() => router.push("/admin/assignments")}>
-                <ArrowLeft size={17} />
-                Back to Assignment Dashboard
-              </button>
+            <div className="relative z-10">
+              <p className="math-block-header"><Eye size={14} />Practice Detail</p>
+              <h1 className="math-title">{assignment.title}</h1>
+              <p className="math-subtitle">
+                {[assignment.levelCode, assignment.lessonNumber != null ? `Lesson ${assignment.lessonNumber}` : "", assignment.dpsNumber != null ? `DPS ${assignment.dpsNumber}` : "", assignment.dpsTitle].filter(Boolean).join(" · ") || "—"}
+              </p>
             </div>
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-4">
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Metric label="Assigned Students" value={data?.summary.assignedStudentCount ?? 0} icon={<UsersRound size={18} />} />
             <Metric label="Cleared" value={data?.summary.completedStudentCount ?? 0} icon={<CheckCircle2 size={18} />} />
             <Metric label="Pending" value={data?.summary.pendingStudentCount ?? 0} icon={<XCircle size={18} />} />
@@ -105,9 +114,9 @@ export default function AdminAssignmentDetailPage() {
 
           <section className="math-card p-5 sm:p-6">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Info label="Created By" value={`${assignment.assignedByName} (${assignment.assignedByRole})`} />
-              <Info label="Target" value={`${assignment.assignedToType}: ${assignment.assignedToLabel}`} />
-              <Info label="Status" value={assignment.status} />
+              <Info label="Created By" value={[assignment.assignedByName, InitCaps(assignment.assignedByRole)].filter(Boolean).join(" · ") || "—"} />
+              <Info label="Assigned To" value={[InitCaps(assignment.assignedToType), assignment.assignedToLabel].filter(Boolean).join(" · ") || "—"} />
+              <Info label="Status" value={InitCaps(assignment.status) || "—"} />
               <Info label="Created On" value={formatDate(assignment.createdAt)} />
             </div>
           </section>
@@ -116,19 +125,15 @@ export default function AdminAssignmentDetailPage() {
             {data?.students?.some((row) => row.requiresAttention) ? (
               <div className="mb-5"><BenchmarkAlert show message="Caution: One or more students scored below the minimum benchmark of 70%. Teacher intervention is required before the next attempt." /></div>
             ) : null}
-            <div className="mb-4 flex items-center gap-3">
-              <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
-                <UserRound size={22} />
-              </div>
-              <div>
-                <h2 className="text-3xl font-black text-slate-950">Student Attempt Summary</h2>
-                <p className="text-slate-600">Review student status, score, benchmark, time taken, and re-attempt action for this assignment.</p>
-              </div>
+            <div className="mb-4">
+              <p className="math-block-header"><UserRound size={14} />Students</p>
+              <h2 className="text-2xl font-black text-slate-950 dark:text-white">Student Attempt Summary</h2>
+              <p className="mt-1 text-sm font-semibold text-slate-500">Status, score, benchmark, time taken and re-attempt for each student on this sheet.</p>
             </div>
 
             {data?.students?.length ? (
               <div className="math-table math-assignment-detail-table">
-                <table>
+                <table className="ad-cards ad-cards-wide">
                   <thead>
                     <tr>
                       <th><span className="math-table-header-label math-table-header-label-nowrap math-assignment-detail-header-label">Student</span></th>
@@ -146,18 +151,18 @@ export default function AdminAssignmentDetailPage() {
                   <tbody>
                     {data.students.map((row) => (
                       <tr key={row.studentId}>
-                        <td>
-                          <p className="font-black text-slate-950">{row.studentName}</p>
-                          <p className="mt-0.5 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">{row.studentCode}</p>
+                        <td className="ad-card-title">
+                          <p className="font-black text-slate-950 dark:text-white">{row.studentName}</p>
+                          <p className="ad-code">{row.studentCode}</p>
                         </td>
-                        <td><SemanticChip Value={row.status} Tone={StatusTone(row.status, row.requiresAttention)} /></td>
-                        <td><PerformanceChip Value={`${RoundedDisplay(row.score)} / ${RoundedDisplay(row.maxScore)}`} Tone={ScoreTone(row.score, row.maxScore)} /></td>
-                        <td><PerformanceChip Value={`${RoundedDisplay(row.accuracyPercentage)}%`} Tone={AccuracyTone(row.accuracyPercentage)} /></td>
-                        <td><BenchmarkChip Status={row.benchmarkStatus} RequiresAttention={row.requiresAttention} /></td>
-                        <td>{formatTimeTaken(row.timeTakenSeconds)}</td>
-                        <td>{formatDate(row.attemptDate || row.startedAt)}</td>
-                        <td>{formatDate(row.completedDate || row.submittedAt)}</td>
-                        <td>
+                        <td data-label="Status"><SemanticChip Value={InitCaps(row.status) || "—"} Tone={StatusTone(row.status, row.requiresAttention)} /></td>
+                        <td data-label="Score"><PerformanceChip Value={`${RoundedDisplay(row.score)} / ${RoundedDisplay(row.maxScore)}`} Tone={ScoreTone(row.score, row.maxScore)} /></td>
+                        <td data-label="Accuracy"><PerformanceChip Value={`${RoundedDisplay(row.accuracyPercentage)}%`} Tone={AccuracyTone(row.accuracyPercentage)} /></td>
+                        <td data-label="Benchmark"><BenchmarkChip Status={row.benchmarkStatus} RequiresAttention={row.requiresAttention} /></td>
+                        <td data-label="Time Taken" className="ad-date">{formatTimeTaken(row.timeTakenSeconds)}</td>
+                        <td data-label="Started" className="ad-date">{formatDate(row.attemptDate || row.startedAt)}</td>
+                        <td data-label="Completed" className="ad-date">{formatDate(row.completedDate || row.submittedAt)}</td>
+                        <td data-label="Review">
                           {row.attemptId ? (
                             <button className="math-role-action-button px-3 py-2" onClick={() => router.push(`/admin/results/${row.attemptId}`)}>
                               <Eye size={15} />
@@ -167,7 +172,7 @@ export default function AdminAssignmentDetailPage() {
                             <span className="text-xs font-bold text-slate-400">Pending</span>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Re-Attempt">
                           {row.reattemptStatus === "USED" ? (
                             <span className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700">Re-Attempt Assigned</span>
                           ) : row.requiresManualIntervention ? (
@@ -183,7 +188,7 @@ export default function AdminAssignmentDetailPage() {
                           ) : row.reattemptStatus === "APPROVED" ? (
                             <span className="math-badge border-amber-200 bg-amber-50 text-amber-700">Approval Pending Assignment</span>
                           ) : (
-                            <span className="text-xs font-bold text-slate-400">-</span>
+                            <span className="ad-empty">—</span>
                           )}
                         </td>
                       </tr>
@@ -235,21 +240,22 @@ export default function AdminAssignmentDetailPage() {
   );
 }
 
+// the admin number tile (label over value, icon on the left)
 function Metric({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
   return (
-    <div className="math-card p-5">
-      <div className="inline-flex rounded-2xl bg-blue-50 p-3 text-blue-700">{icon}</div>
-      <p className="mt-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <p className="mt-2 text-3xl font-black text-slate-950">{value}</p>
+    <div className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-5">
+      <div className="math-teacher-icon-chip relative z-10">{icon}</div>
+      <p className="relative z-10">{label}</p>
+      <p className="relative z-10">{value}</p>
     </div>
   );
 }
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[22px] border border-slate-200 bg-white/70 p-4">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <p className="mt-2 font-black text-slate-950">{value}</p>
+    <div className="ad-fact rounded-[22px] border border-slate-200 bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
+      <p className="text-sm font-bold text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 font-black text-slate-950 dark:text-white">{value}</p>
     </div>
   );
 }

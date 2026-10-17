@@ -67,8 +67,37 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Item C (2026-10, admin revamp): papers generated before the house style
+// changed are titled "Annual Competition -- MM-L1 Official Paper"; newer ones
+// use an em dash. Titles (any key ending in "title" or "Title") read
+// "Annual Competition — MM-L1 Official Paper" on every screen. Only " -- "
+// between words changes; the stored titles are untouched.
+const OLD_TITLE_DASH = /\s--\s/g;
+function TidyTitles(Value: unknown, Depth = 0): unknown {
+  if (Depth > 12 || Value === null || typeof Value !== "object") return Value;
+  if (Array.isArray(Value)) {
+    for (let Index = 0; Index < Value.length; Index += 1) Value[Index] = TidyTitles(Value[Index], Depth + 1);
+    return Value;
+  }
+  const Record = Value as Record<string, unknown>;
+  for (const Key of Object.keys(Record)) {
+    const Item = Record[Key];
+    if (typeof Item === "string") {
+      if ((Key === "title" || Key.endsWith("Title")) && Item.includes(" -- ")) Record[Key] = Item.replace(OLD_TITLE_DASH, " — ");
+    } else if (Item && typeof Item === "object") {
+      Record[Key] = TidyTitles(Item, Depth + 1);
+    }
+  }
+  return Record;
+}
+
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config.responseType !== "blob" && response.data && typeof response.data === "object") {
+      response.data = TidyTitles(response.data);
+    }
+    return response;
+  },
   async (error) => {
     // Requests made with responseType: "blob" (every file-download endpoint)
     // get their ERROR responses parsed as a Blob too -- Axios honors the

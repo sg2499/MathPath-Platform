@@ -17,7 +17,7 @@ export default function ReportsSectionPage() {
   return (
     <PaymentsSection<Tab>
       title="Reports"
-      label="Reports sections"
+      label="Reports Sections"
       fallback="overview"
       tabs={[
         { key: "overview", label: "Overview", icon: <BarChart3 size={16} /> },

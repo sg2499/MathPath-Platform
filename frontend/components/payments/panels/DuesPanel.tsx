@@ -156,10 +156,10 @@ export function DuesPanel() {
           {[{ bucket: "", label: "All", display: data && !bucket ? data.total.display : "" }, ...(data?.buckets ?? [])].map((row) => {
             const selected = bucket === row.bucket;
             return (
-              <button key={row.bucket || "ALL"} type="button" role="tab" aria-selected={selected} onClick={() => setBucket(row.bucket)} className={`math-role-tab-button math-admin-tab-force flex min-h-[3.25rem] min-w-0 flex-col items-start justify-center rounded-2xl px-3 py-2 text-left text-[13px] font-black leading-tight transition sm:px-4 sm:text-sm ${selected ? "is-active math-admin-tab-force-selected" : ""}`}>
+              <button key={row.bucket || "ALL"} type="button" role="tab" aria-selected={selected} onClick={() => setBucket(row.bucket)} className={`math-role-tab-button math-admin-tab-force flex min-h-[3.25rem] min-w-0 flex-col items-start justify-start rounded-2xl px-3 py-2 text-left text-[13px] font-black leading-tight transition sm:px-4 sm:text-sm ${selected ? "is-active math-admin-tab-force-selected" : ""}`}>
                 <span className="flex min-w-0 items-center gap-2">
                   {row.bucket ? <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: BUCKET_COLOURS[row.bucket as keyof typeof BUCKET_COLOURS] }} aria-hidden="true" /> : null}
-                  <span className="min-w-0">{row.label}</span>
+                  <span className="min-w-0 capitalize">{row.label}</span>
                 </span>
                 {row.bucket && !bucket ? <span className={`mt-0.5 text-xs tabular-nums opacity-80 ${row.bucket ? "pl-4" : ""}`}>{row.display}</span> : null}
               </button>
@@ -170,31 +170,31 @@ export function DuesPanel() {
         <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <div className="relative sm:col-span-2">
             <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Student, parent or mobile" aria-label="Search dues" />
+            <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Student, parent or mobile" aria-label="Search Dues" />
           </div>
           <select className="math-input" value={centreId} onChange={(event) => setCentreId(event.target.value)} aria-label="Centre">
-            <option value="">All centres</option>
+            <option value="">All Centres</option>
             {(settingsQuery.data?.centres ?? []).map((centre) => <option key={centre.centreId} value={centre.centreId}>{centre.name}</option>)}
-            <option value="NONE">No centre set</option>
+            <option value="NONE">No Centre Set</option>
           </select>
           <select className="math-input" value={levelCode} onChange={(event) => setLevelCode(event.target.value)} aria-label="Level">
-            <option value="">All levels</option>
+            <option value="">All Levels</option>
             {levels.map((value) => <option key={value} value={value}>{value}</option>)}
           </select>
-          <select className="math-input" value={feeItemId} onChange={(event) => setFeeItemId(event.target.value)} aria-label="Fee item">
-            <option value="">All fee items</option>
+          <select className="math-input" value={feeItemId} onChange={(event) => setFeeItemId(event.target.value)} aria-label="Fee Item">
+            <option value="">All Fee Items</option>
             {(feeQuery.data ?? []).map((item) => <option key={item.feeItemId} value={item.feeItemId}>{item.name}</option>)}
           </select>
-          <select className="math-input" value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort by">
-            <option value="due">Most due first</option>
-            <option value="overdue">Longest overdue first</option>
+          <select className="math-input" value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort By">
+            <option value="due">Most Due First</option>
+            <option value="overdue">Longest Overdue First</option>
             <option value="name">Name A–Z</option>
           </select>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
             <input type="checkbox" className="h-4 w-4" checked={activeOnly} onChange={(event) => setActiveOnly(event.target.checked)} />
-            Active students only
+            Active Students Only
           </label>
           <button type="button" className="math-button-secondary whitespace-nowrap" disabled={excel.isPending || !data?.studentCount} onClick={() => excel.mutate()}>
             {excel.isPending ? <Loader2 size={17} className="animate-spin" /> : <FileSpreadsheet size={17} />}Excel
@@ -208,7 +208,7 @@ export function DuesPanel() {
           ) : query.error ? (
             <InlineError error={query.error} />
           ) : !data?.students.length ? (
-            <EmptyState title="Nothing due" description={bucket || search || centreId || levelCode || feeItemId ? "No dues match these filters." : "Every invoice is paid."} />
+            <EmptyState title="Nothing Due" description={bucket || search || centreId || levelCode || feeItemId ? "No dues match these filters." : "Every invoice is paid."} />
           ) : (
             <ul className="grid gap-3">
               {data.students.map((row) => {

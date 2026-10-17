@@ -120,10 +120,10 @@ export function SettingsPanel({ tab }: { tab: SettingsPanelTab }) {
           {settings ? (
             <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 xl:shrink-0">
               <PaymentsMetric label="Centres" value={settings.centres.filter((centre) => centre.isActive).length} icon={<MapPin size={14} />} tone="cyan" />
-              <PaymentsMetric label="No centre" value={settings.activeStudentsWithoutCentre} icon={<Users size={14} />} tone={settings.activeStudentsWithoutCentre ? "amber" : "emerald"} />
+              <PaymentsMetric label="No Centre" value={settings.activeStudentsWithoutCentre} icon={<Users size={14} />} tone={settings.activeStudentsWithoutCentre ? "amber" : "emerald"} />
               <PaymentsMetric
                 label="Numbers"
-                value={settings.numbering.every((sequence) => sequence.isConfigured) ? "Ready" : "Not set"}
+                value={settings.numbering.every((sequence) => sequence.isConfigured) ? "Ready" : "Not Set"}
                 icon={<FileDigit size={14} />}
                 tone={settings.numbering.every((sequence) => sequence.isConfigured) ? "emerald" : "amber"}
               />
@@ -143,7 +143,7 @@ export function SettingsPanel({ tab }: { tab: SettingsPanelTab }) {
           {tab === "numbering" ? <NumberingSection sequences={settings.numbering} onSaved={refresh} /> : null}
           {tab === "history" ? (
             <section className="mt-6 math-card p-5 sm:p-6">
-              <SectionHeading icon={<History size={14} />} kicker="History" title="Recent changes" description="Every change in Payments: who made it, when, and what changed." />
+              <SectionHeading icon={<History size={14} />} kicker="History" title="Recent Changes" description="Every change in Payments: who made it, when, and what changed." />
               <div className="mt-5"><PaymentsHistoryList limit={50} /></div>
             </section>
           ) : null}
@@ -178,16 +178,16 @@ function BusinessSection({ business, onSaved }: { business: BusinessProfile; onS
 
   return (
     <section className="mt-6 math-card p-5 sm:p-6">
-      <SectionHeading icon={<Building2 size={14} />} kicker="Business Details" title="Printed on every invoice and receipt" description="Check these against your GST registration. Changes apply to documents created from now on." />
+      <SectionHeading icon={<Building2 size={14} />} kicker="Business Details" title="Printed On Every Invoice And Receipt" description="Check these against your GST registration. Changes apply to documents created from now on." />
       <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); if (!nameProblem && !gstinProblem && !panProblem) mutation.mutate(); }}>
           <label className="block">
-            <FieldLabel>Legal name</FieldLabel>
+            <FieldLabel>Legal Name</FieldLabel>
             <input className="math-input" value={form.legalName} onChange={(event) => set("legalName", event.target.value)} />
             <FieldError message={nameProblem} />
           </label>
           <label className="block">
-            <FieldLabel hint="optional">Brand name</FieldLabel>
+            <FieldLabel hint="optional">Brand Name</FieldLabel>
             <input className="math-input" value={form.brandName} onChange={(event) => set("brandName", event.target.value)} />
           </label>
           <label className="block">
@@ -202,7 +202,7 @@ function BusinessSection({ business, onSaved }: { business: BusinessProfile; onS
             <FieldError message={panProblem} />
           </label>
           <label className="block sm:col-span-2">
-            <FieldLabel hint="the address on the GST registration">Registered address</FieldLabel>
+            <FieldLabel hint="the address on the GST registration">Registered Address</FieldLabel>
             <textarea className="math-input min-h-[76px]" value={form.registeredAddress} onChange={(event) => set("registeredAddress", event.target.value)} placeholder="If left empty, invoices show the student's centre address instead" />
           </label>
           <label className="block">
@@ -214,7 +214,7 @@ function BusinessSection({ business, onSaved }: { business: BusinessProfile; onS
             <input className="math-input" value={form.phone} onChange={(event) => set("phone", event.target.value)} />
           </label>
           <label className="block sm:col-span-2">
-            <FieldLabel>Footer line</FieldLabel>
+            <FieldLabel>Footer Line</FieldLabel>
             <input className="math-input" value={form.invoiceFooter} onChange={(event) => set("invoiceFooter", event.target.value)} />
           </label>
           <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
@@ -230,8 +230,8 @@ function BusinessSection({ business, onSaved }: { business: BusinessProfile; onS
           <div className="sm:col-span-2"><InlineError error={mutation.error} /></div>
         </form>
 
-        <aside aria-label="Invoice header preview" className="self-start rounded-3xl border border-slate-200 bg-white p-5 text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Invoice header preview</p>
+        <aside aria-label="Invoice Header Preview" className="self-start rounded-3xl border border-slate-200 bg-white p-5 text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Invoice Header Preview</p>
           <p className="mt-3 text-lg font-black">{form.legalName || "Legal name"}</p>
           {form.brandName ? <p className="text-sm font-bold text-slate-500 dark:text-slate-400">{form.brandName}</p> : null}
           {form.registeredAddress ? <p className="mt-2 whitespace-pre-line text-xs font-semibold leading-5">{form.registeredAddress}</p> : null}
@@ -280,7 +280,7 @@ function CentresSection({ centres, withoutCentre, onSaved }: { centres: PaymentC
   return (
     <section className="mt-6 math-card p-5 sm:p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <SectionHeading icon={<MapPin size={14} />} kicker="Centres" title="Where students attend" description="A student's centre and its address are printed on their invoices and receipts. Without a centre, documents show every centre's address." />
+        <SectionHeading icon={<MapPin size={14} />} kicker="Centres" title="Where Students Attend" description="A student's centre and its address are printed on their invoices and receipts. Without a centre, documents show every centre's address." />
         <div className="flex flex-wrap gap-3">
           <button type="button" className="math-button-secondary" onClick={() => setAssignOpen(true)}><Users size={16} />Assign Students</button>
           <button type="button" className="math-button-primary" onClick={() => open(null)}><Plus size={16} />Add Centre</button>
@@ -302,7 +302,7 @@ function CentresSection({ centres, withoutCentre, onSaved }: { centres: PaymentC
               <h3 className="text-lg font-black text-slate-950 dark:text-white">{centre.name}</h3>
               <StatusPill active={centre.isActive} inactiveLabel="Switched off" />
             </div>
-            <p className="mt-2 min-h-[40px] whitespace-pre-line text-sm font-semibold leading-5 text-slate-600 dark:text-slate-300">{centre.address || <span className="italic text-slate-400">No address (fine for online classes)</span>}</p>
+            <p className="mt-2 min-h-[40px] whitespace-pre-line text-sm font-semibold leading-5 text-slate-600 dark:text-slate-300">{centre.address || <span className="italic text-slate-400">No Address (Fine For Online Classes)</span>}</p>
             {centre.phone ? <p className="mt-1 text-xs font-semibold text-slate-500">Tel: {centre.phone}</p> : null}
             <p className="mt-3 flex items-center gap-1.5 text-sm font-black text-slate-700 dark:text-slate-200"><Users size={14} />{centre.studentCount} {centre.studentCount === 1 ? "student" : "students"}</p>
             <div className="mt-4 flex gap-2">
@@ -405,17 +405,17 @@ function AssignStudentsDialog({ open, centres, onClose, onSaved }: { open: boole
     <PaymentsDialog
       open={open}
       kicker="Centres"
-      title="Assign students to a centre"
+      title="Assign Students To A Centre"
       onClose={onClose}
       wide
       footer={
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm font-black text-slate-700 dark:text-slate-200">{selected.size} selected</span>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <select className="math-select" value={target} onChange={(event) => setTarget(event.target.value)} aria-label="Centre to assign">
+            <select className="math-select" value={target} onChange={(event) => setTarget(event.target.value)} aria-label="Centre To Assign">
               <option value="">Choose a centre…</option>
               {activeCentres.map((centre) => <option key={centre.centreId} value={centre.centreId}>{centre.name}</option>)}
-              <option value="CLEAR">Remove centre</option>
+              <option value="CLEAR">Remove Centre</option>
             </select>
             <button type="button" className="math-button-primary" disabled={!selected.size || !target || mutation.isPending} onClick={() => mutation.mutate()}>
               {mutation.isPending ? "Saving..." : "Apply to Selected"}
@@ -427,24 +427,24 @@ function AssignStudentsDialog({ open, centres, onClose, onSaved }: { open: boole
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="relative sm:col-span-2 lg:col-span-4">
           <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by name or code" aria-label="Search students" />
+          <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by name or code" aria-label="Search Students" />
         </div>
-        <select className="math-select" value={centreFilter} onChange={(event) => setCentreFilter(event.target.value)} aria-label="Filter by centre">
-          <option value="NONE">No centre yet</option>
-          <option value="ALL">Any centre</option>
+        <select className="math-select" value={centreFilter} onChange={(event) => setCentreFilter(event.target.value)} aria-label="Filter By Centre">
+          <option value="NONE">No Centre Yet</option>
+          <option value="ALL">Any Centre</option>
           {centres.map((centre) => <option key={centre.centreId} value={centre.centreId}>{centre.name}</option>)}
         </select>
-        <select className="math-select" value={levelFilter} onChange={(event) => setLevelFilter(event.target.value)} aria-label="Filter by level">
-          <option value="ALL">All levels</option>
+        <select className="math-select" value={levelFilter} onChange={(event) => setLevelFilter(event.target.value)} aria-label="Filter By Level">
+          <option value="ALL">All Levels</option>
           {levels.map((level) => <option key={level} value={level}>{level}</option>)}
         </select>
-        <select className="math-select" value={teacherFilter} onChange={(event) => setTeacherFilter(event.target.value)} aria-label="Filter by teacher">
-          <option value="ALL">All teachers</option>
+        <select className="math-select" value={teacherFilter} onChange={(event) => setTeacherFilter(event.target.value)} aria-label="Filter By Teacher">
+          <option value="ALL">All Teachers</option>
           {teachers.map((teacher) => <option key={teacher} value={teacher}>{teacher}</option>)}
         </select>
         <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
           <input type="checkbox" className="h-4 w-4" checked={activeOnly} onChange={(event) => setActiveOnly(event.target.checked)} />
-          Active students only
+          Active Students Only
         </label>
       </div>
 
@@ -457,7 +457,7 @@ function AssignStudentsDialog({ open, centres, onClose, onSaved }: { open: boole
         <div className="mt-4"><InlineError error={studentsQuery.error} /></div>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800">
-          <table className="w-full min-w-[560px] text-left text-sm">
+          <table className="ad-cards w-full min-w-[560px] text-left text-sm">
             <thead className="bg-slate-50 dark:bg-slate-900/60">
               <tr className="text-xs font-black uppercase tracking-[0.1em] text-slate-500">
                 <th className="w-10 px-3 py-2">
@@ -473,7 +473,7 @@ function AssignStudentsDialog({ open, centres, onClose, onSaved }: { open: boole
                         return next;
                       });
                     }}
-                    aria-label="Select all shown students"
+                    aria-label="Select All Shown Students"
                   />
                 </th>
                 <th className="px-3 py-2">Student</th>
@@ -486,16 +486,16 @@ function AssignStudentsDialog({ open, centres, onClose, onSaved }: { open: boole
               {filtered.length ? (
                 filtered.map((student) => (
                   <tr key={student.studentId} className="cursor-pointer border-t border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/40" onClick={() => toggle(student.studentId)}>
-                    <td className="px-3 py-2" onClick={(event) => event.stopPropagation()}>
+                    <td className="ad-card-check px-3 py-2" onClick={(event) => event.stopPropagation()}>
                       <input type="checkbox" className="h-4 w-4" checked={selected.has(student.studentId)} onChange={() => toggle(student.studentId)} aria-label={`Select ${student.studentName}`} />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="ad-card-title px-3 py-2">
                       <div className="font-black text-slate-900 dark:text-white">{student.studentName}</div>
                       <div className="text-xs font-semibold text-slate-500">{student.studentCode}{student.isActive ? "" : " · inactive"}</div>
                     </td>
-                    <td className="px-3 py-2 font-semibold">{student.levelCode ?? "—"}</td>
-                    <td className="px-3 py-2 font-semibold">{student.teacherName ?? "—"}</td>
-                    <td className="px-3 py-2 font-semibold">{student.centreName ?? <span className="text-amber-600 dark:text-amber-300">Not set</span>}</td>
+                    <td data-label="Level" className="px-3 py-2 font-semibold">{student.levelCode ?? "—"}</td>
+                    <td data-label="Teacher" className="px-3 py-2 font-semibold">{student.teacherName ?? "—"}</td>
+                    <td data-label="Centre" className="px-3 py-2 font-semibold">{student.centreName ?? <span className="text-amber-600 dark:text-amber-300">Not Set</span>}</td>
                   </tr>
                 ))
               ) : (
@@ -536,13 +536,13 @@ function NumberingSection({ sequences, onSaved }: { sequences: NumberSequence[];
               {sequence.isConfigured ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"><ShieldCheck size={12} />Ready</span>
               ) : (
-                <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-700 dark:bg-amber-950/40 dark:text-amber-200">Not set yet</span>
+                <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-700 dark:bg-amber-950/40 dark:text-amber-200">Not Set Yet</span>
               )}
             </div>
             <dl className="mt-3 grid grid-cols-2 gap-y-1 text-sm">
               <dt className="font-semibold text-slate-500">Format</dt><dd className="text-right font-black tabular-nums">{sequence.prefix}{sequence.padWidth ? "0".repeat(sequence.padWidth) : "123"}</dd>
-              <dt className="font-semibold text-slate-500">Next number</dt><dd className="text-right font-black tabular-nums">{sequence.isConfigured ? sequence.nextFormatted : "—"}</dd>
-              <dt className="font-semibold text-slate-500">Last issued here</dt><dd className="text-right font-black tabular-nums">{sequence.lastIssuedFormatted ?? "None yet"}</dd>
+              <dt className="font-semibold text-slate-500">Next Number</dt><dd className="text-right font-black tabular-nums">{sequence.isConfigured ? sequence.nextFormatted : "—"}</dd>
+              <dt className="font-semibold text-slate-500">Last Issued Here</dt><dd className="text-right font-black tabular-nums">{sequence.lastIssuedFormatted ?? "None yet"}</dd>
             </dl>
             {!sequence.isConfigured ? (
               <p className="mt-3 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">Set the next number with Set Next Number. No {sequence.label.toLowerCase()} can be created until it is set.</p>
@@ -573,7 +573,7 @@ function NumberingSection({ sequences, onSaved }: { sequences: NumberSequence[];
             Normally the migration sets this. Only set it by hand if you are sure: it must be higher than the last number the old platform issued, or two documents would share a number.
           </p>
           <label className="block">
-            <FieldLabel>Next number</FieldLabel>
+            <FieldLabel>Next Number</FieldLabel>
             <input className="math-input tabular-nums" inputMode="numeric" value={value} onChange={(event) => setValue(event.target.value.replace(/[^0-9]/g, ""))} placeholder="e.g. 1037" />
             <FieldError message={value && !parsed ? "Enter a whole number from 1 to 99,999,999." : tooLow ? `${editing?.lastIssuedFormatted} has already been issued. Enter a higher number.` : null} />
             {preview && !tooLow ? <p className="mt-1.5 text-xs font-bold text-slate-600 dark:text-slate-300">The next {editing?.label.toLowerCase()} will be <span className="font-black tabular-nums">{preview}</span>.</p> : null}

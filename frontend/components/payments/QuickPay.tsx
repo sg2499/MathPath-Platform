@@ -159,7 +159,7 @@ function StudentPicker({ onPick, onClose }: { onPick: (studentId: string) => voi
     <PaymentsDialog open kicker="Quick Pay" title="Who is paying?" onClose={onClose}>
       <div className="grid gap-3">
         <label className="relative block">
-          <span className="sr-only">Find the student</span>
+          <span className="sr-only">Find The Student</span>
           <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             autoFocus
@@ -172,7 +172,7 @@ function StudentPicker({ onPick, onClose }: { onPick: (studentId: string) => voi
               if (event.key === "Enter" && students[active]) { event.preventDefault(); onPick(students[active].studentId); }
             }}
             placeholder="Name, student ID, parent or mobile"
-            aria-label="Find the student"
+            aria-label="Find The Student"
           />
         </label>
         {query.length < 2 ? (
@@ -310,7 +310,7 @@ function QuickPayForm({
         <>
           {account ? (
             <button type="button" className="math-button-secondary mr-auto" disabled={save.isPending} onClick={() => onMore(account, chosen.map((row) => row.invoiceId))}>
-              <SlidersHorizontal size={16} />More options
+              <SlidersHorizontal size={16} />More Options
             </button>
           ) : null}
           <button type="submit" form="quick-pay-form" className="math-button-primary" disabled={save.isPending || !account || !numberingReady}>
@@ -328,7 +328,7 @@ function QuickPayForm({
             <p className="min-w-0 text-sm font-semibold text-slate-500 dark:text-slate-400">
               {[account.student.studentCode, account.student.levelCode, account.student.centreName, account.student.parentName].filter(Boolean).join(" · ")}
             </p>
-            {onBack ? <button type="button" className="inline-flex items-center gap-1 text-xs font-black text-cyan-700 hover:underline dark:text-cyan-300" disabled={save.isPending} onClick={onBack}><ArrowLeft size={13} />Change student</button> : null}
+            {onBack ? <button type="button" className="inline-flex items-center gap-1 text-xs font-black text-cyan-700 hover:underline dark:text-cyan-300" disabled={save.isPending} onClick={onBack}><ArrowLeft size={13} />Change Student</button> : null}
           </div>
           {!numberingReady ? (
             <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
@@ -336,9 +336,9 @@ function QuickPayForm({
             </div>
           ) : null}
 
-          <section className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label="Invoices being paid">
+          <section className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label="Invoices Being Paid">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white">Paying for</h3>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white">Paying For</h3>
               {invoices.length ? <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{FormatRupees(account.totals.duePaise)} due in all</span> : null}
             </div>
             {invoices.length === 0 ? (
@@ -383,9 +383,9 @@ function QuickPayForm({
             )}
           </section>
 
-          <section className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label="Amount and method">
+          <section className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label="Amount And Method">
             <label className="grid gap-1.5">
-              <span className="text-sm font-black text-slate-900 dark:text-white">Amount received (₹)</span>
+              <span className="text-sm font-black text-slate-900 dark:text-white">Amount Received (₹)</span>
               <input
                 className="math-input text-lg font-black tabular-nums"
                 inputMode="decimal"
@@ -394,7 +394,7 @@ function QuickPayForm({
                 aria-invalid={tried && (received === null || !received)}
               />
             </label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="How it was paid">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="How It Was Paid">
               {METHOD_CHIPS.map((item) => {
                 const selected = method === item.value;
                 return (
@@ -421,25 +421,25 @@ function QuickPayForm({
 
           <div className="grid gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm dark:bg-slate-900/60">
             <div className="flex items-center justify-between gap-3">
-              <span className="font-bold text-slate-600 dark:text-slate-300">Applied to invoices</span>
+              <span className="font-bold text-slate-600 dark:text-slate-300">Applied To Invoices</span>
               <span className="font-black tabular-nums text-slate-900 dark:text-white">{FormatRupees(applied)}</span>
             </div>
             {extra > 0 ? (
               <div className="flex items-center justify-between gap-3 text-violet-800 dark:text-violet-200">
-                <span className="flex items-center gap-1.5 font-bold"><PiggyBank size={15} />Kept as advance</span>
+                <span className="flex items-center gap-1.5 font-bold"><PiggyBank size={15} />Kept As Advance</span>
                 <span className="font-black tabular-nums">{FormatRupees(extra)}</span>
               </div>
             ) : null}
             <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-2 dark:border-slate-800">
-              <span className="font-bold text-slate-600 dark:text-slate-300">Still due after this</span>
+              <span className="font-bold text-slate-600 dark:text-slate-300">Still Due After This</span>
               <span className="font-black tabular-nums text-slate-900 dark:text-white">{FormatRupees(Math.max(0, account.totals.duePaise - applied))}</span>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-2 dark:border-slate-800">
               <span className="flex items-center gap-1.5 font-bold text-slate-600 dark:text-slate-300"><CalendarDays size={15} />{paymentDate === today ? "Today" : FormatDate(paymentDate)}</span>
               {changeDate ? (
-                <input type="date" className="math-input h-9 w-auto px-3 py-1 text-sm" value={paymentDate} max={today} onChange={(event) => setPaymentDate(event.target.value)} aria-label="Payment date" />
+                <input type="date" className="math-input h-9 w-auto px-3 py-1 text-sm" value={paymentDate} max={today} onChange={(event) => setPaymentDate(event.target.value)} aria-label="Payment Date" />
               ) : (
-                <button type="button" className="text-xs font-black text-cyan-700 hover:underline dark:text-cyan-300" onClick={() => setChangeDate(true)}>Change date</button>
+                <button type="button" className="text-xs font-black text-cyan-700 hover:underline dark:text-cyan-300" onClick={() => setChangeDate(true)}>Change Date</button>
               )}
             </div>
           </div>
@@ -464,12 +464,12 @@ function QuickPayDone({ payment, studentName, dueAfter, onNext, onClose }: { pay
   return (
     <PaymentsDialog
       open
-      kicker="Payment recorded"
+      kicker="Payment Recorded"
       title={`${payment.amountDisplay} from ${studentName}`}
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="math-button-secondary mr-auto" onClick={onNext}><HandCoins size={16} />Next payment</button>
+          <button type="button" className="math-button-secondary mr-auto" onClick={onNext}><HandCoins size={16} />Next Payment</button>
           <button type="button" className="math-button-primary" onClick={onClose}>Done</button>
         </>
       }
@@ -486,20 +486,20 @@ function QuickPayDone({ payment, studentName, dueAfter, onNext, onClose }: { pay
         </div>
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
-            <dt className="font-bold text-slate-500 dark:text-slate-400">Still due</dt>
+            <dt className="font-bold text-slate-500 dark:text-slate-400">Still Due</dt>
             <dd className="mt-1 text-lg font-black tabular-nums text-slate-900 dark:text-white">{FormatRupees(dueAfter)}</dd>
           </div>
           <div className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
-            <dt className="font-bold text-slate-500 dark:text-slate-400">Kept as advance</dt>
+            <dt className="font-bold text-slate-500 dark:text-slate-400">Kept As Advance</dt>
             <dd className="mt-1 text-lg font-black tabular-nums text-slate-900 dark:text-white">{payment.advanceDisplay}</dd>
           </div>
         </dl>
         <div className="grid gap-2 sm:grid-cols-2">
           <button type="button" className="math-button-secondary justify-center" disabled={download.isPending} onClick={() => download.mutate()}>
-            {download.isPending ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}Download receipt
+            {download.isPending ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}Download Receipt
           </button>
           <Link href={`/admin/payments/collections?tab=payments&open=${encodeURIComponent(payment.paymentId)}`} onClick={onClose} className="math-button-secondary justify-center">
-            <Eye size={17} />View receipt
+            <Eye size={17} />View Receipt
           </Link>
         </div>
         {download.error ? <InlineError error={download.error} /> : null}

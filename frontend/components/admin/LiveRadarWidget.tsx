@@ -156,7 +156,7 @@ export function LiveRadarWidget() {
 
   if (loading && liveStudents.length === 0) {
     return (
-      <div className="math-dashboard-card animate-pulse">
+      <div className="ad-radar math-dashboard-card animate-pulse">
         <div className="h-5 w-32 bg-slate-200 dark:bg-slate-700 rounded mb-4"></div>
         <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded"></div>
       </div>
@@ -164,7 +164,7 @@ export function LiveRadarWidget() {
   }
 
   return (
-    <div className="math-dashboard-card relative overflow-hidden group border-2 border-emerald-500/20 shadow-emerald-500/10">
+    <div className="ad-radar math-dashboard-card relative overflow-hidden group border-2 border-emerald-500/20 shadow-emerald-500/10">
       <div className="absolute -top-10 -right-10 p-4 opacity-5 text-emerald-500">
         <Activity size={120} />
       </div>
@@ -185,7 +185,7 @@ export function LiveRadarWidget() {
       </div>
 
       {liveStudents.length === 0 ? (
-        <div className="text-sm text-slate-500 dark:text-slate-400 py-4 text-center bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+        <div className="ad-radar-empty text-sm text-slate-500 dark:text-slate-400 py-4 text-center bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
           No students active right now. Safe to deploy.
         </div>
       ) : (

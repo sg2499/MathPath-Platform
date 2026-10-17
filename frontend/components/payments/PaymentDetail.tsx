@@ -83,7 +83,7 @@ export function PaymentDetailDialog({
         payment ? (
           cancelling ? (
             <>
-              <button type="button" className="math-button-secondary" disabled={cancel.isPending} onClick={() => setCancelling(false)}>Keep payment</button>
+              <button type="button" className="math-button-secondary" disabled={cancel.isPending} onClick={() => setCancelling(false)}>Keep Payment</button>
               <button type="button" className="math-button-primary !bg-rose-600 hover:!bg-rose-700" disabled={!reason.trim() || cancel.isPending} onClick={() => cancel.mutate(payment)}>
                 {cancel.isPending ? <Loader2 size={17} className="animate-spin" /> : <Ban size={17} />}Cancel {payment.receiptNumber}
               </button>
@@ -92,12 +92,12 @@ export function PaymentDetailDialog({
             <>
               {payment.status === "RECORDED" ? (
                 <>
-                  <button type="button" className="math-button-secondary" onClick={() => { setCancelling(true); cancel.reset(); }}><Ban size={17} />Cancel payment</button>
+                  <button type="button" className="math-button-secondary" onClick={() => { setCancelling(true); cancel.reset(); }}><Ban size={17} />Cancel Payment</button>
                   <button type="button" className="math-button-secondary" onClick={() => onEdit(payment)}><Pencil size={17} />Edit</button>
                 </>
               ) : null}
               <button type="button" className="math-button-primary" disabled={pdf.isPending} onClick={() => pdf.mutate(payment)}>
-                {pdf.isPending ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}Download receipt
+                {pdf.isPending ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}Download Receipt
               </button>
             </>
           )
@@ -128,7 +128,7 @@ export function PaymentDetailDialog({
           </dl>
 
           <div>
-            <h3 className="mb-2 text-sm font-black text-slate-800 dark:text-slate-100">How it was paid</h3>
+            <h3 className="mb-2 text-sm font-black text-slate-800 dark:text-slate-100">How It Was Paid</h3>
             <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
               {payment.methods.map((line, index) => (
                 <li key={index} className="flex items-baseline justify-between gap-3 px-4 py-2 text-sm">
@@ -140,7 +140,7 @@ export function PaymentDetailDialog({
           </div>
 
           <div>
-            <h3 className="mb-2 text-sm font-black text-slate-800 dark:text-slate-100">Applied to</h3>
+            <h3 className="mb-2 text-sm font-black text-slate-800 dark:text-slate-100">Applied To</h3>
             {shown.length ? (
               <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
                 {shown.map((row) => (
@@ -168,7 +168,7 @@ export function PaymentDetailDialog({
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm tabular-nums sm:ml-auto sm:max-w-sm">
               <dt className="font-semibold text-slate-600 dark:text-slate-300">Received</dt><dd className="text-right font-black">{payment.amountDisplay}</dd>
               {payment.discountPaise ? (<><dt className="font-semibold text-slate-600 dark:text-slate-300">Discount</dt><dd className="text-right font-bold">{payment.discountDisplay}</dd></>) : null}
-              <dt className="font-semibold text-violet-700 dark:text-violet-300">Advance left</dt><dd className="text-right font-bold text-violet-700 dark:text-violet-300">{payment.advanceDisplay}</dd>
+              <dt className="font-semibold text-violet-700 dark:text-violet-300">Advance Left</dt><dd className="text-right font-bold text-violet-700 dark:text-violet-300">{payment.advanceDisplay}</dd>
             </dl>
             {payment.discountReason && payment.discountPaise ? <p className="mt-2 text-xs font-semibold text-slate-600 dark:text-slate-300">Discount reason: {payment.discountReason}</p> : null}
             {payment.note ? <p className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">Note: {payment.note}</p> : null}

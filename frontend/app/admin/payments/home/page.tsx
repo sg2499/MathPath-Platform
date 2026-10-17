@@ -45,7 +45,7 @@ import { FormatDate } from "@/lib/paymentsDates";
 
 function Greeting(): string {
   const hour = Number(new Intl.DateTimeFormat("en-IN", { hour: "numeric", hour12: false, timeZone: "Asia/Kolkata" }).format(new Date()));
-  return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  return hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
 }
 
 function LongDate(iso: string): string {
@@ -105,7 +105,7 @@ function AdvanceItem({ advance }: { advance: NonNullable<PaymentsHome["attention
         <Wallet size={16} className="shrink-0" />
         <span className="min-w-0 flex-1">{advance.usable.display} of advance can pay dues now ({who}).</span>
         {!confirming ? (
-          <button type="button" className="math-button-secondary !min-h-0 !px-3 !py-1.5 text-xs" onClick={() => setConfirming(true)}>Use it on dues</button>
+          <button type="button" className="math-button-secondary !min-h-0 !px-3 !py-1.5 text-xs" onClick={() => setConfirming(true)}>Use It On Dues</button>
         ) : (
           <span className="flex items-center gap-2">
             <button type="button" className="math-button-primary !min-h-0 !px-3 !py-1.5 text-xs" disabled={apply.isPending} onClick={() => apply.mutate()}>{apply.isPending ? "Applying…" : `Apply ${advance.usable.display}`}</button>
@@ -157,7 +157,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
             )}
             <Link href="/admin/payments/invoices?tab=monthly" className="math-button-secondary whitespace-nowrap"><FilePlus2 size={17} />{billing.waiting ? `Bill ${billing.periodLabel.split(" ")[0]} (${billing.waiting})` : "Monthly Billing"}</Link>
             <Link href="/admin/payments/collections?tab=day-close" className="math-button-secondary whitespace-nowrap">
-              {todayClosed ? <CheckCircle2 size={17} className="text-emerald-600 dark:text-emerald-400" /> : <CalendarCheck size={17} />}{todayClosed ? "Day closed" : "Close the day"}
+              {todayClosed ? <CheckCircle2 size={17} className="text-emerald-600 dark:text-emerald-400" /> : <CalendarCheck size={17} />}{todayClosed ? "Day Closed" : "Close The Day"}
             </Link>
           </div>
         </div>
@@ -165,7 +165,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <Stat
-          label="Received today"
+          label="Received Today"
           value={data.todayCollected.display}
           icon={<HandCoins size={17} />}
           tone="emerald"
@@ -173,7 +173,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
           sub={data.todayByMethod.length ? data.todayByMethod.map((row) => `${row.methodLabel} ${row.display}`).join(" · ") : "Nothing yet"}
         />
         <Stat
-          label={`Received in ${data.thisMonthLabel}`}
+          label={`Received In ${data.thisMonthLabel}`}
           value={data.thisMonthCollected.display}
           icon={<TrendingUp size={17} />}
           tone="cyan"
@@ -201,7 +201,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
       {/* Two equal columns, rows line up: attention | overdue, then latest | online. */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <Card
-            title="Needs attention"
+            title="Needs Attention"
             icon={attentionCount ? <AlertTriangle size={18} className="text-amber-600" /> : <CheckCircle2 size={18} className="text-emerald-600" />}
           >
             {attentionCount === 0 ? (
@@ -269,7 +269,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
             )}
           </Card>
 
-          <Card title="Biggest overdue" icon={<Wallet size={18} className="text-rose-600 dark:text-rose-400" />} action={<Link href="/admin/payments/reports?tab=dues" className="inline-flex items-center gap-1 text-sm font-black text-cyan-700 hover:underline dark:text-cyan-300">All dues<ArrowRight size={14} /></Link>}>
+          <Card title="Biggest Overdue" icon={<Wallet size={18} className="text-rose-600 dark:text-rose-400" />} action={<Link href="/admin/payments/reports?tab=dues" className="inline-flex items-center gap-1 text-sm font-black text-cyan-700 hover:underline dark:text-cyan-300">All Dues<ArrowRight size={14} /></Link>}>
             {data.attention.overdueStudents.length ? (
               <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                 {data.attention.overdueStudents.map((row) => (
@@ -290,7 +290,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
             )}
           </Card>
 
-          <Card title="Latest payments" icon={<ReceiptText size={18} className="text-emerald-600 dark:text-emerald-400" />} action={<Link href="/admin/payments/collections?tab=payments" className="inline-flex items-center gap-1 text-sm font-black text-cyan-700 hover:underline dark:text-cyan-300">All payments<ArrowRight size={14} /></Link>}>
+          <Card title="Latest Payments" icon={<ReceiptText size={18} className="text-emerald-600 dark:text-emerald-400" />} action={<Link href="/admin/payments/collections?tab=payments" className="inline-flex items-center gap-1 text-sm font-black text-cyan-700 hover:underline dark:text-cyan-300">All Payments<ArrowRight size={14} /></Link>}>
             {data.recentPayments.length ? (
               <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                 {data.recentPayments.map((payment) => (
@@ -312,7 +312,7 @@ function HomeBody({ data }: { data: PaymentsHome }) {
           </Card>
 
           <Card
-            title="Online payments"
+            title="Online Payments"
             icon={<CreditCard size={18} className="text-cyan-600 dark:text-cyan-400" />}
             action={<Link href="/admin/payments/collections?tab=online" className="inline-flex items-center gap-1 text-sm font-black text-cyan-700 hover:underline dark:text-cyan-300">Log<ArrowRight size={14} /></Link>}
           >
@@ -346,9 +346,9 @@ function HomeBody({ data }: { data: PaymentsHome }) {
       {/* Revamp R6: who did what, latest first. One full-width card. */}
       <div className="mt-6">
         <Card
-          title="Recent activity"
+          title="Recent Activity"
           icon={<History size={18} className="text-indigo-600 dark:text-indigo-400" />}
-          action={<Link href="/admin/payments/reports?tab=activity" className="inline-flex items-center gap-1 text-sm font-black text-cyan-700 hover:underline dark:text-cyan-300">All activity<ArrowRight size={14} /></Link>}
+          action={<Link href="/admin/payments/reports?tab=activity" className="inline-flex items-center gap-1 text-sm font-black text-cyan-700 hover:underline dark:text-cyan-300">All Activity<ArrowRight size={14} /></Link>}
         >
           {data.activity.length ? (
             // Newest first, down the left column then the right.

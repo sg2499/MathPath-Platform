@@ -39,7 +39,7 @@ function Ago(days: number | null): string {
 
 export function LastContactText({ state }: { state: FollowUpState }) {
   const last = state.lastContact;
-  if (!last) return <span className="text-slate-500 dark:text-slate-400">Never contacted</span>;
+  if (!last) return <span className="text-slate-500 dark:text-slate-400">Never Contacted</span>;
   const how = last.kind === "REMINDER" ? `${last.templateTitle ?? ""} in-app reminder`.trim() : last.channelLabel ?? "Contacted";
   return (
     <span className="text-slate-600 dark:text-slate-300">
@@ -51,7 +51,7 @@ export function LastContactText({ state }: { state: FollowUpState }) {
 export function PromisePill({ state }: { state: FollowUpState }) {
   const promise = state.promise;
   if (!promise || promise.state === "KEPT") return null;
-  const label = promise.state === "TODAY" ? "Promised for today" : promise.state === "MISSED" ? `Promise missed (${FormatDate(promise.date)})` : `Promised ${FormatDate(promise.date)}`;
+  const label = promise.state === "TODAY" ? "Promised For Today" : promise.state === "MISSED" ? `Promise Missed (${FormatDate(promise.date)})` : `Promised ${FormatDate(promise.date)}`;
   const tone = promise.state === "MISSED" ? "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200" : promise.state === "TODAY" ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200" : "bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200";
   return <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black ${tone}`}><CalendarCheck size={12} />{label}</span>;
 }
@@ -161,7 +161,7 @@ function LogContactDialog({ students, onClose }: { students: FollowUpTarget[]; o
       footer={done ? <button type="button" className="math-button-primary" onClick={onClose}>Done</button> : (
         <>
           <button type="button" className="math-button-secondary" disabled={save.isPending} onClick={onClose}>Cancel</button>
-          <button type="submit" form="log-contact-form" className="math-button-primary" disabled={save.isPending}>{save.isPending ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}Log contact</button>
+          <button type="submit" form="log-contact-form" className="math-button-primary" disabled={save.isPending}>{save.isPending ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}Log Contact</button>
         </>
       )}
     >
@@ -172,7 +172,7 @@ function LogContactDialog({ students, onClose }: { students: FollowUpTarget[]; o
           {many ? <p className="text-sm font-semibold text-slate-600 dark:text-slate-300"><Names students={students} /></p> : null}
           <div className="grid gap-1.5">
             <span className="text-sm font-black text-slate-900 dark:text-white">How</span>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="How you contacted them">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="How You Contacted Them">
               {CONTACT_CHANNELS.map((item) => (
                 <button key={item.value} type="button" role="radio" aria-checked={channel === item.value} onClick={() => setChannel(item.value)}
                   className={`rounded-2xl border px-3 py-2.5 text-sm font-black transition ${channel === item.value ? "border-transparent bg-gradient-to-r from-slate-900 to-indigo-700 text-white dark:from-cyan-500 dark:to-indigo-500" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-200"}`}>
@@ -182,19 +182,19 @@ function LogContactDialog({ students, onClose }: { students: FollowUpTarget[]; o
             </div>
           </div>
           <label className="grid gap-1.5">
-            <span className="text-sm font-black text-slate-900 dark:text-white">What happened <span className="font-semibold text-slate-500">(optional)</span></span>
+            <span className="text-sm font-black text-slate-900 dark:text-white">What Happened <span className="font-semibold text-slate-500">(optional)</span></span>
             <textarea className="math-input min-h-[76px]" maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} placeholder="For example: no answer; spoke to the mother, will pay on Saturday" />
           </label>
           <div className="grid gap-1.5">
-            <span className="text-sm font-black text-slate-900 dark:text-white">Promised to pay on <span className="font-semibold text-slate-500">(optional)</span></span>
+            <span className="text-sm font-black text-slate-900 dark:text-white">Promised To Pay On <span className="font-semibold text-slate-500">(optional)</span></span>
             <div className="flex flex-wrap items-center gap-2">
-              <input type="date" className="math-input h-11 w-auto px-3" min={today} max={AddDays(today, 90)} value={promise} onChange={(event) => setPromise(event.target.value)} aria-label="Promise date" />
+              <input type="date" className="math-input h-11 w-auto px-3" min={today} max={AddDays(today, 90)} value={promise} onChange={(event) => setPromise(event.target.value)} aria-label="Promise Date" />
               {[["Today", 0], ["Tomorrow", 1], ["In 3 days", 3], ["In a week", 7]].map(([label, days]) => (
                 <button key={label} type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => setPromise(AddDays(today, days as number))}>{label}</button>
               ))}
               {promise ? <button type="button" className="text-xs font-black text-slate-500 hover:underline" onClick={() => setPromise("")}>Clear</button> : null}
             </div>
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">On that day they come back to the top under &quot;Promised for today&quot;; if nothing is paid, they show as a missed promise.</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">On that day they come back to the top under &quot;Promised For Today&quot;; if nothing is paid, they show as a missed promise.</span>
           </div>
           {save.error ? <InlineError error={save.error} /> : null}
         </form>
@@ -235,10 +235,10 @@ function ReminderDialog({ student, inAppAvailable, onClose, onLog }: { student: 
       onClose={() => { if (!send.isPending) onClose(); }}
       footer={
         <div className="grid w-full grid-cols-2 gap-3">
-          <button type="button" className="math-button-secondary justify-center" onClick={onLog}><MessageSquarePlus size={16} />Log contact</button>
+          <button type="button" className="math-button-secondary justify-center" onClick={onLog}><MessageSquarePlus size={16} />Log Contact</button>
           <button type="button" className="math-button-secondary justify-center" disabled={!text.data} onClick={copy}>{copied === "yes" ? <Check size={16} /> : <Copy size={16} />}{copied === "yes" ? "Copied" : "Copy"}</button>
           <button type="button" className="math-button-primary col-span-2 justify-center" disabled={!inAppAvailable || !text.data || send.isPending || Boolean(sent?.sent)} onClick={() => send.mutate()}>
-            {send.isPending ? <Loader2 size={17} className="animate-spin" /> : <BellRing size={17} />}{sent?.sent ? "Sent in the app" : "Remind in app"}
+            {send.isPending ? <Loader2 size={17} className="animate-spin" /> : <BellRing size={17} />}{sent?.sent ? "Sent In The App" : "Remind In App"}
           </button>
         </div>
       }
@@ -250,7 +250,7 @@ function ReminderDialog({ student, inAppAvailable, onClose, onLog }: { student: 
         ) : text.error ? (
           <InlineError error={text.error} />
         ) : (
-          <textarea readOnly className="math-input min-h-[220px] text-sm leading-relaxed" value={text.data?.text ?? ""} onFocus={(event) => event.currentTarget.select()} aria-label="Reminder message" />
+          <textarea readOnly className="math-input min-h-[220px] text-sm leading-relaxed" value={text.data?.text ?? ""} onFocus={(event) => event.currentTarget.select()} aria-label="Reminder Message" />
         )}
         {copied === "no" ? <p className="text-sm font-bold text-amber-700 dark:text-amber-300">This browser blocked copying. Select the text above and copy it.</p> : null}
         {copied === "yes" ? <p role="status" className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Copied. After you send it, use Log contact to keep a record.</p> : null}
@@ -305,7 +305,7 @@ function BulkRemindDialog({ students, onClose }: { students: FollowUpTarget[]; o
           <div className="grid gap-1.5">
             <span className="text-sm font-black text-slate-900 dark:text-white">What {sample?.studentName ?? "a student"} will see</span>
             {preview.isLoading ? <p className="flex items-center gap-2 py-4 text-sm font-semibold text-slate-500"><Loader2 size={16} className="animate-spin" />Filling in…</p> : preview.error ? <InlineError error={preview.error} /> : (
-              <textarea readOnly className="math-input min-h-[180px] text-sm leading-relaxed" value={preview.data?.text ?? ""} aria-label="Sample reminder" />
+              <textarea readOnly className="math-input min-h-[180px] text-sm leading-relaxed" value={preview.data?.text ?? ""} aria-label="Sample Reminder" />
             )}
           </div>
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Sent under each student&apos;s bell in the app, with their own amount and invoices. Anyone reminded in the app in the last 24 hours is skipped.</p>

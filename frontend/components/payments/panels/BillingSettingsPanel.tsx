@@ -43,7 +43,7 @@ function Card({ title, icon, children }: { title: string; icon: ReactNode; child
 
 export function ModePill({ mode }: { mode: BillingMode }) {
   if (mode === "EXEMPT") {
-    return <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-200 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"><Ban size={12} />No monthly fee</span>;
+    return <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-200 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200"><Ban size={12} />No Monthly Fee</span>;
   }
   return mode === "INTERNATIONAL" ? (
     <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-violet-100 px-2.5 py-1 text-xs font-black text-violet-800 dark:bg-violet-950/40 dark:text-violet-200"><Globe2 size={12} />International</span>
@@ -71,8 +71,8 @@ export function BillingSettingsPanel() {
             <div className="grid grid-cols-2 gap-3 min-[480px]:grid-cols-4 xl:shrink-0">
               <PaymentsMetric label="India" value={data.counts.INDIA} icon={<IndianRupee size={14} />} tone="cyan" />
               <PaymentsMetric label="International" value={data.counts.INTERNATIONAL} icon={<Globe2 size={14} />} tone="cyan" />
-              <PaymentsMetric label="No monthly fee" value={data.counts.EXEMPT ?? 0} icon={<Ban size={14} />} tone="slate" />
-              <PaymentsMetric label="Next drafts" value={<span className="text-lg sm:text-xl">{data.nextAutoLabel ?? "Off"}</span>} icon={<CalendarClock size={14} />} tone={data.autoDraftsEnabled ? "emerald" : "amber"} />
+              <PaymentsMetric label="No Monthly Fee" value={data.counts.EXEMPT ?? 0} icon={<Ban size={14} />} tone="slate" />
+              <PaymentsMetric label="Next Drafts" value={<span className="text-lg sm:text-xl">{data.nextAutoLabel ?? "Off"}</span>} icon={<CalendarClock size={14} />} tone={data.autoDraftsEnabled ? "emerald" : "amber"} />
             </div>
           ) : null}
         </div>
@@ -112,16 +112,16 @@ function FeesCard({ data }: { data: BillingSettings }) {
   const options = data.monthlyFeeItems.filter((item) => item.isActive);
   const changed = india !== (data.indiaFee?.feeItemId ?? "") || intl !== (data.internationalFee?.feeItemId ?? "");
   return (
-    <Card title="Monthly fee by mode" icon={<IndianRupee size={18} className="text-cyan-600 dark:text-cyan-400" />}>
+    <Card title="Monthly Fee By Mode" icon={<IndianRupee size={18} className="text-cyan-600 dark:text-cyan-400" />}>
       <div className="grid gap-4">
         {[
-          { label: "India students", value: india, set: setIndia },
-          { label: "International students", value: intl, set: setIntl },
+          { label: "India Students", value: india, set: setIndia },
+          { label: "International Students", value: intl, set: setIntl },
         ].map((row) => (
           <label key={row.label} className="grid gap-1.5">
             <span className="text-sm font-black text-slate-900 dark:text-white">{row.label}</span>
             <select className="math-select" value={row.value} onChange={(event) => { row.set(event.target.value); setSaved(false); }}>
-              <option value="">Not chosen</option>
+              <option value="">Not Chosen</option>
               {options.map((item) => <option key={item.feeItemId} value={item.feeItemId}>{item.name} · {item.display}</option>)}
             </select>
           </label>
@@ -131,7 +131,7 @@ function FeesCard({ data }: { data: BillingSettings }) {
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" className="math-button-primary" disabled={!changed || save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? <Loader2 size={17} className="animate-spin" /> : <CheckCircle2 size={17} />}Save fees
+            {save.isPending ? <Loader2 size={17} className="animate-spin" /> : <CheckCircle2 size={17} />}Save Fees
           </button>
           {saved && !changed ? <span role="status" className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Saved.</span> : null}
         </div>
@@ -148,7 +148,7 @@ function AutoCard({ data }: { data: BillingSettings }) {
     onSuccess: (next) => { queryClient.setQueryData(["admin", "payments", "billing", "settings"], next); queryClient.invalidateQueries({ queryKey: ["admin", "payments"] }); },
   });
   return (
-    <Card title="Automatic drafts" icon={<CalendarClock size={18} className="text-emerald-600 dark:text-emerald-400" />}>
+    <Card title="Automatic Drafts" icon={<CalendarClock size={18} className="text-emerald-600 dark:text-emerald-400" />}>
       <div className="grid gap-4">
         <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
           <input type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-emerald-600" checked={data.autoDraftsEnabled} disabled={toggle.isPending} onChange={(event) => toggle.mutate(event.target.checked)} />
@@ -161,11 +161,11 @@ function AutoCard({ data }: { data: BillingSettings }) {
         </label>
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-900/60">
-            <dt className="font-bold text-slate-500 dark:text-slate-400">Next drafts</dt>
+            <dt className="font-bold text-slate-500 dark:text-slate-400">Next Drafts</dt>
             <dd className="mt-1 font-black text-slate-900 dark:text-white">{data.nextAutoLabel ? `1 ${data.nextAutoLabel}` : "Switched off"}</dd>
           </div>
           <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-900/60">
-            <dt className="font-bold text-slate-500 dark:text-slate-400">Last drafted</dt>
+            <dt className="font-bold text-slate-500 dark:text-slate-400">Last Drafted</dt>
             <dd className="mt-1 font-black text-slate-900 dark:text-white">{data.lastAutoLabel ? `${data.lastAutoLabel}` : "Not yet"}</dd>
             {data.lastAutoAt ? <dd className="text-xs font-semibold text-slate-500">{When(data.lastAutoAt)}</dd> : null}
           </div>
@@ -214,28 +214,28 @@ function StudentModes() {
   return (
     <section className="math-card mt-6 p-5 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 dark:text-white"><UsersRound size={18} className="text-violet-600 dark:text-violet-400" />Students&apos; billing mode</h2>
+        <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 dark:text-white"><UsersRound size={18} className="text-violet-600 dark:text-violet-400" />Students&apos; Billing Mode</h2>
         <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Everyone is India unless set to International</span>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <label className="relative sm:col-span-2 xl:col-span-1">
-          <span className="sr-only">Search students</span>
+          <span className="sr-only">Search Students</span>
           <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input className="math-input pl-11" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name or student ID" />
         </label>
-        <select className="math-select" value={mode} onChange={(event) => setMode(event.target.value as "ALL" | BillingMode)} aria-label="Filter by mode">
-          <option value="ALL">Every mode</option>
-          <option value="INDIA">India only</option>
-          <option value="INTERNATIONAL">International only</option>
-          <option value="EXEMPT">No monthly fee only</option>
+        <select className="math-select" value={mode} onChange={(event) => setMode(event.target.value as "ALL" | BillingMode)} aria-label="Filter By Mode">
+          <option value="ALL">Every Mode</option>
+          <option value="INDIA">India Only</option>
+          <option value="INTERNATIONAL">International Only</option>
+          <option value="EXEMPT">No Monthly Fee Only</option>
         </select>
-        <select className="math-select" value={level} onChange={(event) => setLevel(event.target.value)} aria-label="Filter by level">
-          <option value="ALL">All levels</option>
+        <select className="math-select" value={level} onChange={(event) => setLevel(event.target.value)} aria-label="Filter By Level">
+          <option value="ALL">All Levels</option>
           {levels.map((code) => <option key={code} value={code}>{code}</option>)}
         </select>
         <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300">
           <input type="checkbox" className="h-4 w-4" checked={activeOnly} onChange={(event) => setActiveOnly(event.target.checked)} />
-          Active students only
+          Active Students Only
         </label>
       </div>
 
@@ -243,7 +243,7 @@ function StudentModes() {
         <span className="mr-auto text-sm font-black text-slate-700 dark:text-slate-200">{selected.size} selected</span>
         <button type="button" className="math-button-secondary" disabled={!selected.size || apply.isPending} onClick={() => apply.mutate("INDIA")}><IndianRupee size={16} />Set India</button>
         <button type="button" className="math-button-secondary" disabled={!selected.size || apply.isPending} onClick={() => apply.mutate("INTERNATIONAL")}><Globe2 size={16} />Set International</button>
-        <button type="button" className="math-button-secondary" disabled={!selected.size || apply.isPending} onClick={() => apply.mutate("EXEMPT")} title="Never billed the monthly fee: test accounts, staff children, scholarships"><Ban size={16} />Set no monthly fee</button>
+        <button type="button" className="math-button-secondary" disabled={!selected.size || apply.isPending} onClick={() => apply.mutate("EXEMPT")} title="Never billed the monthly fee: test accounts, staff children, scholarships"><Ban size={16} />Set No Monthly Fee</button>
       </div>
       {result ? <div role="status" className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">{result}</div> : null}
       {apply.error ? <div className="mt-3"><InlineError error={apply.error} /></div> : null}
@@ -254,7 +254,7 @@ function StudentModes() {
         <div className="mt-4"><InlineError error={query.error} /></div>
       ) : (
         <div className="mt-4 max-h-[560px] overflow-auto rounded-2xl border border-slate-100 dark:border-slate-800">
-          <table className="w-full min-w-[560px] text-left text-sm">
+          <table className="ad-cards w-full min-w-[560px] text-left text-sm">
             <thead className="sticky top-0 z-10 bg-slate-50 text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:bg-slate-900 dark:text-slate-400">
               <tr>
                 <th className="w-10 px-3 py-2.5">
@@ -262,7 +262,7 @@ function StudentModes() {
                     const next = new Set(current);
                     shown.forEach((row) => (allShown ? next.delete(row.studentId) : next.add(row.studentId)));
                     return next;
-                  })} aria-label="Select all shown" />
+                  })} aria-label="Select All Shown" />
                 </th>
                 <th className="px-3 py-2.5">Student</th>
                 <th className="px-3 py-2.5">Level</th>
@@ -273,14 +273,14 @@ function StudentModes() {
             <tbody>
               {shown.map((row) => (
                 <tr key={row.studentId} className="cursor-pointer border-t border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/50" onClick={() => toggle(row.studentId)}>
-                  <td className="px-3 py-2.5"><input type="checkbox" className="h-4 w-4" checked={selected.has(row.studentId)} onChange={() => toggle(row.studentId)} onClick={(event) => event.stopPropagation()} aria-label={`Select ${row.studentName}`} /></td>
-                  <td className="px-3 py-2.5">
+                  <td className="ad-card-check px-3 py-2.5"><input type="checkbox" className="h-4 w-4" checked={selected.has(row.studentId)} onChange={() => toggle(row.studentId)} onClick={(event) => event.stopPropagation()} aria-label={`Select ${row.studentName}`} /></td>
+                  <td className="ad-card-title px-3 py-2.5">
                     <span className="block font-black text-slate-900 dark:text-white">{row.studentName}{row.isActive ? "" : " (inactive)"}<DemoTag studentId={row.studentId} /></span>
                     <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{row.studentCode}</span>
                   </td>
-                  <td className="px-3 py-2.5 font-semibold text-slate-600 dark:text-slate-300">{row.levelCode ?? "—"}</td>
-                  <td className="px-3 py-2.5 font-semibold text-slate-600 dark:text-slate-300">{row.centreName ?? "—"}</td>
-                  <td className="px-3 py-2.5"><ModePill mode={row.billingMode} /></td>
+                  <td data-label="Level" className="px-3 py-2.5 font-semibold text-slate-600 dark:text-slate-300">{row.levelCode ?? "—"}</td>
+                  <td data-label="Centre" className="px-3 py-2.5 font-semibold text-slate-600 dark:text-slate-300">{row.centreName ?? "—"}</td>
+                  <td data-label="Mode" className="px-3 py-2.5"><ModePill mode={row.billingMode} /></td>
                 </tr>
               ))}
               {shown.length === 0 ? <tr><td colSpan={5} className="px-3 py-8 text-center font-semibold text-slate-500">No students match.</td></tr> : null}

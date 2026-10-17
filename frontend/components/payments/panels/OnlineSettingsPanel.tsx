@@ -124,28 +124,28 @@ export function OnlineSettingsPanel() {
           </div>
           <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 xl:shrink-0">
             <PaymentsMetric label="Online" value={settings.onlinePaymentsLive ? "Live" : "Off"} icon={<CreditCard size={14} />} tone={settings.onlinePaymentsLive ? "emerald" : "slate"} />
-            <PaymentsMetric label="Razorpay" value={settings.keyMode === "LIVE" ? "Live keys" : settings.keyMode === "TEST" ? "Test keys" : "No keys"} icon={<KeyRound size={14} />} tone={settings.keyMode === "LIVE" ? "emerald" : settings.keyMode === "TEST" ? "amber" : "slate"} />
-            <PaymentsMetric label="Webhook" value={settings.webhookSecretSet ? "Ready" : "Not set"} icon={<Webhook size={14} />} tone={settings.webhookSecretSet ? "emerald" : "amber"} />
+            <PaymentsMetric label="Razorpay" value={settings.keyMode === "LIVE" ? "Live Keys" : settings.keyMode === "TEST" ? "Test Keys" : "No Keys"} icon={<KeyRound size={14} />} tone={settings.keyMode === "LIVE" ? "emerald" : settings.keyMode === "TEST" ? "amber" : "slate"} />
+            <PaymentsMetric label="Webhook" value={settings.webhookSecretSet ? "Ready" : "Not Set"} icon={<Webhook size={14} />} tone={settings.webhookSecretSet ? "emerald" : "amber"} />
           </div>
         </div>
       </section>
 
       <section className="mt-6 math-card p-5 sm:p-6">
         <p className="math-block-header"><Eye size={14} />Switches</p>
-        <h2 className="text-2xl font-black text-slate-950 dark:text-white">What students and parents see</h2>
+        <h2 className="text-2xl font-black text-slate-950 dark:text-white">What Students And Parents See</h2>
         <div className="mt-5 grid gap-3">
-          <div className="flex items-start justify-between gap-4 rounded-3xl border border-slate-200 bg-white/80 p-5 dark:border-slate-800 dark:bg-slate-950/60">
+          <div className="ad-switch-row flex items-start justify-between gap-4 rounded-3xl border border-slate-200 bg-white/80 p-5 dark:border-slate-800 dark:bg-slate-950/60">
             <div className="min-w-0">
-              <h3 className="text-lg font-black text-slate-950 dark:text-white">Show fees to students</h3>
+              <h3 className="text-lg font-black text-slate-950 dark:text-white">Show Fees To Students</h3>
               <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">
                 A Fees item in the student menu with their invoices, receipts and PDFs, a line on their dashboard while something is due, and a notification for each new invoice and payment.
               </p>
             </div>
-            <Switch label="Show fees to students" on={settings.studentFeesEnabled} busy={mutation.isPending && mutation.variables?.key === "studentFeesEnabled"} onToggle={() => ask("studentFeesEnabled", !settings.studentFeesEnabled)} />
+            <Switch label="Show Fees To Students" on={settings.studentFeesEnabled} busy={mutation.isPending && mutation.variables?.key === "studentFeesEnabled"} onToggle={() => ask("studentFeesEnabled", !settings.studentFeesEnabled)} />
           </div>
-          <div className="flex items-start justify-between gap-4 rounded-3xl border border-slate-200 bg-white/80 p-5 dark:border-slate-800 dark:bg-slate-950/60">
+          <div className="ad-switch-row flex items-start justify-between gap-4 rounded-3xl border border-slate-200 bg-white/80 p-5 dark:border-slate-800 dark:bg-slate-950/60">
             <div className="min-w-0">
-              <h3 className="text-lg font-black text-slate-950 dark:text-white">Take payments online</h3>
+              <h3 className="text-lg font-black text-slate-950 dark:text-white">Take Payments Online</h3>
               <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">
                 Pay now on the student&apos;s Fees page, and pay links for parents (Collections &gt; Student Fees). Each payment gets its receipt straight away.
               </p>
@@ -157,7 +157,7 @@ export function OnlineSettingsPanel() {
               ) : null}
             </div>
             <Switch
-              label="Take payments online"
+              label="Take Payments Online"
               on={settings.onlinePaymentsEnabled}
               disabled={!settings.onlinePaymentsEnabled && !canTurnOnline}
               busy={mutation.isPending && mutation.variables?.key === "onlinePaymentsEnabled"}
@@ -170,9 +170,9 @@ export function OnlineSettingsPanel() {
 
       <section className="mt-6 math-card p-5 sm:p-6">
         <p className="math-block-header"><ShieldCheck size={14} />Checks</p>
-        <h2 className="text-2xl font-black text-slate-950 dark:text-white">Ready for online payments?</h2>
+        <h2 className="text-2xl font-black text-slate-950 dark:text-white">Ready For Online Payments?</h2>
         <ul className="mt-5 grid gap-3 lg:grid-cols-3">
-          <Check ok={settings.keysReady} title="Razorpay keys on the server">
+          <Check ok={settings.keysReady} title="Razorpay Keys On The Server">
             {settings.keysReady ? (
               <>
                 <span className="font-black tabular-nums">{settings.keyIdMasked}</span> ({settings.keyMode === "LIVE" ? "live: real money" : "test: no real money"})
@@ -181,22 +181,22 @@ export function OnlineSettingsPanel() {
               <>Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to the backend&apos;s .env on the server, then restart the backend.</>
             )}
           </Check>
-          <Check ok={settings.webhookSecretSet} title="Webhook secret on the server">
+          <Check ok={settings.webhookSecretSet} title="Webhook Secret On The Server">
             {settings.webhookSecretSet ? (
               <>Set. Payments are recorded even if a parent closes the page straight after paying.</>
             ) : (
               <>Add RAZORPAY_WEBHOOK_SECRET to the .env. It is needed so a payment is recorded even if the page is closed straight after paying.</>
             )}
           </Check>
-          <Check ok={settings.receiptNumberingReady} title="Receipt numbering">
+          <Check ok={settings.receiptNumberingReady} title="Receipt Numbering">
             {settings.receiptNumberingReady ? <>Set. Online payments get the next money receipt number.</> : <>Set the starting receipt number in Document Numbering first.</>}
           </Check>
         </ul>
       </section>
 
       <section className="mt-6 math-card p-5 sm:p-6">
-        <p className="math-block-header"><Link2 size={14} />Razorpay webhook</p>
-        <h2 className="text-2xl font-black text-slate-950 dark:text-white">This site&apos;s webhook</h2>
+        <p className="math-block-header"><Link2 size={14} />Razorpay Webhook</p>
+        <h2 className="text-2xl font-black text-slate-950 dark:text-white">This Site&apos;s Webhook</h2>
         <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-600 dark:text-slate-300">
           In the Razorpay dashboard, Settings &gt; Webhooks &gt; Add New Webhook. Keep the old platform&apos;s webhook as it is: this is a second one, with its own secret. Payments the old platform starts are ignored here.
         </p>
@@ -206,7 +206,7 @@ export function OnlineSettingsPanel() {
             <CopyField value={webhookUrl} label="Copy the webhook URL" />
           </div>
           <div className="min-w-0">
-            <p className="mb-1.5 text-sm font-black text-slate-700 dark:text-slate-200">Active events to tick</p>
+            <p className="mb-1.5 text-sm font-black text-slate-700 dark:text-slate-200">Active Events To Tick</p>
             <div className="flex flex-wrap gap-2">
               {settings.webhookEvents.map((event) => (
                 <code key={event} className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-black text-slate-700 dark:bg-slate-900 dark:text-slate-200">{event}</code>
@@ -224,7 +224,7 @@ export function OnlineSettingsPanel() {
           <>
             <button type="button" className="math-button-secondary" onClick={() => setConfirming(null)}>Cancel</button>
             <button type="button" className="math-button-primary" disabled={mutation.isPending} onClick={() => confirming && mutation.mutate(confirming)}>
-              {mutation.isPending ? <Loader2 size={17} className="animate-spin" /> : null}Switch on
+              {mutation.isPending ? <Loader2 size={17} className="animate-spin" /> : null}Switch On
             </button>
           </>
         }

@@ -41,7 +41,7 @@ import {
 import { useParams, useRouter } from "next/navigation";
 
 function FormatDurationSeconds(Value: number | null | undefined): string {
-  if (Value === null || Value === undefined) return "-";
+  if (Value === null || Value === undefined) return "—";
   const Total = Math.max(0, Math.round(Number(Value) || 0));
   const Minutes = Math.floor(Total / 60);
   const Seconds = Total % 60;
@@ -61,7 +61,7 @@ function FormatDurationSeconds(Value: number | null | undefined): string {
 // this stays as a defensive second layer, same pattern as the Practice
 // Reports fix.
 function FormatNumber(Value: number | null | undefined): string {
-  if (Value === null || Value === undefined || Number.isNaN(Number(Value))) return "-";
+  if (Value === null || Value === undefined || Number.isNaN(Number(Value))) return "—";
   return String(Math.round(Number(Value)));
 }
 
@@ -121,16 +121,16 @@ export default function AdminAnnualCompetitionAttemptReviewPage() {
   return (
     <AppShell title="Annual Competition Attempt Review">
       <section className="space-y-5">
-        <div className="math-card p-6">
-          <button
-            type="button"
-            className="math-button-secondary mb-4 inline-flex items-center gap-1.5 px-4 py-2 text-sm"
-            onClick={() => Router.push(`/admin/competition/annual-studio/${Review.eventId}`)}
-          >
-            <ArrowLeft size={14} />
+        {/* 2026-10 (admin revamp): Back sits above the card, at the right,
+            as on every other admin page */}
+        <div className="ad-back-row">
+          <button type="button" className="ad-back" onClick={() => Router.push(`/admin/competition/annual-studio/${Review.eventId}`)}>
+            <ArrowLeft size={16} />
             Back To Event
           </button>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        </div>
+        <div className="math-card p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="math-block-header"><BookOpenCheck size={14} />Attempt Review</p>
               <h1 className="math-title">{Review.studentName || Review.studentCode || Review.studentId}</h1>
@@ -141,8 +141,8 @@ export default function AdminAnnualCompetitionAttemptReviewPage() {
                 {/* Phase E: PRACTICE and OFFICIAL attempts share this exact
                     review screen -- this is the only thing on the page that
                     says which kind you're looking at. */}
-                <Chip tone={Review.attemptType === "PRACTICE" ? "amber" : "slate"}>{Review.attemptType}</Chip>
-                <Chip tone={Review.status === "SUBMITTED" || Review.status === "FINALIZED" ? "green" : "slate"}>{Review.status}</Chip>
+                <Chip tone={Review.attemptType === "PRACTICE" ? "amber" : "slate"}>{Review.attemptType === "PRACTICE" ? "Practice" : "Official"}</Chip>
+                <Chip tone={Review.status === "SUBMITTED" || Review.status === "FINALIZED" ? "green" : "slate"}>{String(Review.status || "").toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (Letter: string) => Letter.toUpperCase())}</Chip>
               </div>
               <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-300">
                 Started {FormatDateTime(Review.startedAt)} · Submitted {FormatDateTime(Review.submittedAt)}
@@ -150,7 +150,7 @@ export default function AdminAnnualCompetitionAttemptReviewPage() {
             </div>
             {Result ? (
               <div className="rounded-[24px] border border-[#2563eb]/25 bg-[#2563eb]/5 px-6 py-4 text-center dark:border-cyan-300/30 dark:bg-cyan-400/10">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2563eb] dark:text-cyan-100">Score</p>
+                <p className="ad-mini-label">Score</p>
                 <p className="mt-1 text-4xl font-black text-slate-950 dark:text-white">
                   {FormatNumber(Result.score)}/{FormatNumber(Result.maxScore)}
                 </p>
@@ -175,11 +175,11 @@ export default function AdminAnnualCompetitionAttemptReviewPage() {
         </div>
 
         {Result ? (
-          <div className="grid gap-4 lg:grid-cols-4">
-            <MetricCard icon={<Target size={18} />} label="ACCURACY" value={`${FormatNumber(Result.accuracyPercentage)}%`} helper={`${Result.correctCount} correct, ${Result.wrongCount} wrong`} />
-            <MetricCard icon={<CheckCircle2 size={18} />} label="CORRECT" value={Result.correctCount} helper={`${Result.unansweredCount} unanswered`} />
-            <MetricCard icon={<Trophy size={18} />} label="RANK" value={Result.rank ?? "-"} helper={Result.isReleased ? "Released to student" : "Not yet released"} />
-            <MetricCard icon={<Clock3 size={18} />} label="TIME TAKEN" value={FormatDurationSeconds(Result.timeTakenSeconds)} helper={Result.isVoided ? "Result voided" : "Across all sections"} />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard icon={<Target size={18} />} label="Accuracy" value={`${FormatNumber(Result.accuracyPercentage)}%`} helper={`${Result.correctCount} correct, ${Result.wrongCount} wrong`} />
+            <MetricCard icon={<CheckCircle2 size={18} />} label="Correct" value={Result.correctCount} helper={`${Result.unansweredCount} unanswered`} />
+            <MetricCard icon={<Trophy size={18} />} label="Rank" value={Result.rank ?? "—"} helper={Result.isReleased ? "Released to student" : "Not yet released"} />
+            <MetricCard icon={<Clock3 size={18} />} label="Time Taken" value={FormatDurationSeconds(Result.timeTakenSeconds)} helper={Result.isVoided ? "Result voided" : "Across all sections"} />
           </div>
         ) : (
           <div className="math-card p-5 text-sm font-bold text-slate-700 dark:text-slate-300">
@@ -189,7 +189,7 @@ export default function AdminAnnualCompetitionAttemptReviewPage() {
 
         {/* 2026-10-11: the same Answer Sheet (section blocks) and Scorecard
             tabs as every other result page (components/common/ResultReviewTabs). */}
-        <ResultReviewTabs Questions={ToAnnualReviewQuestions(Review.sections)} Sections={ToAnnualReviewSections(Review.sections)} Viewer="ADMIN" ScorecardContent={<ScorecardTab Review={Review} />} />
+        <ResultReviewTabs Questions={ToAnnualReviewQuestions(Review.sections)} Sections={ToAnnualReviewSections(Review.sections)} Viewer="ADMIN" ScorecardContent={<ScorecardTab Review={Review} />} OpenSingleSection={false} />
       </section>
     </AppShell>
   );
@@ -197,12 +197,13 @@ export default function AdminAnnualCompetitionAttemptReviewPage() {
 
 function MetricCard({ icon, label, value, helper }: { icon: React.ReactNode; label: string; value: string | number; helper: string }) {
   return (
-    <article className="math-card p-5">
-      <div className="inline-flex rounded-2xl bg-[#2563eb]/5 p-2 text-[#2563eb] dark:bg-cyan-400/10 dark:text-cyan-100">{icon}</div>
-      <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-slate-700 dark:text-slate-300">{label}</p>
-      <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">{value}</p>
-      <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-300">{helper}</p>
-    </article>
+    // the admin number tile (label over value, helper under)
+    <div className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-5">
+      <div className="math-teacher-icon-chip relative z-10">{icon}</div>
+      <p className="relative z-10">{label}</p>
+      <p className="relative z-10">{value}</p>
+      <p className="relative z-10">{helper}</p>
+    </div>
   );
 }
 

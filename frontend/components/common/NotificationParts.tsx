@@ -178,7 +178,7 @@ export function NotificationTabBar({
   Compact?: boolean;
 }) {
   return (
-    <div className={`flex gap-2 overflow-x-auto ${Compact ? "pb-1" : "pb-2"} [scrollbar-width:thin]`} role="tablist" aria-label="Notification types">
+    <div className={`flex gap-2 ${Compact ? "overflow-x-auto pb-1 [scrollbar-width:thin]" : "flex-wrap"}`} role="tablist" aria-label="Notification types">
       {Tabs.map((Tab) => {
         const IsActive = Tab.key === Active;
         const IsAction = Tab.key === "ACTION";

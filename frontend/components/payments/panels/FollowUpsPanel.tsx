@@ -32,7 +32,7 @@ function useDebounced<T>(value: T, delay = 300): T {
 }
 
 function AgePill({ row }: { row: FollowUpStudent }) {
-  if (row.maxDaysOverdue <= 0) return <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">Not yet due</span>;
+  if (row.maxDaysOverdue <= 0) return <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">Not Yet Due</span>;
   const tone = row.maxDaysOverdue > 60 ? "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200" : row.maxDaysOverdue > 30 ? "bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200" : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200";
   return <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black ${tone}`}>{row.maxDaysOverdue} day{row.maxDaysOverdue === 1 ? "" : "s"} overdue</span>;
 }
@@ -81,7 +81,7 @@ export function FollowUpsPanel() {
           {data ? (
             <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 xl:shrink-0">
               <PaymentsMetric label="Owing" value={counts.ALL ?? 0} icon={<Users size={14} />} tone="cyan" />
-              <PaymentsMetric label="Promised today" value={counts.TODAY ?? 0} icon={<CalendarCheck size={14} />} tone={counts.TODAY ? "amber" : "slate"} />
+              <PaymentsMetric label="Promised Today" value={counts.TODAY ?? 0} icon={<CalendarCheck size={14} />} tone={counts.TODAY ? "amber" : "slate"} />
               <PaymentsMetric label="Missed" value={counts.MISSED ?? 0} icon={<CalendarX size={14} />} tone={counts.MISSED ? "amber" : "slate"} />
             </div>
           ) : null}
@@ -95,8 +95,8 @@ export function FollowUpsPanel() {
             const active = view === item.key;
             return (
               <button key={item.key} type="button" role="tab" aria-selected={active} onClick={() => chooseView(item.key)}
-                className={`math-role-tab-button math-admin-tab-force flex min-h-[3.25rem] min-w-0 flex-col items-start justify-center rounded-2xl px-3 py-2 text-left text-[13px] font-black leading-tight transition sm:px-4 sm:text-sm ${active ? "is-active math-admin-tab-force-selected" : ""}`}>
-                <span className="flex min-w-0 items-center gap-2"><Icon size={14} className="shrink-0" /><span className="min-w-0">{item.label}</span></span>
+                className={`math-role-tab-button math-admin-tab-force flex min-h-[3.25rem] min-w-0 flex-col items-start justify-start rounded-2xl px-3 py-2 text-left text-[13px] font-black leading-tight transition sm:px-4 sm:text-sm ${active ? "is-active math-admin-tab-force-selected" : ""}`}>
+                <span className="flex min-w-0 items-center gap-2"><Icon size={14} className="shrink-0" /><span className="min-w-0 capitalize">{item.label}</span></span>
                 <span className="mt-0.5 pl-[22px] text-xs tabular-nums opacity-80">{item.count}</span>
               </button>
             );
@@ -104,7 +104,7 @@ export function FollowUpsPanel() {
         </div>
 
         <label className="relative mt-4 block">
-          <span className="sr-only">Search follow-ups</span>
+          <span className="sr-only">Search Follow-ups</span>
           <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input className="math-input pl-11" value={text} onChange={(event) => setText(event.target.value)} placeholder="Student, parent or mobile" />
         </label>
@@ -116,8 +116,8 @@ export function FollowUpsPanel() {
             {selected.size ? <button type="button" className="ml-1 inline-flex items-center gap-1 text-xs font-black text-slate-500 hover:underline" onClick={() => setSelected(new Set())}><X size={12} />Clear</button> : null}
           </label>
           <div className="grid grid-cols-2 gap-2 sm:flex">
-            <button type="button" className="math-button-secondary justify-center" disabled={!chosen.length || !followUp} onClick={() => followUp?.logContact(chosen.map(Target))}><MessageSquarePlus size={16} />Log contact</button>
-            <button type="button" className="math-button-primary justify-center" disabled={!chosen.length || !followUp || !data?.inAppAvailable} onClick={() => followUp?.remindMany(chosen.map(Target))}><BellRing size={16} />Remind in app</button>
+            <button type="button" className="math-button-secondary justify-center" disabled={!chosen.length || !followUp} onClick={() => followUp?.logContact(chosen.map(Target))}><MessageSquarePlus size={16} />Log Contact</button>
+            <button type="button" className="math-button-primary justify-center" disabled={!chosen.length || !followUp || !data?.inAppAvailable} onClick={() => followUp?.remindMany(chosen.map(Target))}><BellRing size={16} />Remind In App</button>
           </div>
         </div>
         {data && !data.inAppAvailable ? <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Remind in app needs &quot;Show fees to students&quot; switched on (Payment Settings › Online Payments).</p> : null}
@@ -143,7 +143,7 @@ export function FollowUpsPanel() {
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
                         <AgePill row={row} />
                         <PromisePill state={row.followUp} />
-                        {row.followUp.remindedRecently ? <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-violet-100 px-2.5 py-1 text-xs font-black text-violet-800 dark:bg-violet-950/40 dark:text-violet-200"><Check size={12} />Reminded today</span> : null}
+                        {row.followUp.remindedRecently ? <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-violet-100 px-2.5 py-1 text-xs font-black text-violet-800 dark:bg-violet-950/40 dark:text-violet-200"><Check size={12} />Reminded Today</span> : null}
                       </div>
                       <p className="mt-1.5 text-xs font-semibold"><LastContactText state={row.followUp} /></p>
                     </div>

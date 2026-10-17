@@ -168,7 +168,7 @@ function EventStatusLabel(Status: string) {
 }
 
 function RankBadge({ Rank }: { Rank: number | null }) {
-  if (!Rank) return <span>--</span>;
+  if (!Rank) return <span>—</span>;
   const MedalStyle =
     Rank === 1
       ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200"
@@ -997,13 +997,17 @@ export default function AdminAnnualCompetitionEventDetailPage() {
   return (
     <AppShell title="Annual Competition Studio">
       <section className="space-y-6">
-        <Link href="/admin/competition/annual-studio" className="math-button-secondary inline-flex items-center gap-2 px-4 py-2 text-xs">
-          <ArrowLeft size={14} />
-          Back to Annual Competition Studio
-        </Link>
+        {/* 2026-10 (admin revamp): Back above the card at the right, the
+            section pill names the page, and the status reads Init Caps */}
+        <div className="ad-back-row">
+          <Link href="/admin/competition/annual-studio" className="ad-back">
+            <ArrowLeft size={16} />
+            Back To Annual Competition Studio
+          </Link>
+        </div>
 
         <div className="math-card p-6">
-          <p className="math-block-header"><Trophy size={14} />{Overview.event.status}</p>
+          <p className="math-block-header"><Trophy size={14} />Annual Competition Event</p>
           <h1 className="math-title">{Overview.event.name}</h1>
           <div className="mt-3 flex flex-wrap gap-6 text-sm font-bold text-slate-600 dark:text-slate-300">
             <span className="inline-flex items-center gap-2"><CalendarClock size={14} />Competition: {FormatDateTime(Overview.event.competitionDate)}</span>
@@ -1022,7 +1026,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                     : "border-[color:var(--mp-role-border)] bg-white text-slate-600 hover:-translate-y-px dark:bg-slate-950/40 dark:text-slate-300"
                 }`}
               >
-                {StatusOption}
+                {StatusOption.charAt(0) + StatusOption.slice(1).toLowerCase()}
               </button>
             ))}
             {!Overview.event.resultsReleaseAt && (
@@ -1083,7 +1087,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
         {ActiveTab === "SLOTS" && (
           <div className="space-y-6">
             <div className="math-card p-5">
-              <SectionTitle icon={<PlusCircle size={14} />} kicker="New Slot" title="Create Time Slot" description="Fully data-driven — fix the known IM-4/MM-2 duration conflict here by widening a slot or moving a level to its own slot, no deploy required." />
+              <SectionTitle icon={<PlusCircle size={14} />} kicker="New Slot" title="Create Time Slot" description="Set when each level sits its paper. If one level needs longer than the others, widen its slot or give that level a slot of its own." />
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                   Mode
@@ -1227,10 +1231,10 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                       <div key={SlotItem.slotId} className="rounded-2xl border border-[color:var(--mp-role-border)] bg-white p-4 dark:bg-slate-950/40">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="text-sm font-black text-slate-950 dark:text-white">
-                            {SlotItem.slotLabel || SlotItem.mode} <span className="text-xs font-bold text-slate-500 dark:text-slate-400">({SlotItem.mode})</span>
+                            {SlotItem.slotLabel || SlotModeLabel(SlotItem.mode)} <span className="text-xs font-bold text-slate-500 dark:text-slate-400">({SlotModeLabel(SlotItem.mode)})</span>
                           </p>
                           <div className="flex items-center gap-3">
-                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{SlotItem.durationMinutes} min</span>
+                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{SlotDurationLabel(SlotItem.durationMinutes)}</span>
                             <button
                               type="button"
                               title="Edit slot"
@@ -1484,7 +1488,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
 
                   {FilteredRosterCandidateRows.length > 0 ? (
                     <div className="mt-4 overflow-x-auto">
-                      <table className="w-full min-w-[720px] text-left text-sm font-bold">
+                      <table className="ad-cards ad-ptable w-full min-w-[720px] text-left text-sm font-bold">
                         <thead>
                           <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                             <th className="px-2 py-1.5">
@@ -1508,7 +1512,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                               onClick={() => ToggleOneRosterCandidateRowSelected(Row.studentId)}
                               className="cursor-pointer border-t border-[color:var(--mp-role-border)] transition hover:bg-slate-50 dark:hover:bg-slate-900/40"
                             >
-                              <td className="px-2 py-2">
+                              <td data-cell="check" className="px-2 py-2">
                                 <input
                                   type="checkbox"
                                   checked={SelectedStudentIdsForRosterAdd.has(Row.studentId)}
@@ -1518,10 +1522,10 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                   className="h-3.5 w-3.5"
                                 />
                               </td>
-                              <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                              <td className="px-2 py-2">{Row.currentModuleCode || "--"}</td>
-                              <td className="px-2 py-2">
-                                {Row.currentLevelCode || "--"}
+                              <td data-cell="title" className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                              <td data-label="Module" className="px-2 py-2">{Row.currentModuleCode || "—"}</td>
+                              <td data-label="Current Level" className="px-2 py-2">
+                                {Row.currentLevelCode || "—"}
                                 {Row.currentModuleCode === "MM" && (Row.currentLessonNumber != null || Row.masterLevelComplete) ? (
                                   <span className="ml-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500">
                                     ({FormatMasterCurrentLevelSuffix(Row.currentLessonNumber, Row.masterLevelComplete)})
@@ -1573,7 +1577,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                   type="button"
                   disabled={SelectedStudentIdsForRosterRemove.size === 0 || RemoveFromRosterMutation.isPending}
                   onClick={() => {
-                    if (window.confirm(`Remove ${SelectedStudentIdsForRosterRemove.size} student(s) from this event's roster? This never touches an assignment/attempt/result they already have — it only stops future assignment runs.`)) {
+                    if (window.confirm(`Remove ${SelectedStudentIdsForRosterRemove.size} ${SelectedStudentIdsForRosterRemove.size === 1 ? "student" : "students"} from this event's roster? This never touches an assignment/attempt/result they already have — it only stops future assignment runs.`)) {
                       RemoveFromRosterMutation.mutate(Array.from(SelectedStudentIdsForRosterRemove));
                     }
                   }}
@@ -1602,7 +1606,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 <div className="mt-4"><LoadingState label="Loading roster..." /></div>
               ) : FilteredRosterRows.length > 0 ? (
                 <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[640px] text-left text-sm font-bold">
+                  <table className="ad-cards ad-ptable w-full min-w-[640px] text-left text-sm font-bold">
                     <thead>
                       <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                         <th className="px-2 py-1.5">
@@ -1626,7 +1630,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                           onClick={() => ToggleOneRosterRowSelected(Row.studentId)}
                           className="cursor-pointer border-t border-[color:var(--mp-role-border)] transition hover:bg-slate-50 dark:hover:bg-slate-900/40"
                         >
-                          <td className="px-2 py-2">
+                          <td data-cell="check" className="px-2 py-2">
                             <input
                               type="checkbox"
                               checked={SelectedStudentIdsForRosterRemove.has(Row.studentId)}
@@ -1636,9 +1640,9 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                               className="h-3.5 w-3.5"
                             />
                           </td>
-                          <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                          <td className="px-2 py-2 text-xs font-bold text-slate-500 dark:text-slate-400">{FormatDateTime(Row.addedAt)}</td>
-                          <td className="px-2 py-2 text-right">
+                          <td data-cell="title" className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                          <td data-label="Added" className="px-2 py-2 text-xs font-bold text-slate-500 dark:text-slate-400">{FormatDateTime(Row.addedAt)}</td>
+                          <td data-cell="action" className="px-2 py-2 text-right">
                             <button
                               type="button"
                               disabled={RemoveFromRosterMutation.isPending}
@@ -1848,7 +1852,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                 <div className="mt-4"><LoadingState label="Computing preview..." /></div>
               ) : PreviewQuery.data && FilteredAssignmentRows.length > 0 ? (
                 <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[1180px] text-left text-sm font-bold">
+                  <table className="ad-cards ad-ptable w-full min-w-[1180px] text-left text-sm font-bold">
                     <thead>
                       <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                         <th className="px-2 py-1.5">
@@ -1883,7 +1887,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                             onClick={() => ToggleOneAssignmentRowSelected(Row.studentId)}
                             className="cursor-pointer border-t border-[color:var(--mp-role-border)] transition hover:bg-slate-50 dark:hover:bg-slate-900/40"
                           >
-                            <td className="px-2 py-2">
+                            <td data-cell="check" className="px-2 py-2">
                               <input
                                 type="checkbox"
                                 checked={SelectedStudentIdsForRun.has(Row.studentId)}
@@ -1893,9 +1897,9 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                 className="h-3.5 w-3.5"
                               />
                             </td>
-                            <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                            <td className="px-2 py-2">
-                              {Row.currentLevelCode || "--"}
+                            <td data-cell="title" className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                            <td data-label="Current Level" className="px-2 py-2">
+                              {Row.currentLevelCode || "—"}
                               {/* 2026-09-15 (Shailesh): same Master lesson-
                                   number clarification as the Practice Bank
                                   tab -- see that tab's own comment. */}
@@ -1905,14 +1909,14 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                 </span>
                               ) : null}
                             </td>
-                            <td className="px-2 py-2">
-                              {Row.computedAssignedLevelCode ? FormatCompetitionLevelLabel(Row.computedAssignedLevelCode) : "--"}
+                            <td data-label="Engine Suggestion" className="px-2 py-2">
+                              {Row.computedAssignedLevelCode ? FormatCompetitionLevelLabel(Row.computedAssignedLevelCode) : "—"}
                               {Row.requiresNewPaperRegistryEntry && Row.computedAssignedLevelCode && (
                                 <ShieldAlert size={12} className="ml-1.5 inline text-amber-500" aria-label="No paper registry entry yet" />
                               )}
                             </td>
-                            <td className="px-2 py-2">{Row.existingAssignedLevelCode ? FormatCompetitionLevelLabel(Row.existingAssignedLevelCode) : "--"} {Row.existingAssignmentSource === "ADMIN_OVERRIDE" && <span className="text-slate-400">(set by admin)</span>}</td>
-                            <td className="px-2 py-2">
+                            <td data-label="Assigned Level" className="px-2 py-2">{Row.existingAssignedLevelCode ? FormatCompetitionLevelLabel(Row.existingAssignedLevelCode) : "—"} {Row.existingAssignmentSource === "ADMIN_OVERRIDE" && <span className="text-slate-400">(set by admin)</span>}</td>
+                            <td data-label="Status" className="px-2 py-2">
                               {/* What matters first is whether the student HAS a level.
                                   A level set by an admin is kept whether or not the
                                   engine has a rule for the student, so it is never
@@ -1931,7 +1935,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                 <span className="text-slate-500 dark:text-slate-400">Already assigned</span>
                               )}
                             </td>
-                            <td className="px-2 py-2" onClick={(EventValue) => EventValue.stopPropagation()}>
+                            <td data-label="Set Level" className="px-2 py-2" onClick={(EventValue) => EventValue.stopPropagation()}>
                               {/* Deliberately independent of the auto-picker above -- this
                                   never writes anything until Apply is clicked, and the
                                   auto-picker/Run Assignment Engine flow is completely
@@ -1964,7 +1968,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                 </button>
                               </div>
                             </td>
-                            <td className="px-2 py-2" onClick={(EventValue) => EventValue.stopPropagation()}>
+                            <td data-label="Slot" className="px-2 py-2" onClick={(EventValue) => EventValue.stopPropagation()}>
                               <AssignmentSlotCell
                                 Row={Row}
                                 Slots={Overview?.slots || []}
@@ -2186,7 +2190,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                       colgroup, not the browser's default auto-sizing, so every
                       header lines up with its column's cell content -- including
                       the pill buttons -- instead of drifting per row. */}
-                  <table className="w-full min-w-[1060px] table-fixed text-left text-sm font-bold">
+                  <table className="ad-cards ad-ptable w-full min-w-[1060px] table-fixed text-left text-sm font-bold">
                     <colgroup>
                       <col className="w-[7%]" />
                       <col className="w-[15%]" />
@@ -2239,19 +2243,19 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                             </tr>
                           ) : null}
                           <tr className="border-t border-[color:var(--mp-role-border)]">
-                            <td className="px-2 py-2 truncate"><RankBadge Rank={Row.rank} /></td>
-                            <td className="px-2 py-2 truncate text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                            <td className="px-2 py-2 truncate">{FormatCompetitionLevelLabel(Row.competitionLevelCode)}</td>
+                            <td data-label="Rank" className="px-2 py-2 truncate"><RankBadge Rank={Row.rank} /></td>
+                            <td data-cell="title" className="px-2 py-2 truncate text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                            <td data-label="Level" className="px-2 py-2">{FormatCompetitionLevelLabel(Row.competitionLevelCode)}</td>
                             {/* 2026-09-17 (Shailesh): whole numbers only, no
                                 decimals, across every competition attempt
                                 view -- the backend already rounds this via
                                 RoundPercentageForDisplay, Math.round here is
                                 the same defensive second layer every other
                                 review/scorecard page now applies. */}
-                            <td className="px-2 py-2 truncate">{Math.round(Row.accuracyPercentage)}%</td>
-                            <td className="px-2 py-2 truncate">{Row.score}/{Row.maxScore}</td>
-                            <td className="px-2 py-2 truncate">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
-                            <td className="px-2 py-2">
+                            <td data-label="Accuracy" className="px-2 py-2 truncate">{Math.round(Row.accuracyPercentage)}%</td>
+                            <td data-label="Score" className="px-2 py-2 truncate">{Row.score}/{Row.maxScore}</td>
+                            <td data-label="Time Taken" className="px-2 py-2 truncate">{FormatSecondsAsMinSec(Row.timeTakenSeconds)}</td>
+                            <td data-label="Attempt" className="px-2 py-2">
                               <Link
                                 href={`/admin/competition/annual-result/${Row.attemptId}`}
                                 className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px dark:bg-slate-950/60"
@@ -2260,14 +2264,14 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                 View
                               </Link>
                             </td>
-                            <td className="px-2 py-2 truncate">
+                            <td data-label="Released" className="px-2 py-2 truncate">
                               {Row.isReleased ? (
                                 <span className="text-emerald-600 dark:text-emerald-300">Released</span>
                               ) : (
                                 <span className="text-slate-400">Not released</span>
                               )}
                             </td>
-                            <td className="px-2 py-2">
+                            <td data-label="Certificate" className="px-2 py-2">
                               <button
                                 type="button"
                                 className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--mp-role-border)] bg-white px-3 py-1.5 text-xs font-black text-[color:var(--mp-role-primary)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-950/60"
@@ -2278,7 +2282,7 @@ export default function AdminAnnualCompetitionEventDetailPage() {
                                 {DownloadingAttemptId === Row.attemptId ? "..." : "Download"}
                               </button>
                             </td>
-                            <td className="px-2 py-2">
+                            <td data-label="Retry" className="px-2 py-2">
                               <button
                                 type="button"
                                 title={
@@ -2319,4 +2323,27 @@ export default function AdminAnnualCompetitionEventDetailPage() {
       </section>
     </AppShell>
   );
+}
+
+// "ONLINE_INDIA" -> "Online (India)", as the Mode list reads (2026-10, admin revamp)
+function SlotModeLabel(Mode?: string | null) {
+  const Value = String(Mode || "").toUpperCase();
+  if (Value === "OFFLINE") return "Offline";
+  if (Value === "ONLINE_INDIA") return "Online (India)";
+  if (Value === "ONLINE_INTL") return "Online (International)";
+  if (Value === "ONLINE") return "Online";
+  return Value.replace(/_/g, " ").toLowerCase().replace(/(^|\s)([a-z])/g, (Match, Lead, Letter) => `${Lead}${Letter.toUpperCase()}`);
+}
+
+// 8670 -> "6 days 30 min"; 90 -> "1 h 30 min"
+function SlotDurationLabel(Minutes?: number | null) {
+  const Total = Math.max(0, Math.round(Number(Minutes) || 0));
+  const Days = Math.floor(Total / 1440);
+  const Hours = Math.floor((Total % 1440) / 60);
+  const Rest = Total % 60;
+  const Parts: string[] = [];
+  if (Days) Parts.push(`${Days} ${Days === 1 ? "day" : "days"}`);
+  if (Hours) Parts.push(`${Hours} h`);
+  if (Rest || !Parts.length) Parts.push(`${Rest} min`);
+  return Parts.join(" ");
 }

@@ -1577,11 +1577,8 @@ export default function AdminResultsPage() {
       </section>
 
       <section
-        className={`mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4 ${
-          Mode === "LEARNING"
-            ? "xl:grid-cols-7"
-            : "xl:grid-cols-8 student-history-metric-row"
-        }`}
+        // four tiles a row on wide screens; a short last row stretches to fill
+        className="mt-5 flex flex-wrap gap-3 [&>*]:min-w-[150px] [&>*]:flex-1 [&>*]:basis-[calc(25%-0.75rem)]"
       >
         {Mode === "LEARNING" ? (
           <>
@@ -2591,7 +2588,7 @@ function StudentHistoryView({
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="math-badge whitespace-nowrap border-slate-200 bg-white text-slate-700">
-              {AttemptRows.length} Attempt(s)
+              {AttemptRows.length} {AttemptRows.length === 1 ? "Attempt" : "Attempts"}
             </span>
             <ResultsSortDropdown
               ClassName="w-full sm:w-auto sm:min-w-[260px]"
@@ -2625,7 +2622,7 @@ function StudentHistoryView({
             </h3>
           </div>
           <span className="math-badge whitespace-nowrap border-slate-200 bg-white text-slate-700">
-            {AssessmentRows.length} Attempt(s)
+            {AssessmentRows.length} {AssessmentRows.length === 1 ? "Attempt" : "Attempts"}
           </span>
         </div>
         {!AssessmentRows.length ? (
@@ -2658,7 +2655,7 @@ function StudentHistoryView({
               </h3>
             </div>
             <span className="math-badge whitespace-nowrap border-violet-200 bg-violet-50 text-violet-700">
-              {PromotionRows.length} Promotion(s)
+              {PromotionRows.length} {PromotionRows.length === 1 ? "Promotion" : "Promotions"}
             </span>
           </div>
           {!PromotionRows.length ? (
@@ -3475,29 +3472,12 @@ function MetricCard({
   value: string;
   compact?: boolean;
 }) {
+  // the admin number tile (2026-10, admin revamp)
   return (
-    <div
-      className={`math-metric flex min-w-0 flex-col ${compact ? "p-2.5" : "p-3"}`}
-    >
-      <div
-        className={`inline-flex rounded-xl bg-blue-50 text-blue-700 ${compact ? "p-1.5" : "p-2"}`}
-      >
-        {icon}
-      </div>
-      <p
-        className={`mt-2 font-black uppercase text-slate-700 ${
-          compact
-            ? "min-h-[2.05rem] text-[0.64rem] leading-[0.98rem] tracking-[0.095em]"
-            : "break-words text-xs tracking-[0.12em]"
-        }`}
-      >
-        {label}
-      </p>
-      <p
-        className={`${compact ? "mt-auto pt-1 text-lg" : "mt-1 text-xl"} font-black leading-none text-slate-950`}
-      >
-        {value}
-      </p>
+    <div className={`math-teacher-light-metric-card relative min-w-0 overflow-hidden rounded-[22px] border p-5`} data-compact={compact || undefined}>
+      <div className="math-teacher-icon-chip relative z-10">{icon}</div>
+      <p className="relative z-10">{label}</p>
+      <p className="relative z-10">{value}</p>
     </div>
   );
 }

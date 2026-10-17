@@ -10,14 +10,20 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import { formatMathPathDateTime } from "@/lib/date";
 import { getAdminAttemptResult } from "@/lib/api/admin";
+import { formatSeconds } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpenCheck, CalendarClock, CheckCircle2, Clock, Stethoscope, UserRound } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, CalendarClock, Clock, Stethoscope, UserRound } from "lucide-react";
+import type { ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-function formatDate(value?: string | null) {
-  return formatMathPathDateTime(value);
-}
-
+// One practice attempt, as the admin sees it (2026-10, admin revamp, item D):
+//   - the wording is about the student ("Aarav met the benchmark…"), not to
+//     the student ("Excellent work! You have…"), and an approval that is due
+//     is the admin's own ("once you approve it");
+//   - Back goes to this student's practice page;
+//   - the score, accuracy and benchmark appear once (in the result overview);
+//   - time taken as 2:42, not 162s; "—" when a value is missing, and no
+//     "Class -" when there is no class.
 export default function AdminAttemptDetailPage() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const params = useParams<{ attemptId: string }>();
@@ -29,59 +35,78 @@ export default function AdminAttemptDetailPage() {
     enabled: ready && Boolean(params.attemptId),
   });
 
+  const data: any = query.data;
   if (!ready) return null;
+
+  const StudentName: string = data?.student?.studentName || "The student";
+  const StudentCode: string = data?.student?.studentCode || "";
+  const ClassText = [data?.student?.className, data?.student?.section].filter(Boolean).join(" ");
+  const FirstName = StudentName.split(" ")[0] || StudentName;
+  const TimeTaken = data?.summary?.timeTakenSeconds;
+  const BackHref = StudentCode ? `/admin/assignments/student/${encodeURIComponent(StudentCode)}` : "/admin/assignments";
 
   return (
     <AppShell title="Attempt Review">
       {query.isLoading ? <LoadingState label="Loading detailed attempt review..." /> : null}
       {query.error ? <ErrorState message={apiErrorMessage(query.error)} /> : null}
 
-      {query.data ? (
+      {data ? (
         <div className="math-admin-attempt-detail-page space-y-6">
-          <section className="math-hero">
-            <div className="relative z-10">
-              <p className="math-block-header"><Stethoscope size={14} />Admin diagnostic review</p>
-              <h1 className="math-title">Attempt Details</h1>
-              <p className="math-subtitle">Review every submitted answer with attempt and completion dates.</p>
-            </div>
-          </section>
-
-          <section className="grid gap-4 lg:grid-cols-4">
-            <InfoCard icon={<UserRound size={20} />} label="Student" value={query.data.student?.studentName || "-"} subValue={`${query.data.student?.studentCode || "-"} · Class ${query.data.student?.className || "-"} ${query.data.student?.section || ""}`} />
-            <InfoCard icon={<BookOpenCheck size={20} />} label="DPS" value={`Lesson ${query.data.dps?.lessonNumber ?? "-"} · DPS ${query.data.dps?.dpsNumber ?? "-"}`} subValue={query.data.dps?.dpsTitle || query.data.assignment?.title || "-"} />
-            <InfoCard icon={<CalendarClock size={20} />} label="Attempt Date" value={formatDate(query.data.attemptDate || query.data.startedAt)} subValue="When the student started" />
-            <InfoCard icon={<Clock size={20} />} label="Completion Date" value={formatDate(query.data.completedDate || query.data.submittedAt)} subValue={query.data.summary.timeTakenSeconds ? `Time: ${query.data.summary.timeTakenSeconds}s` : "Time: -"} />
-          </section>
-
-          <BenchmarkAlert show={query.data.requiresAttention || query.data.summary?.requiresAttention} message={query.data.benchmarkMessage || query.data.summary?.benchmarkMessage} />
-
-          <ResultSummary result={query.data} />
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button className="math-role-action-button px-4 py-3" onClick={() => router.back()}>
+          <div className="ad-back-row">
+            <button type="button" className="ad-back" onClick={() => router.push(BackHref)}>
               <ArrowLeft size={16} />
-              Back
+              {StudentCode ? `Back To ${FirstName}'s Practice` : "Back To Practice Control"}
             </button>
-            <div className="math-badge border-emerald-200 bg-emerald-50 text-emerald-700">
-              <CheckCircle2 size={14} />
-              Diagnostic review ready
-            </div>
           </div>
 
-          <ResultReviewTabs Questions={ToPracticeReviewQuestions(query.data.questionReview as any)} Viewer="ADMIN" />
+          <section className="math-hero">
+            <div className="relative z-10">
+              <p className="math-block-header"><Stethoscope size={14} />Practice Result</p>
+              <h1 className="math-title">Attempt Details</h1>
+              <p className="math-subtitle">The result, benchmark and every question of this attempt.</p>
+            </div>
+          </section>
+
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <InfoCard
+              icon={<UserRound size={20} />}
+              label="Student"
+              value={StudentName}
+              subValue={[StudentCode, ClassText ? `Class ${ClassText}` : ""].filter(Boolean).join(" · ") || "—"}
+            />
+            <InfoCard
+              icon={<BookOpenCheck size={20} />}
+              label="Practice Sheet"
+              value={`Lesson ${data.dps?.lessonNumber ?? "—"} · DPS ${data.dps?.dpsNumber ?? "—"}`}
+              subValue={data.dps?.dpsTitle || data.assignment?.title || "Assigned work"}
+            />
+            <InfoCard icon={<CalendarClock size={20} />} label="Started" value={formatMathPathDateTime(data.attemptDate || data.startedAt) || "—"} subValue="When the sheet was opened" />
+            <InfoCard
+              icon={<Clock size={20} />}
+              label="Submitted"
+              value={formatMathPathDateTime(data.completedDate || data.submittedAt) || "—"}
+              subValue={TimeTaken ? `Time taken ${formatSeconds(Number(TimeTaken))}` : "Time taken —"}
+            />
+          </section>
+
+          <BenchmarkAlert show={data.requiresAttention || data.summary?.requiresAttention} message={data.benchmarkMessage || data.summary?.benchmarkMessage} />
+
+          <ResultSummary result={data} viewer={{ kind: "ADMIN", studentName: StudentName }} />
+
+          <ResultReviewTabs Questions={ToPracticeReviewQuestions(data.questionReview as any)} Viewer="ADMIN" />
         </div>
       ) : null}
     </AppShell>
   );
 }
 
-function InfoCard({ icon, label, value, subValue }: { icon: React.ReactNode; label: string; value: string; subValue: string }) {
+function InfoCard({ icon, label, value, subValue }: { icon: ReactNode; label: string; value: string; subValue: ReactNode }) {
   return (
-    <div className="math-card math-admin-attempt-info-card p-5">
-      <div className="inline-flex rounded-2xl bg-blue-50 p-3 text-blue-700">{icon}</div>
-      <p className="mt-4 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <p className="mt-2 text-xl font-black text-slate-950">{value}</p>
-      <p className="mt-1 text-sm text-slate-500">{subValue}</p>
+    <div className="math-teacher-light-metric-card ad-info-card relative overflow-hidden rounded-[22px] border p-5">
+      <div className="math-teacher-icon-chip relative z-10">{icon}</div>
+      <p className="relative z-10">{label}</p>
+      <p className="relative z-10 ad-info-value">{value}</p>
+      <p className="relative z-10">{subValue}</p>
     </div>
   );
 }

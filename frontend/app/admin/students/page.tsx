@@ -644,7 +644,9 @@ export default function AdminStudentsPage() {
   return (
     <AppShell title="Student Management">
       <section className="math-hero math-slide-up">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        {/* 2026-10 (admin revamp): title and sentence on one row, the tiles on
+            the next, so the sentence never breaks while the line has room. */}
+        <div className="ad-hero-stack relative z-10">
           <div>
             <p className="math-block-header"><UserRound size={14} />Student Directory</p>
             <h1 className="math-title">Student Management</h1>
@@ -653,7 +655,7 @@ export default function AdminStudentsPage() {
             </p>
           </div>
 
-          <div className={`grid gap-3 ${demoCount ? "grid-cols-2 sm:grid-cols-[repeat(4,minmax(8.5rem,1fr))]" : "sm:grid-cols-3"}`}>
+          <div className={`ad-hero-tiles ${demoCount ? "" : "ad-hero-tiles-3"}`}>
             <Metric
               label="Students"
               value={realStudents.length}
@@ -681,18 +683,22 @@ export default function AdminStudentsPage() {
       </section>
 
       <section className="mt-6 math-card p-5 sm:p-6">
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-          <div className="min-w-0">
+        {/* 2026-10 (platform rule): the description runs the full width of
+            the card, under the title and the buttons, instead of wrapping in
+            a column beside them. */}
+        <div className="mp-headbar">
+          <div className="mp-headbar-head min-w-0">
             <p className="math-block-header"><UserPlus size={14} />Student Onboarding</p>
             <h2 className="text-2xl font-black text-slate-950 dark:text-white">
               Add Students
             </h2>
-            <p className="mt-2 max-w-5xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Add one student manually, or onboard a full batch using the official Excel template. MathPath checks every record before import so student access, teacher mapping, and level placement stay clean from day one.
-            </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row xl:justify-end">
+          <p className="mp-headbar-desc text-sm leading-6 text-slate-600 dark:text-slate-300">
+            Add one student manually, or onboard a full batch using the official Excel template. MathPath checks every record before import so student access, teacher mapping, and level placement stay clean from day one.
+          </p>
+
+          <div className="mp-headbar-act flex flex-col gap-3 sm:flex-row xl:justify-end">
             <button className="math-button-primary whitespace-nowrap" onClick={openCreateForm}>
               <UserPlus size={18} />
               Add Student
@@ -964,7 +970,7 @@ export default function AdminStudentsPage() {
 
         {filtered.length ? (
           <div className="math-table math-admin-directory-table math-admin-students-table">
-            <table>
+            <table className="ad-cards ad-cards-wide">
               <thead>
                 <tr>
                   <th><SortableHeader active={sortKey === "studentName"} direction={sortDirection} onClick={() => onHeaderSort("studentName")}>Student</SortableHeader></th>
@@ -984,7 +990,7 @@ export default function AdminStudentsPage() {
 
                   return (
                     <tr key={s.studentId}>
-                      <td>
+                      <td className="ad-card-title">
                         <div className="flex items-center gap-3">
                           <ProfileAvatar
                             name={s.studentName}
@@ -1002,26 +1008,19 @@ export default function AdminStudentsPage() {
                                 </span>
                               ) : null}
                             </p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {s.studentCode}
-                            </p>
+                            {s.centreName ? <p className="ad-code">{s.centreName}</p> : null}
                           </div>
                         </div>
                       </td>
 
-                      <td>{s.studentCode || "-"}</td>
-                      <td>{s.teacher || "-"}</td>
-                      <td>
-                        {s.currentLevelCode || "-"}
-                        {s.centreName ? (
-                          <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{s.centreName}</span>
-                        ) : null}
-                      </td>
-                      <td>{s.fatherMobile || "-"}</td>
-                      <td className="whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">
+                      <td data-label="Student Code">{s.studentCode || <span className="ad-empty">—</span>}</td>
+                      <td data-label="Teacher">{s.teacher || <span className="ad-empty">—</span>}</td>
+                      <td data-label="Level">{s.currentLevelCode || <span className="ad-empty">—</span>}</td>
+                      <td data-label="Father Mobile">{s.fatherMobile || <span className="ad-empty">—</span>}</td>
+                      <td data-label="Last Seen" className="whitespace-nowrap text-sm text-slate-600 dark:text-slate-300">
                         {s.lastActiveAt ? formatMathPathDateTimeCompact(s.lastActiveAt) : "Never"}
                       </td>
-                      <td className="text-center">
+                      <td data-label="Status" className="text-center">
                         <span
                           className={`math-badge math-admin-directory-status-chip ${
                             s.isActive
@@ -1029,12 +1028,14 @@ export default function AdminStudentsPage() {
                               : "border-rose-200 bg-rose-50 text-rose-700"
                           }`}
                         >
-                          {s.isActive ? "ACTIVE" : "INACTIVE"}
+                          {s.isActive ? "Active" : "Inactive"}
                         </span>
                       </td>
 
-                      <td>
-                        <div className="flex flex-wrap gap-2">
+                      <td data-label="Action" className="ad-card-wide">
+                        {/* the five buttons on one row, the new password and its
+                            button under them (the box was cut to "New passwor") */}
+                        <div className="ad-row-actions">
                           <button
                             className="math-role-action-button math-role-icon-only"
                             onClick={() => setSelectedStudent(s)}
@@ -1074,11 +1075,20 @@ export default function AdminStudentsPage() {
                             <ShieldCheck size={15} />
                           </button>
 
-                          <div className="flex gap-1">
+                          <button
+                            className="math-destructive-button border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 transition hover:-translate-y-0.5 hover:bg-rose-100 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:bg-rose-500/20"
+                            onClick={() => setDeleteTarget(s)}
+                            title="Delete Student"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+
+                          <div className="ad-reset">
                             <input
-                              className="math-input h-10 w-28 py-2 text-xs"
+                              className="math-input h-10 py-2 text-xs"
                               value={resetPassword}
-                              placeholder="New password"
+                              placeholder="New Password"
+                              aria-label={`New password for ${s.studentName}`}
                               onChange={(e) =>
                                 setResetPasswordByStudent((prev) => ({
                                   ...prev,
@@ -1101,14 +1111,6 @@ export default function AdminStudentsPage() {
                               <KeyRound size={15} />
                             </button>
                           </div>
-
-                          <button
-                            className="math-destructive-button border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 transition hover:-translate-y-0.5 hover:bg-rose-100 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:bg-rose-500/20"
-                            onClick={() => setDeleteTarget(s)}
-                            title="Delete Student"
-                          >
-                            <Trash2 size={15} />
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1572,26 +1574,14 @@ function StudentFormModal({
   );
 }
 
-function Metric({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: number;
-  icon: ReactNode;
-}) {
+function Metric({ label, value, icon }: { label: string; value: number; icon: ReactNode }) {
+  // 2026-10 (admin revamp): the shared tile (icon, label over figure), the
+  // same as every other admin and teacher page.
   return (
-    <div className="rounded-[24px] bg-white/75 p-4 shadow-sm ring-1 ring-white/70 backdrop-blur-md dark:bg-slate-900/60 dark:ring-slate-700">
-      <div className="inline-flex rounded-2xl bg-blue-50 p-2 text-blue-700 dark:bg-cyan-950/50 dark:text-cyan-300">
-        {icon}
-      </div>
-      <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-        {label}
-      </p>
-      <p className="mt-1 text-3xl font-black text-slate-950 dark:text-white">
-        {value}
-      </p>
+    <div className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-4">
+      <div className="math-teacher-icon-chip relative z-10">{icon}</div>
+      <p className="relative z-10">{label}</p>
+      <p className="relative z-10">{value}</p>
     </div>
   );
 }

@@ -49,7 +49,7 @@ export default function AdminStudentAssessmentsWorkspacePage() {
       {StudentRows.length ? (
         <AssessmentInsightWorkspace
           title={StudentName}
-          subtitle={`Student Code: ${StudentCode}`}
+          subtitle={StudentCode}
           rows={StudentRows}
           role="admin"
           onView={(Row) => Row.attemptId ? Router.push(`/assessment-result/${Row.attemptId}?viewer=admin`) : undefined}

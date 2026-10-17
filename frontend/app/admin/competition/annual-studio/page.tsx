@@ -1584,10 +1584,9 @@ function AdminAnnualCompetitionStudioPageContent() {
           <p className="math-block-header"><Trophy size={14} />Annual Competition</p>
           <h1 className="math-title">Annual Competition Studio</h1>
           <p className="mt-3 max-w-none text-sm font-semibold leading-relaxed text-slate-600 dark:text-slate-300">
-            Official runs the real, scheduled Annual Competition event end to end — slots, each level&apos;s official
-            paper, and student assignments. Practice is fully separate and never tied to any event — assign practice
-            papers to any number of students at once so they can prepare for the mega event, independent of any
-            official assignment.
+            Official sets up the Annual Competition itself: its time slots, each level&apos;s paper and who sits it.
+            Practice is separate from any event: assign practice papers to as many students as you like so they can
+            prepare.
           </p>
         </div>
 
@@ -1986,7 +1985,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                   <div className="mt-5"><LoadingState label="Loading students..." /></div>
                 ) : FilteredStudentRows.length > 0 ? (
                   <div className="mt-4 overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-left text-sm font-bold">
+                    <table className="ad-cards ad-ptable w-full min-w-[760px] text-left text-sm font-bold">
                       <thead>
                         <tr className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                           <th className="px-2 py-1.5">
@@ -2010,7 +2009,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                             onClick={() => ToggleOneStudentRowSelected(Row.studentId)}
                             className="cursor-pointer border-t border-[color:var(--mp-role-border)] transition hover:bg-slate-50 dark:hover:bg-slate-900/40"
                           >
-                            <td className="px-2 py-2">
+                            <td data-cell="check" className="px-2 py-2">
                               <input
                                 type="checkbox"
                                 checked={SelectedStudentIdsForPractice.has(Row.studentId)}
@@ -2020,9 +2019,9 @@ function AdminAnnualCompetitionStudioPageContent() {
                                 className="h-3.5 w-3.5"
                               />
                             </td>
-                            <td className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
-                            <td className="px-2 py-2">
-                              {Row.currentLevelCode || "--"}
+                            <td data-cell="title" className="px-2 py-2 text-slate-800 dark:text-slate-100">{Row.studentName || Row.studentCode || Row.studentId}</td>
+                            <td data-label="Current Level" className="px-2 py-2">
+                              {Row.currentLevelCode || "—"}
                               {/* 2026-09-15 (Shailesh): "we need to have the
                                   current lesson number for the MM students as
                                   well ... so that it is clear why the student
@@ -2037,7 +2036,7 @@ function AdminAnnualCompetitionStudioPageContent() {
                                 </span>
                               ) : null}
                             </td>
-                            <td className="px-2 py-2">
+                            <td data-label="Eligible Competition Level" className="px-2 py-2">
                               {Row.eligibleCompetitionLevelCode ? (
                                 <span className="text-emerald-600 dark:text-emerald-300">{FormatCompetitionLevelLabel(Row.eligibleCompetitionLevelCode)}</span>
                               ) : (
