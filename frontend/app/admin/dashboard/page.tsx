@@ -7,6 +7,8 @@ import { getAdminAssessmentReattemptApprovals, getAdminAssignments } from "@/lib
 import { getPaymentsHome } from "@/lib/api/payments";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Cake,
+  ChevronRight,
   AlertTriangle,
   IndianRupee,
   RotateCcw,
@@ -44,6 +46,7 @@ function Plural(Count: number, One: string, Many: string) {
 }
 
 import { LiveRadarWidget } from "@/components/admin/LiveRadarWidget";
+import { getBirthdaysToday } from "@/lib/api/birthday";
 
 export default function AdminDashboardPage() {
   const Ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
@@ -60,6 +63,8 @@ export default function AdminDashboardPage() {
     staleTime: 60_000,
   });
   const PaymentsQuery = useQuery({ queryKey: ["admin", "payments", "home"], queryFn: getPaymentsHome, enabled: Ready, staleTime: 60_000, retry: false });
+  // 2026-10-18 (Birthdays): a line under the tiles on days with a birthday.
+  const BirthdaysQuery = useQuery({ queryKey: ["admin", "birthdays", "today"], queryFn: getBirthdaysToday, enabled: Ready, staleTime: 5 * 60_000, retry: false });
 
   const PracticeAwaiting = useMemo(() => {
     if (!PracticeQuery.data) return null;
@@ -154,6 +159,19 @@ export default function AdminDashboardPage() {
               onClick={() => Router.push("/admin/payments/home")}
             />
           </div>
+          {BirthdaysQuery.data?.count ? (
+            <button type="button" className="ad-bday-line" onClick={() => Router.push("/admin/birthdays")}>
+              <span className="ad-bday-line-icon" aria-hidden="true"><Cake size={17} /></span>
+              <span className="min-w-0">
+                <span className="ad-bday-line-title">{Plural(BirthdaysQuery.data.count, "Birthday", "Birthdays")} Today</span>
+                <span className="ad-bday-line-names">
+                  {BirthdaysQuery.data.students.slice(0, 4).map((Item) => `${Item.name} (${Item.age})`).join(", ")}
+                  {BirthdaysQuery.data.count > 4 ? ` and ${BirthdaysQuery.data.count - 4} more` : ""}
+                </span>
+              </span>
+              <span className="ad-bday-line-open">Open Birthdays<ChevronRight size={16} /></span>
+            </button>
+          ) : null}
         </section>
 
         <section className="math-dashboard-priority-panel">

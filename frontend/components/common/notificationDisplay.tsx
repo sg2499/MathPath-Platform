@@ -1,6 +1,7 @@
 import type { NotificationRecord } from "@/lib/api/notifications";
 import { getStoredUser } from "@/lib/auth";
 import {
+  Cake,
   CheckCircle2,
   ClipboardList,
   ClipboardPlus,
@@ -29,6 +30,7 @@ export type NotificationTone =
   | "teal"
   | "red"
   | "gray"
+  | "rose"
   | "feedbackExcellent"
   | "feedbackMastery"
   | "feedbackGuidance"
@@ -44,6 +46,8 @@ export function NormalizeTone(Notification: NotificationRecord): NotificationTon
   if (Color === "FEEDBACK_PRACTICE") return "feedbackPractice";
   if (Color === "FEEDBACK_REVISION") return "feedbackRevision";
   if (Color === "FEEDBACK_GUIDANCE" || Category === "ASSESSMENT_FEEDBACK") return "feedbackGuidance";
+  // 2026-10-18 (Birthdays)
+  if (Color === "ROSE" || Category === "BIRTHDAY") return "rose";
   if (Color === "RED" || Category === "FAILURE") return "red";
   if (Color === "GREEN" || Category === "RESULT") return "green";
   if (Color === "AMBER" || Category === "REATTEMPT") return "amber";
@@ -67,6 +71,7 @@ export function ToneClasses(Tone: NotificationTone, IsRead: boolean) {
     indigo: "border-indigo-200/80 bg-gradient-to-br from-white to-indigo-50/80 text-indigo-950 hover:border-indigo-300 hover:from-indigo-50 hover:to-indigo-100/80 dark:border-indigo-500/30 dark:from-slate-900 dark:to-indigo-900/20 dark:text-indigo-50",
     teal: "border-teal-200/80 bg-gradient-to-br from-white to-teal-50/80 text-teal-950 hover:border-teal-300 hover:from-teal-50 hover:to-teal-100/80 dark:border-teal-500/30 dark:from-slate-900 dark:to-teal-900/20 dark:text-teal-50",
     red: "border-rose-200/80 bg-gradient-to-br from-white to-rose-50/80 text-rose-950 hover:border-rose-300 hover:from-rose-50 hover:to-rose-100/80 dark:border-rose-500/30 dark:from-slate-900 dark:to-rose-900/20 dark:text-rose-50",
+    rose: "border-pink-200/80 bg-gradient-to-br from-white via-pink-50/70 to-orange-50/80 text-rose-950 hover:border-pink-300 hover:from-pink-50 hover:to-orange-100/80 dark:border-pink-500/30 dark:from-slate-900 dark:via-pink-900/15 dark:to-orange-900/15 dark:text-rose-50",
     gray: "border-slate-200/80 bg-gradient-to-br from-white to-slate-50/80 text-slate-950 hover:border-slate-300 hover:from-slate-50 hover:to-slate-100/80 dark:border-slate-700/50 dark:from-slate-900 dark:to-slate-800/50 dark:text-slate-50",
     feedbackExcellent: "border-emerald-300/80 bg-gradient-to-br from-emerald-50 via-white to-amber-50 text-emerald-950 hover:border-emerald-400 dark:border-emerald-500/40 dark:from-emerald-900/30 dark:via-slate-900 dark:to-amber-900/20 dark:text-emerald-50",
     feedbackMastery: "border-cyan-300/80 bg-gradient-to-br from-cyan-50 via-white to-emerald-50 text-cyan-950 hover:border-cyan-400 dark:border-cyan-500/40 dark:from-cyan-900/30 dark:via-slate-900 dark:to-emerald-900/20 dark:text-cyan-50",
@@ -81,6 +86,7 @@ export function IconFor(Notification: NotificationRecord) {
   const Category = String(Notification.category || "").toUpperCase();
   const Type = String(Notification.type || "").toUpperCase();
 
+  if (Category === "BIRTHDAY") return <Cake size={16} />;
   if (Category === "ASSESSMENT_FEEDBACK") return <MessageSquareText size={16} />;
   // 2026-10-09 (Payments Phase 5): invoices raised, payments received, an
   // online payment that did not go through.
@@ -398,6 +404,11 @@ function AppendDeepLinkParams(
 }
 
 function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
+  // 2026-10-18 (Birthdays): the route is always built on the server (the
+  // student's dashboard with ?birthday=1, or the staff Birthdays page).
+  if (String(Notification.category || "").toUpperCase() === "BIRTHDAY") {
+    return { Route: Notification.targetRoute || `/${Role}/dashboard`, TargetTab: "", TargetSubTab: "" };
+  }
   if (Role === "teacher") {
     if (IsLeaderboardRankNotification(Notification)) {
       // Podium-only teacher notification (2026-09-01) -- target_route is
@@ -644,6 +655,9 @@ export function BuildTargetUrl(
     Notification,
     Role,
   );
+
+  // Birthdays: the server builds the whole link (no extra student ids).
+  if (String(Notification.category || "").toUpperCase() === "BIRTHDAY") return Route;
 
   const BaseParams: Record<string, string> = {};
   if (TargetTab) BaseParams.tab = TargetTab;

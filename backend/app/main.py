@@ -17,6 +17,7 @@ from app.api.routes_student import router as student_router
 from app.api.routes_teacher import router as teacher_router
 from app.api.routes_teacher_reports import router as teacher_reports_router
 from app.api.routes_notifications import router as notifications_router
+from app.api.routes_birthdays import admin_router as admin_birthday_router, student_router as student_birthday_router, teacher_router as teacher_birthday_router
 import os
 import sentry_sdk
 from slowapi import _rate_limit_exceeded_handler
@@ -160,9 +161,43 @@ def _StartMonthlyDraftsCheck() -> None:
                 logger.exception("Monthly billing drafts check failed")
             finally:
                 Session_.close()
-            time.sleep(30 * 60)
+            from app.services.birthday_service import SecondsUntilNextCheck
+
+            time.sleep(SecondsUntilNextCheck())
 
     threading.Thread(target=_Loop, name="monthly-billing-drafts", daemon=True).start()
+
+
+def _StartBirthdayCheck() -> None:
+    """2026-10-18 (Birthdays): every 30 minutes, make the day's birthday
+    greetings and send the morning notifications (from 07:00 India time).
+    Safe on several workers: each greeting is made once (unique per student
+    and year) and wishes are picked under a Postgres advisory lock."""
+    import os
+    import threading
+    import time
+
+    if os.getenv("BIRTHDAYS_DAILY_CHECK", "1") == "0":
+        return
+
+    def _Loop() -> None:
+        time.sleep(90)
+        while True:
+            Session_ = SessionLocal()
+            try:
+                from app.services.birthday_service import EnsureBirthdayGreetings
+
+                Sent = EnsureBirthdayGreetings(Session_)
+                if Sent:
+                    logger.info("Birthdays: %s greetings sent", Sent)
+            except Exception:
+                Session_.rollback()
+                logger.exception("Birthday check failed")
+            finally:
+                Session_.close()
+            time.sleep(30 * 60)
+
+    threading.Thread(target=_Loop, name="birthday-greetings", daemon=True).start()
 
 
 class _StartupSchemaLock:
@@ -260,6 +295,14 @@ def _EnsureSchema():
     # centres, business details and number sequences (created once).
     from app.services.schema_migration import ensure_payments_foundation
     ensure_payments_foundation()
+    # 2026-10-18 (Birthdays): the starting wish set (adds missing wishes
+    # only; an admin's edits are never overwritten).
+    from app.services.birthday_wishes_seed import SeedBirthdayWishes
+    _Db = SessionLocal()
+    try:
+        SeedBirthdayWishes(_Db)
+    finally:
+        _Db.close()
 
 
 @app.on_event("startup")
@@ -270,6 +313,7 @@ def on_startup():
     # A light check every 30 minutes (and once shortly after start), safe to
     # run from every worker: the month is drafted once, under a row lock.
     _StartMonthlyDraftsCheck()
+    _StartBirthdayCheck()
 
     # Seed gamification badges safely
     from app.services.achievements import AchievementEngine
@@ -398,3 +442,6 @@ app.include_router(public_payments_router)
 app.include_router(teacher_router)
 app.include_router(teacher_reports_router)
 app.include_router(notifications_router)
+app.include_router(student_birthday_router)
+app.include_router(admin_birthday_router)
+app.include_router(teacher_birthday_router)

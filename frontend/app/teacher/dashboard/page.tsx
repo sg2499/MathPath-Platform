@@ -10,7 +10,10 @@ import { StudentJourney } from "@/components/common/LessonAssignmentStatus";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { getTeacherAssignmentTracker, getTeacherStudents } from "@/lib/api/teacher";
 import { useQuery } from "@tanstack/react-query";
+import { getTeacherBirthdaysWeek } from "@/lib/api/birthday";
 import {
+  Cake,
+  ChevronRight,
   ClipboardCheck,
   ClipboardPlus,
   FilePenLine,
@@ -54,6 +57,9 @@ export default function TeacherDashboardPage() {
   // match those pages.
   const StudentsQuery = useQuery({ queryKey: ["teacher-students"], queryFn: getTeacherStudents, enabled: Ready });
   const TrackerQuery = useQuery({ queryKey: ["teacher-assignment-tracker-current-state"], queryFn: getTeacherAssignmentTracker, enabled: Ready });
+  // 2026-10-18 (Birthdays): a line under the tiles when one of the
+  // teacher's students has a birthday today or this week.
+  const BirthdaysQuery = useQuery({ queryKey: ["teacher", "birthdays", "week"], queryFn: getTeacherBirthdaysWeek, enabled: Ready, staleTime: 5 * 60_000, retry: false });
 
   const Today = useMemo(() => {
     if (!StudentsQuery.data || !TrackerQuery.data) return null;
@@ -177,6 +183,27 @@ export default function TeacherDashboardPage() {
               onClick={() => Router.push("/teacher/assignment-tracker?tab=awaiting-approval")}
             />
           </div>
+          {BirthdaysQuery.data?.entries.length ? (() => {
+            const Week = BirthdaysQuery.data.entries;
+            const TodayOnes = Week.filter((Item) => Item.isToday);
+            const Title = TodayOnes.length ? `${Plural(TodayOnes.length, "Birthday", "Birthdays")} Today` : `${Plural(Week.length, "Birthday", "Birthdays")} This Week`;
+            const Names = (TodayOnes.length ? TodayOnes : Week).slice(0, 4).map((Item) =>
+              TodayOnes.length
+                ? `${Item.name} (${Item.age})`
+                : `${Item.name} (${new Date(`${Item.date}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}, turns ${Item.age})`,
+            );
+            const More = (TodayOnes.length ? TodayOnes : Week).length - Names.length;
+            return (
+              <button type="button" className="ad-bday-line" onClick={() => Router.push("/teacher/birthdays")}>
+                <span className="ad-bday-line-icon" aria-hidden="true"><Cake size={17} /></span>
+                <span className="min-w-0">
+                  <span className="ad-bday-line-title">{Title}</span>
+                  <span className="ad-bday-line-names">{Names.join(", ")}{More > 0 ? ` and ${More} more` : ""}</span>
+                </span>
+                <span className="ad-bday-line-open">Open Birthdays<ChevronRight size={16} /></span>
+              </button>
+            );
+          })() : null}
         </section>
 
         <section className="math-dashboard-priority-panel">

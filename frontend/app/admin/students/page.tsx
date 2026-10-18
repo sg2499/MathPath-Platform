@@ -71,7 +71,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { StatePill } from "@/components/common/DetailWorkspaceViews";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
 const PAGE_SIZE = 20;
@@ -194,6 +194,25 @@ export default function AdminStudentsPage() {
     queryFn: getAdminStudents,
     enabled: ready,
   });
+
+  // 2026-10-18 (Birthdays): /admin/students?student=MP-ST-012 opens that
+  // student's details, and &edit=1 opens their form (to fix a date of
+  // birth). The address is tidied once it has been used.
+  const DeepLinkDone = useRef(false);
+  useEffect(() => {
+    if (DeepLinkDone.current || !studentsQuery.data) return;
+    const Query = new URLSearchParams(window.location.search);
+    const Code = Query.get("student");
+    if (!Code) return;
+    DeepLinkDone.current = true;
+    const Match = studentsQuery.data.find((Item) => Item.studentCode === Code || Item.studentId === Code);
+    if (Match) {
+      if (Query.get("edit") === "1") startEditing(Match);
+      else setSelectedStudent(Match);
+    }
+    window.history.replaceState(null, "", window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentsQuery.data]);
 
   const modulesQuery = useQuery({
     queryKey: ["modules"],

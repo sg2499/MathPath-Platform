@@ -29,17 +29,23 @@ export function PaymentsDialog({
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
+  // 2026-10-18: the latest onClose, without re-running the effect below.
+  // Most callers pass a new function on every render, so the effect re-ran
+  // on each keystroke and moved focus back to the first control (often the
+  // close button), pulling the cursor out of the field being typed in.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => setMounted(true), []);
   useEffect(() => {
-    if (!open) return;
+    if (!open || !mounted) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
     };
     window.addEventListener("keydown", onKey);
     const first = panelRef.current?.querySelector<HTMLElement>("input, select, textarea, button");
     first?.focus();
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, mounted]);
   if (!open || !mounted) return null;
   // Rendered on document.body: the page shell creates its own stacking
   // context, which would otherwise trap the dialog under the menu bar.

@@ -37,6 +37,7 @@ import {
   Award,
   BarChart3,
   BookOpen,
+  Cake,
   BookOpenCheck,
   ChevronDown,
   ChevronLeft,
@@ -532,6 +533,12 @@ export function AppShell({
           icon: GraduationCap,
           tooltip: "Manage teachers",
         },
+        {
+          label: "Birthdays",
+          href: "/admin/birthdays",
+          icon: Cake,
+          tooltip: "Student birthdays and the wishes sent",
+        },
       ],
     },
     {
@@ -702,6 +709,12 @@ export function AppShell({
           href: "/teacher/students",
           icon: UsersRound,
           tooltip: "View assigned students",
+        },
+        {
+          label: "Birthdays",
+          href: "/teacher/birthdays",
+          icon: Cake,
+          tooltip: "Your students' birthdays",
         },
       ],
     },
