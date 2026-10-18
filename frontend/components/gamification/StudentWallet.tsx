@@ -1,5 +1,6 @@
 'use client';
 
+import Link from "next/link";
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
@@ -216,7 +217,12 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
         </div>
 
         {/* Right Side: Game Ledger Coins Chip */}
-        <div
+        {/* 2026-10-18 (Rewards): the chip always looked clickable; it now
+            opens the Reward Store. */}
+        <Link
+          href="/student/rewards"
+          aria-label={`${coinBalance.toLocaleString()} MathCoins. Open the Reward Store`}
+          title="Open the Reward Store"
           className="se-coins group flex flex-col md:flex-row items-center gap-4 px-5 md:px-6 py-3 md:py-4 rounded-[1.25rem] transition-all duration-300 hover:scale-105 hover:-translate-y-1 cursor-pointer overflow-hidden relative min-w-[160px]"
           style={{ transform: "translateZ(30px)" }}
         >
@@ -231,7 +237,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
             <span className="se-wallet-label se-wallet-accent">MathCoins</span>
             <span className="se-wallet-coins">{coinBalance.toLocaleString()}</span>
           </div>
-        </div>
+        </Link>
 
       </motion.div>
 

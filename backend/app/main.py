@@ -18,6 +18,7 @@ from app.api.routes_teacher import router as teacher_router
 from app.api.routes_teacher_reports import router as teacher_reports_router
 from app.api.routes_notifications import router as notifications_router
 from app.api.routes_birthdays import admin_router as admin_birthday_router, student_router as student_birthday_router, teacher_router as teacher_birthday_router
+from app.api.routes_rewards import admin_router as admin_reward_router, student_router as student_reward_router
 import os
 import sentry_sdk
 from slowapi import _rate_limit_exceeded_handler
@@ -303,6 +304,14 @@ def _EnsureSchema():
         SeedBirthdayWishes(_Db)
     finally:
         _Db.close()
+    # 2026-10-18 (Rewards): the opening catalogue, 16 gifts with photos
+    # (adds missing items only; an admin's edits are never overwritten).
+    from app.services.reward_seed import SeedRewardItems
+    _Db = SessionLocal()
+    try:
+        SeedRewardItems(_Db)
+    finally:
+        _Db.close()
 
 
 @app.on_event("startup")
@@ -445,3 +454,5 @@ app.include_router(notifications_router)
 app.include_router(student_birthday_router)
 app.include_router(admin_birthday_router)
 app.include_router(teacher_birthday_router)
+app.include_router(student_reward_router)
+app.include_router(admin_reward_router)

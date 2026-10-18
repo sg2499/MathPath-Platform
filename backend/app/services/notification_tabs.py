@@ -9,7 +9,7 @@ database:
   DPS             DPS practice, re-attempts, lesson progress
   ASSESSMENTS     Mock exams, level assessments, results, feedback
   ANNUAL          Annual Competition practice and the official event
-  ACHIEVEMENTS    leaderboards, podiums, XP ranks, badges, promotions
+  ACHIEVEMENTS    leaderboards, podiums, XP ranks, badges, promotions, rewards
   ACCOUNT         fees and parent reports
   OTHER           anything else (shown only when there is something)
 
@@ -42,12 +42,14 @@ TAB_LABELS = {
 
 # Notification types each role is expected to act on.
 ACTION_TYPES = {
-    "ADMIN": ["DPS_REATTEMPT_APPROVAL_NEEDED", "ASSESSMENT_REATTEMPT_REQUEST_CREATED", "PARENT_REPORT_FAILED"],
+    "ADMIN": ["DPS_REATTEMPT_APPROVAL_NEEDED", "ASSESSMENT_REATTEMPT_REQUEST_CREATED", "PARENT_REPORT_FAILED", "REWARD_TO_PREPARE"],
     "TEACHER": ["DPS_REATTEMPT_APPROVAL_NEEDED", "ASSESSMENT_REATTEMPT_REQUEST_CREATED", "STUDENT_ASSESSMENT_NEEDS_REATTEMPT"],
     "STUDENT": [
         "DPS_ASSIGNED", "DPS_ASSIGNED_BULK", "DPS_REATTEMPT_ASSIGNED", "DPS_FRESH_PRACTICE_ASSIGNED", "DPS_UNLOCKED",
         "MOCK_ASSIGNED", "STUDENT_MOCK_ASSIGNED", "ASSESSMENT_ASSIGNED", "ASSESSMENT_REATTEMPT_ASSIGNED", "ASSESSMENT_REATTEMPT_APPROVED",
         "ANNUAL_PRACTICE_ASSIGNED", "FEES_INVOICE_RAISED", "FEES_REMINDER", "FEES_ONLINE_FAILED",
+        # 2026-10-18 (Rewards): go and collect it; you can now unlock your goal
+        "REWARD_READY", "REWARD_GOAL_REACHED",
     ],
 }
 
@@ -70,7 +72,7 @@ def TabExpression():
         (or_(C.in_(["FEES", "PARENT_REPORT"]), T.like("FEES%"), T.like("%PARENT_REPORT%")), literal(TAB_ACCOUNT)),
         (
             or_(
-                C.in_(["LEADERBOARD", "GAMIFICATION", "XP_RANK", "PROMOTION"]),
+                C.in_(["LEADERBOARD", "GAMIFICATION", "XP_RANK", "PROMOTION", "REWARD"]),
                 T.like("%PODIUM%"), T.like("%BADGE%"), T.like("%XP_RANK%"), T.like("%PROMOTED%"), T.like("%LEADERBOARD%"),
             ),
             literal(TAB_ACHIEVEMENTS),
@@ -89,7 +91,7 @@ def TabFor(Category: str | None, Type: str | None) -> str:
         return TAB_ANNUAL
     if C in ("FEES", "PARENT_REPORT") or T.startswith("FEES") or "PARENT_REPORT" in T:
         return TAB_ACCOUNT
-    if C in ("LEADERBOARD", "GAMIFICATION", "XP_RANK", "PROMOTION") or any(Key in T for Key in ("PODIUM", "BADGE", "XP_RANK", "PROMOTED", "LEADERBOARD")):
+    if C in ("LEADERBOARD", "GAMIFICATION", "XP_RANK", "PROMOTION", "REWARD") or any(Key in T for Key in ("PODIUM", "BADGE", "XP_RANK", "PROMOTED", "LEADERBOARD")):
         return TAB_ACHIEVEMENTS
     if "ASSESSMENT" in T or "MOCK" in T or C in ("COMPETITION_MOCK", "ASSESSMENT", "ASSESSMENT_FEEDBACK", "RESULT"):
         return TAB_ASSESSMENTS

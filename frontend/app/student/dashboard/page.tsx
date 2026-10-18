@@ -3,6 +3,7 @@
 import { AppShell } from "@/components/common/AppShell";
 import { StudentFeesCard } from "@/components/fees/StudentFeesCard";
 import { StudentBirthdayGreeting } from "@/components/student/BirthdayGreeting";
+import { RewardGoalPill } from "@/components/rewards/RewardStore";
 import { ErrorState } from "@/components/common/ErrorState";
 import { StudentWallet } from "@/components/gamification/StudentWallet";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -784,6 +785,7 @@ export default function StudentDashboardPage() {
                 </p>
               ) : null}
               <StudentBirthdayGreeting />
+              <RewardGoalPill />
               <StudentFeesCard />
             </div>
 
