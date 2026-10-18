@@ -17,6 +17,7 @@ NOTIFICATION_COLOR_BY_CATEGORY = {
     "FAILURE": "RED",
     "SYSTEM": "GRAY",
     "ASSESSMENT_FEEDBACK": "FEEDBACK_GUIDANCE",
+    "BIRTHDAY": "ROSE",
 }
 
 
@@ -167,9 +168,11 @@ def CreateNotification(
     target_sub_tab: str | None = None,
     color_variant: str | None = None,
     metadata: dict[str, Any] | None = None,
+    notification_id: str | None = None,
 ) -> Notification:
     normalized_category = (category or "SYSTEM").upper()
     notification = Notification(
+        **({"id": notification_id} if notification_id else {}),
         recipient_user_id=recipient_user_id,
         recipient_role=(recipient_role or "").upper(),
         actor_user_id=actor_user_id,

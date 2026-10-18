@@ -2040,3 +2040,223 @@ html .math-role-teacher .te-board-avatar > div:not(#te) {
     align-items: start !important;
   }
 }
+
+/* ---------- Birthdays for teachers (2026-10-18, Part 4): the same look as
+   the admin page, in the teacher palette. Copied from admin-elevate.css
+   with the teacher tokens. */
+html .math-role-teacher .ad-bday-today {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 0.85rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+html .math-role-teacher .ad-bday-today-card {
+  display: grid;
+  align-content: start;
+  gap: 0.6rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--te-line);
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(251, 113, 133, 0.12) 0%, transparent 55%),
+    var(--te-surface);
+}
+html .math-role-teacher .ad-bday-name {
+  font-family: var(--te-display);
+  font-weight: 800;
+  color: var(--te-ink);
+}
+html .math-role-teacher .ad-bday-code {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--te-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+html .math-role-teacher .ad-bday-turns {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff1f2, #ffedd5);
+  color: #be123c;
+  font-family: var(--te-display);
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+html.dark .math-role-teacher .ad-bday-turns { background: rgba(244, 63, 94, 0.16); color: #fda4af; }
+html .math-role-teacher .ad-bday-facts { font-size: 0.86rem; font-weight: 700; color: var(--te-ink-soft); }
+html .math-role-teacher .ad-bday-wish {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--te-ink);
+}
+html .math-role-teacher .ad-bday-when { font-size: 0.8rem; font-weight: 700; color: var(--te-ink-soft); }
+
+html .math-role-teacher .ad-bday-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-family: var(--te-display);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+html .math-role-teacher .ad-bday-status.is-seen { background: #dcfce7; color: #166534; }
+html .math-role-teacher .ad-bday-status.is-sent { background: #e0f2fe; color: #075985; }
+html .math-role-teacher .ad-bday-status.is-waiting,
+html .math-role-teacher .ad-bday-status.is-scheduled { background: var(--te-tint); color: var(--te-readable); }
+html .math-role-teacher .ad-bday-status.is-missed { background: #fef3c7; color: #92400e; }
+html.dark .math-role-teacher .ad-bday-status.is-seen { background: rgba(34, 197, 94, 0.16); color: #86efac; }
+html.dark .math-role-teacher .ad-bday-status.is-sent { background: rgba(14, 165, 233, 0.16); color: #7dd3fc; }
+html.dark .math-role-teacher .ad-bday-status.is-missed { background: rgba(245, 158, 11, 0.16); color: #fcd34d; }
+
+html .math-role-teacher .ad-bday-day,
+html .math-role-teacher .ad-bday-month {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0;
+  font-family: var(--te-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--te-ink);
+}
+html .math-role-teacher .ad-bday-month { font-size: 1.3rem; }
+html .math-role-teacher .ad-bday-day-count { font-size: 0.82rem; font-weight: 700; color: var(--te-ink-soft); }
+
+html .math-role-teacher .ad-bday-span {
+  min-height: 2.4rem;
+  padding: 0 0.95rem;
+  border: 1px solid var(--te-line);
+  border-radius: 999px;
+  background: var(--te-surface);
+  color: var(--te-ink);
+  font-family: var(--te-display);
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+html .math-role-teacher .ad-bday-span:hover { border-color: var(--te-line-strong); }
+html .math-role-teacher .ad-bday-span.is-on { border-color: transparent; background: var(--te-action); color: #fff; }
+html .math-role-teacher .ad-bday-span:focus-visible { outline: none; box-shadow: var(--te-ring); }
+
+html .math-role-teacher button.ad-bday-tile { cursor: pointer; transition: transform 160ms var(--te-ease); }
+html .math-role-teacher button.ad-bday-tile:hover { transform: translateY(-1px); }
+html .math-role-teacher button.ad-bday-tile:focus-visible { outline: none; box-shadow: var(--te-ring); }
+
+/* the month grid */
+html .math-role-teacher .ad-bday-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+html .math-role-teacher .ad-bday-weekday {
+  padding: 0 4px 2px;
+  font-family: var(--te-display);
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--te-ink-soft);
+}
+html .math-role-teacher .ad-bday-cell {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 92px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 8px 9px;
+  border: 1px solid var(--te-line);
+  border-radius: 14px;
+  background: var(--te-surface);
+  color: var(--te-ink);
+  text-align: left;
+}
+html .math-role-teacher .ad-bday-cell.is-blank { border-style: dashed; background: transparent; opacity: 0.45; }
+html .math-role-teacher .ad-bday-cell:disabled { cursor: default; }
+html .math-role-teacher .ad-bday-cell.has-people {
+  cursor: pointer;
+  background: radial-gradient(120% 120% at 100% 0%, rgba(251, 113, 133, 0.14) 0%, transparent 60%), var(--te-surface);
+}
+html .math-role-teacher .ad-bday-cell.has-people:hover { border-color: var(--te-line-strong); }
+html .math-role-teacher .ad-bday-cell.is-today { box-shadow: inset 0 0 0 2px var(--te-primary); }
+html .math-role-teacher .ad-bday-cell.is-picked { border-color: transparent; box-shadow: inset 0 0 0 2px #e11d48; }
+html .math-role-teacher .ad-bday-cell:focus-visible { outline: none; box-shadow: var(--te-ring); }
+html .math-role-teacher .ad-bday-date { font-family: var(--te-display); font-size: 0.92rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+html .math-role-teacher .ad-bday-cell.is-today .ad-bday-date { color: var(--te-readable); }
+html .math-role-teacher .ad-bday-cell-names { display: grid; min-width: 0; max-width: 100%; gap: 1px; font-size: 0.8rem; font-weight: 700; line-height: 1.3; }
+html .math-role-teacher .ad-bday-cell-names > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html .math-role-teacher .ad-bday-more { color: var(--te-ink-soft); }
+html .math-role-teacher .ad-bday-cell-count { display: none; }
+
+@media (max-width: 767px) {
+  html .math-role-teacher .ad-bday-grid { gap: 4px; }
+  html .math-role-teacher .ad-bday-weekday { padding: 0; text-align: center; font-size: 0.72rem; }
+  html .math-role-teacher .ad-bday-cell { min-height: 52px; align-items: center; padding: 6px 2px; border-radius: 10px; }
+  html .math-role-teacher .ad-bday-cell-names { display: none; }
+  html .math-role-teacher .ad-bday-cell-count {
+    display: grid;
+    min-width: 20px;
+    height: 20px;
+    place-items: center;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #e11d48;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+}
+
+/* Birthdays: the line on the dashboard's Today panel */
+html .math-role-teacher .ad-bday-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(244, 63, 94, 0.22);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff1f2 0%, #fff7ed 100%);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms var(--te-ease), box-shadow 160ms var(--te-ease);
+}
+html .math-role-teacher .ad-bday-line:hover { transform: translateY(-1px); box-shadow: 0 14px 28px -20px rgba(225, 29, 72, 0.5); }
+html .math-role-teacher .ad-bday-line:focus-visible { outline: none; box-shadow: var(--te-ring); }
+html .math-role-teacher .ad-bday-line-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fb923c 0%, #e11d48 100%);
+  color: #fff;
+}
+html .math-role-teacher .ad-bday-line-title { display: block; font-family: var(--te-display); font-weight: 800; color: #881337; }
+html .math-role-teacher .ad-bday-line-names { display: block; font-size: 0.88rem; font-weight: 600; color: #4c0519; }
+html .math-role-teacher .ad-bday-line-open { display: inline-flex; align-items: center; gap: 2px; font-family: var(--te-display); font-size: 0.88rem; font-weight: 800; color: #be123c; white-space: nowrap; }
+html.dark .math-role-teacher .ad-bday-line { border-color: rgba(251, 113, 133, 0.3); background: linear-gradient(135deg, rgba(136, 19, 55, 0.35) 0%, rgba(124, 45, 18, 0.28) 100%); }
+html.dark .math-role-teacher .ad-bday-line-title { color: #fecdd3; }
+html.dark .math-role-teacher .ad-bday-line-names { color: #ffe4e6; }
+html.dark .math-role-teacher .ad-bday-line-open { color: #fda4af; }
+@media (max-width: 479px) {
+  html .math-role-teacher .ad-bday-line { grid-template-columns: auto minmax(0, 1fr); }
+  html .math-role-teacher .ad-bday-line-open { grid-column: 2; }
+}
+
+html .math-role-teacher .te-hero-tiles.te-hero-tiles-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 1023px) {
+  html .math-role-teacher .te-hero-tiles.te-hero-tiles-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

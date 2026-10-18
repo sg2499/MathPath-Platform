@@ -3938,3 +3938,242 @@ html.dark .se-level-badge {
   background: rgba(2, 6, 23, 0.55);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
 }
+
+/* ---------- birthday greeting (2026-10-18) ---------------------------------
+   The card that opens on a student's birthday, and the pill under the
+   dashboard title for the rest of the day. One moment of motion: a bead for
+   every year slides along an abacus rod while the age counts up. */
+html .se-bday-pill {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 9px;
+  margin: 2px 0 0;
+  padding: 5px 14px 5px 5px;
+  border: 1px solid rgba(225, 29, 72, 0.22);
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #fff1f2 0%, #fff7ed 100%);
+  color: var(--se-ink);
+  font-family: var(--se-display);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 10px 24px -18px rgba(225, 29, 72, 0.45);
+  transition: transform 160ms var(--se-ease), box-shadow 160ms var(--se-ease);
+}
+html .se-bday-pill:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 14px 28px -16px rgba(225, 29, 72, 0.5); }
+html .se-bday-pill:focus-visible { outline: none; box-shadow: var(--se-ring); }
+html .se-bday-pill-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #fb923c 0%, #e11d48 100%);
+  color: #fff;
+}
+html .se-bday-pill-age { color: #be123c; font-weight: 700; }
+html.dark .se-bday-pill {
+  border-color: rgba(251, 113, 133, 0.35);
+  background: linear-gradient(135deg, rgba(136, 19, 55, 0.45) 0%, rgba(124, 45, 18, 0.35) 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+html.dark .se-bday-pill-age { color: #fda4af; }
+
+html .se-bday-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(58, 10, 23, 0.42);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: se-bday-fade 220ms var(--se-ease) both;
+}
+html .se-bday-card {
+  position: relative;
+  width: min(480px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border: 1px solid var(--se-line);
+  border-radius: 28px;
+  background: var(--se-surface);
+  box-shadow: 0 40px 80px -30px rgba(58, 10, 23, 0.55);
+  animation: se-bday-rise 280ms var(--se-ease) both;
+}
+html .se-bday-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--se-line);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--se-ink);
+  cursor: pointer;
+}
+html .se-bday-close:hover { background: #fff; }
+html .se-bday-close:focus-visible { outline: none; box-shadow: var(--se-ring); }
+
+/* the stage: abacus on the left, the age on the right */
+html .se-bday-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  min-height: 168px;
+  padding: 34px 28px 22px;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(251, 146, 60, 0.22) 0%, transparent 60%),
+    radial-gradient(110% 90% at 100% 100%, rgba(251, 113, 133, 0.2) 0%, transparent 60%),
+    var(--se-surface-2);
+  border-bottom: 1px solid var(--se-line);
+}
+html .se-bday-abacus { display: grid; gap: 14px; }
+html .se-bday-rod {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 20px;
+  padding: 0 6px;
+}
+html .se-bday-rod-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  margin-top: -1.5px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(76, 5, 25, 0.28), rgba(76, 5, 25, 0.12));
+}
+html .se-bday-bead {
+  position: relative;
+  width: 25px;
+  height: 19px;
+  border-radius: 50%;
+  opacity: 0;
+  transform: translateX(26px) scale(0.9);
+  transition: opacity 240ms var(--se-ease), transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.16), inset 0 3px 4px rgba(255, 255, 255, 0.55), 0 3px 6px -3px rgba(76, 5, 25, 0.5);
+}
+html .se-bday-bead.is-a { background: linear-gradient(180deg, #fdba74 0%, #ea580c 100%); }
+html .se-bday-bead.is-b { background: linear-gradient(180deg, #fda4af 0%, #e11d48 100%); }
+html .se-bday-bead:nth-of-type(7) { margin-left: 8px; } /* the sixth bead: a gap after the first five (the rod line is the first span) */
+html .se-bday-bead.is-in { opacity: 1; transform: none; }
+html .se-bday-age {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  font-family: var(--se-display);
+  color: var(--se-ink);
+  line-height: 1;
+}
+html .se-bday-age-number {
+  font-size: 4.5rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  min-width: 1.2em;
+  text-align: center;
+}
+html .se-bday-age-label {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--se-readable);
+}
+html .se-bday-cake {
+  display: grid;
+  width: 88px;
+  height: 88px;
+  place-items: center;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #fb923c 0%, #e11d48 100%);
+  color: #fff;
+}
+
+html .se-bday-body { padding: 24px 28px 28px; }
+html .se-bday-title {
+  margin: 0;
+  font-family: var(--se-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--se-ink);
+}
+html .se-bday-wish {
+  margin: 12px 0 0;
+  font-size: 1.08rem;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--se-ink);
+}
+html .se-bday-sign {
+  margin: 14px 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--se-ink-soft);
+}
+html .se-bday-thanks {
+  display: inline-flex;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--se-action);
+  color: #fff;
+  font-family: var(--se-display);
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--se-action-shadow);
+  transition: transform 160ms var(--se-ease), background 160ms var(--se-ease);
+}
+html .se-bday-thanks:hover { background: var(--se-action-hover); transform: translateY(-1px); }
+html .se-bday-thanks:active { transform: translateY(0); }
+html .se-bday-thanks:focus-visible { outline: none; box-shadow: var(--se-action-shadow), var(--se-ring); }
+
+html.dark .se-bday-backdrop { background: rgba(2, 6, 23, 0.62); }
+html.dark .se-bday-card { box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.8); }
+html.dark .se-bday-close { background: rgba(15, 23, 42, 0.75); }
+html.dark .se-bday-close:hover { background: rgba(30, 41, 59, 0.95); }
+html.dark .se-bday-stage {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(249, 115, 22, 0.18) 0%, transparent 60%),
+    radial-gradient(110% 90% at 100% 100%, rgba(225, 29, 72, 0.16) 0%, transparent 60%),
+    var(--se-surface-2);
+}
+html.dark .se-bday-rod-line { background: linear-gradient(90deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.12)); }
+
+@media (max-width: 479px) {
+  html .se-bday-stage { gap: 14px; min-height: 140px; padding: 30px 16px 18px; }
+  html .se-bday-bead { width: 18px; height: 14px; }
+  html .se-bday-bead:nth-of-type(7) { margin-left: 6px; }
+  html .se-bday-age-number { font-size: 3.6rem; }
+  html .se-bday-body { padding: 20px 20px 22px; }
+  html .se-bday-title { font-size: 1.5rem; }
+  html .se-bday-wish { font-size: 1rem; }
+}
+
+@keyframes se-bday-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes se-bday-rise { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html .se-bday-backdrop,
+  html .se-bday-card { animation: none; }
+  html .se-bday-bead { transition: none; }
+}
