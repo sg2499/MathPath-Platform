@@ -123,6 +123,69 @@ class EconomyService:
         return econ
 
     @staticmethod
+    def lock_wallet(db: Session, user_id: str) -> UserEconomy:
+        """The student's wallet row, locked until this transaction commits.
+
+        2026-10-18 (Rewards): coins can now be spent as well as earned, so
+        every change to a balance takes this lock first. Without it an award
+        and a reward unlock landing at the same moment would each read the
+        old balance and the second write would wipe out the first (a spend
+        that vanishes, or coins paid twice). On SQLite (tests) the lock is a
+        no-op."""
+        econ = EconomyService.get_user_economy(db, user_id)
+        return (
+            db.query(UserEconomy)
+            .filter(UserEconomy.id == econ.id)
+            .with_for_update()
+            .populate_existing()
+            .one()
+        )
+
+    @staticmethod
+    def spend_coins(db: Session, econ: UserEconomy, amount: int, source_action: str, reference_id: str) -> EconomyTransaction:
+        """Take coins from a wallet already locked with lock_wallet(). Never
+        goes below zero. Does not commit: the caller commits together with
+        whatever the coins paid for, so the two can never get out of step.
+        Only coin_balance changes; XP, rank and lifetime coins earned do not."""
+        amount = int(amount)
+        if amount <= 0:
+            raise ValueError("Spend amount must be positive.")
+        if econ.coin_balance < amount:
+            raise ValueError("Not enough coins.")
+        econ.coin_balance -= amount
+        tx = EconomyTransaction(
+            user_id=econ.user_id,
+            transaction_type="SPEND",
+            amount_xp=0,
+            amount_coins=-amount,
+            source_action=source_action,
+            reference_id=reference_id,
+        )
+        db.add(tx)
+        db.flush()
+        return tx
+
+    @staticmethod
+    def refund_coins(db: Session, econ: UserEconomy, amount: int, source_action: str, reference_id: str) -> EconomyTransaction:
+        """Give back coins that were spent (wallet locked with lock_wallet()).
+        Does not commit, and does not count towards lifetime coins earned."""
+        amount = int(amount)
+        if amount <= 0:
+            raise ValueError("Refund amount must be positive.")
+        econ.coin_balance += amount
+        tx = EconomyTransaction(
+            user_id=econ.user_id,
+            transaction_type="REFUND",
+            amount_xp=0,
+            amount_coins=amount,
+            source_action=source_action,
+            reference_id=reference_id,
+        )
+        db.add(tx)
+        db.flush()
+        return tx
+
+    @staticmethod
     def award_xp_and_coins(
         db: Session, 
         user_id: str, 
@@ -135,8 +198,9 @@ class EconomyService:
         The absolute immutable ledger transaction. 
         Safely awards XP and Coins, logs the transaction, and checks for Rank Ups.
         """
-        econ = EconomyService.get_user_economy(db, user_id)
-        
+        econ = EconomyService.lock_wallet(db, user_id)
+        balance_before = int(econ.coin_balance or 0)
+
         # 1. Update Balances
         econ.current_xp += xp_amount
         if coin_amount > 0:
@@ -172,6 +236,18 @@ class EconomyService:
         # type that ranks a student up gets this notification for free.
         # Wrapped in its own try/except so a bug here can never break XP/coin
         # awarding, the one thing this function absolutely cannot fail at.
+        # 2026-10-18 (Rewards): tell the student when these coins mean they can
+        # now afford their goal. Wrapped like the rank notification below, so
+        # it can never break awarding.
+        if coin_amount > 0:
+            try:
+                from app.services.reward_notifications import NotifyGoalIfReached
+
+                NotifyGoalIfReached(db, user_id, balance_before, int(econ.coin_balance or 0))
+            except Exception as e:
+                import logging
+                logging.error(f"Failed to check the reward goal for user {user_id}: {e}")
+
         if ranked_up:
             try:
                 from app.services.rank_notification_service import NotifyXpRankTierUp

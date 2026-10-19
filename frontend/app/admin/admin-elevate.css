@@ -2791,3 +2791,260 @@ html.dark .math-role-admin .ad-bday-line-open { color: #fda4af; }
   html .math-role-admin .ad-bday-line { grid-template-columns: auto minmax(0, 1fr); }
   html .math-role-admin .ad-bday-line-open { grid-column: 2; }
 }
+
+/* ---------- rewards (2026-10-18, Rewards Part 3) ----------------------------
+   Users › Rewards: To Prepare with the shopping list, Hand Over at the desk,
+   History, the Catalogue (with a preview of the student's card) and Student
+   Coins. Scoped to html.mp-admin so the dialogs (rendered outside the page)
+   get it too. Coin gold matches the student's Reward Store. */
+html.mp-admin {
+  --ad-rw-gold-hi: #fde68a;
+  --ad-rw-gold: #f59e0b;
+  --ad-rw-gold-lo: #b45309;
+  --ad-rw-good: #15803d;
+  --ad-rw-good-bg: #e8f7ee;
+  --ad-rw-warn: #b45309;
+  --ad-rw-warn-bg: #fff4e0;
+  --ad-rw-bad: #be123c;
+  --ad-rw-bad-bg: #fdecef;
+  --ad-rw-mute: #64748b;
+  --ad-rw-mute-bg: #eef1f6;
+  --ad-rw-case: #ffffff;
+}
+html.dark.mp-admin {
+  --ad-rw-good: #6ee7b7;
+  --ad-rw-good-bg: rgba(16, 185, 129, 0.15);
+  --ad-rw-warn: #fcd34d;
+  --ad-rw-warn-bg: rgba(245, 158, 11, 0.15);
+  --ad-rw-bad: #fda4af;
+  --ad-rw-bad-bg: rgba(244, 63, 94, 0.15);
+  --ad-rw-mute: #a9b4cc;
+  --ad-rw-mute-bg: rgba(148, 163, 184, 0.14);
+  --ad-rw-case: #f8f7f5;
+}
+
+html.mp-admin .ad-rw-panel { display: grid; gap: 1.1rem; min-width: 0; }
+html.mp-admin .ad-rw-panel + .ad-rw-panel { padding-top: 1.5rem; border-top: 1px solid var(--ad-line); }
+html.mp-admin .ad-rw-h2 { margin: 0; color: var(--ad-ink); font-family: var(--ad-display); font-size: 1.15rem; font-weight: 900; line-height: 1.2; }
+html.mp-admin .ad-rw-desc { margin: 0; color: var(--ad-ink-soft); font-size: 0.92rem; font-weight: 600; line-height: 1.55; }
+html.mp-admin .ad-rw-head .mp-headbar-desc { margin-top: 0.35rem; }
+html.mp-admin .ad-rw-name { color: var(--ad-ink); font-family: var(--ad-display); font-weight: 800; line-height: 1.25; }
+html.mp-admin .ad-rw-sub { color: var(--ad-ink-soft); font-size: 0.82rem; font-weight: 600; line-height: 1.4; }
+html.mp-admin .ad-rw-label { color: var(--ad-ink); font-family: var(--ad-display); font-size: 0.86rem; font-weight: 800; }
+html.mp-admin .ad-rw-hint { color: var(--ad-ink-soft); font-size: 0.8rem; font-weight: 600; line-height: 1.45; }
+
+/* the coin */
+html.mp-admin .ad-rw-coin {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 34% 28%, var(--ad-rw-gold-hi) 0%, var(--ad-rw-gold) 48%, var(--ad-rw-gold-lo) 100%);
+  box-shadow: inset 0 -1px 0 rgba(120, 53, 15, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  vertical-align: middle;
+}
+html.mp-admin .ad-rw-coin > span { color: rgba(120, 53, 15, 0.85); font-family: var(--ad-display); font-weight: 900; line-height: 1; }
+
+/* photos on white */
+html.mp-admin .ad-rw-thumb {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--ad-line);
+  border-radius: 12px;
+  background: var(--ad-rw-case);
+  color: #94a3b8;
+}
+html.mp-admin .ad-rw-thumb img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; }
+
+/* status chips */
+html.mp-admin .ad-rw-chip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-family: var(--ad-display);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+html.mp-admin .ad-rw-chip.is-unlocked { background: var(--ad-rw-warn-bg); color: var(--ad-rw-warn); }
+html.mp-admin .ad-rw-chip.is-ready { background: var(--ad-tint); color: var(--ad-readable); }
+html.mp-admin .ad-rw-chip.is-collected { background: var(--ad-rw-good-bg); color: var(--ad-rw-good); }
+html.mp-admin .ad-rw-chip.is-cancelled,
+html.mp-admin .ad-rw-chip.is-plain { background: var(--ad-rw-mute-bg); color: var(--ad-rw-mute); }
+html.mp-admin .ad-rw-chip.is-rejected { background: var(--ad-rw-bad-bg); color: var(--ad-rw-bad); }
+
+/* the pickup code */
+html.mp-admin .ad-rw-code {
+  display: inline-block;
+  padding: 3px 9px;
+  border: 1px dashed rgba(180, 83, 9, 0.4);
+  border-radius: 8px;
+  background: #fffaf0;
+  color: #7c2d12;
+  font-family: var(--ad-display);
+  font-size: 0.92rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+html.mp-admin .ad-rw-code.is-small { padding: 1px 6px; font-size: 0.78rem; }
+html.dark.mp-admin .ad-rw-code { border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.1); color: #fde68a; }
+
+/* notices, quick choices, checkboxes */
+html.mp-admin .ad-rw-notice { margin: 0; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 14px; background: var(--ad-tint); color: var(--ad-ink); font-weight: 700; }
+html.mp-admin .ad-rw-notice.is-good { background: var(--ad-rw-good-bg); color: var(--ad-rw-good); }
+html.mp-admin .ad-rw-quick {
+  padding: 7px 13px;
+  border: 1px solid var(--ad-line);
+  border-radius: 9999px;
+  background: var(--ad-surface);
+  color: var(--ad-ink);
+  font-family: var(--ad-display);
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+html.mp-admin .ad-rw-quick:hover { border-color: var(--ad-line-strong); background: var(--ad-tint); color: var(--ad-readable); }
+html.mp-admin .ad-rw-quick.is-on { border-color: transparent; background: var(--ad-action); color: #fff; }
+html.mp-admin .ad-rw-quick:focus-visible { outline: none; box-shadow: var(--ad-ring); }
+html.mp-admin .ad-rw-check { width: 18px; height: 18px; accent-color: #1d4ed8; cursor: pointer; }
+html.mp-admin .ad-rw-row-on > td { background: var(--ad-tint); }
+html.mp-admin .math-button-primary.ad-rw-danger { background: linear-gradient(135deg, #9f1239 0%, #e11d48 100%) !important; }
+
+/* empty states */
+html.mp-admin .ad-rw-empty { display: grid; justify-items: center; gap: 6px; padding: 32px 16px; border: 1.5px dashed var(--ad-line-strong); border-radius: 22px; color: var(--ad-ink-soft); text-align: center; }
+html.mp-admin .ad-rw-empty p { margin: 0; }
+html.mp-admin .ad-rw-empty-icon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 9999px; background: var(--ad-tint); color: var(--ad-readable); }
+html.mp-admin .ad-rw-empty-title { color: var(--ad-ink); font-family: var(--ad-display); font-weight: 800; }
+
+/* the shopping list */
+html.mp-admin .ad-rw-shop { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+html.mp-admin .ad-rw-shop li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 14px 10px 10px; border: 1px solid var(--ad-line); border-radius: 18px; background: var(--ad-surface); box-shadow: var(--ad-shadow); }
+html.mp-admin .ad-rw-count { color: var(--ad-readable); font-family: var(--ad-display); font-size: 1.35rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+
+/* the desk: hand over by code */
+html.mp-admin .ad-rw-desk-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+html.mp-admin .ad-rw-desk-input { height: 56px; padding-left: 3rem !important; font-family: var(--ad-display); font-size: 1.15rem !important; font-weight: 800; letter-spacing: 0.04em; }
+html.mp-admin .ad-rw-desk-form .math-button-primary { min-height: 56px; padding-inline: 1.4rem; }
+html.mp-admin .ad-rw-found { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--ad-line-strong); border-radius: 22px; background: var(--ad-surface-2); }
+html.mp-admin .ad-rw-found-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+html.mp-admin .ad-rw-found-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 10px 12px; border: 1px solid var(--ad-line); border-radius: 18px; background: var(--ad-surface); }
+html.mp-admin .ad-rw-found-list li.is-match { border-color: rgba(245, 158, 11, 0.6); box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.16); }
+
+/* the catalogue */
+html.mp-admin .ad-rw-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
+html.mp-admin .ad-rw-item { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--ad-line); border-radius: 22px; background: var(--ad-surface); box-shadow: var(--ad-shadow); }
+html.mp-admin .ad-rw-item.is-off { box-shadow: none; }
+html.mp-admin .ad-rw-item.is-off .ad-rw-item-case img { filter: grayscale(1); opacity: 0.45; }
+html.mp-admin .ad-rw-item.is-out .ad-rw-item-case img { filter: grayscale(0.85); opacity: 0.6; }
+html.mp-admin .ad-rw-item-case { position: relative; display: grid; place-items: center; padding: 14px; background: radial-gradient(95% 75% at 50% 16%, #ffffff 0%, var(--ad-rw-case) 60%, #f3eee8 100%); border-bottom: 1px solid var(--ad-line); }
+html.mp-admin .ad-rw-item-case .ad-rw-thumb { width: min(160px, 70%) !important; height: auto !important; aspect-ratio: 1 / 1; border: 0; background: transparent; }
+html.mp-admin .ad-rw-item-order { position: absolute; top: 10px; left: 10px; display: grid; min-width: 28px; height: 28px; padding: 0 6px; place-items: center; border-radius: 9999px; background: rgba(11, 23, 54, 0.75); color: #fff; font-family: var(--ad-display); font-size: 0.8rem; font-weight: 900; }
+html.mp-admin .ad-rw-item-body { display: grid; flex: 1 1 auto; gap: 8px; align-content: start; padding: 14px 16px 6px; }
+html.mp-admin .ad-rw-item-price { display: inline-flex; align-items: center; gap: 7px; color: var(--ad-ink); font-family: var(--ad-display); font-size: 1.2rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+html.mp-admin .ad-rw-item-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+html.mp-admin .ad-rw-item-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px 16px; }
+html.mp-admin .ad-rw-item-move { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
+html.mp-admin .ad-rw-item-move button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--ad-line);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1e3a8a;
+  cursor: pointer;
+  box-shadow: 0 6px 14px -8px rgba(11, 23, 54, 0.45);
+}
+html.mp-admin .ad-rw-item-move button:hover:not(:disabled) { background: #eef3fe; }
+html.mp-admin .ad-rw-item-move button:focus-visible { outline: none; box-shadow: var(--ad-ring); }
+html.mp-admin .ad-rw-item-move button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* the editor and its preview of the student's card */
+html.mp-admin .ad-rw-editor { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr); gap: 22px; align-items: start; }
+html.mp-admin .ad-rw-drop {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 16px;
+  border: 1.5px dashed var(--ad-line-strong);
+  border-radius: 18px;
+  background: var(--ad-surface-2);
+  color: var(--ad-readable);
+  font-family: var(--ad-display);
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+}
+html.mp-admin .ad-rw-drop:hover { background: var(--ad-tint); }
+html.mp-admin .ad-rw-drop:focus-visible { outline: none; box-shadow: var(--ad-ring); }
+html.mp-admin .ad-rw-drop .ad-rw-hint { font-family: inherit; font-weight: 600; }
+html.mp-admin .ad-rw-toggle { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid var(--ad-line); border-radius: 16px; cursor: pointer; }
+html.mp-admin .ad-rw-toggle input { width: 18px; height: 18px; margin-top: 2px; accent-color: #1d4ed8; }
+html.mp-admin .ad-rw-preview { position: sticky; top: 0; display: grid; gap: 10px; }
+html.mp-admin .ad-rw-pcard { overflow: hidden; border: 1px solid rgba(76, 5, 25, 0.11); border-radius: 22px; background: #ffffff; box-shadow: 0 18px 40px -24px rgba(76, 5, 25, 0.32); }
+html.dark.mp-admin .ad-rw-pcard { border-color: rgba(255, 255, 255, 0.1); background: #0f172a; }
+html.mp-admin .ad-rw-pcase { display: grid; aspect-ratio: 1 / 1; max-width: 100%; place-items: center; padding: 9%; background: radial-gradient(95% 75% at 50% 16%, #ffffff 0%, #ffffff 58%, #fff1e2 100%); }
+html.dark.mp-admin .ad-rw-pcase { background: radial-gradient(95% 75% at 50% 16%, #ffffff 0%, #fbf8f5 58%, #eee4da 100%); }
+html.mp-admin .ad-rw-pcase img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; }
+html.mp-admin .ad-rw-pcard.is-out .ad-rw-pcase img { filter: grayscale(1); opacity: 0.5; }
+html.mp-admin .ad-rw-pcase-empty { display: grid; justify-items: center; gap: 6px; color: #b8a99e; font-family: var(--ad-display); font-weight: 800; }
+html.mp-admin .ad-rw-pbody { display: grid; gap: 10px; padding: 12px 14px 14px; }
+html.mp-admin .ad-rw-pname { min-height: 2.5em; color: #3a0a17; font-family: var(--ad-display); font-weight: 800; line-height: 1.25; }
+html.dark.mp-admin .ad-rw-pname { color: #fff7f0; }
+html.mp-admin .ad-rw-pfoot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+html.mp-admin .ad-rw-pprice { display: inline-flex; align-items: center; gap: 8px; color: #3a0a17; font-family: var(--ad-display); font-size: 1.15rem; font-weight: 900; }
+html.dark.mp-admin .ad-rw-pprice { color: #fff7f0; }
+html.mp-admin .ad-rw-pring { display: grid; width: 36px; height: 36px; place-items: center; border: 3.5px solid #16a34a; border-radius: 9999px; }
+html.mp-admin .ad-rw-pgo { padding: 5px 13px; border-radius: 9999px; background: linear-gradient(135deg, #9a3412 0%, #fb923c 54%, #fb7185 100%); color: #fff; font-family: var(--ad-display); font-size: 0.84rem; font-weight: 800; }
+html.mp-admin .ad-rw-pout { padding: 4px 10px; border-radius: 9999px; background: rgba(100, 116, 139, 0.12); color: #6b5560; font-family: var(--ad-display); font-size: 0.76rem; font-weight: 800; }
+
+/* Student Coins */
+html.mp-admin .ad-rw-balance { display: inline-flex; align-items: center; gap: 6px; color: var(--ad-ink); font-family: var(--ad-display); font-size: 1.05rem; font-weight: 900; font-variant-numeric: tabular-nums; white-space: nowrap; }
+html.mp-admin .ad-rw-wallet { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+html.mp-admin .ad-rw-wallet > span { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--ad-line); border-radius: 16px; background: var(--ad-surface-2); }
+html.mp-admin .ad-rw-wallet strong { display: inline-flex; align-items: center; gap: 6px; color: var(--ad-ink); font-family: var(--ad-display); font-size: 1.3rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+html.mp-admin .ad-rw-ledger { display: grid; margin: 0; padding: 0; list-style: none; border: 1px solid var(--ad-line); border-radius: 18px; overflow: hidden; }
+html.mp-admin .ad-rw-ledger li > :first-child { white-space: nowrap; }
+html.mp-admin .ad-rw-ledger li { display: grid; grid-template-columns: 172px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 14px; }
+html.mp-admin .ad-rw-ledger li + li { border-top: 1px solid var(--ad-line); }
+html.mp-admin .ad-rw-ledger-label { color: var(--ad-ink); font-weight: 700; }
+html.mp-admin .ad-rw-ledger-coins { font-family: var(--ad-display); font-weight: 900; font-variant-numeric: tabular-nums; white-space: nowrap; }
+html.mp-admin .ad-rw-ledger li.is-in .ad-rw-ledger-coins { color: var(--ad-rw-good); }
+html.mp-admin .ad-rw-ledger li.is-out .ad-rw-ledger-coins { color: var(--ad-rw-bad); }
+html.mp-admin .ad-rw-ledger li.is-back .ad-rw-ledger-coins { color: var(--ad-rw-warn); }
+
+@media (max-width: 900px) {
+  html.mp-admin .ad-rw-editor { grid-template-columns: minmax(0, 1fr); }
+  html.mp-admin .ad-rw-preview { position: static; max-width: 300px; }
+}
+@media (max-width: 720px) {
+  html.mp-admin .ad-rw-found-list li { grid-template-columns: auto minmax(0, 1fr); }
+  html.mp-admin .ad-rw-found-list li > :nth-child(3),
+  html.mp-admin .ad-rw-found-list li > :nth-child(4) { grid-column: 2; justify-self: start; }
+  html.mp-admin .ad-rw-ledger li { grid-template-columns: minmax(0, 1fr) auto; }
+  html.mp-admin .ad-rw-ledger li > :first-child { grid-column: 1 / -1; }
+  html.mp-admin .ad-rw-wallet { grid-template-columns: minmax(0, 1fr); }
+  html.mp-admin .ad-rw-desk-form .math-button-primary { flex: 1 1 100%; justify-content: center; }
+}
+
+/* the rewards line on the dashboard (2026-10-18, Rewards Part 4): the
+   birthday line's shape, in coin gold */
+html .math-role-admin .ad-bday-line + .ad-bday-line { margin-top: 0.6rem; }
+html .math-role-admin .ad-bday-line.ad-rw-line { border-color: rgba(245, 158, 11, 0.32); background: linear-gradient(135deg, #fffbeb 0%, #fff7ed 100%); }
+html .math-role-admin .ad-bday-line.ad-rw-line:hover { box-shadow: 0 14px 28px -20px rgba(180, 83, 9, 0.55); }
+html .math-role-admin .ad-rw-line .ad-bday-line-icon { background: radial-gradient(circle at 34% 28%, #fde68a 0%, #f59e0b 50%, #b45309 100%); color: #451a03; }
+html.dark .math-role-admin .ad-bday-line.ad-rw-line { border-color: rgba(251, 191, 36, 0.32); background: linear-gradient(135deg, rgba(120, 53, 15, 0.4) 0%, rgba(124, 45, 18, 0.28) 100%); }
+html .math-role-admin .ad-rw-line .ad-bday-line-title { color: #78350f; }
+html .math-role-admin .ad-rw-line .ad-bday-line-names { color: #451a03; }
+html .math-role-admin .ad-rw-line .ad-bday-line-open { color: #b45309; }
+html.dark .math-role-admin .ad-rw-line .ad-bday-line-title { color: #fde68a; }
+html.dark .math-role-admin .ad-rw-line .ad-bday-line-names { color: #fef3c7; }
+html.dark .math-role-admin .ad-rw-line .ad-bday-line-open { color: #fcd34d; }

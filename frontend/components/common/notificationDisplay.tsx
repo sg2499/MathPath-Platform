@@ -2,6 +2,7 @@ import type { NotificationRecord } from "@/lib/api/notifications";
 import { getStoredUser } from "@/lib/auth";
 import {
   Cake,
+  Gift,
   CheckCircle2,
   ClipboardList,
   ClipboardPlus,
@@ -48,6 +49,8 @@ export function NormalizeTone(Notification: NotificationRecord): NotificationTon
   if (Color === "FEEDBACK_GUIDANCE" || Category === "ASSESSMENT_FEEDBACK") return "feedbackGuidance";
   // 2026-10-18 (Birthdays)
   if (Color === "ROSE" || Category === "BIRTHDAY") return "rose";
+  // 2026-10-18 (Rewards)
+  if (Category === "REWARD") return "amber";
   if (Color === "RED" || Category === "FAILURE") return "red";
   if (Color === "GREEN" || Category === "RESULT") return "green";
   if (Color === "AMBER" || Category === "REATTEMPT") return "amber";
@@ -87,6 +90,7 @@ export function IconFor(Notification: NotificationRecord) {
   const Type = String(Notification.type || "").toUpperCase();
 
   if (Category === "BIRTHDAY") return <Cake size={16} />;
+  if (Category === "REWARD") return <Gift size={16} />;
   if (Category === "ASSESSMENT_FEEDBACK") return <MessageSquareText size={16} />;
   // 2026-10-09 (Payments Phase 5): invoices raised, payments received, an
   // online payment that did not go through.
@@ -406,7 +410,7 @@ function AppendDeepLinkParams(
 function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   // 2026-10-18 (Birthdays): the route is always built on the server (the
   // student's dashboard with ?birthday=1, or the staff Birthdays page).
-  if (String(Notification.category || "").toUpperCase() === "BIRTHDAY") {
+  if (["BIRTHDAY", "REWARD"].includes(String(Notification.category || "").toUpperCase())) {
     return { Route: Notification.targetRoute || `/${Role}/dashboard`, TargetTab: "", TargetSubTab: "" };
   }
   if (Role === "teacher") {
@@ -657,7 +661,7 @@ export function BuildTargetUrl(
   );
 
   // Birthdays: the server builds the whole link (no extra student ids).
-  if (String(Notification.category || "").toUpperCase() === "BIRTHDAY") return Route;
+  if (["BIRTHDAY", "REWARD"].includes(String(Notification.category || "").toUpperCase())) return Route;
 
   const BaseParams: Record<string, string> = {};
   if (TargetTab) BaseParams.tab = TargetTab;

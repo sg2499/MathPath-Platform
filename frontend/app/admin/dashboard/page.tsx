@@ -6,7 +6,7 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { getAdminAssessmentReattemptApprovals, getAdminAssignments } from "@/lib/api/admin";
 import { getPaymentsHome } from "@/lib/api/payments";
 import { useQuery } from "@tanstack/react-query";
-import {
+import { Gift,
   Cake,
   ChevronRight,
   AlertTriangle,
@@ -47,6 +47,7 @@ function Plural(Count: number, One: string, Many: string) {
 
 import { LiveRadarWidget } from "@/components/admin/LiveRadarWidget";
 import { getBirthdaysToday } from "@/lib/api/birthday";
+import { getRewardSummary } from "@/lib/api/rewards";
 
 export default function AdminDashboardPage() {
   const Ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
@@ -65,6 +66,10 @@ export default function AdminDashboardPage() {
   const PaymentsQuery = useQuery({ queryKey: ["admin", "payments", "home"], queryFn: getPaymentsHome, enabled: Ready, staleTime: 60_000, retry: false });
   // 2026-10-18 (Birthdays): a line under the tiles on days with a birthday.
   const BirthdaysQuery = useQuery({ queryKey: ["admin", "birthdays", "today"], queryFn: getBirthdaysToday, enabled: Ready, staleTime: 5 * 60_000, retry: false });
+  // 2026-10-18 (Rewards): rewards waiting to be prepared or handed over
+  const RewardsQuery = useQuery({ queryKey: ["admin", "rewards", "summary"], queryFn: getRewardSummary, enabled: Ready, staleTime: 60_000, retry: false });
+  const RewardsToPrepare = RewardsQuery.data?.toPrepare ?? 0;
+  const RewardsReady = RewardsQuery.data?.ready ?? 0;
 
   const PracticeAwaiting = useMemo(() => {
     if (!PracticeQuery.data) return null;
@@ -170,6 +175,18 @@ export default function AdminDashboardPage() {
                 </span>
               </span>
               <span className="ad-bday-line-open">Open Birthdays<ChevronRight size={16} /></span>
+            </button>
+          ) : null}
+          {RewardsToPrepare || RewardsReady ? (
+            <button type="button" className="ad-bday-line ad-rw-line" onClick={() => Router.push(`/admin/rewards?tab=${RewardsToPrepare ? "prepare" : "handover"}`)}>
+              <span className="ad-bday-line-icon" aria-hidden="true"><Gift size={17} /></span>
+              <span className="min-w-0">
+                <span className="ad-bday-line-title">
+                  {[RewardsToPrepare ? `${Plural(RewardsToPrepare, "Reward", "Rewards")} To Prepare` : "", RewardsReady ? `${RewardsReady} Ready To Hand Over` : ""].filter(Boolean).join(" · ")}
+                </span>
+                <span className="ad-bday-line-names">Unlocked by students with their MathCoins, to collect at the centre.</span>
+              </span>
+              <span className="ad-bday-line-open">Open Rewards<ChevronRight size={16} /></span>
             </button>
           ) : null}
         </section>
