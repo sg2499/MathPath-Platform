@@ -707,6 +707,7 @@ def AdminCoins(Db: Session, *, Search: str | None = None, LevelId: str | None = 
             "photoUrl": StudentRow.photo_url or UserRow.photo_url,
             "levelCode": LevelCode,
             "isDemo": bool(StudentRow.is_demo),
+            "isActive": bool(StudentRow.is_active),
             "balance": int(Wallet.coin_balance) if Wallet else 0,
             "earned": int(Wallet.lifetime_coins_earned) if Wallet else 0,
             "spent": -int(Spent.get(UserRow.id) or 0),

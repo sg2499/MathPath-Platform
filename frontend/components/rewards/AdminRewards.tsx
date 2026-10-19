@@ -37,7 +37,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { ProfileAvatar, ResolveAssetUrl } from "@/components/common/ProfileAvatar";
+import { ProfileAvatar } from "@/components/common/ProfileAvatar";
 import { PaymentsDialog } from "@/components/payments/PaymentsUi";
 import { apiErrorMessage } from "@/lib/api";
 import { saveBlob } from "@/lib/api/payments";
@@ -65,6 +65,7 @@ import {
   type RewardOrder,
   type RewardPerson,
   type RewardStatus,
+  rewardPhotoSrc,
 } from "@/lib/api/rewards";
 import { Plural } from "@/lib/plural";
 
@@ -85,7 +86,7 @@ function Coin({ size = 16 }: { size?: number }) {
 }
 
 function Thumb({ url, name, size = 48 }: { url: string | null; name: string; size?: number }) {
-  const Src = ResolveAssetUrl(url);
+  const Src = rewardPhotoSrc(url);
   const [Broken, SetBroken] = useState(false);
   return (
     <span className="ad-rw-thumb" style={{ width: size, height: size }}>
@@ -629,7 +630,7 @@ function ItemEditor({ item, onClose }: { item: AdminRewardItem | "new" | null; o
   useEffect(() => () => { if (Local) URL.revokeObjectURL(Local); }, [Local]);
 
   if (!item) return null;
-  const Photo = Local || (Existing?.imageUrl ? ResolveAssetUrl(Existing.imageUrl) : null);
+  const Photo = Local || (Existing?.imageUrl ? rewardPhotoSrc(Existing.imageUrl) : null);
   const Field = (Key: keyof Draft) => (Value: string | boolean) => SetDraft((Current) => ({ ...Current, [Key]: Value }));
   const PickFile = (Picked: File | null) => {
     SetError(null);

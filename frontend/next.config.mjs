@@ -28,6 +28,13 @@ const nextConfig = {
         source: "/api/:path*",
         destination: `${ResolveBackendOrigin()}/api/:path*`,
       },
+      // Uploaded files (reward photos) are linked by same-origin /uploads paths.
+      // In production nginx serves /uploads before Next is reached; this makes
+      // the same paths work in `next dev` / `next start` on a laptop.
+      {
+        source: "/uploads/:path*",
+        destination: `${ResolveBackendOrigin()}/uploads/:path*`,
+      },
     ];
   },
   async headers() {
