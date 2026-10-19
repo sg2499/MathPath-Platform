@@ -25,7 +25,7 @@ from app.models import (
 from app.services import reward_service as R
 from app.services.economy_service import EconomyService
 from app.services.reward_images import RewardImageError, SquareWebp
-from app.services.reward_seed import OPENING_ITEMS, SeedRewardItems
+from app.services.reward_seed import OPENING_ITEMS, OPENING_PRICES_18_OCT, ApplyRepriceOct19, SeedRewardItems
 
 
 @pytest.fixture()
@@ -70,7 +70,9 @@ def test_opening_catalogue_is_seeded_once_with_photos_and_never_overwrites(db, t
     assert SeedRewardItems(db) == 16
     items = R.ListItems(db)
     assert [i.price_coins for i in items] == [p for *_, p in OPENING_ITEMS]
-    assert items[0].price_coins == 800 and items[-1].price_coins == 5200
+    assert items[0].price_coins == 2000 and items[-1].price_coins == 6800
+    prices = [i.price_coins for i in items]
+    assert prices == sorted(prices) and len(set(prices)) == 16  # a gradual climb, no two alike
     assert all(i.image_url and i.image_url.startswith("/uploads/rewards/starter-") for i in items)
     assert all((tmp_path / i.image_url.lstrip("/")).exists() for i in items)
     first = items[0]
@@ -79,6 +81,42 @@ def test_opening_catalogue_is_seeded_once_with_photos_and_never_overwrites(db, t
     again = db.get(RewardItem, first.id)
     assert again.price_coins == 900 and again.name == "Edited Kit" and again.is_active is False
     assert db.query(RewardItem).count() == 16
+
+
+def test_reprice_moves_untouched_items_once_and_leaves_admin_edits(db, tmp_path):
+    # the live catalogue as seeded on 18 Oct: opening prices, one edited by an admin
+    SeedRewardItems(db)
+    for Item in db.query(RewardItem).all():
+        Item.price_coins = OPENING_PRICES_18_OCT[Item.seed_key]
+    edited = db.query(RewardItem).filter(RewardItem.seed_key == "football").one()
+    edited.price_coins = 4100
+    db.commit()
+    s = _student(db, 1, 3000)
+    order, _ = R.UnlockReward(db, s, db.query(RewardItem).filter(RewardItem.seed_key == "writing-kit").one().id)
+    assert ApplyRepriceOct19(db) == 15
+    by_key = {i.seed_key: i.price_coins for i in db.query(RewardItem).all()}
+    assert by_key["writing-kit"] == 2000 and by_key["backpack"] == 6800 and by_key["football"] == 4100
+    assert ApplyRepriceOct19(db) == 0 and SeedRewardItems(db) == 0   # once only; later start-ups change nothing
+    db.refresh(order)
+    assert order.price_coins == 800   # an unlock already made keeps its price
+
+
+def test_reprice_moves_untouched_items_once_and_leaves_admin_edits(db, tmp_path):
+    # the live catalogue as seeded on 18 Oct: opening prices, one edited by an admin
+    SeedRewardItems(db)
+    for Item in db.query(RewardItem).all():
+        Item.price_coins = OPENING_PRICES_18_OCT[Item.seed_key]
+    edited = db.query(RewardItem).filter(RewardItem.seed_key == "football").one()
+    edited.price_coins = 4100
+    db.commit()
+    s = _student(db, 1, 3000)
+    order, _ = R.UnlockReward(db, s, db.query(RewardItem).filter(RewardItem.seed_key == "writing-kit").one().id)
+    assert ApplyRepriceOct19(db) == 15
+    by_key = {i.seed_key: i.price_coins for i in db.query(RewardItem).all()}
+    assert by_key["writing-kit"] == 2000 and by_key["backpack"] == 6800 and by_key["football"] == 4100
+    assert ApplyRepriceOct19(db) == 0 and SeedRewardItems(db) == 0   # once only; start-ups after change nothing
+    db.refresh(order)
+    assert order.price_coins == 800   # an unlock already made keeps its price
 
 
 def test_item_checks(db):
