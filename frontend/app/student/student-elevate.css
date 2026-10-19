@@ -4296,7 +4296,6 @@ html .math-role-student .se-rw-window .se-rw-eyebrow {
 }
 html .se-rw-title {
   margin: 0;
-  max-width: 19ch;
   color: #fff7f0;
   font-family: var(--se-display);
   font-size: clamp(1.85rem, 3.3vw, 2.85rem);
@@ -4535,7 +4534,7 @@ html .se-rw-empty {
   text-align: center;
 }
 html .se-rw-empty > svg { color: var(--se-readable); }
-html .se-rw-empty p { margin: 0; max-width: 46ch; }
+html .se-rw-empty p { margin: 0; }
 html .se-rw-empty .se-rw-empty-title { color: var(--se-ink); font-family: var(--se-display); font-size: 1.12rem; font-weight: 800; }
 html .se-rw-empty .se-rw-btn { margin-top: 8px; }
 
