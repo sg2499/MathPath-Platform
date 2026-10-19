@@ -314,6 +314,8 @@ def test_admin_lists_follow_the_show_demo_switch_and_the_shopping_list_skips_dem
     assert R.ShoppingList(db) == [{"itemId": item.id, "itemName": "Pens", "imageUrl": None, "count": 1, "oldest": R.ShoppingList(db)[0]["oldest"]}]
     coins = R.AdminCoins(db)
     assert [c["name"] for c in coins] == ["Real Student"] and coins[0]["balance"] == 1200 and coins[0]["spent"] == 800 and coins[0]["openRewards"] == 1
+    # the page shows "Inactive" for a row without this flag (every row on 19 Oct)
+    assert coins[0]["isActive"] is True
     import app.services.demo_students as D
     monkeypatch.setattr(D, "IncludeDemo", lambda Db: True)
     assert {o["student"]["name"] for o in R.AdminOrders(db)} == {"Real Student", "Demo Student"}

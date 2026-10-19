@@ -71,6 +71,19 @@ export async function getCoinHistory(before?: string | null, limit = 40) {
 }
 
 /** A fresh key for each unlock, so a double tap or a retry never unlocks twice. */
+/** Where the browser should load a reward photo from. The backend stores
+ *  same-origin paths such as /uploads/rewards/starter-x.webp, and the site
+ *  itself serves /uploads (nginx in production, the Next rewrite locally), so
+ *  the path is used as it is. Prefixing the API host here sent production
+ *  browsers to http://localhost:8000, because that build has no
+ *  NEXT_PUBLIC_API_BASE_URL. */
+export function rewardPhotoSrc(Url?: string | null): string {
+  const Clean = String(Url || "").trim();
+  if (!Clean || Clean.startsWith("data:")) return "";
+  if (/^(https?:|blob:)/.test(Clean)) return Clean;
+  return Clean.startsWith("/") ? Clean : `/${Clean}`;
+}
+
 export function newRequestKey(): string {
   try {
     if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();

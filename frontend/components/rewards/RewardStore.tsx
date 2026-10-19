@@ -17,7 +17,6 @@ import { ArrowDownWideNarrow, ArrowUpNarrowWide, Check, Gift, History, PackageCh
 
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { ResolveAssetUrl } from "@/components/common/ProfileAvatar";
 import { apiErrorMessage } from "@/lib/api";
 import {
   cancelReward,
@@ -30,6 +29,7 @@ import {
   type RewardOrder,
   type RewardStore as StoreData,
   type StoreItem,
+  rewardPhotoSrc,
 } from "@/lib/api/rewards";
 import { useUrlTabState } from "@/hooks/useUrlTabState";
 
@@ -107,7 +107,7 @@ function AbacusRod({ progress }: { progress: number }) {
 }
 
 function Photo({ url, name, className = "" }: { url: string | null; name: string; className?: string }) {
-  const Src = ResolveAssetUrl(url);
+  const Src = rewardPhotoSrc(url);
   const [Broken, SetBroken] = useState(false);
   return (
     <span className={`se-rw-photo ${className}`}>
