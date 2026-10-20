@@ -1,0 +1,34 @@
+<!doctype html>
+<!-- Offline render rig for the rank medallion stills (not shipped: tools/).
+     Served from frontend/ by render.mjs; window.renderTier(tier, size) returns a PNG data URL. -->
+<html><head><meta charset="utf-8"><title>Rank medal render</title>
+<script type="importmap">{ "imports": { "three": "/public/cutscenes/rank/vendor/three.module.min.js" } }</script>
+<style>html,body{margin:0;background:transparent}</style></head>
+<body>
+<script type="module">
+import { buildMedallion, makeStudio, setSurfaceDetail, THREE } from "/public/cutscenes/rank/medallion.js";
+setSurfaceDetail(2048);
+const canvas = document.createElement("canvas");
+document.body.appendChild(canvas);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true, premultipliedAlpha: false });
+renderer.setPixelRatio(1);
+renderer.setClearColor(0x000000, 0);
+const studio = makeStudio(renderer);
+let current = null;
+window.renderTier = async (tier, size = 1024, opts = {}) => {
+  renderer.setSize(size, size, false);
+  if (current) { studio.scene.remove(current); current.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); }
+  current = buildMedallion(tier);
+  current.rotation.x = opts.tiltX ?? -0.12;
+  current.rotation.y = opts.tiltY ?? 0.0;
+  studio.scene.add(current);
+  const cam = new THREE.PerspectiveCamera(opts.fov ?? 24, 1, 0.1, 100);
+  const frame = opts.frame ?? 1.62; // half-height of the view in medallion units
+  cam.position.set(0, opts.camY ?? 0.18, frame / Math.tan(THREE.MathUtils.degToRad((opts.fov ?? 24) / 2)));
+  cam.lookAt(0, opts.lookY ?? 0.05, 0);
+  renderer.render(studio.scene, cam);
+  return canvas.toDataURL("image/png");
+};
+window.ready = true;
+</script>
+</body></html>

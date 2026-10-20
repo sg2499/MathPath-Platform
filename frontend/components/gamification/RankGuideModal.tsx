@@ -1,14 +1,40 @@
 'use client';
 
+// 2026-10-20 (rank revamp, Part 4): "How Ranks Work", in plain words. The
+// numbers here are the economy's own: the rank ladder (lib/rankTiers, kept
+// equal to the server's), and the XP formula in backend economy_service
+// (5 XP a minute of the work's allotted time; assessments x1.3, mock exams
+// x1.5; the accuracy bands; the speed and on-time bonuses). Change them
+// there and here together.
+
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Compass, Pyramid, Orbit, Anvil, ChevronRight } from 'lucide-react';
+import { X } from 'lucide-react';
+import { RANK_TIERS } from '@/lib/rankTiers';
 
 interface RankGuideModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const FAMILIES = [
+  { key: 'COPPER', name: 'Copper', color: '#e07a3f' }, { key: 'BRONZE', name: 'Bronze', color: '#d29a3c' }, { key: 'SILVER', name: 'Silver', color: '#a9c6e0' }, { key: 'GOLD', name: 'Gold', color: '#f4c542' },
+  { key: 'PLATINUM', name: 'Platinum', color: '#b77bff' }, { key: 'EMERALD', name: 'Emerald', color: '#2fcf8c' }, { key: 'DIAMOND', name: 'Diamond', color: '#9fe3ff' }, { key: 'CHAMPION', name: 'Champion', color: '#ff2e55' },
+];
+const fmt = (N: number) => N.toLocaleString('en-IN');
+const ROWS = FAMILIES.map((F) => {
+  const Steps = RANK_TIERS.filter((R) => R.tier.split('_')[0] === F.key);
+  return { ...F, from: Steps[0].xp, divisions: Steps.length };
+});
+
+const ACCURACY = [
+  { band: 'Below 50%', pays: 'Half' },
+  { band: '50% to 74%', pays: 'The full amount' },
+  { band: '75% to 89%', pays: '1.5 times' },
+  { band: '90% to 99%', pays: 'Double' },
+  { band: '100%', pays: '2.5 times' },
+];
 
 export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
   const [mounted, setMounted] = useState(false);
@@ -18,123 +44,93 @@ export function RankGuideModal({ isOpen, onClose }: RankGuideModalProps) {
     return () => setMounted(false);
   }, []);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const OnKey = (Event: KeyboardEvent) => { if (Event.key === 'Escape') { Event.stopPropagation(); onClose(); } };
+    window.addEventListener('keydown', OnKey, true);
+    return () => window.removeEventListener('keydown', OnKey, true);
+  }, [isOpen, onClose]);
+
   if (!mounted) return null;
 
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 md:p-8 pointer-events-auto">
-          {/* Intense Cinematic Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-slate-950/90 backdrop-blur-3xl bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-900/30 via-slate-950/90 to-black"
-          />
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 md:p-8 pointer-events-auto" role="dialog" aria-modal="true" aria-label="How ranks work">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" />
 
-          {/* Epic Modal Container */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 30 }}
+            initial={{ opacity: 0, scale: 0.96, y: 24 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 30 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="relative w-full max-w-4xl max-h-[90vh] bg-slate-950/80 border border-indigo-500/30 rounded-[2rem] shadow-[0_0_100px_rgba(79,70,229,0.2)] overflow-hidden flex flex-col z-10"
+            exit={{ opacity: 0, scale: 0.96, y: 24 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+            className="se-ladder se-guide relative w-full max-w-3xl max-h-[92vh] rounded-[1.75rem] overflow-hidden flex flex-col z-10"
           >
-            {/* Top-Right Close Button */}
-            <button
-              onClick={onClose}
-              className="absolute top-6 right-6 z-50 p-3 bg-slate-900/80 border border-slate-800 hover:border-slate-600 rounded-full text-slate-400 hover:text-white transition-all hover:scale-105 shadow-xl hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
-            >
-              <X className="w-6 h-6" />
-            </button>
-
-            {/* Header Section */}
-            <div className="relative p-8 md:p-10 pb-8 overflow-hidden border-b border-slate-800/60 bg-gradient-to-b from-slate-900/80 to-slate-950 shrink-0">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50" />
-
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-                  <Compass className="w-5 h-5 text-indigo-400" />
-                </div>
-                <span className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em] shadow-indigo-500/50">System Directive</span>
+            <div className="se-ladder-head shrink-0 px-5 pt-5 pb-4 md:px-8 md:pt-7 md:pb-5 flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="se-ladder-eyebrow">Rank Roadmap</p>
+                <h2 className="se-ladder-title">How Ranks Work</h2>
               </div>
-              <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter drop-shadow-md">
-                The Ecosystem Guide
-              </h2>
-              <p className="text-slate-400 text-lg mt-3 max-w-2xl leading-relaxed">
-                Welcome to the proving grounds. Understanding the hierarchy of Ascension, XP acquisition, and the Collector's Vault is vital to your dominance.
-              </p>
-            </div>
-
-            {/* Scrollable Content Body */}
-            <div className="flex-1 overflow-y-auto overscroll-contain transform-gpu will-change-scroll p-8 md:p-10 relative bg-[radial-gradient(circle_at_bottom,_var(--tw-gradient-stops))] from-indigo-950/10 via-transparent to-transparent [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-
-              <div className="flex flex-col gap-8">
-
-                {/* Rule 1: The Ascension Hierarchy */}
-                <div className="group relative bg-slate-900/40 border border-slate-800 hover:border-indigo-500/50 rounded-3xl p-8 transition-all duration-300 hover:shadow-[0_0_40px_rgba(79,70,229,0.15)] hover:-translate-y-1 overflow-hidden transform-gpu">
-                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/40 flex items-center justify-center shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
-                      <Pyramid className="w-8 h-8 text-indigo-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">1. The Ascension Hierarchy</h3>
-                      <p className="text-slate-400 leading-relaxed text-lg">
-                        You begin your journey at <strong className="text-amber-500">Copper V</strong>. By proving your mathematical dominance, you will ascend through 8 legendary tiers: <strong className="text-amber-500">Copper, Bronze, Silver, Gold, Platinum, Emerald, Diamond,</strong> and ultimately, <strong className="text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]">Champion</strong>.
-                        <br/><br/>
-                        Each tier from Copper through Emerald consists of <strong className="text-white">5 specific ranks (V, IV, III, II, I)</strong>, where V is the entry point and I is the peak of that tier. The elite <strong className="text-cyan-400">Diamond</strong> tier consists of only <strong className="text-white">3 ranks (III, II, I)</strong>, leading to the ultimate, infinite apex: <strong className="text-rose-500">Champion</strong>.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rule 2: Acquiring XP */}
-                <div className="group relative bg-slate-900/40 border border-slate-800 hover:border-fuchsia-500/50 rounded-3xl p-8 transition-all duration-300 hover:shadow-[0_0_40px_rgba(217,70,239,0.15)] hover:-translate-y-1 overflow-hidden transform-gpu">
-                  <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-fuchsia-900 to-slate-900 border border-fuchsia-500/40 flex items-center justify-center shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
-                      <Orbit className="w-8 h-8 text-fuchsia-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">2. Acquiring XP & Evolution</h3>
-                      <p className="text-slate-400 leading-relaxed text-lg">
-                        Ascension is fueled by Experience Points (XP). You acquire XP by completing lessons, destroying equations with perfect accuracy, and maintaining daily streaks. The faster and more accurately you solve, the greater your XP bounty.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rule 3: The Collector's Vault */}
-                <div className="group relative bg-slate-900/40 border border-slate-800 hover:border-amber-500/50 rounded-3xl p-8 transition-all duration-300 hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] hover:-translate-y-1 overflow-hidden transform-gpu">
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-900 to-slate-900 border border-amber-500/40 flex items-center justify-center shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
-                      <Anvil className="w-8 h-8 text-amber-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">3. The Collector's Vault</h3>
-                      <p className="text-slate-400 leading-relaxed text-lg">
-                        Dominance is rewarded. As you shatter rank ceilings, you will unlock High-Tech Loot Crates. Access the <strong className="text-amber-500">Collector's Vault</strong> from your dashboard to physically unbox these crates and extract ultra-rare badges for your profile.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-6 md:p-8 border-t border-slate-800/60 bg-slate-950 shrink-0 flex justify-end">
-              <button
-                onClick={onClose}
-                className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-black uppercase tracking-widest rounded-xl transition-colors shadow-[0_0_20px_rgba(79,70,229,0.4)] flex items-center gap-2"
-              >
-                Acknowledge Directive <ChevronRight className="w-5 h-5" />
+              <button type="button" onClick={onClose} className="se-ladder-close shrink-0" aria-label="Close">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-5 md:px-8 md:py-6 se-guide-body">
+              <section>
+                <h3>Eight Ranks, 34 Steps</h3>
+                <p>
+                  Everyone starts at Copper V. As you earn XP you climb through eight ranks, from Copper to Champion.
+                  Copper to Emerald each have five divisions, from V up to I. Diamond has three, III to I. Champion is the top.
+                </p>
+                <div className="se-guide-table" role="table" aria-label="Where each rank starts">
+                  {ROWS.map((Row) => (
+                    <div key={Row.key} role="row" className="se-guide-row">
+                      <span role="cell" className="se-guide-dot" style={{ background: Row.color }} aria-hidden="true" />
+                      <span role="cell" className="se-guide-name whitespace-nowrap">{Row.name}</span>
+                      <span role="cell" className="se-guide-div whitespace-nowrap">{Row.divisions === 1 ? 'The top rank' : `${Row.divisions} divisions`}</span>
+                      <span role="cell" className="se-guide-xp whitespace-nowrap tabular-nums">From {fmt(Row.from)} XP</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="se-guide-note">The medallions of ranks you have not reached yet stay sealed until you get there.</p>
+              </section>
+
+              <section>
+                <h3>How You Earn XP</h3>
+                <p>
+                  Every practice sheet, assessment and mock exam you finish earns XP. A 20-minute practice sheet is worth 100 XP before
+                  bonuses, and longer work is worth more. Minute for minute, an assessment pays 1.3 times as much as a practice sheet,
+                  and a mock exam 1.5 times.
+                </p>
+                <p>Your accuracy matters most:</p>
+                <div className="se-guide-bands" role="table" aria-label="What accuracy pays">
+                  {ACCURACY.map((A) => (
+                    <div key={A.band} role="row" className="se-guide-band">
+                      <span role="cell" className="whitespace-nowrap">{A.band}</span>
+                      <b role="cell" className="whitespace-nowrap">{A.pays}</b>
+                    </div>
+                  ))}
+                </div>
+                <ul>
+                  <li>Finish in half the time and you get 15% more. In three quarters of the time, 8% more. Using all the time never costs you anything.</li>
+                  <li>Finish a practice sheet on the day it opens and you get 20% more.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h3>Moving Up</h3>
+                <ul>
+                  <li>The moment your XP reaches the next mark, you move up. Your new medallion is forged in front of you, and you get a notification you can open to watch it again.</li>
+                  <li>XP is never taken away, so you never drop a rank.</li>
+                  <li>On the roadmap, tap any medallion you have reached to watch its scene again.</li>
+                </ul>
+              </section>
+            </div>
+
+            <div className="se-ladder-foot shrink-0 px-5 py-3 md:px-8 md:py-4 flex justify-end">
+              <button type="button" onClick={onClose} className="se-ladder-back whitespace-nowrap">Got It</button>
+            </div>
           </motion.div>
         </div>
       )}

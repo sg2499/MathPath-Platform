@@ -1600,27 +1600,183 @@ html .math-role-student :is([class*="text-[8px]"], [class*="text-[9px]"], [class
 }
 
 /* ---------- rank medallion ------------------------------------------------
-   A vector drawing with one clean shadow. --rank-rgb is the rank's own colour
-   (set by RankBadge). No blur stacks, no GPU layer, no scale: each of those
-   turned the drawing into a soft bitmap.                                    */
-.se-rank-svg {
-  filter: drop-shadow(0 7px 8px rgb(var(--rank-rgb) / 0.30)) drop-shadow(0 1px 1px rgb(var(--rank-rgb) / 0.35));
+   2026-10-19: the medallions are rendered 3D stills (RankBadge picks the size
+   from srcset). The picture carries its own light and shade; the page adds
+   only a soft contact shadow so it sits on the card.                         */
+.se-rank-img {
+  filter: drop-shadow(0 6px 8px rgb(60 30 10 / 0.22));
+  -webkit-user-drag: none;
 }
 
-html.dark .se-rank-svg,
-.se-rank-dark .se-rank-svg {
-  filter: drop-shadow(0 8px 10px rgb(0 0 0 / 0.55)) drop-shadow(0 0 14px rgb(var(--rank-rgb) / 0.30));
+html.dark .se-rank-img,
+.se-rank-dark .se-rank-img {
+  filter: drop-shadow(0 8px 12px rgb(0 0 0 / 0.55));
 }
 
-/* A rank not reached yet: the same drawing as plain dark metal, still sharp. */
-.se-rank-locked .se-rank-svg {
-  filter: grayscale(1) brightness(0.62) contrast(1.08) drop-shadow(0 8px 10px rgb(0 0 0 / 0.5));
+/* The dashboard medallion: a ring filling towards the next division, and
+   now and then a slow light sweep across the metal (drawn through the
+   medallion's own outline, so only the metal catches it). */
+.se-rank-ring { width: calc(100% + 18px); height: calc(100% + 18px); top: -9px; left: -9px; }
+.se-rank-ring-track { stroke: rgb(120 113 108 / 0.18); }
+html.dark .se-rank-ring-track { stroke: rgb(255 255 255 / 0.1); }
+.se-rank-sweep {
+  position: absolute; inset: 0; pointer-events: none;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  background: linear-gradient(105deg, transparent 38%, rgb(255 255 255 / 0.0) 40%, rgb(255 255 255 / 0.55) 50%, rgb(255 255 255 / 0) 60%, transparent 62%);
+  background-size: 300% 100%; background-repeat: no-repeat;
+  mix-blend-mode: overlay;
+  animation: se-rank-sweep 7s ease-in-out 1.2s infinite;
+}
+@keyframes se-rank-sweep { 0% { background-position: 120% 0; } 22%, 100% { background-position: -20% 0; } }
+@media (prefers-reduced-motion: reduce) { .se-rank-sweep { animation: none; display: none; } }
+
+/* A rank not reached yet is the sealed medallion: it brightens a little on
+   hover so it still feels like an object, but gives nothing away. */
+.se-rank-sealed .se-rank-img {
   transition: filter 200ms ease;
 }
 
-.se-rank-locked:hover .se-rank-svg {
-  filter: grayscale(1) brightness(0.8) contrast(1.08) drop-shadow(0 8px 10px rgb(0 0 0 / 0.5));
+.se-rank-sealed:hover .se-rank-img {
+  filter: drop-shadow(0 8px 12px rgb(0 0 0 / 0.55)) brightness(1.15);
 }
+
+/* The rank cut scene's still version (no WebGL2, the scene failed, or too
+   slow to arrive): the finished medallion, the title, the XP, the buttons. */
+.se-rankfall {
+  background: radial-gradient(90% 70% at 50% 35%, color-mix(in srgb, var(--rank-glow) 22%, #07060a), #000 72%);
+  color: #fbf6ff;
+}
+.se-rankfall-medal { width: min(46vh, 72vw, 420px); height: auto; filter: drop-shadow(0 0 40px color-mix(in srgb, var(--rank-glow) 45%, transparent)); animation: se-rankfall-in 900ms cubic-bezier(0.2, 0.9, 0.25, 1.2) both; }
+.se-rankfall-eyebrow { margin: 0; font-weight: 800; font-size: 13px; letter-spacing: 0.42em; text-transform: uppercase; color: var(--rank-glow); }
+.se-rankfall-title { margin: 0; font-family: "Cinzel", "Trajan Pro", Georgia, serif; font-weight: 700; font-size: clamp(44px, min(9vw, 11vh), 112px); line-height: 0.95; letter-spacing: 0.06em; text-transform: uppercase; color: #fff4dd; text-shadow: 0 0 26px color-mix(in srgb, var(--rank-glow) 55%, transparent); white-space: nowrap; }
+.se-rankfall-line { margin: 0; font-family: Georgia, serif; font-size: clamp(16px, 1.8vw, 22px); letter-spacing: 0.32em; text-transform: uppercase; color: rgba(240, 232, 255, 0.74); }
+.se-rankfall-xp { margin: 4px 0 0; font-size: 15px; color: rgba(240, 232, 255, 0.8); }
+.se-rankfall-xp b { color: #fff; }
+.se-rankfall-continue, .se-rankfall-roadmap { border-radius: 14px; padding: 12px 22px; font-weight: 800; font-size: 15px; }
+.se-rankfall-continue { color: #1a0d05; background: linear-gradient(180deg, #fff4e0, var(--rank-glow)); }
+.se-rankfall-roadmap { color: #fff; border: 1px solid rgba(255, 255, 255, 0.28); background: rgba(255, 255, 255, 0.08); }
+/* the app's heading and Init Caps rules must not restyle the engraved title */
+html .se-rankfall .se-rankfall-title, html .se-rankfall .se-rankfall-eyebrow, html .se-rankfall .se-rankfall-line {
+  text-transform: uppercase !important;
+}
+html .se-rankfall .se-rankfall-title {
+  font-family: "Cinzel", "Trajan Pro", Georgia, "Times New Roman", serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+}
+html .se-rankfall .se-rankfall-line { font-family: Georgia, "Times New Roman", serif !important; letter-spacing: 0.32em !important; }
+@keyframes se-rankfall-in { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .se-rankfall-medal { animation: none; } }
+
+/* ---------- rank roadmap: the ladder of 34 divisions -----------------------
+   2026-10-20 (rank revamp, Part 4). Across on larger screens, down on phones.
+   Every division sits in a box of the same size, so the medallion centres
+   line up on the line behind them; the student's own is drawn larger.       */
+.se-ladder {
+  --lad-size: 74px;
+  --lad-own: 112px;
+  --lad-step: 122px;
+  --lad-head: 46px;
+  --lad-gap: 34px;
+  color: #eef0ff;
+  background:
+    radial-gradient(120% 80% at 50% 120%, rgb(79 70 229 / 0.18), transparent 60%),
+    linear-gradient(180deg, #0d0f1d, #07080f);
+  border: 1px solid rgb(129 140 248 / 0.28);
+  box-shadow: 0 30px 120px -20px rgb(0 0 0 / 0.8), 0 0 0 1px rgb(255 255 255 / 0.03) inset;
+}
+.se-ladder-head { border-bottom: 1px solid rgb(255 255 255 / 0.07); }
+.se-ladder-eyebrow { margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; color: #a5b4fc; }
+.se-ladder-title { margin: 0; font-size: clamp(24px, 3.2vw, 38px); font-weight: 800; line-height: 1.1; color: #fff; white-space: nowrap; letter-spacing: -0.01em; }
+.se-ladder-sub { margin: 8px 0 0; font-size: 15px; line-height: 1.45; color: rgb(226 232 255 / 0.72); max-width: 62ch; text-wrap: pretty; }
+.se-ladder-stats { font-size: 14px; color: rgb(226 232 255 / 0.66); }
+.se-ladder-stats b { color: #fff; font-weight: 800; font-size: 16px; margin-right: 3px; }
+.se-ladder-chip { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 700; color: #c7d2fe; background: rgb(99 102 241 / 0.14); border: 1px solid rgb(129 140 248 / 0.4); }
+.se-ladder-chip:hover { background: rgb(99 102 241 / 0.28); color: #fff; }
+.se-ladder-close { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 999px; color: #cbd5e1; background: rgb(15 23 42 / 0.8); border: 1px solid rgb(51 65 85 / 0.9); }
+.se-ladder-close:hover { color: #fff; border-color: #64748b; }
+.se-ladder-chip:focus-visible, .se-ladder-close:focus-visible, .se-ladder-node:focus-visible, .se-ladder-back:focus-visible, .se-ladder-arrow:focus-visible { outline: 3px solid #a5b4fc; outline-offset: 3px; }
+.se-ladder-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 5; width: 42px; height: 42px; border-radius: 999px; align-items: center; justify-content: center; color: #c7d2fe; background: rgb(15 17 33 / 0.92); border: 1px solid rgb(129 140 248 / 0.45); box-shadow: 0 8px 24px rgb(0 0 0 / 0.5); }
+.se-ladder-arrow:hover { background: #4f46e5; color: #fff; }
+.se-ladder-scroll { scrollbar-width: none; overscroll-behavior: contain; }
+.se-ladder-scroll::-webkit-scrollbar { display: none; }
+.se-ladder-track { padding: 26px 56px 30px; gap: 26px; }
+.se-ladder-line { position: absolute; left: 0; right: 0; top: calc(26px + var(--lad-head) + var(--lad-gap) + var(--lad-own) / 2 - 3px); height: 6px; border-radius: 99px; background: rgb(30 34 60); box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.6); overflow: hidden; }
+.se-ladder-line-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #4f46e5, #a855f7 60%, #e879f9); box-shadow: 0 0 18px rgb(168 85 247 / 0.7); }
+.se-ladder-family { flex-direction: column; }
+.se-ladder-family-head { height: var(--lad-head); margin-bottom: var(--lad-gap); display: flex; flex-direction: column; justify-content: flex-end; padding-left: 10px; border-left: 2px solid color-mix(in srgb, var(--glow) 70%, transparent); }
+.se-ladder-family-name { font-size: 17px; font-weight: 800; color: #fff; line-height: 1.2; }
+.se-ladder-family-xp { font-size: 12.5px; color: rgb(226 232 255 / 0.6); line-height: 1.3; }
+.se-ladder-step { width: var(--lad-step); }
+.se-ladder-node { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; padding: 0; background: none; border: 0; color: inherit; cursor: pointer; border-radius: 16px; }
+.se-ladder-node:disabled { cursor: default; }
+.se-ladder-medal { position: relative; display: grid; place-items: center; width: var(--lad-own); height: var(--lad-own); }
+.se-ladder-node:not(:disabled):hover .se-ladder-medal { transform: translateY(-4px); }
+.se-ladder-medal { transition: transform 220ms ease; }
+[data-state="current"] .se-ladder-medal::before { content: ""; position: absolute; inset: -18px; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 34%, transparent), transparent); pointer-events: none; }
+[data-state="ahead"] .se-ladder-medal .se-rank { opacity: 0.62; }
+.se-ladder-done { position: absolute; right: calc(50% - var(--lad-size) / 2 - 4px); bottom: calc(50% - var(--lad-size) / 2 - 2px); width: 20px; height: 20px; color: #a5b4fc; background: #0b0d1a; border-radius: 50%; }
+.se-ladder-lock { position: absolute; right: calc(50% - var(--lad-size) / 2 - 2px); bottom: calc(50% - var(--lad-size) / 2); width: 18px; height: 18px; padding: 3px; color: #94a3b8; background: #0b0d1a; border: 1px solid #334155; border-radius: 50%; }
+.se-ladder-play { position: absolute; left: calc(50% - var(--lad-size) / 2 - 2px); bottom: calc(50% - var(--lad-size) / 2); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #0b0d1a; background: #e0e7ff; opacity: 0; transform: scale(0.8); transition: opacity 160ms ease, transform 160ms ease; }
+[data-state="current"] .se-ladder-play { left: calc(50% - var(--lad-own) / 2 + 6px); bottom: 8px; }
+.se-ladder-node:hover .se-ladder-play, .se-ladder-node:focus-visible .se-ladder-play { opacity: 1; transform: scale(1); }
+.se-ladder-here { position: absolute; top: -28px; left: 50%; transform: translateX(-50%); z-index: 2; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; color: #0b0d1a; background: linear-gradient(180deg, #fff, color-mix(in srgb, var(--glow) 60%, #fff)); box-shadow: 0 0 18px color-mix(in srgb, var(--glow) 55%, transparent); }
+.se-ladder-text { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 8px; }
+.se-ladder-name { font-size: 14px; font-weight: 700; color: #e2e8ff; }
+[data-state="current"] .se-ladder-name { color: #fff; font-size: 15.5px; font-weight: 800; }
+[data-state="ahead"] .se-ladder-name { color: #64748b; }
+.se-ladder-xp { font-size: 12.5px; color: rgb(203 213 255 / 0.62); }
+[data-state="ahead"] .se-ladder-xp { color: #64748b; }
+.se-ladder-progress { display: block; width: 88px; height: 5px; margin-top: 5px; border-radius: 99px; background: rgb(255 255 255 / 0.12); overflow: hidden; }
+.se-ladder-progress > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6366f1, var(--glow)); }
+.se-ladder-foot { border-top: 1px solid rgb(255 255 255 / 0.07); background: rgb(5 6 12 / 0.6); }
+.se-ladder-foot-note { margin: 0; font-size: 13.5px; line-height: 1.45; color: rgb(203 213 255 / 0.6); }
+.se-ladder-back { height: 42px; padding: 0 18px; border-radius: 12px; font-size: 14px; font-weight: 800; color: #fff; background: #4f46e5; box-shadow: 0 8px 24px -8px rgb(79 70 229 / 0.8); }
+.se-ladder-back:hover { background: #6366f1; }
+
+/* How Ranks Work */
+.se-guide-body { display: flex; flex-direction: column; gap: 26px; }
+.se-guide-body h3 { margin: 0 0 8px; font-size: 18px; font-weight: 800; color: #fff; }
+.se-guide-body p { margin: 0 0 10px; font-size: 15px; line-height: 1.6; color: rgb(226 232 255 / 0.78); }
+.se-guide-body ul { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.se-guide-body li { font-size: 15px; line-height: 1.55; color: rgb(226 232 255 / 0.78); }
+.se-guide-table { display: grid; gap: 2px; margin: 12px 0 10px; border-radius: 14px; overflow: hidden; border: 1px solid rgb(255 255 255 / 0.07); }
+.se-guide-row { display: grid; grid-template-columns: 14px 1fr auto auto; align-items: center; gap: 14px; padding: 10px 14px; background: rgb(255 255 255 / 0.03); }
+.se-guide-dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
+.se-guide-name { font-weight: 800; color: #fff; font-size: 15px; }
+.se-guide-div { color: rgb(203 213 255 / 0.62); font-size: 13.5px; }
+.se-guide-xp { color: #e0e7ff; font-weight: 700; font-size: 14px; min-width: 9.5em; text-align: right; }
+.se-guide-note { font-size: 13.5px !important; color: rgb(203 213 255 / 0.55) !important; }
+.se-guide-bands { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 4px 0 12px; }
+.se-guide-band { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: rgb(99 102 241 / 0.1); border: 1px solid rgb(129 140 248 / 0.22); font-size: 13px; color: rgb(203 213 255 / 0.7); }
+.se-guide-band b { font-size: 14.5px; color: #fff; }
+@media (max-width: 767px) {
+  .se-guide-bands { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .se-guide-row { grid-template-columns: 14px 1fr auto; }
+  .se-guide-div { display: none; }
+  .se-guide-xp { min-width: 0; }
+}
+
+/* phones: the ladder runs down, medallion on the left, words on the right */
+@media (max-width: 767px) {
+  .se-ladder { --lad-size: 52px; --lad-own: 76px; --lad-head: auto; --lad-gap: 6px; }
+  .se-ladder-track { padding: 14px 16px 24px; gap: 14px; }
+  .se-ladder-line { left: calc(16px + var(--lad-own) / 2 - 3px); right: auto; top: 0; bottom: 0; width: 6px; height: auto; }
+  .se-ladder-line-fill { width: 100%; height: 0; background: linear-gradient(180deg, #4f46e5, #a855f7 60%, #e879f9); }
+  .se-ladder-family-head { height: auto; flex-direction: row; align-items: baseline; justify-content: flex-start; gap: 10px; margin: 0 0 4px calc(var(--lad-own) + 14px); padding-left: 0; border-left: 0; }
+  .se-ladder-step { width: auto; }
+  .se-ladder-node { flex-direction: row; align-items: center; gap: 14px; padding: 2px 0; text-align: left; }
+  .se-ladder-medal { width: var(--lad-own); height: calc(var(--lad-size) + 8px); flex: none; }
+  [data-state="current"] .se-ladder-medal { height: calc(var(--lad-own) + 8px); }
+  .se-ladder-text { align-items: flex-start; margin-top: 0; min-width: 0; }
+  .se-ladder-here { position: static; transform: none; order: 3; margin-left: auto; align-self: center; }
+  .se-ladder-play { display: none; }
+
+  .se-ladder-foot { flex-direction: column; align-items: stretch; }
+  .se-ladder-back { width: 100%; }
+  .se-ladder-title { font-size: 22px; }
+}
+@media (prefers-reduced-motion: reduce) { .se-ladder-medal, .se-ladder-play { transition: none; } }
 
 /* Rank roadmap strip: one medallion size for the row, taken from the room the
    window has (width and height), so all eight ranks fit on a laptop without
@@ -1634,17 +1790,6 @@ html.dark .se-rank-svg,
   .rank-roadmap-strip {
     --rm-size: clamp(80px, min(7.8vw, 15vh), 120px);
   }
-}
-
-/* Nothing moves on a still medallion (dashboard) or on a rank not reached yet,
-   and a locked rank carries no glints: grey glow reads as haze. */
-.se-rank-still [data-fx],
-.se-rank-locked [data-fx] {
-  display: none;
-}
-
-.se-rank-locked .se-rank-svg [style*="drop-shadow"] {
-  filter: none !important;
 }
 
 /* Headings: the display face reads best a step below its heaviest weight. */
@@ -3839,13 +3984,6 @@ html .math-role-student .se-answer-slot {
 @media (max-width: 767px) {
   .se-cel-title {
     font-size: clamp(1.75rem, calc(82vw / (var(--cel-chars, 13) * 0.58)), 5rem) !important;
-  }
-
-  .se-rank-title {
-    font-size: clamp(2rem, calc(84vw / (var(--rank-chars, 8) * 0.82)), 4.25rem) !important;
-    line-height: 1.05 !important;
-    overflow-wrap: normal;
-    word-break: normal;
   }
 }
 

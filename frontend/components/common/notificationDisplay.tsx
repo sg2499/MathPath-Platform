@@ -413,6 +413,13 @@ function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   if (["BIRTHDAY", "REWARD"].includes(String(Notification.category || "").toUpperCase())) {
     return { Route: Notification.targetRoute || `/${Role}/dashboard`, TargetTab: "", TargetSubTab: "" };
   }
+  // 2026-10-20 (rank revamp): a rank-up notification opens that rank's scene
+  // on the dashboard. `at` is fresh on every click, so it plays again even
+  // when the student is already on the dashboard.
+  if (Role === "student" && String(Notification.type || "").toUpperCase() === "STUDENT_XP_RANK_TIER_UP") {
+    const NewTier = MetadataString(Notification, "newTier");
+    if (NewTier) return { Route: `/student/dashboard?rankup=${encodeURIComponent(NewTier)}&at=${Date.now()}`, TargetTab: "", TargetSubTab: "" };
+  }
   if (Role === "teacher") {
     if (IsLeaderboardRankNotification(Notification)) {
       // Podium-only teacher notification (2026-09-01) -- target_route is
