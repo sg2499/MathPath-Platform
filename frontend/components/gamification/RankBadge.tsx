@@ -4,6 +4,14 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
+// 2026-10-19 (rank revamp, Part 1): the medallions are forged 3D objects, one
+// per rank family with the division built into the piece (stones set in the
+// rim, then laurels, then a crowned crest). They are rendered offline from
+// public/cutscenes/rank/medallion.js -- the same model the cut scene uses --
+// into stills at 192, 384 and 768 px (public/assets/ranks/medals), so each
+// screen gets a sharp picture at its own size. Re-render with
+// tools/rank-medals after changing the model.
+
 export interface RankBadgeProps {
   tier: string;
   globalRank?: number;
@@ -11,519 +19,89 @@ export interface RankBadgeProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   /**
    * A CSS length (for example "var(--rm-size)"). When given, the medallion is
-   * drawn at exactly that width and height and the numeral follows it, so a
-   * bigger medallion is a bigger drawing, never a stretched one.
+   * drawn at exactly that width and height.
    */
   fluid?: string;
-  /** Draw the medallion with nothing moving on it (orbit and pulse rings off). */
+  /** Kept for callers; the stills never move. */
   still?: boolean;
+  /** A rank not reached yet: the sealed medallion, so it stays a mystery. */
+  sealed?: boolean;
+  /** Load straight away (above the fold) instead of lazily. */
+  eager?: boolean;
+  /** A slow light sweep across the metal now and then (the dashboard). */
+  sweep?: boolean;
 }
 
-// "#b45309" -> "180 83 9", for the rank-tinted shadow in student-elevate.css.
-const HexToRgbTriplet = (Hex: string) => {
-  const Value = Hex.replace('#', '');
-  return [0, 2, 4].map((Start) => parseInt(Value.slice(Start, Start + 2), 16)).join(' ');
+const FAMILIES = ['COPPER', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'CHAMPION'];
+const DIVISIONS: Record<string, string[]> = {
+  DIAMOND: ['III', 'II', 'I'],
+  CHAMPION: [],
+};
+const NAMES: Record<string, string> = { V: '5', IV: '4', III: '3', II: '2', I: '1' };
+
+// "BRONZE_III" -> "BRONZE_III"; a family alone ("BRONZE") -> its top division,
+// the finished medallion; anything unknown -> COPPER_V.
+export function RankMedalKey(Tier: string): string {
+  const [Family, Numeral] = String(Tier || '').toUpperCase().split('_');
+  if (!FAMILIES.includes(Family)) return 'COPPER_V';
+  if (Family === 'CHAMPION') return 'CHAMPION';
+  const Allowed = DIVISIONS[Family] ?? ['V', 'IV', 'III', 'II', 'I'];
+  if (Numeral && Allowed.includes(Numeral)) return `${Family}_${Numeral}`;
+  return `${Family}_I`;
+}
+
+export function RankMedalSrc(Key: string, Px: 192 | 384 | 768 = 384): string {
+  return `/assets/ranks/medals/${Key}-${Px}.webp`;
+}
+
+function RankLabel(Key: string): string {
+  if (Key === 'SEALED') return 'A rank not reached yet';
+  const [Family, Numeral] = Key.split('_');
+  const Name = Family.charAt(0) + Family.slice(1).toLowerCase();
+  return Numeral ? `${Name} ${Numeral} (division ${NAMES[Numeral] ?? Numeral})` : Name;
+}
+
+const SIZE_CLASSES = {
+  sm: 'w-16 h-16',
+  md: 'w-28 h-28 md:w-36 md:h-36',
+  lg: 'w-36 h-36 md:w-48 md:h-48',
+  xl: 'w-56 h-56 md:w-72 md:h-72',
+};
+// What the browser should assume when choosing from srcset.
+const SIZES_ATTR = {
+  sm: '64px',
+  md: '(min-width: 768px) 144px, 112px',
+  lg: '(min-width: 768px) 192px, 144px',
+  xl: '(min-width: 768px) 288px, 224px',
 };
 
-const getRankBadgeDesign = (rank: string) => {
-  switch (rank) {
-    case 'COPPER':
-      return {
-        coreColor: '#b45309',
-        glowColor: 'rgba(180, 83, 9, 0.8)',
-        textColor: '#fef3c7',
-        textShadow: '0px 2px 5px #78350f, 0px 0px 15px #f59e0b, 0px 0px 4px #000',
-        shape: (
-          <>
-            <linearGradient id="grad-copper" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#fcd34d" />
-              <stop offset="25%" stopColor="#d97706" />
-              <stop offset="50%" stopColor="#b45309" />
-              <stop offset="75%" stopColor="#78350f" />
-              <stop offset="100%" stopColor="#451a03" />
-            </linearGradient>
-            <linearGradient id="grad-copper-inset" x1="100%" y1="100%" x2="0%" y2="0%">
-              <stop offset="0%" stopColor="#fcd34d" stopOpacity="0.5" />
-              <stop offset="100%" stopColor="#451a03" stopOpacity="0.8" />
-            </linearGradient>
-            <radialGradient id="copper-core" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#f59e0b" stopOpacity="1"/>
-              <stop offset="100%" stopColor="#78350f" stopOpacity="0.9"/>
-            </radialGradient>
+export function RankBadge({ tier, globalRank, className, size = 'md', fluid, sealed, eager, sweep }: RankBadgeProps) {
+  const Key = sealed ? 'SEALED' : RankMedalKey(tier);
+  const Family = Key.split('_')[0];
 
-            {/* L2: Outer Heavy Gear Frame */}
-            <path d="M 50 2 L 85 15 L 98 50 L 85 85 L 50 98 L 15 85 L 2 50 L 15 15 Z" fill="url(#grad-copper)" stroke="#78350f" strokeWidth="2" filter="url(#drop-shadow)"/>
-            {/* L3: Extruded Inner Bevel */}
-            <path d="M 50 8 L 80 19 L 92 50 L 80 81 L 50 92 L 20 81 L 8 50 L 20 19 Z" fill="url(#grad-copper-inset)" stroke="#fcd34d" strokeWidth="1" opacity="0.8"/>
-            {/* L4: Base Plate */}
-            <path d="M 50 12 L 76 22 L 88 50 L 76 78 L 50 88 L 24 78 L 12 50 L 24 22 Z" fill="#451a03" />
-            {/* L5: Inner Gear Teeth */}
-            <path d="M 50 15 L 72 25 L 82 50 L 72 75 L 50 85 L 28 75 L 18 50 L 28 25 Z" fill="url(#grad-copper)" stroke="#92400e" strokeWidth="1.5"/>
-            {/* L6: Core Plate */}
-            <circle cx="50" cy="50" r="30" fill="#2d1300" stroke="#d97706" strokeWidth="2"/>
-            {/* L7: Core Glow */}
-            <circle cx="50" cy="50" r="26" fill="url(#copper-core)" />
-            {/* L8: Center Lattice */}
-            <path d="M 50 24 L 76 50 L 50 76 L 24 50 Z" fill="none" stroke="#fcd34d" strokeWidth="1" strokeDasharray="2 2" opacity="0.5"/>
-            {/* L9: Industrial Rivets */}
-            <circle cx="50" cy="8" r="2.5" fill="#fef3c7" stroke="#78350f" strokeWidth="0.5"/>
-            <circle cx="50" cy="92" r="2.5" fill="#fef3c7" stroke="#78350f" strokeWidth="0.5"/>
-            <circle cx="8" cy="50" r="2.5" fill="#fef3c7" stroke="#78350f" strokeWidth="0.5"/>
-            <circle cx="92" cy="50" r="2.5" fill="#fef3c7" stroke="#78350f" strokeWidth="0.5"/>
-            <circle cx="80" cy="20" r="2.5" fill="#fef3c7" stroke="#78350f" strokeWidth="0.5"/>
-            <circle cx="20" cy="80" r="2.5" fill="#fef3c7" stroke="#78350f" strokeWidth="0.5"/>
-            <circle cx="20" cy="20" r="2.5" fill="#fef3c7" stroke="#78350f" strokeWidth="0.5"/>
-            <circle cx="80" cy="80" r="2.5" fill="#fef3c7" stroke="#78350f" strokeWidth="0.5"/>
-            {/* L10: Volumetric Lighting Highlight */}
-            <path d="M 50 2 L 85 15 L 98 50" fill="none" stroke="#fff" strokeWidth="1.5" opacity="0.6" style={{ filter: 'drop-shadow(0 0 4px #fff)' }}/>
-            {/* L11: Animated Gear Ring (Outer) */}
-            <motion.circle data-fx cx="50" cy="50" r="36" fill="none" stroke="#f59e0b" strokeWidth="1" strokeDasharray="4 8" opacity="0.7"
-              animate={{ rotate: 360 }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} style={{ originX: '50%', originY: '50%' }}
-            />
-            {/* L12: Animated Gear Ring (Inner) */}
-            <motion.circle data-fx cx="50" cy="50" r="22" fill="none" stroke="#fef3c7" strokeWidth="0.5" strokeDasharray="2 4" opacity="0.5"
-              animate={{ rotate: -360 }} transition={{ duration: 15, repeat: Infinity, ease: "linear" }} style={{ originX: '50%', originY: '50%' }}
-            />
-          </>
-        )
-      };
-    case 'BRONZE':
-      return {
-        coreColor: '#9a3412',
-        glowColor: 'rgba(154, 52, 18, 0.8)',
-        textColor: '#ffedd5',
-        textShadow: '0px 2px 6px #431407, 0px 0px 20px #ea580c, 0px 0px 4px #000',
-        shape: (
-          <>
-            <linearGradient id="grad-bronze" x1="20%" y1="0%" x2="80%" y2="100%">
-              <stop offset="0%" stopColor="#fdba74" />
-              <stop offset="30%" stopColor="#ea580c" />
-              <stop offset="70%" stopColor="#9a3412" />
-              <stop offset="100%" stopColor="#431407" />
-            </linearGradient>
-            <linearGradient id="grad-bronze-inset" x1="80%" y1="100%" x2="20%" y2="0%">
-              <stop offset="0%" stopColor="#fdba74" stopOpacity="0.6"/>
-              <stop offset="100%" stopColor="#431407" stopOpacity="0.8"/>
-            </linearGradient>
-            <radialGradient id="bronze-glow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#fdba74" stopOpacity="0.9"/>
-              <stop offset="50%" stopColor="#ea580c" stopOpacity="0.7"/>
-              <stop offset="100%" stopColor="#431407" stopOpacity="0.1"/>
-            </radialGradient>
-
-            {/* L1: Deep Blur Shadow */}
-            {/* L2: Shield Base */}
-            <path d="M 50 0 L 95 20 L 95 60 L 50 100 L 5 60 L 5 20 Z" fill="url(#grad-bronze)" stroke="#431407" strokeWidth="2" filter="url(#drop-shadow)"/>
-            {/* L3: Beveled Edge */}
-            <path d="M 50 6 L 88 24 L 88 57 L 50 91 L 12 57 L 12 24 Z" fill="url(#grad-bronze-inset)" />
-            {/* L4: Inner Shield Plate */}
-            <path d="M 50 12 L 80 27 L 80 54 L 50 82 L 20 54 L 20 27 Z" fill="#431407" stroke="#ea580c" strokeWidth="2"/>
-            {/* L5: Core Plate */}
-            <path d="M 50 18 L 74 31 L 74 51 L 50 72 L 26 51 L 26 31 Z" fill="url(#grad-bronze)" />
-            {/* L6: Epic Center Glow */}
-            <circle cx="50" cy="45" r="25" fill="url(#bronze-glow)" style={{ mixBlendMode: 'screen' }}/>
-            {/* L7: Geometric Cross */}
-            <path d="M 50 12 L 50 82 M 20 40 L 80 40" stroke="#fdba74" strokeWidth="1" strokeDasharray="3 3" opacity="0.5"/>
-            {/* L8: Engraved Runes/Details */}
-            <path d="M 50 8 L 60 14 L 60 20 Z" fill="#fdba74" opacity="0.6"/>
-            <path d="M 50 8 L 40 14 L 40 20 Z" fill="#fdba74" opacity="0.4"/>
-            <circle cx="50" cy="45" r="15" fill="none" stroke="#fdba74" strokeWidth="2" opacity="0.9"/>
-            <circle cx="50" cy="45" r="20" fill="none" stroke="#ea580c" strokeWidth="0.5" strokeDasharray="2 4"/>
-            {/* L9: Spectacular Highlight */}
-            <path d="M 50 0 L 95 20 L 95 40" fill="none" stroke="#fff" strokeWidth="2" opacity="0.7" style={{ filter: 'drop-shadow(0 0 5px #fff)' }}/>
-            {/* L10: Pulsing Aura */}
-            <motion.path data-fx d="M 50 18 L 74 31 L 74 51 L 50 72 L 26 51 L 26 31 Z" fill="none" stroke="#fdba74" strokeWidth="1"
-              initial={{ scale: 1, opacity: 0.8 }} animate={{ scale: 1.1, opacity: 0 }} transition={{ duration: 2, repeat: Infinity }}
-              style={{ originX: '50%', originY: '50%' }}
-            />
-          </>
-        )
-      };
-    case 'SILVER':
-      return {
-        coreColor: '#38bdf8',
-        glowColor: 'rgba(56, 189, 248, 0.8)',
-        textColor: '#f0f9ff',
-        textShadow: '0px 2px 6px #0369a1, 0px 0px 20px #38bdf8, 0px 0px 5px #fff',
-        shape: (
-          <>
-            <linearGradient id="grad-silver" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#f8fafc" />
-              <stop offset="25%" stopColor="#cbd5e1" />
-              <stop offset="50%" stopColor="#94a3b8" />
-              <stop offset="75%" stopColor="#475569" />
-              <stop offset="100%" stopColor="#1e293b" />
-            </linearGradient>
-            <linearGradient id="grad-silver-cyber" x1="100%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8"/>
-              <stop offset="50%" stopColor="#0ea5e9" stopOpacity="0.4"/>
-              <stop offset="100%" stopColor="#0369a1" stopOpacity="0.9"/>
-            </linearGradient>
-
-            {/* L1: Deep Shadow */}
-            {/* L2: Cybernetic Chevron Base */}
-            <path d="M 50 0 L 100 35 L 75 100 L 25 100 L 0 35 Z" fill="url(#grad-silver)" stroke="#475569" strokeWidth="2" filter="url(#drop-shadow)"/>
-            {/* L3: Extruded Inner Layer */}
-            <path d="M 50 8 L 92 40 L 70 94 L 30 94 L 8 40 Z" fill="url(#grad-silver-cyber)" />
-            {/* L4: Core Plate */}
-            <path d="M 50 15 L 85 43 L 65 88 L 35 88 L 15 43 Z" fill="#0f172a" stroke="#38bdf8" strokeWidth="2"/>
-            {/* L5: Inner Glowing Triangles */}
-            <path d="M 50 25 L 75 48 L 50 80 L 25 48 Z" fill="url(#grad-silver)" opacity="0.9"/>
-            <path d="M 50 35 L 65 52 L 50 70 L 35 52 Z" fill="#020617" />
-            {/* L6: Cyber Grid Overlay */}
-            <path d="M 50 15 L 50 88 M 15 43 L 85 43 M 35 88 L 85 43 M 65 88 L 15 43" stroke="#38bdf8" strokeWidth="1" opacity="0.3"/>
-            {/* L7: Energy Nodes */}
-            <circle cx="50" cy="25" r="3" fill="#bae6fd" style={{ filter: 'drop-shadow(0 0 5px #38bdf8)' }}/>
-            <circle cx="75" cy="48" r="3" fill="#bae6fd" style={{ filter: 'drop-shadow(0 0 5px #38bdf8)' }}/>
-            <circle cx="25" cy="48" r="3" fill="#bae6fd" style={{ filter: 'drop-shadow(0 0 5px #38bdf8)' }}/>
-            <circle cx="50" cy="80" r="3" fill="#bae6fd" style={{ filter: 'drop-shadow(0 0 5px #38bdf8)' }}/>
-            {/* L8: Laser Highlight Edge */}
-            <path d="M 0 35 L 50 0 L 100 35" fill="none" stroke="#fff" strokeWidth="2" opacity="0.8" style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
-            {/* L9: Cybernetic Pulse Rings */}
-            <motion.circle data-fx cx="50" cy="50" r="20" fill="none" stroke="#0ea5e9" strokeWidth="1.5" strokeDasharray="10 10"
-              animate={{ rotate: 360, scale: [1, 1.1, 1] }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} style={{ originX: '50%', originY: '50%' }}
-            />
-          </>
-        )
-      };
-    case 'GOLD':
-      return {
-        coreColor: '#eab308',
-        glowColor: 'rgba(234, 179, 8, 0.8)',
-        textColor: '#fef08a',
-        textShadow: '0px 2px 6px #713f12, 0px 0px 25px #eab308, 0px 0px 6px #fff',
-        shape: (
-          <>
-            <linearGradient id="grad-gold" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#fef08a" />
-              <stop offset="25%" stopColor="#fde047" />
-              <stop offset="50%" stopColor="#eab308" />
-              <stop offset="75%" stopColor="#ca8a04" />
-              <stop offset="100%" stopColor="#854d0e" />
-            </linearGradient>
-            <radialGradient id="gold-flare" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#fef08a" stopOpacity="1"/>
-              <stop offset="30%" stopColor="#eab308" stopOpacity="0.8"/>
-              <stop offset="100%" stopColor="#713f12" stopOpacity="0"/>
-            </radialGradient>
-            <linearGradient id="grad-gold-metal" x1="50%" y1="0%" x2="50%" y2="100%">
-              <stop offset="0%" stopColor="#fef08a" />
-              <stop offset="10%" stopColor="#ca8a04" />
-              <stop offset="50%" stopColor="#fde047" />
-              <stop offset="90%" stopColor="#854d0e" />
-              <stop offset="100%" stopColor="#fef08a" />
-            </linearGradient>
-
-            {/* L1: Outer Blur Shadow */}
-            {/* L2: Spiked Crown Base */}
-            <path d="M 50 0 L 65 25 L 98 38 L 75 60 L 78 98 L 50 80 L 22 98 L 25 60 L 2 38 L 35 25 Z" fill="url(#grad-gold-metal)" stroke="#854d0e" strokeWidth="2" filter="url(#drop-shadow)"/>
-            {/* L3: Inner Extrusion */}
-            <path d="M 50 10 L 61 30 L 88 40 L 70 58 L 72 88 L 50 73 L 28 88 L 30 58 L 12 40 L 39 30 Z" fill="#422006" />
-            {/* L4: Sunburst Rays */}
-            <path d="M 50 15 L 50 73 M 15 45 L 85 45 M 25 25 L 75 65 M 25 65 L 75 25" stroke="url(#grad-gold)" strokeWidth="3" opacity="0.6"/>
-            {/* L5: Inner Plate */}
-            <polygon points="50,20 75,45 65,80 35,80 25,45" fill="url(#grad-gold)" stroke="#fef08a" strokeWidth="1" />
-            {/* L6: Core Jewel Void */}
-            <circle cx="50" cy="52" r="22" fill="#291402" />
-            {/* L7: Massive Golden Flare */}
-            <circle cx="50" cy="52" r="35" fill="url(#gold-flare)" style={{ mixBlendMode: 'screen' }}/>
-            {/* L8: Center Diamond Layer */}
-            <polygon points="50,35 65,52 50,70 35,52" fill="#fef08a" filter="url(#drop-shadow)"/>
-            {/* L9: Glowing Crown Jewels */}
-            <circle cx="50" cy="5" r="4" fill="#fff" style={{ filter: 'drop-shadow(0 0 6px #fff)' }}/>
-            <circle cx="95" cy="38" r="3" fill="#fff" style={{ filter: 'drop-shadow(0 0 4px #fff)' }}/>
-            <circle cx="5" cy="38" r="3" fill="#fff" style={{ filter: 'drop-shadow(0 0 4px #fff)' }}/>
-            <circle cx="75" cy="95" r="3" fill="#fff" style={{ filter: 'drop-shadow(0 0 4px #fff)' }}/>
-            <circle cx="25" cy="95" r="3" fill="#fff" style={{ filter: 'drop-shadow(0 0 4px #fff)' }}/>
-            {/* L10: Animated Radiant Rays */}
-            <motion.path data-fx d="M 50 20 L 75 45 L 65 80 L 35 80 L 25 45 Z" fill="none" stroke="#fff" strokeWidth="2"
-              initial={{ scale: 1, opacity: 0.8 }} animate={{ scale: 1.2, opacity: 0 }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }} style={{ originX: '50%', originY: '50%' }}
-            />
-          </>
-        )
-      };
-    case 'PLATINUM':
-      return {
-        coreColor: '#c084fc',
-        glowColor: 'rgba(192, 132, 252, 0.9)',
-        textColor: '#f3e8ff',
-        textShadow: '0px 2px 6px #4c1d95, 0px 0px 30px #c084fc, 0px 0px 8px #fff',
-        shape: (
-          <>
-            <linearGradient id="grad-plat" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#f3e8ff" />
-              <stop offset="25%" stopColor="#d8b4fe" />
-              <stop offset="50%" stopColor="#a855f7" />
-              <stop offset="75%" stopColor="#7e22ce" />
-              <stop offset="100%" stopColor="#3b0764" />
-            </linearGradient>
-            <radialGradient id="plat-core" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#f3e8ff" stopOpacity="1"/>
-              <stop offset="50%" stopColor="#c084fc" stopOpacity="0.8"/>
-              <stop offset="100%" stopColor="#3b0764" stopOpacity="0"/>
-            </radialGradient>
-
-            {/* L1: Deep Shadow */}
-            {/* L2: Hexagonal Matrix Base */}
-            <path d="M 50 0 L 100 25 L 100 75 L 50 100 L 0 75 L 0 25 Z" fill="url(#grad-plat)" stroke="#581c87" strokeWidth="2" filter="url(#drop-shadow)"/>
-            {/* L3: Extruded Inner Hex */}
-            <path d="M 50 10 L 90 30 L 90 70 L 50 90 L 10 70 L 10 30 Z" fill="#2e1065" />
-            {/* L4: Matrix Grid Lines */}
-            <path d="M 50 10 L 50 90 M 10 30 L 90 70 M 10 70 L 90 30 M 10 50 L 90 50 M 30 10 L 70 90 M 70 10 L 30 90" stroke="#a855f7" strokeWidth="1" opacity="0.3"/>
-            {/* L5: Inner Plate */}
-            <path d="M 50 20 L 80 35 L 80 65 L 50 80 L 20 65 L 20 35 Z" fill="url(#grad-plat)" stroke="#f3e8ff" strokeWidth="1"/>
-            {/* L6: Deep Core Void */}
-            <circle cx="50" cy="50" r="20" fill="#1e013a" />
-            {/* L7: Extreme Plasma Core */}
-            <circle cx="50" cy="50" r="40" fill="url(#plat-core)" style={{ mixBlendMode: 'screen' }}/>
-            {/* L8: Center Crystal */}
-            <polygon points="50,35 60,50 50,65 40,50" fill="#fff" style={{ filter: 'drop-shadow(0 0 10px #fff)' }}/>
-            {/* L9: Matrix Nodes */}
-            <circle cx="50" cy="10" r="3" fill="#fff" />
-            <circle cx="90" cy="30" r="3" fill="#fff" />
-            <circle cx="90" cy="70" r="3" fill="#fff" />
-            <circle cx="50" cy="90" r="3" fill="#fff" />
-            <circle cx="10" cy="70" r="3" fill="#fff" />
-            <circle cx="10" cy="30" r="3" fill="#fff" />
-            {/* L10: Highlighting Specular Curve */}
-            <path d="M 0 25 L 50 0 L 100 25" fill="none" stroke="#fff" strokeWidth="3" opacity="0.9" style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
-            {/* L11: Animated Matrix Surge */}
-            <motion.path data-fx d="M 50 20 L 80 35 L 80 65 L 50 80 L 20 65 L 20 35 Z" fill="none" stroke="#e9d5ff" strokeWidth="2"
-              initial={{ scale: 1, opacity: 1 }} animate={{ scale: 1.5, opacity: 0 }} transition={{ duration: 1.5, repeat: Infinity, ease: "circOut" }} style={{ originX: '50%', originY: '50%' }}
-            />
-          </>
-        )
-      };
-    case 'EMERALD':
-      return {
-        coreColor: '#10b981',
-        glowColor: 'rgba(16, 185, 129, 0.9)',
-        textColor: '#d1fae5',
-        textShadow: '0px 2px 6px #064e3b, 0px 0px 30px #10b981, 0px 0px 8px #fff',
-        shape: (
-          <>
-            <linearGradient id="grad-emerald" x1="50%" y1="0%" x2="50%" y2="100%">
-              <stop offset="0%" stopColor="#a7f3d0" />
-              <stop offset="30%" stopColor="#10b981" />
-              <stop offset="70%" stopColor="#047857" />
-              <stop offset="100%" stopColor="#022c22" />
-            </linearGradient>
-            <radialGradient id="emerald-glow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#a7f3d0" stopOpacity="1"/>
-              <stop offset="40%" stopColor="#10b981" stopOpacity="0.8"/>
-              <stop offset="100%" stopColor="#022c22" stopOpacity="0"/>
-            </radialGradient>
-
-            {/* L1: Toxic Blur Shadow */}
-            {/* L2: Mystic Diamond Base */}
-            <polygon points="50,0 100,50 50,100 0,50" fill="url(#grad-emerald)" stroke="#064e3b" strokeWidth="2" filter="url(#drop-shadow)"/>
-            {/* L3: Layered Inner Fractal */}
-            <polygon points="50,12 88,50 50,88 12,50" fill="#022c22" />
-            <polygon points="50,24 76,50 50,76 24,50" fill="url(#grad-emerald)" />
-            {/* L4: Magical Engravings */}
-            <path d="M 50 12 L 50 88 M 12 50 L 88 50 M 24 24 L 76 76 M 24 76 L 76 24" stroke="#a7f3d0" strokeWidth="1" opacity="0.4"/>
-            {/* L5: Heavy Gem Core */}
-            <polygon points="50,35 65,50 50,65 35,50" fill="#064e3b" stroke="#34d399" strokeWidth="2"/>
-            {/* L6: Intense Emerald Radiance */}
-            <circle cx="50" cy="50" r="45" fill="url(#emerald-glow)" style={{ mixBlendMode: 'screen' }}/>
-            {/* L7: Fractal Light Beams */}
-            <path d="M 50 0 L 65 50 L 50 100 L 35 50 Z" fill="#fff" opacity="0.1" style={{ mixBlendMode: 'screen' }}/>
-            <path d="M 0 50 L 50 65 L 100 50 L 50 35 Z" fill="#fff" opacity="0.1" style={{ mixBlendMode: 'screen' }}/>
-            {/* L8: Specular Glint */}
-            <polygon points="50,0 100,50 90,50 50,10" fill="#fff" opacity="0.6" style={{ filter: 'drop-shadow(0 0 5px #fff)' }}/>
-            {/* L9: Animated Toxic Particles */}
-            <motion.circle data-fx cx="50" cy="50" r="28" fill="none" stroke="#6ee7b7" strokeWidth="2" strokeDasharray="5 15"
-              animate={{ rotate: 360, scale: [1, 1.2, 1] }} transition={{ duration: 5, repeat: Infinity, ease: "linear" }} style={{ originX: '50%', originY: '50%' }}
-            />
-            <motion.circle data-fx cx="50" cy="50" r="38" fill="none" stroke="#a7f3d0" strokeWidth="1" strokeDasharray="2 20"
-              animate={{ rotate: -360 }} transition={{ duration: 8, repeat: Infinity, ease: "linear" }} style={{ originX: '50%', originY: '50%' }}
-            />
-          </>
-        )
-      };
-    case 'DIAMOND':
-      return {
-        coreColor: '#38bdf8',
-        glowColor: 'rgba(56, 189, 248, 1)',
-        textColor: '#ffffff',
-        textShadow: '0px 2px 8px #0284c7, 0px 0px 40px #7dd3fc, 0px 0px 10px #fff',
-        shape: (
-          <>
-            <linearGradient id="grad-diamond" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="20%" stopColor="#bae6fd" />
-              <stop offset="50%" stopColor="#38bdf8" />
-              <stop offset="80%" stopColor="#0284c7" />
-              <stop offset="100%" stopColor="#082f49" />
-            </linearGradient>
-            <radialGradient id="diamond-glow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="1"/>
-              <stop offset="20%" stopColor="#7dd3fc" stopOpacity="0.9"/>
-              <stop offset="60%" stopColor="#0284c7" stopOpacity="0.5"/>
-              <stop offset="100%" stopColor="#082f49" stopOpacity="0"/>
-            </radialGradient>
-
-            {/* L1: Refractive Blur Shadow */}
-            {/* L2: Prism Base */}
-            <polygon points="50,0 90,30 50,100 10,30" fill="url(#grad-diamond)" stroke="#0c4a6e" strokeWidth="2" filter="url(#drop-shadow)"/>
-            {/* L3: Prism Facets (Top Left) */}
-            <polygon points="50,0 10,30 50,30" fill="#ffffff" opacity="0.8"/>
-            {/* L4: Prism Facets (Top Right) */}
-            <polygon points="50,0 90,30 50,30" fill="#bae6fd" opacity="0.4"/>
-            {/* L5: Prism Facets (Bottom Left) */}
-            <polygon points="10,30 50,100 50,30" fill="#0284c7" opacity="0.6"/>
-            {/* L6: Prism Facets (Bottom Right) */}
-            <polygon points="90,30 50,100 50,30" fill="#082f49" opacity="0.8"/>
-            {/* L7: Inner Diamond Core */}
-            <polygon points="50,15 75,35 50,85 25,35" fill="url(#grad-diamond)" stroke="#fff" strokeWidth="1"/>
-            {/* L8: God-Level Radiant Glow */}
-            <circle cx="50" cy="40" r="50" fill="url(#diamond-glow)" style={{ mixBlendMode: 'screen' }}/>
-            {/* L9: Sparkle Stars */}
-            <path d="M 50 0 L 52 15 L 67 17 L 52 19 L 50 34 L 48 19 L 33 17 L 48 15 Z" fill="#fff" style={{ filter: 'drop-shadow(0 0 10px #fff)' }}/>
-            <path d="M 85 25 L 86 32 L 93 33 L 86 34 L 85 41 L 84 34 L 77 33 L 84 32 Z" fill="#fff" style={{ filter: 'drop-shadow(0 0 5px #fff)' }}/>
-            <path d="M 15 25 L 16 32 L 23 33 L 16 34 L 15 41 L 14 34 L 7 33 L 14 32 Z" fill="#fff" style={{ filter: 'drop-shadow(0 0 5px #fff)' }}/>
-            {/* L10: Animated Prism Reflection */}
-            <motion.polygon data-fx points="50,15 75,35 50,85 25,35" fill="none" stroke="#fff" strokeWidth="2"
-              initial={{ opacity: 1, scale: 1 }} animate={{ opacity: 0, scale: 1.4 }} transition={{ duration: 1.2, repeat: Infinity, ease: "easeOut" }} style={{ originX: '50%', originY: '50%' }}
-            />
-          </>
-        )
-      };
-    case 'CHAMPION':
-      return {
-        coreColor: '#e11d48',
-        glowColor: 'rgba(225, 29, 72, 1)',
-        textColor: '#ffe4e6',
-        textShadow: '0px 2px 10px #881337, 0px 0px 50px #e11d48, 0px 0px 15px #fff',
-        shape: (
-          <>
-            <linearGradient id="grad-champ" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="15%" stopColor="#fda4af" />
-              <stop offset="30%" stopColor="#f43f5e" />
-              <stop offset="50%" stopColor="#e11d48" />
-              <stop offset="80%" stopColor="#be123c" />
-              <stop offset="100%" stopColor="#4c0519" />
-            </linearGradient>
-            <radialGradient id="champ-nova" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="1"/>
-              <stop offset="20%" stopColor="#f43f5e" stopOpacity="0.9"/>
-              <stop offset="50%" stopColor="#e11d48" stopOpacity="0.6"/>
-              <stop offset="100%" stopColor="#4c0519" stopOpacity="0"/>
-            </radialGradient>
-
-            {/* L1: Supernova Shadow */}
-            {/* L2: Winged Base Left */}
-            <path d="M 50 50 L 0 20 L 10 70 Z" fill="#881337" opacity="0.8"/>
-            {/* L3: Winged Base Right */}
-            <path d="M 50 50 L 100 20 L 90 70 Z" fill="#881337" opacity="0.8"/>
-            {/* L4: Core Star Base */}
-            <path d="M 50 0 L 65 35 L 100 50 L 65 65 L 50 100 L 35 65 L 0 50 L 35 35 Z" fill="url(#grad-champ)" stroke="#fff" strokeWidth="2" filter="url(#drop-shadow)"/>
-            {/* L5: Inner Singularity Void */}
-            <path d="M 50 15 L 60 40 L 85 50 L 60 60 L 50 85 L 40 60 L 15 50 L 40 40 Z" fill="#2a030d" />
-            {/* L6: Supernova Glow */}
-            <circle cx="50" cy="50" r="60" fill="url(#champ-nova)" style={{ mixBlendMode: 'screen' }}/>
-            {/* L7: Center Heart/Gem */}
-            <polygon points="50,30 65,50 50,70 35,50" fill="#fff" style={{ filter: 'drop-shadow(0 0 15px #fff)' }}/>
-            {/* L8: Angelic Wings (Right) */}
-            <path d="M 65 50 Q 80 20 100 0 Q 90 40 100 60 Q 75 60 65 50" fill="#fda4af" opacity="0.6" style={{ filter: 'drop-shadow(0 0 10px #f43f5e)' }}/>
-            <path d="M 65 50 Q 90 30 110 20 Q 95 50 105 70 Q 75 65 65 50" fill="#fff" opacity="0.8" style={{ filter: 'drop-shadow(0 0 15px #fff)' }}/>
-            {/* L9: Angelic Wings (Left) */}
-            <path d="M 35 50 Q 20 20 0 0 Q 10 40 0 60 Q 25 60 35 50" fill="#fda4af" opacity="0.6" style={{ filter: 'drop-shadow(0 0 10px #f43f5e)' }}/>
-            <path d="M 35 50 Q 10 30 -10 20 Q 5 50 -5 70 Q 25 65 35 50" fill="#fff" opacity="0.8" style={{ filter: 'drop-shadow(0 0 15px #fff)' }}/>
-            {/* L10: Animated God Rays */}
-            <motion.path data-fx d="M 50 0 L 65 35 L 100 50 L 65 65 L 50 100 L 35 65 L 0 50 L 35 35 Z" fill="none" stroke="#fff" strokeWidth="3"
-              initial={{ scale: 1, opacity: 1, rotate: 0 }} animate={{ scale: 1.6, opacity: 0, rotate: 45 }} transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }} style={{ originX: '50%', originY: '50%' }}
-            />
-            {/* L11: Floating Orbs */}
-            <motion.circle data-fx cx="20" cy="20" r="4" fill="#fff" animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
-            <motion.circle data-fx cx="80" cy="20" r="4" fill="#fff" animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.5 }} style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
-            <motion.circle data-fx cx="20" cy="80" r="4" fill="#fff" animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1 }} style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
-            <motion.circle data-fx cx="80" cy="80" r="4" fill="#fff" animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1.5 }} style={{ filter: 'drop-shadow(0 0 8px #fff)' }}/>
-          </>
-        )
-      };
-    default:
-      return null;
-  }
-};
-
-export function RankBadge({ tier, globalRank, className, size = 'md', fluid, still }: RankBadgeProps) {
-  const parts = tier.split('_');
-  const baseRank = parts[0] || 'COPPER';
-  const numeral = parts[1] || '';
-
-  const design = getRankBadgeDesign(baseRank);
-
-  if (!design) return null;
-
-  const sizeClasses = {
-    sm: 'w-16 h-16',
-    md: 'w-24 h-24 md:w-32 md:h-32',
-    lg: 'w-36 h-36 md:w-48 md:h-48',
-    xl: 'w-56 h-56 md:w-72 md:h-72'
-  };
-
-  const numeralSizeClasses = {
-    sm: 'text-lg',
-    md: 'text-3xl md:text-4xl',
-    lg: 'text-5xl md:text-6xl',
-    xl: 'text-7xl md:text-8xl'
-  };
-
-  // The numeral gets a crisp edge in the rank's own deep colour (the first
-  // colour of its design shadow) instead of a wide glow that washed it out on
-  // the lighter ranks. Sized in em so it follows the numeral.
-  const numeralDeep = design.textShadow.match(/#[0-9a-fA-F]{6}/)?.[0] ?? '#000000';
-  const numeralEdge = `0 0.045em 0 ${numeralDeep}, 0 0 0.07em ${numeralDeep}, 0 0.1em 0.16em rgba(0, 0, 0, 0.5)`;
-
-  // The medallion is a vector drawing and must stay one: no GPU layer, no
-  // scale transform (both turn it into a stretched bitmap), and one clean
-  // rank-tinted shadow (.se-rank-svg) instead of stacked blurs.
   return (
     <div
-      className={cn('se-rank relative group flex items-center justify-center shrink-0', still && 'se-rank-still', !fluid && sizeClasses[size], className)}
-      style={{
-        ['--rank-rgb' as string]: HexToRgbTriplet(design.coreColor),
-        ...(fluid ? { width: fluid, height: fluid } : {}),
-      }}
+      className={cn('se-rank relative group flex items-center justify-center shrink-0', sealed && 'se-rank-sealed', !fluid && SIZE_CLASSES[size], className)}
+      data-rank-medal={Key}
+      data-rank-family={Family}
+      style={fluid ? { width: fluid, height: fluid } : undefined}
     >
-      <svg
-        viewBox="-10 -10 120 120"
-        className="se-rank-svg w-full h-full overflow-visible"
-        shapeRendering="geometricPrecision"
-      >
-        <defs>
-          {/* Tight contact shadow under the raised frame: depth without haze. */}
-          <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="1.6" stdDeviation="1.1" floodColor="#000" floodOpacity="0.5"/>
-          </filter>
-        </defs>
-
-        {/* Render the insanely complex SVG shape layers */}
-        {design.shape}
-      </svg>
-
-      {/* Roman numeral */}
-      {numeral && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-          <span
-            data-rank-numeral
-            className={cn(
-              "font-black uppercase tracking-tighter leading-none",
-              !fluid && numeralSizeClasses[size]
-            )}
-            style={{
-              color: design.textColor,
-              textShadow: numeralEdge,
-              fontFamily: 'serif',
-              ...(fluid ? { fontSize: `calc(${fluid} * 0.3)` } : {}),
-            }}
-          >
-            {numeral}
-          </span>
-        </div>
-      )}
+      <img
+        src={RankMedalSrc(Key, 384)}
+        srcSet={`${RankMedalSrc(Key, 192)} 192w, ${RankMedalSrc(Key, 384)} 384w, ${RankMedalSrc(Key, 768)} 768w`}
+        sizes={fluid ? '(min-width: 768px) 180px, 150px' : SIZES_ATTR[size]}
+        alt={RankLabel(Key)}
+        width={768}
+        height={768}
+        loading={eager ? 'eager' : 'lazy'}
+        decoding="async"
+        draggable={false}
+        className="se-rank-img block w-full h-full select-none"
+      />
+      {/* the sweep is drawn through the medallion's own outline, so only the metal catches it */}
+      {sweep && !sealed ? (
+        <span aria-hidden="true" className="se-rank-sweep" style={{ WebkitMaskImage: `url(${RankMedalSrc(Key, 384)})`, maskImage: `url(${RankMedalSrc(Key, 384)})` }} />
+      ) : null}
 
       {/* Global Rank Ribbon (if applicable) */}
       {globalRank && globalRank <= 100 && (

@@ -1,15 +1,36 @@
 'use client';
 
 import Link from "next/link";
-import React, { useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { RankBadge } from './RankBadge';
+import { RankBadge, RankMedalKey } from './RankBadge';
+import { RankStepFor, RankTierForXp } from '@/lib/rankTiers';
 import { Coins, Sparkles } from 'lucide-react';
 import dynamic from "next/dynamic";
 
 // 2026-10-11 (performance): the 3D / celebration scenes load only when shown.
 const RankInspectionModal = dynamic(() => import("./RankInspectionModal").then((Module) => Module.RankInspectionModal), { ssr: false });
+const RankCinematicOverlay = dynamic(() => import("./RankCinematicOverlay").then((Module) => Module.RankCinematicOverlay), { ssr: false });
+
+// 2026-10-20 (rank revamp): a rank-up notification links here with
+// ?rankup=<tier>&at=<click time>. Kept in its own small component so the page
+// around it can still render ahead of the address (useSearchParams).
+function RankUpLink({ onRankUp }: { onRankUp: (Tier: string) => void }) {
+  const Params = useSearchParams();
+  const Tier = Params.get('rankup');
+  const At = Params.get('at');
+  useEffect(() => {
+    if (!Tier) return;
+    onRankUp(Tier.toUpperCase());
+    const Rest = new URLSearchParams(window.location.search);
+    Rest.delete('rankup'); Rest.delete('at');
+    const Query = Rest.toString();
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${Query ? `?${Query}` : ''}${window.location.hash}`);
+  }, [Tier, At, onRankUp]);
+  return null;
+}
 
 export interface StudentWalletProps {
   currentXp: number;
@@ -19,50 +40,38 @@ export interface StudentWalletProps {
   isLoading?: boolean;
 }
 
-const TIER_THRESHOLDS = [
-  { xp: 27800, tier: 'CHAMPION' },
-  { xp: 26300, tier: 'DIAMOND_I' },
-  { xp: 24800, tier: 'DIAMOND_II' },
-  { xp: 23300, tier: 'DIAMOND_III' },
-  { xp: 22200, tier: 'EMERALD_I' },
-  { xp: 21100, tier: 'EMERALD_II' },
-  { xp: 20000, tier: 'EMERALD_III' },
-  { xp: 18900, tier: 'EMERALD_IV' },
-  { xp: 17800, tier: 'EMERALD_V' },
-  { xp: 16800, tier: 'PLATINUM_I' },
-  { xp: 15850, tier: 'PLATINUM_II' },
-  { xp: 14900, tier: 'PLATINUM_III' },
-  { xp: 13950, tier: 'PLATINUM_IV' },
-  { xp: 13000, tier: 'PLATINUM_V' },
-  { xp: 12200, tier: 'GOLD_I' },
-  { xp: 11400, tier: 'GOLD_II' },
-  { xp: 10600, tier: 'GOLD_III' },
-  { xp: 9800,  tier: 'GOLD_IV' },
-  { xp: 9000,  tier: 'GOLD_V' },
-  { xp: 8300,  tier: 'SILVER_I' },
-  { xp: 7600,  tier: 'SILVER_II' },
-  { xp: 6900,  tier: 'SILVER_III' },
-  { xp: 6200,  tier: 'SILVER_IV' },
-  { xp: 5500,  tier: 'SILVER_V' },
-  { xp: 4900,  tier: 'BRONZE_I' },
-  { xp: 4300,  tier: 'BRONZE_II' },
-  { xp: 3700,  tier: 'BRONZE_III' },
-  { xp: 3100,  tier: 'BRONZE_IV' },
-  { xp: 2500,  tier: 'BRONZE_V' },
-  { xp: 2000,  tier: 'COPPER_I' },
-  { xp: 1500,  tier: 'COPPER_II' },
-  { xp: 1000,  tier: 'COPPER_III' },
-  { xp: 500,   tier: 'COPPER_IV' },
-  { xp: 0,     tier: 'COPPER_V' }
-];
+// 2026-10-20 (rank revamp): the wallet uses the server's own ladder
+// (lib/rankTiers). Its old copy here had drifted (Champion at 27,800 XP), so
+// the bar under the rank showed the wrong span for almost every rank.
 
 export function getRankTierFromXp(xp: number): string {
-  for (const entry of TIER_THRESHOLDS) {
-    if (xp >= entry.xp) {
-      return entry.tier;
-    }
-  }
-  return 'COPPER_V';
+  return RankTierForXp(xp);
+}
+
+// The ring around the dashboard medallion: how far into this division the
+// student is. Drawn in the rank's own colour.
+const RING_GLOW: Record<string, [string, string]> = {
+  COPPER: ['#b45309', '#ff9a52'], BRONZE: ['#a16207', '#ffc65c'], SILVER: ['#64748b', '#9fe3ff'], GOLD: ['#b7791f', '#ffe066'],
+  PLATINUM: ['#7c3aed', '#d8b4fe'], EMERALD: ['#047857', '#5eead4'], DIAMOND: ['#0284c7', '#e0f2fe'], CHAMPION: ['#be123c', '#ffd36b'],
+};
+function RankProgressRing({ fraction, family, label }: { fraction: number; family: string; label: string }) {
+  const R = 47, C = 2 * Math.PI * R;
+  const [From, To] = RING_GLOW[family] ?? RING_GLOW.COPPER;
+  const Id = `rank-ring-${family}`;
+  return (
+    <svg viewBox="0 0 100 100" className="se-rank-ring absolute pointer-events-none" role="img" aria-label={label}>
+      <defs>
+        <linearGradient id={Id} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={From} /><stop offset="1" stopColor={To} /></linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r={R} fill="none" className="se-rank-ring-track" strokeWidth="3" />
+      <motion.circle
+        cx="50" cy="50" r={R} fill="none" stroke={`url(#${Id})`} strokeWidth="3.2" strokeLinecap="round"
+        strokeDasharray={C} initial={{ strokeDashoffset: C }} animate={{ strokeDashoffset: C * (1 - Math.max(0.02, Math.min(1, fraction))) }}
+        transition={{ duration: 1.4, ease: 'easeOut', delay: 0.2 }}
+        transform="rotate(-90 50 50)"
+      />
+    </svg>
+  );
 }
 
 export function StudentWallet({ currentXp, currentRankTier, coinBalance, className, isLoading }: StudentWalletProps) {
@@ -70,25 +79,44 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
   // Mounted from the first open on, so the 3D rank scene isn't downloaded
   // with the dashboard.
   const [modalWanted, setModalWanted] = useState(false);
+  // The scene a rank-up notification asked for.
+  const [rankUpScene, setRankUpScene] = useState<{ tier: string; promo: boolean } | null>(null);
   if (isModalOpen && !modalWanted) setModalWanted(true);
+
+  // "See Roadmap" at the end of a rank-up scene on a result page lands on
+  // /student/dashboard?roadmap=1: open the roadmap, then tidy the address.
+  useEffect(() => {
+    const Params = new URLSearchParams(window.location.search);
+    if (Params.get('roadmap') !== '1') return;
+    setIsModalOpen(true);
+    Params.delete('roadmap');
+    const Rest = Params.toString();
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${Rest ? `?${Rest}` : ''}${window.location.hash}`);
+  }, []);
 
   // Resolve rank tier dynamically if not explicitly provided
   const resolvedRankTier = currentRankTier || getRankTierFromXp(currentXp);
 
-  // Find progress towards next tier
-  let currentTierMinXp = 0;
-  let nextTierMinXp = 1000;
+  // A rank-up notification: the promotion scene for that rank while it is
+  // still the student's own; once they have moved on, their current rank.
+  const ownKey = RankMedalKey(resolvedRankTier);
+  const onRankUpLink = React.useCallback((Tier: string) => {
+    const Promo = RankMedalKey(Tier) === ownKey;
+    setRankUpScene({ tier: Promo ? RankMedalKey(Tier) : ownKey, promo: Promo });
+  }, [ownKey]);
 
-  for (let i = TIER_THRESHOLDS.length - 1; i >= 0; i--) {
-    if (currentXp >= TIER_THRESHOLDS[i].xp) {
-      currentTierMinXp = TIER_THRESHOLDS[i].xp;
-      nextTierMinXp = i > 0 ? TIER_THRESHOLDS[i - 1].xp : currentTierMinXp + 2000;
-    }
-  }
+  // The ring: this division to the next (the server's own ladder)
+  const ringStep = RankStepFor(RankMedalKey(resolvedRankTier));
+  const ringFraction = ringStep.nextXp ? (currentXp - ringStep.start) / (ringStep.nextXp - ringStep.start) : 1;
+  const ringFamily = RankMedalKey(resolvedRankTier).split('_')[0];
+  const ringLabel = ringStep.next && ringStep.nextXp
+    ? `${Math.round(Math.max(0, Math.min(1, ringFraction)) * 100)}% of the way to ${ringStep.next.charAt(0)}${ringStep.next.slice(1).toLowerCase().replace(/_(\w+)$/, (_m, n: string) => ` ${n.toUpperCase()}`)}`
+    : 'The top rank';
 
-  const xpProgress = currentXp - currentTierMinXp;
-  const xpNeeded = nextTierMinXp - currentTierMinXp;
-  const progressPercent = Math.min(100, Math.max(0, (xpProgress / xpNeeded) * 100));
+  // Progress through this division, on the same ladder as the ring
+  const xpProgress = Math.max(0, currentXp - ringStep.start);
+  const xpNeeded = ringStep.nextXp ? ringStep.nextXp - ringStep.start : 0;
+  const progressPercent = xpNeeded ? Math.min(100, Math.max(0, (xpProgress / xpNeeded) * 100)) : 100;
   // "COPPER_II" -> "Copper II": Init Caps for the rank word, the numeral stays as it is.
   const [rankWord, ...rankRest] = resolvedRankTier.split('_');
   const rankDisplayName = [rankWord.charAt(0) + rankWord.slice(1).toLowerCase(), ...rankRest].join(' ');
@@ -169,11 +197,11 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
           className="relative flex items-center justify-center group cursor-pointer"
           style={{ transform: "translateZ(40px)" }}
         >
-          {/* Neon energy rings around badge */}
-          <div className="absolute w-28 h-28 md:w-36 md:h-36 border-2 border-orange-500/40 dark:border-orange-400/60 rounded-full animate-ping pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="absolute w-24 h-24 md:w-32 md:h-32 border border-amber-500/50 dark:border-amber-400/70 rounded-full animate-spin pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-
-          <RankBadge tier={resolvedRankTier} size="md" still />
+          {/* 2026-10-20 (rank revamp, Part 4): a ring around the medallion
+              fills towards the next division; the metal catches a slow light
+              sweep now and then. */}
+          <RankProgressRing fraction={ringFraction} family={ringFamily} label={ringLabel} />
+          <RankBadge tier={resolvedRankTier} size="md" eager sweep className="relative z-[1] transition-transform duration-300 group-hover:scale-[1.04]" />
         </div>
 
         {/* Center: HUD XP Bar info */}
@@ -195,7 +223,7 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
                 <Sparkles className="se-wallet-accent w-4 h-4" />
                 <span className="se-wallet-label se-wallet-accent">Acquired XP</span>
               </div>
-              <span className="se-wallet-xp">{xpProgress.toLocaleString()} / {xpNeeded.toLocaleString()} XP</span>
+              <span className="se-wallet-xp">{xpNeeded ? `${xpProgress.toLocaleString()} / ${xpNeeded.toLocaleString()} XP` : `${currentXp.toLocaleString()} XP`}</span>
             </div>
           </div>
 
@@ -240,6 +268,18 @@ export function StudentWallet({ currentXp, currentRankTier, coinBalance, classNa
         </Link>
 
       </motion.div>
+
+      <Suspense fallback={null}><RankUpLink onRankUp={onRankUpLink} /></Suspense>
+      {rankUpScene ? (
+        <RankCinematicOverlay
+          tier={rankUpScene.tier}
+          mode={rankUpScene.promo ? 'promo' : 'replay'}
+          state="current"
+          xp={currentXp}
+          onRoadmap={() => setIsModalOpen(true)}
+          onComplete={() => setRankUpScene(null)}
+        />
+      ) : null}
 
       {/* Cinematic Modal Overlay */}
       {modalWanted ? (

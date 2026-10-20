@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- 2026-10-19 (rank revamp, Part 2): the rank cut scene. Played inside the
+     app's RankCinematicOverlay (an iframe), so a scene that cannot start can
+     never take the page around it down: it reports the error and the app
+     shows the still medallion instead. Everything it needs is in
+     /cutscenes/rank/ -- nothing is fetched from another site. -->
+<script>(function(){var t0=Date.now();function send(k,m){try{parent.postMessage({type:k,message:String(m||'')},'*')}catch(e){}}window.addEventListener('error',function(e){if(Date.now()-t0<8000)send('mathpath-cutscene-error',e&&e.message)});window.addEventListener('unhandledrejection',function(e){if(Date.now()-t0<8000)send('mathpath-cutscene-error',e&&e.reason)});})();</script>
+<title>Rank</title>
+<script type="importmap">{ "imports": { "three": "/cutscenes/rank/vendor/three.module.min.js" } }</script>
+<style>
+:root { color-scheme: dark; --ink: #fbf6ff; --soft: rgba(240, 232, 255, 0.74); --glow: #ffb36b; --metal-a: #fff4e0; --metal-b: #e9a35a; --metal-c: #8a4b1c; }
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; -webkit-user-select: none; user-select: none; }
+body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink); }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; mix-blend-mode: screen; }
+#vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.75) 100%); }
+#card {
+  position: fixed; left: 0; right: 0; bottom: 0; top: var(--card-top, 64%);
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 10px;
+  padding: 0 max(20px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+  text-align: center; pointer-events: none;
+}
+#eyebrow { font-weight: 800; font-size: clamp(11px, 1.15vw, 14px); letter-spacing: 0.42em; text-transform: uppercase; color: var(--glow); text-shadow: 0 0 18px var(--glow); opacity: 0; }
+#title {
+  margin: 0; font-family: "Cinzel", "Trajan Pro", Georgia, "Times New Roman", serif; font-weight: 700;
+  font-size: clamp(44px, min(9vw, 12vh), 128px); line-height: 0.95; letter-spacing: 0.06em; text-transform: uppercase;
+  background: linear-gradient(180deg, var(--metal-a) 0%, var(--metal-a) 30%, var(--metal-b) 58%, var(--metal-c) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.6)) drop-shadow(0 0 26px color-mix(in srgb, var(--glow) 45%, transparent));
+  opacity: 0; white-space: nowrap;
+}
+#line { font-family: Georgia, "Times New Roman", serif; font-size: clamp(16px, 1.8vw, 24px); letter-spacing: 0.32em; text-transform: uppercase; color: var(--soft); opacity: 0; }
+#xp { display: grid; gap: 8px; width: min(440px, 100%); margin-top: 10px; opacity: 0; }
+#xp .row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; font-weight: 700; color: var(--soft); }
+#xp .row b { color: var(--ink); font-size: 15px; }
+#xp .bar { height: 8px; border-radius: 99px; background: rgba(255, 255, 255, 0.12); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5); }
+#xp .fill { height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--metal-c), var(--metal-b), var(--metal-a)); box-shadow: 0 0 14px var(--glow); }
+#actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 14px; opacity: 0; pointer-events: auto; }
+button { font: inherit; cursor: pointer; border-radius: 14px; padding: 12px 22px; font-weight: 800; font-size: 15px; letter-spacing: 0.02em; }
+#continue { position: relative; overflow: hidden; border: 0; color: #1a0d05; background: linear-gradient(180deg, var(--metal-a), var(--metal-b)); box-shadow: 0 10px 30px -10px var(--glow); }
+#continue .timer { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: rgba(0, 0, 0, 0.35); }
+#roadmap { border: 1px solid rgba(255, 255, 255, 0.28); color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+#top { position: fixed; top: calc(16px + env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); display: flex; gap: 10px; align-items: center; z-index: 5; }
+#top button { border: 1px solid rgba(255, 255, 255, 0.24); color: rgba(255, 255, 255, 0.82); background: rgba(0, 0, 0, 0.35); font-size: 13px; }
+#skip { padding: 9px 16px; letter-spacing: 0.12em; text-transform: uppercase; }
+#sound { width: 40px; height: 38px; padding: 0; display: grid; place-items: center; }
+#sound svg { width: 20px; height: 20px; }
+#sound .off { display: none; }
+#sound[aria-pressed="false"] .on { display: none; }
+#sound[aria-pressed="false"] .off { display: inline; }
+[hidden] { display: none !important; }
+button:focus-visible { outline: 3px solid var(--glow); outline-offset: 3px; }
+</style>
+</head>
+<body>
+<div id="flash"></div>
+<div id="vignette"></div>
+<div id="card" aria-live="polite">
+  <div id="eyebrow"></div>
+  <h1 id="title"></h1>
+  <div id="line"></div>
+  <div id="xp" hidden><div class="row"><span id="xpNow"></span><span id="xpNext"></span></div><div class="bar"><div class="fill" id="xpFill"></div></div></div>
+  <div id="actions"><button id="continue" type="button">Continue<span class="timer" id="timer"></span></button><button id="roadmap" type="button">See Roadmap</button></div>
+</div>
+<div id="top">
+  <button id="sound" type="button" aria-pressed="true" aria-label="Sound" title="Sound"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path class="on" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="off" d="m16 9 5 6m0-6-5 6"/></svg></button>
+  <button id="skip" type="button">Skip</button>
+</div>
+<script type="module" src="/cutscenes/rank/scene.js"></script>
+</body>
+</html>
