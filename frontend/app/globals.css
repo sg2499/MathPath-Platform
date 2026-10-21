@@ -13585,3 +13585,10 @@ html body main :is(.math-subtitle, p[class*="max-w-"]):not(.text-center):not(.mx
 html[data-rank-scene="open"] body > *:not(.se-rank-scene) {
   visibility: hidden !important;
 }
+
+/* 2026-10-21: the scene is usually ready in well under a second, so its
+   loading spinner only appears when it is taking longer than that. */
+@keyframes se-rank-spinner-turn { to { transform: rotate(360deg); } }
+@keyframes se-rank-spinner-in { from { opacity: 0; } to { opacity: 1; } }
+.se-rank-spinner { animation: se-rank-spinner-turn 900ms linear infinite, se-rank-spinner-in 250ms ease-out 800ms both; }
+@media (prefers-reduced-motion: reduce) { .se-rank-spinner { animation: se-rank-spinner-in 250ms ease-out 800ms both; } }

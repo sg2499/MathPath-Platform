@@ -38,7 +38,7 @@ interface RankCinematicOverlayProps {
 }
 
 // Bump to make browsers fetch a new scene after a change.
-const SCENE_VERSION = '2026-10-21-s1';
+const SCENE_VERSION = '2026-10-21-s2';
 const LOAD_TIMEOUT_MS = 12000;
 const FADE_MS = 300;
 
@@ -205,7 +205,7 @@ export function RankCinematicOverlay({ tier, onComplete, mode = 'promo', state =
 
       {PhaseState === 'loading' ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-live="polite">
-          <div className="h-14 w-14 animate-spin rounded-full border-4 border-white/10" style={{ borderTopColor: Glow, animationDuration: '900ms' }} />
+          <div className="se-rank-spinner h-14 w-14 rounded-full border-4 border-white/10" style={{ borderTopColor: Glow }} />
           <span className="sr-only">Loading your rank</span>
         </div>
       ) : null}
