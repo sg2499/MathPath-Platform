@@ -23,11 +23,20 @@ import { SMAAPass } from "./vendor/postprocessing/SMAAPass.js";
 // modules and the music carry the same version, so a browser can never run an
 // old medallion.js with a new scene after a deploy (they are cached for a day).
 const V = new URL(import.meta.url).search;
-const { buildMedallion, makeStudio, parseTier, setSurfaceDetail, THREE } = await import(`./medallion.js${V}`);
+const { buildMedallion, makeStudio, parseTier, setSurfaceDetail, deferMaps, finishMaps, THREE } = await import(`./medallion.js${V}`);
 const { signature } = await import(`./signature.js${V}`);
 const pause = () => new Promise((r) => setTimeout(r, 0));   // let the page breathe between the heavy steps
-const TRACE = new URLSearchParams(location.search).get("trace") === "1";
-const trace = (what) => { if (TRACE) console.log(`[rank] ${what} ${Math.round(performance.now())}`); };   // ?trace=1: start-up timings in the console
+const TRACE = new URLSearchParams(window.__rankQuery || location.search).get("trace") === "1";
+const traceLines = [];
+const trace = (what) => {   // ?trace=1: start-up timings, in the console and in a corner of the screen
+  if (!TRACE) return;
+  const line = `${what} ${Math.round(performance.now())}`;
+  console.log(`[rank] ${line}`);
+  traceLines.push(line);
+  let el = document.getElementById("trace");
+  if (!el && document.body) { el = document.createElement("pre"); el.id = "trace"; el.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:9;margin:0;padding:8px 10px;font:12px/1.4 ui-monospace,monospace;color:#cfe;background:rgba(0,0,0,.7);border-radius:8px;pointer-events:none"; document.body.append(el); }
+  if (el) el.textContent = traceLines.join("\n");
+};
 trace("modules");
 
 const Q = new URLSearchParams(window.__rankQuery || location.search);
@@ -131,7 +140,11 @@ const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
 const rig = new THREE.Group();          // floats and turns
 trace("studio done");
 await pause();
+// the surface maps are queued here and drawn in one go at the warm-up
+// (their shaders compile together: see deferMaps in medallion.js)
+if (!MANUAL) deferMaps(true);
 const medal = buildMedallion(TIER);
+deferMaps(false);
 trace("medallion");
 rig.add(medal);
 scene.add(rig);
@@ -166,6 +179,7 @@ wave.position.z = 0.5; rig.add(wave);
 // the rank's own moment at the strike (signature.js)
 await pause();
 const sig = signature(family, T, { light: LIGHT, glowTex });
+trace("signature");
 rig.add(sig.group);
 
 // embers: gather to the forge, burst at the strike, then drift
@@ -221,6 +235,7 @@ function placeEmbers(t) {
 const MAX_SAMPLES = renderer.capabilities.maxSamples || 4;
 const target = (samples) => new THREE.WebGLRenderTarget(Math.max(1, Math.round(window.innerWidth * renderer.getPixelRatio())), Math.max(1, Math.round(window.innerHeight * renderer.getPixelRatio())), { type: THREE.HalfFloatType, samples: Math.min(samples, MAX_SAMPLES) });
 let MSAA = Number(Q.get("msaa")) || 4;
+trace("embers etc");
 const composer = new EffectComposer(renderer, target(MSAA));
 composer.addPass(new RenderPass(scene, camera));
 // A tight, gentle bloom: light sources glow without veiling the metal in haze.
@@ -239,6 +254,7 @@ composer.addPass(new OutputPass());
 // or the lighter FXAA, after the colours are final.
 const smaa = new SMAAPass(); smaa.enabled = false; composer.addPass(smaa);
 const fxaa = new FXAAPass(); fxaa.enabled = false; composer.addPass(fxaa);
+trace("composer");
 
 // ---------------------------------------------------------------------------
 // framing: the medallion sits in the upper part, the card below it
@@ -462,8 +478,15 @@ const STEPS = [
   { name: "lower", pr: Math.min(1, DPR) * 0.85, msaa: 0, aa: "fxaa", bloom: 0.35 },
   { name: "lowest", pr: Math.min(1, DPR) * 0.7, msaa: 0, aa: "fxaa", bloom: 0.35 },
 ].filter((st, i, all) => i === 0 || all.slice(0, i).every((o) => o.pr !== st.pr || o.aa !== st.aa || o.bloom !== st.bloom));   // on a 1x screen some steps are the same
-const BUDGET_MS = 12;        // timed at the busiest moment with the GPU forced to finish: real frames run lighter than this (60 fps is 16.7 ms)
-const QUALITY_KEY = `mp_rank_quality_v2:${innerWidth}x${innerHeight}@${DPR}`;
+// 2026-10-21: what a frame costs is measured the way the scene runs: the GPU
+// is woken first (an integrated chip that has been idle starts at a low clock
+// and makes the first frames look two or three times slower than they are),
+// then a run of frames is drawn back to back and timed as a whole. Timing
+// single frames with the GPU stopped after each one measured the stop, not
+// the frame, and sent good laptops to the still medallion.
+const BUDGET_MS = 14;        // 60 fps is 16.7 ms a frame; keep some room
+const DEFAULT_STEP = Math.max(0, STEPS.findIndex((st) => st.name === "sharp-smaa"));
+const QUALITY_KEY = `mp_rank_quality_v3:${innerWidth}x${innerHeight}@${DPR}`;
 let quality = { name: "fixed", ms: null };
 let AA = "msaa";
 const TRIALS = [];
@@ -476,48 +499,84 @@ function applyStep(st) {
   fit();
 }
 const px = new Uint8Array(4);
-function timeStep() {
+function timeStep(settle = 3, runs = 6) {
   const gl = renderer.getContext();
   const busy = T.strike + 0.08;
-  draw(busy); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);      // first draw at a new size sets things up: not timed
-  let total = 0;
-  for (let i = 0; i < 3; i++) { const a = performance.now(); draw(busy + i * 0.03); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); total += performance.now() - a; }
-  TRIALS.push(`${STEPS.find((st) => st.pr === renderer.getPixelRatio() && st.aa === AA && st.bloom === BLOOM_SCALE)?.name || "?"} ${(total / 3).toFixed(1)}`);
-  return total / 3;
+  const finishGpu = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  const a0 = performance.now();
+  for (let i = 0; i < settle; i++) draw(busy + i * 0.01);       // a new size sets itself up; the GPU wakes
+  finishGpu();
+  const settled = (performance.now() - a0) / settle;
+  if (settled > BUDGET_MS * 3) {                                  // clearly far over: no need to time it closely
+    TRIALS.push(`${STEPS.find((st) => st.pr === renderer.getPixelRatio() && st.aa === AA && st.bloom === BLOOM_SCALE)?.name || "?"} >${settled.toFixed(0)}`);
+    return settled;
+  }
+  const a = performance.now();
+  for (let i = 0; i < runs; i++) draw(busy + i * 0.03);
+  finishGpu();
+  const ms = (performance.now() - a) / runs;
+  TRIALS.push(`${STEPS.find((st) => st.pr === renderer.getPixelRatio() && st.aa === AA && st.bloom === BLOOM_SCALE)?.name || "?"} ${ms.toFixed(1)}`);
+  return ms;
+}
+// wake the GPU before anything is timed (about a tenth of a second)
+function wakeGpu() {
+  const gl = renderer.getContext(), a = performance.now();
+  let i = 0;
+  while (performance.now() - a < 60 && i < 12) { draw(T.strike + 0.08 + (i++ % 4) * 0.01); if (i % 4 === 0) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); }
 }
 async function chooseQuality() {
   if (Q.get("scale") || Q.get("msaa")) return { name: "fixed", ms: null };
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(QUALITY_KEY) || "null"); } catch (e) { /* storage blocked */ }
+  if (DEBUG) saved = null;
+  const from = saved && Number.isInteger(saved.step) ? Math.max(0, Math.min(STEPS.length - 1, saved.step)) : DEFAULT_STEP;
+  // measured here before: use that, and measure again every fourth scene (so a
+  // device can climb a step, or settle after a change)
+  const runs = saved && Number.isInteger(saved.runs) ? saved.runs : 0;
+  if (saved && runs % 4 !== 0) {
+    applyStep(STEPS[from]);
+    try { localStorage.setItem(QUALITY_KEY, JSON.stringify({ step: from, runs: runs + 1 })); } catch (e) { /* storage blocked */ }
+    TRIALS.push(`${STEPS[from].name} (saved)`);
+    return { name: STEPS[from].name, step: from, ms: null };
+  }
+  applyStep(STEPS[from]);
+  let applied = from;
+  wakeGpu();
   if (DEBUG) {
-    saved = null;
     // ?debug=1: time every step on this device, for the record
     for (const st of STEPS) { applyStep(st); await pause(); timeStep(); }
+    applied = STEPS.length - 1;
     TRIALS.push("|");
   }
-  let from = 1;
-  if (saved && Number.isInteger(saved.step)) from = Math.max(0, Math.min(STEPS.length - 1, saved.step));
-  let chosen = null;
+  let chosen = null, lightest = Infinity;
   for (let i = from; i < STEPS.length; i++) {
-    applyStep(STEPS[i]);
+    if (applied !== i) { applyStep(STEPS[i]); applied = i; }
     await pause();
     const ms = timeStep();
+    if (i === STEPS.length - 1) lightest = ms;
     if (ms <= BUDGET_MS) {
       chosen = { step: i, ms };
-      // plenty of room: try one step sharper (once)
-      if (i > 0 && ms < BUDGET_MS * 0.42 && from === i) {
+      // plenty of room: one step sharper (each visit can climb one step)
+      if (i > 0 && i === from && ms < BUDGET_MS * 0.5) {
         applyStep(STEPS[i - 1]); await pause();
         const up = timeStep();
-        if (up <= BUDGET_MS) chosen = { step: i - 1, ms: up }; else applyStep(STEPS[i]);
+        applied = i - 1;
+        if (up <= BUDGET_MS) chosen = { step: i - 1, ms: up };
       }
       break;
     }
-    if (ms > BUDGET_MS * 4 && i < STEPS.length - 2) i += 1;      // far over: skip a step
+    if (ms > BUDGET_MS * 3 && i < STEPS.length - 2) i += 1;      // far over: skip a step
   }
-  if (!chosen) return { name: "too-slow", ms: null };
-  applyStep(STEPS[chosen.step]);
-  try { localStorage.setItem(QUALITY_KEY, JSON.stringify({ step: chosen.step })); } catch (e) { /* storage blocked */ }
-  return { name: STEPS[chosen.step].name, step: chosen.step, ms: Math.round(chosen.ms * 10) / 10 };
+  // Even the lightest step over budget: play it anyway -- a scene a little
+  // under 60 fps is far better than no scene -- unless it would be a slide
+  // show (under about 20 fps: a computer drawing without a graphics chip).
+  if (!chosen) {
+    if (lightest > 50) return { name: "too-slow", ms: Math.round(lightest) };
+    chosen = { step: STEPS.length - 1, ms: lightest };
+  }
+  if (applied !== chosen.step) applyStep(STEPS[chosen.step]);
+  try { localStorage.setItem(QUALITY_KEY, JSON.stringify({ step: chosen.step, runs: 1 })); } catch (e) { /* storage blocked */ }
+  return { name: STEPS[chosen.step].name, step: chosen.step, ms: chosen.ms === null ? null : Math.round(chosen.ms * 10) / 10 };
 }
 
 // ---------------------------------------------------------------------------
@@ -538,6 +597,7 @@ window.addEventListener("keydown", (e) => {
   else if (e.key === " " || e.key === "Enter") { if (document.activeElement && document.activeElement.tagName === "BUTTON" && now >= T.actions) return; e.preventDefault(); if (now < END) skip(); else finish("mathpath-rank-continue"); }
 });
 
+trace("card");
 fit();
 window.__rankBuildMs = Math.round(performance.now());
 trace("built");
@@ -551,6 +611,7 @@ if (MANUAL) {
   post("mathpath-cutscene-ready");
 } else if (REDUCE) {
   // reduced motion: the finished medallion and the card, nothing flying
+  await finishMaps();
   if (!Q.get("scale") && !Q.get("msaa")) applyStep(STEPS[Math.min(2, STEPS.length - 1)]);
   now = END + 0.01; draw(now); paused = true;
   post("mathpath-cutscene-ready");
@@ -560,8 +621,22 @@ if (MANUAL) {
   // measure this device (QUALITY), all before anything moves -- otherwise
   // parts stall a frame as they first appear, and a slow first second eats
   // into the scene.
+  // The device is measured out of sight: the canvas stays hidden (the room is
+  // dark) and the app is told it may fade the scene in as soon as the shaders
+  // are ready, so the fade and the measuring happen at the same time.
+  const canvasEl = renderer.domElement;
+  canvasEl.style.visibility = "hidden";
+  const embedded = window.parent !== window;
+  const startSignal = new Promise((resolve) => {
+    window.addEventListener("message", (e) => { if (e.source === window.parent && e.data && e.data.type === "mathpath-rank-start") resolve(); });
+    setTimeout(resolve, embedded ? 2500 : 0);
+  });
   draw(END + 0.01, false);
-  try { await (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))); } catch (e) { renderer.compile(scene, camera); }
+  // the medallion's surface maps and every material compile at the same time
+  const compileAll = (async () => { try { await (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))); } catch (e) { renderer.compile(scene, camera); } })();
+  await Promise.all([finishMaps(), compileAll]);
+  trace("compiled");
+  post("mathpath-cutscene-ready");
   await pause();
   // and draw that finished pose once for real: every part's geometry and
   // textures go up to the GPU now, not in the frame where the part first
@@ -583,25 +658,19 @@ if (MANUAL) {
     TRIALS.push(`| all ${times.length} frames: median ${q(0.5).toFixed(1)}, 90% ${q(0.9).toFixed(1)}, 99% ${q(0.99).toFixed(1)}, worst ${sorted.at(-1).toFixed(1)} ms, over 16.7 ms: ${times.filter((x) => x > 16.7).length} (${times.map((x, i) => [x, i / 60]).filter(([x]) => x > 16.7).map(([x, t]) => `${t.toFixed(2)}s ${x.toFixed(0)}`).join(", ")})`);
   }
   if (quality.name === "too-slow") {
-    // the still medallion is better than a stuttering scene
+    // under 20 fps even at the lightest setting: the still medallion instead
     try { parent.postMessage({ type: "mathpath-cutscene-error", message: "too slow" }, "*"); } catch (e) { /* standalone */ }
   }
-  now = 0; draw(0);                                  // the opening frame, waiting
+  draw(now);                                         // the opening frame, waiting (or the end, if Skip was pressed meanwhile)
+  canvasEl.style.visibility = "";
   // The scene starts when the app has faded it in (mathpath-rank-start), with
   // the music if it is ready by then; on its own (no app around it) at once.
-  const embedded = window.parent !== window;
-  let go = null;
-  const startSignal = new Promise((resolve) => {
-    go = resolve;
-    window.addEventListener("message", (e) => { if (e.source === window.parent && e.data && e.data.type === "mathpath-rank-start") resolve(); });
-    setTimeout(resolve, embedded ? 2500 : 0);
-  });
   window.__rankTime = () => ({ now, started });     // for the tests
-  post("mathpath-cutscene-ready");
+  trace(`ready (${quality.name} ${quality.ms ?? "-"} ms; ${TRIALS.join(", ")})`);
   await startSignal;
   await Promise.race([Sound.ready, new Promise((r) => setTimeout(r, 400))]);
   let focused = false, last = 0, last0 = 0;
-  const slowFrames = [];
+  const slowFrames = []; let seenFrames = 0;
   const loop = (ms) => {
     if (closed) return;
     // The picture is the clock. Each frame moves it on by the time since the
@@ -614,16 +683,17 @@ if (MANUAL) {
     // a slow frame, while on screen (a tab in the background is held to one
     // frame a second by the browser: that says nothing about this device)
     const raw = (ms - last0) / 1000; last0 = ms;
-    if (!document.hidden && raw > 0.024 && raw < 0.2 && slowFrames.length < 400) slowFrames.push(raw);
+    if (!document.hidden && raw < 0.2) { seenFrames++; if (raw > 0.024 && slowFrames.length < 400) slowFrames.push(raw); }
     draw(now);
     Sound.follow(now);
     if (DEBUG) debugFrame(ms);
     if (now >= T.actions) {
       if (!focused) {
         focused = true; $("continue").focus({ preventScroll: true });
+        if (TRACE) { const gaps = slowFrames.map((x) => x * 1000); trace(`played: ${seenFrames} frames on screen, ${gaps.length} over 24 ms, worst ${gaps.length ? Math.round(Math.max(...gaps)) : 0} ms`); }
         // most frames slow on this device: start one step lighter next time
-        if (quality.step !== undefined && slowFrames.length > 60 && quality.step < STEPS.length - 1) {
-          try { localStorage.setItem(QUALITY_KEY, JSON.stringify({ step: quality.step + 1 })); } catch (e) { /* storage blocked */ }
+        if (quality.step !== undefined && seenFrames > 120 && slowFrames.length > seenFrames * 0.5 && quality.step < STEPS.length - 1) {
+          try { localStorage.setItem(QUALITY_KEY, JSON.stringify({ step: quality.step + 1, runs: 0 })); } catch (e) { /* storage blocked */ }
         }
       }
       cardSince ??= now;

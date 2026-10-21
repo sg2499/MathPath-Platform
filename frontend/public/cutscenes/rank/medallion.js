@@ -74,6 +74,33 @@ let SIZE = 1024;             // surface-map resolution (setSurfaceDetail)
 // desktop so the hammering, engraving and brushing stay crisp up close.
 export function setSurfaceDetail(px) { SIZE = px; }
 const CACHE = new Map();
+// 2026-10-21: every map is its own shader, and compiling them one by one is
+// most of the cut scene's loading time on Windows laptops (D3D11). With
+// deferMaps(true) the maps are only queued while the medallion is built;
+// finishMaps() then compiles all their shaders at once, in parallel where the
+// browser can (KHR_parallel_shader_compile), and draws them. The textures are
+// handed out at once and filled in by finishMaps, before anything is shown.
+let DEFER = false;
+const PENDING = [];
+export function deferMaps(on) { DEFER = !!on; }
+export async function finishMaps() {
+  if (!PENDING.length) return;
+  const { renderer, camera, quad } = gpu();
+  const jobs = PENDING.splice(0);
+  const batch = new THREE.Scene();
+  for (const j of jobs) { const m = new THREE.Mesh(quad.geometry, j.material); m.frustumCulled = false; batch.add(m); }
+  try { if (renderer.compileAsync) await renderer.compileAsync(batch, camera); } catch (e) { /* drawn below either way */ }
+  for (const j of jobs) drawMap(j.rt, j.material);
+}
+function drawMap(rt, material) {
+  const { renderer, scene, camera, quad } = gpu();
+  quad.material = material;
+  const prev = renderer.getRenderTarget();
+  renderer.setRenderTarget(rt);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(prev);
+  material.dispose();
+}
 
 // Surface maps are drawn on the GPU (a few milliseconds each, where drawing a
 // 2048 map in JavaScript took seconds). Height fields become normal maps by
@@ -117,7 +144,7 @@ function genMap(kind, key, body, { strength = 1, dome = 0 } = {}) {
   const size = flat ? Math.min(SIZE, 512) : SIZE;   // a plain dome is smooth: 512 is exact
   const k = `${kind}:${key}:${strength}:${dome}:${size}`;
   if (CACHE.has(k)) return CACHE.get(k);
-  const { renderer, scene, camera, quad, half } = gpu();
+  const { renderer, half } = gpu();
   const code = flat ? "return 0.0;" : /\breturn\b/.test(body) ? body : `return (${body});`;
   const rt = new THREE.WebGLRenderTarget(size, size, {
     type: kind === "n" && half ? THREE.HalfFloatType : THREE.UnsignedByteType,
@@ -125,7 +152,7 @@ function genMap(kind, key, body, { strength = 1, dome = 0 } = {}) {
     generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter,
     depthBuffer: false, anisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()),
   });
-  quad.material = new THREE.RawShaderMaterial({
+  const material = new THREE.RawShaderMaterial({
     glslVersion: THREE.GLSL3,
     uniforms: { EXTENT: { value: EXT }, PXL: { value: (2 * EXT) / size }, STR: { value: strength }, DOME: { value: dome } },
     vertexShader: `precision highp float; in vec3 position; uniform float EXTENT; out vec2 vP; void main() { vP = position.xy * EXTENT; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
@@ -140,11 +167,7 @@ ${kind === "n" ? `  float e = PXL, l = F(vP - vec2(e, 0)), rr = F(vP + vec2(e, 0
 }`,
     depthTest: false, depthWrite: false,
   });
-  const prev = renderer.getRenderTarget();
-  renderer.setRenderTarget(rt);
-  renderer.render(scene, camera);
-  renderer.setRenderTarget(prev);
-  quad.material.dispose();
+  if (DEFER) PENDING.push({ rt, material }); else drawMap(rt, material);
   const t = rt.texture;
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   t.repeat.set(1 / (2 * EXT), 1 / (2 * EXT)); t.offset.set(0.5, 0.5);
