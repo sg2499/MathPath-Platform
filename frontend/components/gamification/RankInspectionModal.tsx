@@ -19,6 +19,8 @@ import { RANK_TIERS } from '@/lib/rankTiers';
 
 // 2026-10-11 (performance): the 3D / celebration scenes load only when shown.
 const RankCinematicOverlay = dynamic(() => import('./RankCinematicOverlay').then((Module) => Module.RankCinematicOverlay), { ssr: false });
+// warm the browser cache for the scene while the student looks at the roadmap
+const WarmScene = (Tier: string) => { import('./RankCinematicOverlay').then((Module) => Module.PrefetchRankScene(Tier, 'replay')).catch(() => {}); };
 
 export interface RankInspectionModalProps {
   isOpen: boolean;
@@ -82,6 +84,8 @@ export function RankInspectionModal({ isOpen, onClose, currentXp, currentRankTie
     if (A !== null) setFill({ size: A + (B !== null ? (B - A) * intoStep : 0), vertical: Vertical });
     setCanScroll({ back: Scroller.scrollLeft > 4, on: Scroller.scrollLeft + Scroller.clientWidth < Scroller.scrollWidth - 4 });
   }, [own.tier, next, intoStep]);
+
+  useEffect(() => { if (isOpen) WarmScene(currentRankTier); }, [isOpen, currentRankTier]);
 
   useLayoutEffect(() => {
     if (!isOpen || !mounted) return;

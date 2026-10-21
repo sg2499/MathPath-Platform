@@ -13579,3 +13579,9 @@ html body main :is(.math-subtitle, p[class*="max-w-"]):not(.text-center):not(.mx
 
   .mp-headbar > .mp-headbar-act { margin-top: 0; }
 }
+
+/* 2026-10-21: while a rank cut scene is open it covers the whole screen, so the
+   page behind it is not drawn at all (see RankCinematicOverlay). */
+html[data-rank-scene="open"] body > *:not(.se-rank-scene) {
+  visibility: hidden !important;
+}
