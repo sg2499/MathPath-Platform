@@ -70,6 +70,11 @@ button:focus-visible { outline: 3px solid var(--glow); outline-offset: 3px; }
   <button id="sound" type="button" aria-pressed="true" aria-label="Sound" title="Sound"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path class="on" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="off" d="m16 9 5 6m0-6-5 6"/></svg></button>
   <button id="skip" type="button">Skip</button>
 </div>
-<script type="module" src="/cutscenes/rank/scene.js"></script>
+<script type="module">
+// the scene and every file it loads carry this page's version (?v=), so a
+// browser never mixes an old cached script with a new page after a deploy
+const v = new URLSearchParams(location.search).get("v");
+import(`./rank/scene.js${v ? `?v=${encodeURIComponent(v)}` : ""}`);
+</script>
 </body>
 </html>

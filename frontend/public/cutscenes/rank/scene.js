@@ -12,14 +12,25 @@
 //        window.__rank.seek(t) renders the exact frame at t seconds).
 // Messages to the app: mathpath-cutscene-ready, mathpath-rank-continue,
 //        mathpath-rank-roadmap (and mathpath-cutscene-error from rank.html).
-import { buildMedallion, makeStudio, parseTier, setSurfaceDetail, THREE } from "./medallion.js";
 import { EffectComposer } from "./vendor/postprocessing/EffectComposer.js";
 import { RenderPass } from "./vendor/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "./vendor/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "./vendor/postprocessing/OutputPass.js";
-import { signature } from "./signature.js";
+import { FXAAPass } from "./vendor/postprocessing/FXAAPass.js";
+import { SMAAPass } from "./vendor/postprocessing/SMAAPass.js";
 
-const Q = new URLSearchParams(location.search);
+// 2026-10-20 (live fixes): this file is loaded as scene.js?v=<version>; our own
+// modules and the music carry the same version, so a browser can never run an
+// old medallion.js with a new scene after a deploy (they are cached for a day).
+const V = new URL(import.meta.url).search;
+const { buildMedallion, makeStudio, parseTier, setSurfaceDetail, THREE } = await import(`./medallion.js${V}`);
+const { signature } = await import(`./signature.js${V}`);
+const pause = () => new Promise((r) => setTimeout(r, 0));   // let the page breathe between the heavy steps
+const TRACE = new URLSearchParams(location.search).get("trace") === "1";
+const trace = (what) => { if (TRACE) console.log(`[rank] ${what} ${Math.round(performance.now())}`); };   // ?trace=1: start-up timings in the console
+trace("modules");
+
+const Q = new URLSearchParams(window.__rankQuery || location.search);
 // A rank family on its own ("GOLD") means its finished medallion (GOLD_I).
 const RAW_TIER = (Q.get("tier") || "COPPER_V").toUpperCase();
 const TIER = /^(COPPER|BRONZE|SILVER|GOLD|PLATINUM|EMERALD|DIAMOND)$/.test(RAW_TIER) ? `${RAW_TIER}_I` : RAW_TIER;
@@ -30,6 +41,9 @@ const REDUCE = Q.get("motion") === "reduce" || matchMedia("(prefers-reduced-moti
 const num = (k) => (Q.get(k) !== null && Q.get(k) !== "" && Number.isFinite(Number(Q.get(k))) ? Number(Q.get(k)) : null);
 const XP = num("xp"), START = num("start"), NEXT = (Q.get("next") || "").toUpperCase(), NEXT_XP = num("nextXp");
 const { family, numeral } = parseTier(TIER);
+
+// The music starts downloading straight away, alongside everything else.
+const MUSIC = MANUAL ? null : fetch(new URL(`./audio/${family}-${MODE}.mp3${V}`, import.meta.url)).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
 
 const LOOK = {
   COPPER: { name: "Copper", glow: "#ff8a3d", a: "#ffe7d1", b: "#f0a06a", c: "#8a4b22", bg: "#3a1606" },
@@ -83,10 +97,16 @@ const LIGHT = Q.get("quality") === "light" || (Q.get("quality") !== "full" && ((
   return (cores <= 4 && mem <= 3) || /swiftshader|llvmpipe|softpipe|mali-[34t]\d\d\b|mali-g(31|51|52)\b|adreno \(tm\) [345]\d\d\b|powervr|sgx|intel\(r\) hd graphics [2-5]\d{2}\b/i.test(gpu);
 })());
 setSurfaceDetail(Number(Q.get("detail")) || (SMALL || LIGHT ? 1024 : 2048));   // ?detail= is for the test tools (software rendering)
-renderer.setPixelRatio(Number(Q.get("scale")) || (LIGHT ? 1 : Math.min(2, Math.max(window.devicePixelRatio || 1, SMALL ? 1 : 1.5))));   // ?scale= is for the test tools
+// How sharply it is drawn is not guessed: see QUALITY below, measured on this
+// device before the scene starts. ?scale= / ?msaa= (test tools) fix it instead.
+const DPR = window.devicePixelRatio || 1;
+renderer.setPixelRatio(Number(Q.get("scale")) || Math.min(2, DPR));
 document.body.prepend(renderer.domElement);
 // No shadow pass: the scene's only shadow-casting light (the key) is off here,
 // so a shadow map would cost a full extra render every frame for nothing.
+trace("renderer");
+await pause();
+trace("studio start");
 const studio = makeStudio(renderer, { exposure: 1.12, shadows: false, boxes: 0.62, sparkle: 0.08, envSize: Q.get("detail") ? 256 : SMALL || LIGHT ? 512 : 1024 });
 const scene = studio.scene;
 // The stills are lit for a small picture; in the scene the medallion fills the
@@ -109,7 +129,10 @@ scene.background = (() => {
 
 const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
 const rig = new THREE.Group();          // floats and turns
+trace("studio done");
+await pause();
 const medal = buildMedallion(TIER);
+trace("medallion");
 rig.add(medal);
 scene.add(rig);
 const parts = { body: [], numeral: [], stone: [], laurel: [], crest: [], crown: [] };
@@ -141,6 +164,7 @@ const wave = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.ShaderM
 wave.position.z = 0.5; rig.add(wave);
 
 // the rank's own moment at the strike (signature.js)
+await pause();
 const sig = signature(family, T, { light: LIGHT, glowTex });
 rig.add(sig.group);
 
@@ -194,13 +218,27 @@ function placeEmbers(t) {
 // The bloom pipeline renders into its own buffer, which by default has no
 // anti-aliasing: every metal edge stair-stepped. Multisample it (8x where the
 // device allows), in half float so highlights keep their range.
-const MSAA = Math.min(Number(Q.get("msaa")) || (LIGHT ? 4 : 8), renderer.capabilities.maxSamples || 4);   // ?msaa= is for the recording tools
-const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(window.innerWidth * renderer.getPixelRatio(), window.innerHeight * renderer.getPixelRatio(), { type: THREE.HalfFloatType, samples: MSAA }));
+const MAX_SAMPLES = renderer.capabilities.maxSamples || 4;
+const target = (samples) => new THREE.WebGLRenderTarget(Math.max(1, Math.round(window.innerWidth * renderer.getPixelRatio())), Math.max(1, Math.round(window.innerHeight * renderer.getPixelRatio())), { type: THREE.HalfFloatType, samples: Math.min(samples, MAX_SAMPLES) });
+let MSAA = Number(Q.get("msaa")) || 4;
+const composer = new EffectComposer(renderer, target(MSAA));
 composer.addPass(new RenderPass(scene, camera));
 // A tight, gentle bloom: light sources glow without veiling the metal in haze.
+// It is soft by nature, so on lighter settings it is worked out at a lower
+// resolution (BLOOM_SCALE) -- the glow looks the same and costs a fraction.
 const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.3, 0.2, 2.0);  // only real light sources (emissive lines, the strike) bloom, never a bright reflection
-if (Q.get("bloom") !== "0") composer.addPass(bloom);
+let BLOOM_SCALE = 1;
+const bloomSetSize = bloom.setSize.bind(bloom);
+bloom.setSize = (w, h) => bloomSetSize(Math.max(2, Math.round(w * BLOOM_SCALE)), Math.max(2, Math.round(h * BLOOM_SCALE)));
+let BLOOM_ON = Q.get("bloom") !== "0";
+composer.addPass(bloom);
+bloom.enabled = BLOOM_ON;
 composer.addPass(new OutputPass());
+// Edge smoothing that costs far less than multisampling on laptop and phone
+// GPUs (where a multisampled half-float buffer is most of the frame): SMAA,
+// or the lighter FXAA, after the colours are final.
+const smaa = new SMAAPass(); smaa.enabled = false; composer.addPass(smaa);
+const fxaa = new FXAAPass(); fxaa.enabled = false; composer.addPass(fxaa);
 
 // ---------------------------------------------------------------------------
 // framing: the medallion sits in the upper part, the card below it
@@ -211,7 +249,6 @@ function fit() {
   const w = window.innerWidth, h = window.innerHeight, aspect = w / h;
   renderer.setSize(w, h, false);
   composer.setSize(w, h);
-  bloom.resolution.set(w, h);
   camera.aspect = aspect;
   const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
   const portrait = aspect < 0.9;
@@ -309,7 +346,7 @@ function draw(t, render = true) {
   const sw = prog(t, T.sweep, 1.3);
   sweep.intensity = Math.sin(sw * Math.PI) * 5;
   sweep.position.set(-8 + sw * 16, 3, 4); sweep.target.position.set(0, baseY, 0);
-  bloom.strength = 0.3 + hit * 1.2;
+  bloom.strength = (0.3 + hit * 1.2) * (BLOOM_SCALE < 1 ? 1.3 : 1);   // a lower-resolution bloom spreads thinner: give it back its weight
   const waveP = prog(t, T.strike, 0.9);
   wave.scale.setScalar(0.7 + easeOut(waveP) * 5.5);
   wave.material.uniforms.alpha.value = waveP > 0 && waveP < 1 ? Math.pow(1 - waveP, 1.5) * 0.85 : 0;
@@ -338,15 +375,12 @@ const Sound = (() => {
   const AC = window.AudioContext || window.webkitAudioContext;
   const ctx = !MANUAL && AC ? new AC({ latencyHint: "interactive" }) : null;
   let buffer = null, src = null, startedAt = 0, offsetAt = 0, playing = false, startWanted = null;
+  let lastFollow = 0;
   const gain = ctx ? ctx.createGain() : null;
   if (gain) { gain.gain.value = 0.85; gain.connect(ctx.destination); }
-  if (ctx) {
-    fetch(new URL(`./audio/${family}-${MODE}.mp3`, import.meta.url))
-      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
-      .then((b) => ctx.decodeAudioData(b))
-      .then((b) => { buffer = b; if (startWanted !== null) play(startWanted()); })
-      .catch(() => { buffer = null; });
-  }
+  // decoded as soon as it arrives; the scene waits for it (briefly) so the
+  // picture and the music start together
+  const decoded = ctx && MUSIC ? MUSIC.then((b) => (b ? ctx.decodeAudioData(b) : null)).then((b) => { buffer = b; if (b && startWanted !== null && !playing) play(startWanted()); return b; }).catch(() => null) : Promise.resolve(null);
   const btn = document.getElementById("sound");
   const paint = () => { const on = wanted && ctx && ctx.state === "running"; btn.setAttribute("aria-pressed", on ? "true" : "false"); btn.setAttribute("aria-label", on ? "Sound on" : "Sound off"); btn.title = on ? "Sound on" : "Sound off"; };
   if (ctx) {
@@ -365,8 +399,17 @@ const Sound = (() => {
     src.start(ctx.currentTime + 0.005, Math.max(0, offset));
     startedAt = ctx.currentTime; offsetAt = offset; playing = true; paint();
   }
-  window.__rankSound = () => ({ state: ctx && ctx.state, wanted, playing, loaded: !!buffer, at: playing ? offsetAt + ctx.currentTime - startedAt : null });   // for the tests
+  const at = () => (playing ? offsetAt + ctx.currentTime - startedAt : null);
+  window.__rankSound = () => ({ state: ctx && ctx.state, wanted, playing, loaded: !!buffer, at: at() });   // for the tests
+  // A tab in the background stops drawing; the music waits with it.
+  document.addEventListener("visibilitychange", () => {
+    if (!ctx) return;
+    if (document.hidden) ctx.suspend().catch(() => {});
+    else if (wanted) ctx.resume().catch(() => {});
+  });
   return {
+    ready: decoded,
+    at,
     // start with the clock: clockNow() gives the scene's time when the sound can actually begin
     begin(clockNow) {
       startWanted = clockNow;
@@ -376,6 +419,10 @@ const Sound = (() => {
       if (ctx.state === "running") play(clockNow());
     },
     seek(t) { if (playing) play(t); },
+    // the picture is the clock: if the music has drifted from it (a stalled
+    // frame), bring the music back in step
+    // (at most once every two seconds, so a struggling device never chops the music up)
+    follow(t) { const a = at(); const n = performance.now(); if (a !== null && Math.abs(a - t) > 0.15 && t < buffer.duration - 0.2 && n - lastFollow > 2000) { lastFollow = n; play(t); } },
     fadeOut() { if (ctx && playing) { gain.gain.setTargetAtTime(0, ctx.currentTime, 0.08); setTimeout(stop, 500); } },
     toggle(clockNow) {
       wanted = !(wanted && ctx && ctx.state === "running");
@@ -388,13 +435,99 @@ const Sound = (() => {
 })();
 
 // ---------------------------------------------------------------------------
+// QUALITY: measured on this device. Each step is drawn at the scene's busiest
+// moment (the strike: the flash, the bloom, the moment's particles) and timed
+// with the GPU finished; the sharpest one that fits comfortably in a frame is
+// kept. It is decided before anything moves, and never changed mid-scene.
+// A device that cannot draw even the lightest step smoothly gets the still
+// medallion instead of a stuttering scene.
+// ---------------------------------------------------------------------------
+// ?debug=1: a small readout of the quality chosen and the frames drawn
+const DEBUG = Q.get("debug") === "1";
+let debugEl = null, dbg = { n: 0, slow: 0, worst: 0, last: 0, sum: 0 };
+function debugFrame(ms) {
+  if (!debugEl) { debugEl = document.createElement("pre"); debugEl.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:9;margin:0;padding:8px 10px;font:12px/1.4 ui-monospace,monospace;color:#cfe;background:rgba(0,0,0,.7);border-radius:8px;pointer-events:none;white-space:pre"; document.body.appendChild(debugEl); }
+  if (dbg.last) { const d = ms - dbg.last; dbg.n++; dbg.sum += d; if (d > 20) dbg.slow++; if (d > dbg.worst && dbg.n > 2) dbg.worst = d; }
+  dbg.last = ms;
+  if (dbg.n % 10 === 0) debugEl.textContent = `quality ${quality.name} (${quality.ms ?? "-"} ms)  canvas ${renderer.domElement.width}x${renderer.domElement.height}  aa ${AA}${MSAA ? MSAA : ""}  bloom ${BLOOM_SCALE}\ntried: ${TRIALS.join(", ")}\nframes ${dbg.n}  avg ${(dbg.sum / Math.max(1, dbg.n)).toFixed(1)} ms  over 20 ms: ${dbg.slow}  worst ${dbg.worst.toFixed(0)} ms  t ${now.toFixed(2)}`;
+}
+const SHARP = Math.min(2, DPR);                 // the screen's own pixels
+const STEPS = [
+  { name: "ultra", pr: Math.min(2, Math.max(DPR, 1.5)), msaa: 4, aa: "msaa", bloom: 1 },
+  { name: "high", pr: SHARP, msaa: 4, aa: "msaa", bloom: 1 },
+  { name: "sharp-smaa", pr: SHARP, msaa: 0, aa: "smaa", bloom: 0.5 },
+  { name: "sharp-fxaa", pr: SHARP, msaa: 0, aa: "fxaa", bloom: 0.5 },
+  { name: "mid", pr: Math.min(1.5, DPR), msaa: 0, aa: "fxaa", bloom: 0.5 },
+  { name: "low", pr: Math.min(1, DPR), msaa: 0, aa: "fxaa", bloom: 0.5 },
+  { name: "lower", pr: Math.min(1, DPR) * 0.85, msaa: 0, aa: "fxaa", bloom: 0.35 },
+  { name: "lowest", pr: Math.min(1, DPR) * 0.7, msaa: 0, aa: "fxaa", bloom: 0.35 },
+].filter((st, i, all) => i === 0 || all.slice(0, i).every((o) => o.pr !== st.pr || o.aa !== st.aa || o.bloom !== st.bloom));   // on a 1x screen some steps are the same
+const BUDGET_MS = 12;        // timed at the busiest moment with the GPU forced to finish: real frames run lighter than this (60 fps is 16.7 ms)
+const QUALITY_KEY = `mp_rank_quality_v2:${innerWidth}x${innerHeight}@${DPR}`;
+let quality = { name: "fixed", ms: null };
+let AA = "msaa";
+const TRIALS = [];
+function applyStep(st) {
+  renderer.setPixelRatio(st.pr);
+  composer.setPixelRatio(st.pr);
+  MSAA = st.msaa; BLOOM_SCALE = st.bloom; AA = st.aa;
+  smaa.enabled = st.aa === "smaa"; fxaa.enabled = st.aa === "fxaa";
+  composer.reset(target(MSAA));
+  fit();
+}
+const px = new Uint8Array(4);
+function timeStep() {
+  const gl = renderer.getContext();
+  const busy = T.strike + 0.08;
+  draw(busy); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);      // first draw at a new size sets things up: not timed
+  let total = 0;
+  for (let i = 0; i < 3; i++) { const a = performance.now(); draw(busy + i * 0.03); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); total += performance.now() - a; }
+  TRIALS.push(`${STEPS.find((st) => st.pr === renderer.getPixelRatio() && st.aa === AA && st.bloom === BLOOM_SCALE)?.name || "?"} ${(total / 3).toFixed(1)}`);
+  return total / 3;
+}
+async function chooseQuality() {
+  if (Q.get("scale") || Q.get("msaa")) return { name: "fixed", ms: null };
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(QUALITY_KEY) || "null"); } catch (e) { /* storage blocked */ }
+  if (DEBUG) {
+    saved = null;
+    // ?debug=1: time every step on this device, for the record
+    for (const st of STEPS) { applyStep(st); await pause(); timeStep(); }
+    TRIALS.push("|");
+  }
+  let from = 1;
+  if (saved && Number.isInteger(saved.step)) from = Math.max(0, Math.min(STEPS.length - 1, saved.step));
+  let chosen = null;
+  for (let i = from; i < STEPS.length; i++) {
+    applyStep(STEPS[i]);
+    await pause();
+    const ms = timeStep();
+    if (ms <= BUDGET_MS) {
+      chosen = { step: i, ms };
+      // plenty of room: try one step sharper (once)
+      if (i > 0 && ms < BUDGET_MS * 0.42 && from === i) {
+        applyStep(STEPS[i - 1]); await pause();
+        const up = timeStep();
+        if (up <= BUDGET_MS) chosen = { step: i - 1, ms: up }; else applyStep(STEPS[i]);
+      }
+      break;
+    }
+    if (ms > BUDGET_MS * 4 && i < STEPS.length - 2) i += 1;      // far over: skip a step
+  }
+  if (!chosen) return { name: "too-slow", ms: null };
+  applyStep(STEPS[chosen.step]);
+  try { localStorage.setItem(QUALITY_KEY, JSON.stringify({ step: chosen.step })); } catch (e) { /* storage blocked */ }
+  return { name: STEPS[chosen.step].name, step: chosen.step, ms: Math.round(chosen.ms * 10) / 10 };
+}
+
+// ---------------------------------------------------------------------------
 // clock, skip, the buttons
 // ---------------------------------------------------------------------------
-let now = 0, t0 = 0, paused = false, closed = false, cardSince = null;
+let now = 0, started = false, paused = false, closed = false, cardSince = null;
 const post = (type) => { try { parent.postMessage({ type }, "*"); } catch (e) { /* standalone */ } };
 const finish = (type) => { if (closed) return; closed = true; Sound.fadeOut(); post(type); };
 // skipping lands the music on the title: the motif and the final chord
-function skip() { if (!t0) t0 = performance.now(); if (now < END) { t0 -= (END - now) * 1000; now = END; Sound.seek(T.title - 0.02); } }
+function skip() { if (now < END) { now = END; Sound.seek(T.title - 0.02); } }
 $("sound").addEventListener("click", () => Sound.toggle(() => (REDUCE || paused ? T.title - 0.02 : Math.max(0, now))));
 $("skip").addEventListener("click", skip);
 $("continue").addEventListener("click", () => finish("mathpath-rank-continue"));
@@ -407,44 +540,92 @@ window.addEventListener("keydown", (e) => {
 
 fit();
 window.__rankBuildMs = Math.round(performance.now());
+trace("built");
 if (MANUAL) {
+  // test tools: the exact frame at any time, at the size the test asks for
+  // ?step=<name> (tools: compare the steps frame for frame)
+  if (Q.get("step")) applyStep(STEPS.find((st) => st.name === Q.get("step")) || STEPS[1]);
+  else if (!Q.get("scale") && !Q.get("msaa")) applyStep(STEPS[1]);
   window.__rank = { seek: (t) => { now = t; draw(t); return true; }, end: END, times: T };
   draw(0);
   post("mathpath-cutscene-ready");
 } else if (REDUCE) {
   // reduced motion: the finished medallion and the card, nothing flying
+  if (!Q.get("scale") && !Q.get("msaa")) applyStep(STEPS[Math.min(2, STEPS.length - 1)]);
   now = END + 0.01; draw(now); paused = true;
   post("mathpath-cutscene-ready");
   $("continue").focus({ preventScroll: true });
 } else {
-  // Warm up: pose the finished medallion and compile every material before
-  // the clock starts (the maps are drawn on the GPU already). Otherwise the
-  // numeral, the stones, the laurel and the crest each stall a frame the
-  // moment they first appear -- the hitches that read as lag.
-  // Compiled in the background where the browser can (parallel shader
-  // compiling), so the page stays responsive while it happens.
+  // Warm up: pose the finished medallion and compile every material, then
+  // measure this device (QUALITY), all before anything moves -- otherwise
+  // parts stall a frame as they first appear, and a slow first second eats
+  // into the scene.
   draw(END + 0.01, false);
-  const warm = renderer.compileAsync ? renderer.compileAsync(scene, camera).catch(() => renderer.compile(scene, camera)) : Promise.resolve(renderer.compile(scene, camera));
-  let focused = false, last = 0, frames = 0, slow = 0;
+  try { await (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))); } catch (e) { renderer.compile(scene, camera); }
+  await pause();
+  // and draw that finished pose once for real: every part's geometry and
+  // textures go up to the GPU now, not in the frame where the part first
+  // appears (a stall of tens of milliseconds, mid-scene)
+  draw(END + 0.01);
+  { const gl = renderer.getContext(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4)); }
+  trace("warm");
+  await pause();
+  quality = await chooseQuality();
+  trace(`quality ${quality.name}`);
+  window.__rankQuality = quality; quality.trials = TRIALS;
+  if (DEBUG) {
+    // ?debug=1: draw every frame of the scene, 60 a second, each one timed
+    // with the GPU finished -- what this device spends on each frame,
+    // whatever the browser is doing with this window
+    const gl = renderer.getContext(), times = [];
+    for (let t = 0; t <= END; t += 1 / 60) { const a = performance.now(); draw(t); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); times.push(performance.now() - a); if (times.length % 30 === 0) await pause(); }
+    const sorted = [...times].sort((x, y) => x - y), q = (f) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * f))];
+    TRIALS.push(`| all ${times.length} frames: median ${q(0.5).toFixed(1)}, 90% ${q(0.9).toFixed(1)}, 99% ${q(0.99).toFixed(1)}, worst ${sorted.at(-1).toFixed(1)} ms, over 16.7 ms: ${times.filter((x) => x > 16.7).length} (${times.map((x, i) => [x, i / 60]).filter(([x]) => x > 16.7).map(([x, t]) => `${t.toFixed(2)}s ${x.toFixed(0)}`).join(", ")})`);
+  }
+  if (quality.name === "too-slow") {
+    // the still medallion is better than a stuttering scene
+    try { parent.postMessage({ type: "mathpath-cutscene-error", message: "too slow" }, "*"); } catch (e) { /* standalone */ }
+  }
+  now = 0; draw(0);                                  // the opening frame, waiting
+  // The scene starts when the app has faded it in (mathpath-rank-start), with
+  // the music if it is ready by then; on its own (no app around it) at once.
+  const embedded = window.parent !== window;
+  let go = null;
+  const startSignal = new Promise((resolve) => {
+    go = resolve;
+    window.addEventListener("message", (e) => { if (e.source === window.parent && e.data && e.data.type === "mathpath-rank-start") resolve(); });
+    setTimeout(resolve, embedded ? 2500 : 0);
+  });
+  window.__rankTime = () => ({ now, started });     // for the tests
+  post("mathpath-cutscene-ready");
+  await startSignal;
+  await Promise.race([Sound.ready, new Promise((r) => setTimeout(r, 400))]);
+  let focused = false, last = 0, last0 = 0;
+  const slowFrames = [];
   const loop = (ms) => {
     if (closed) return;
-    if (!t0) { t0 = ms; last = ms; Sound.begin(() => Math.max(0, (performance.now() - t0) / 1000)); }   // the clock (and the music) start on the first real frame
-    // A device that cannot keep up gets a lighter canvas, a step at a time, so
-    // the motion stays smooth: judged over the first frames of the scene.
-    const dt = ms - last; last = ms;
-    if (frames < 90 && dt > 0) {
-      frames += 1; slow = dt > 24 ? slow + 1 : Math.max(0, slow - 1);
-      // a run of slow frames, or one very slow one past the first few
-      if ((slow >= 8 || (frames > 3 && dt > 120)) && renderer.getPixelRatio() > 1) {
-        renderer.setPixelRatio(Math.max(1, renderer.getPixelRatio() - 0.5));
-        composer.setPixelRatio(renderer.getPixelRatio());
-        fit(); slow = 0;
-      }
-    }
-    now = (ms - t0) / 1000;
+    // The picture is the clock. Each frame moves it on by the time since the
+    // last one, but never by more than a thirtieth of a second: a slow frame
+    // (or a tab in the background) slows the motion for a moment instead of
+    // skipping part of the scene.
+    if (!started) { started = true; last = ms; last0 = ms; Sound.begin(() => now); }
+    const dt = Math.min(1 / 30, Math.max(0, (ms - last) / 1000)); last = ms;
+    if (now < END + 30) now += dt;
+    // a slow frame, while on screen (a tab in the background is held to one
+    // frame a second by the browser: that says nothing about this device)
+    const raw = (ms - last0) / 1000; last0 = ms;
+    if (!document.hidden && raw > 0.024 && raw < 0.2 && slowFrames.length < 400) slowFrames.push(raw);
     draw(now);
+    Sound.follow(now);
+    if (DEBUG) debugFrame(ms);
     if (now >= T.actions) {
-      if (!focused) { focused = true; $("continue").focus({ preventScroll: true }); }
+      if (!focused) {
+        focused = true; $("continue").focus({ preventScroll: true });
+        // most frames slow on this device: start one step lighter next time
+        if (quality.step !== undefined && slowFrames.length > 60 && quality.step < STEPS.length - 1) {
+          try { localStorage.setItem(QUALITY_KEY, JSON.stringify({ step: quality.step + 1 })); } catch (e) { /* storage blocked */ }
+        }
+      }
       cardSince ??= now;
       const left = clamp((now - cardSince) / AUTO_CLOSE);
       $("timer").style.width = `${left * 100}%`;
@@ -452,5 +633,5 @@ if (MANUAL) {
     }
     requestAnimationFrame(loop);
   };
-  warm.then(() => { draw(0); post("mathpath-cutscene-ready"); requestAnimationFrame(loop); });
+  requestAnimationFrame(loop);
 }

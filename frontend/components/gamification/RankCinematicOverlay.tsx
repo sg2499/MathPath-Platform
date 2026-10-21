@@ -38,8 +38,35 @@ interface RankCinematicOverlayProps {
 }
 
 // Bump to make browsers fetch a new scene after a change.
-const SCENE_VERSION = '2026-10-20-p4';
+const SCENE_VERSION = '2026-10-21-s1';
 const LOAD_TIMEOUT_MS = 12000;
+const FADE_MS = 300;
+
+// 2026-10-20 (live fixes): fetch the scene's files ahead of time (into the
+// browser cache) when a scene is likely -- the roadmap opens, a promotion is
+// on its way -- so the click itself waits only for the scene to be built.
+const SCENE_FILES = [
+  'scene.js', 'medallion.js', 'signature.js',
+].map((F) => `/cutscenes/rank/${F}?v=${SCENE_VERSION}`).concat([
+  'vendor/three.module.min.js', 'vendor/three.core.min.js',
+  'vendor/postprocessing/EffectComposer.js', 'vendor/postprocessing/RenderPass.js', 'vendor/postprocessing/UnrealBloomPass.js', 'vendor/postprocessing/OutputPass.js',
+  'vendor/postprocessing/Pass.js', 'vendor/postprocessing/ShaderPass.js', 'vendor/postprocessing/MaskPass.js',
+  'vendor/shaders/CopyShader.js', 'vendor/shaders/LuminosityHighPassShader.js', 'vendor/shaders/OutputShader.js',
+].map((F) => `/cutscenes/rank/${F}`));
+const Prefetched = new Set<string>();
+export function PrefetchRankScene(Tier: string, Mode: 'promo' | 'replay' = 'replay') {
+  if (typeof document === 'undefined') return;
+  const Family = RankMedalKey(Tier).split('_')[0];
+  const Files = [...SCENE_FILES, `/cutscenes/rank/audio/${Family}-${Mode}.mp3?v=${SCENE_VERSION}`];
+  for (const Href of Files) {
+    if (Prefetched.has(Href)) continue;
+    Prefetched.add(Href);
+    const Link = document.createElement('link');
+    Link.rel = 'prefetch';
+    Link.href = Href;
+    document.head.appendChild(Link);
+  }
+}
 
 const NAMES: Record<string, string> = { COPPER: 'Copper', BRONZE: 'Bronze', SILVER: 'Silver', GOLD: 'Gold', PLATINUM: 'Platinum', EMERALD: 'Emerald', DIAMOND: 'Diamond', CHAMPION: 'Champion' };
 const GLOW: Record<string, string> = { COPPER: '#ff8a3d', BRONZE: '#ffb547', SILVER: '#7fd6ff', GOLD: '#ffd34d', PLATINUM: '#b77bff', EMERALD: '#38e09b', DIAMOND: '#9fe3ff', CHAMPION: '#ff2e55' };
@@ -130,10 +157,30 @@ export function RankCinematicOverlay({ tier, onComplete, mode = 'promo', state =
     return () => window.removeEventListener('keydown', OnKey);
   }, [Done]);
 
-  // The scene takes keyboard focus once it plays (Enter / Space / Escape work inside it).
+  // The scene takes keyboard focus once it plays (Enter / Space / Escape work
+  // inside it), and starts only once it is fully faded in, so the student sees
+  // it from the first ember.
   useEffect(() => {
-    if (PhaseState === 'playing') FrameRef.current?.focus();
+    if (PhaseState !== 'playing') return;
+    FrameRef.current?.focus();
+    const Timer = window.setTimeout(() => {
+      try { FrameRef.current?.contentWindow?.postMessage({ type: 'mathpath-rank-start' }, window.location.origin); } catch { /* the scene starts itself */ }
+    }, FADE_MS + 30);
+    return () => window.clearTimeout(Timer);
   }, [PhaseState]);
+
+  // its files, as early as possible
+  useEffect(() => { PrefetchRankScene(tier, mode); }, [tier, mode]);
+
+  // The scene covers the whole screen, so the page behind it is hidden while it
+  // is open: the device then spends nothing redrawing a page nobody can see
+  // (on a weak graphics chip that work was slowing the scene's own build).
+  useEffect(() => {
+    if (!Mounted) return;
+    const Root = document.documentElement;
+    Root.setAttribute('data-rank-scene', 'open');
+    return () => Root.removeAttribute('data-rank-scene');
+  }, [Mounted]);
 
   if (!Mounted) return null;
 
@@ -144,13 +191,13 @@ export function RankCinematicOverlay({ tier, onComplete, mode = 'promo', state =
   const Line = Family === 'CHAMPION' ? 'The highest rank' : DivisionDone ? `Division ${Numeral} complete` : Numeral && state !== 'passed' ? `Division ${Numeral}` : 'All divisions complete';
 
   return createPortal(
-    <div className="fixed inset-0 z-[999999] bg-black" role="dialog" aria-modal="true" aria-label={`${TierLabel(Key)} rank`}>
+    <div className="se-rank-scene fixed inset-0 z-[999999] bg-black" role="dialog" aria-modal="true" aria-label={`${TierLabel(Key)} rank`}>
       {PhaseState !== 'fallback' && !Waiting ? (
         <iframe
           ref={FrameRef}
           src={Source}
           title={`${TierLabel(Key)} rank`}
-          className="h-full w-full border-0 transition-opacity duration-500"
+          className="h-full w-full border-0 transition-opacity duration-300"
           style={{ opacity: PhaseState === 'playing' ? 1 : 0 }}
           allow="autoplay"
         />
