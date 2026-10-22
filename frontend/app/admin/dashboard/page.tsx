@@ -38,7 +38,7 @@ const QuickLinks = [
   { Icon: <ShieldCheck size={16} />, Label: "Assessment Readiness", Note: "Who has finished their level's practice", Route: "/admin/assessment-readiness" },
   { Icon: <FilePenLine size={16} />, Label: "Assessment Studio", Note: "Build and publish level assessments", Route: "/admin/assessment-blueprints" },
   { Icon: <CheckCircle2 size={16} />, Label: "Assessment Control", Note: "Results, requests and promotions", Route: "/admin/assessments" },
-  { Icon: <FileBarChart size={16} />, Label: "Performance Reports", Note: "Learning performance and student history", Route: "/admin/results" },
+  { Icon: <FileBarChart size={16} />, Label: "Performance Reports", Note: "Overview, learning performance and student history", Route: "/admin/results" },
 ];
 
 function Plural(Count: number, One: string, Many: string) {

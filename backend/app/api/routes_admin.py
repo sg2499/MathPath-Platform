@@ -3726,7 +3726,7 @@ def _admin_report_timezone_name(TimezoneName: str | None = None, TimezoneOffsetM
 
 
 def _admin_parse_report_datetime(Value: Any, TimezoneName: str | None = None, TimezoneOffsetMinutes: int | None = None) -> datetime | None:
-    if not Value or Value == "-":
+    if not Value or Value in ("-", "—"):
         return None
     if isinstance(Value, datetime):
         ParsedValue = Value
@@ -3745,24 +3745,25 @@ def _admin_parse_report_datetime(Value: Any, TimezoneName: str | None = None, Ti
 
 def _admin_report_date(Value: Any, TimezoneName: str | None = None, TimezoneOffsetMinutes: int | None = None) -> str:
     ParsedValue = _admin_parse_report_datetime(Value, TimezoneName, TimezoneOffsetMinutes)
-    return ParsedValue.strftime("%d-%b-%Y") if ParsedValue else "-"
+    # 2026-10-21: the house date (13 Oct 2026), and "—" when there is none
+    return ParsedValue.strftime("%d %b %Y") if ParsedValue else "—"
 
 
 def _admin_report_time(Value: Any, TimezoneName: str | None = None, TimezoneOffsetMinutes: int | None = None) -> str:
     ParsedValue = _admin_parse_report_datetime(Value, TimezoneName, TimezoneOffsetMinutes)
-    return ParsedValue.strftime("%I:%M %p") if ParsedValue else "-"
+    return ParsedValue.strftime("%I:%M %p") if ParsedValue else "—"
 
 
 def _admin_report_datetime(Value: Any, TimezoneName: str | None = None, TimezoneOffsetMinutes: int | None = None) -> str:
     ParsedValue = _admin_parse_report_datetime(Value, TimezoneName, TimezoneOffsetMinutes)
-    return ParsedValue.strftime("%d-%b-%Y, %I:%M %p") if ParsedValue else "-"
+    return ParsedValue.strftime("%d %b %Y, %I:%M %p") if ParsedValue else "—"
 
 
 def _admin_report_duration(Value: Any) -> str:
     try:
         TotalSeconds = int(round(float(Value or 0)))
     except (TypeError, ValueError):
-        return "-"
+        return "—"
     if TotalSeconds < 60:
         return f"{TotalSeconds} sec"
     Minutes, Seconds = divmod(TotalSeconds, 60)
@@ -4067,11 +4068,14 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
         api_error(404, "NOT_FOUND", "Student not found.")
     student_user = db.get(User, student.user_id)
     teacher_context = _admin_teacher_context_for_student(db, student)
+    module_id, level_id, lesson_id, dps_id = (None if Value in (None, "", "__ALL__") else Value for Value in (module_id, level_id, lesson_id, dps_id))
+    # 2026-10-21 (Performance Reports, Part 1): one call serves the whole page.
+    # The journey (levels, promotions) is always the module's; assessments are
+    # the module's or the level's; DPS attempts follow the full scope.
     promotion_records = _admin_promotion_records_for_scope(
         db,
         student_id=student.id,
         module_id=module_id,
-        level_id=level_id,
     )
     promotion_rows = [_admin_promotion_payload_for_report(db, Promotion) for Promotion in promotion_records]
     all_attempts = db.query(Attempt).filter(Attempt.student_id == student.id).order_by(Attempt.started_at.desc()).all()
@@ -4080,6 +4084,7 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
     all_attempts = [ensure_active_or_auto_submit(db, attempt) for attempt in all_attempts]
 
     filtered_attempts = []
+    module_attempts = []
     for attempt in all_attempts:
         scope = _admin_attempt_scope(db, attempt)
         level = scope.get("level")
@@ -4088,6 +4093,7 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
         dps = scope.get("dps")
         if module_id and (not module or module.id != module_id):
             continue
+        module_attempts.append((attempt, scope))
         if level_id and (not level or level.id != level_id):
             continue
         if lesson_id and (not lesson or lesson.id != lesson_id):
@@ -4095,6 +4101,8 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
         if dps_id and (not dps or dps.id != dps_id):
             continue
         filtered_attempts.append((attempt, scope))
+    # the shared DPS state (as on the trackers and Learning Performance)
+    ChainIndex = BuildDpsChainIndex(db, StudentIds=[student.id], StudentsByLevel=_students_by_level(db, [student.id]), Benchmark=BENCHMARK_PERCENTAGE, Heal=False)
 
     dps_rows = []
     assessment_rows = []
@@ -4143,6 +4151,8 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
         if ((assignment.assignment_type if assignment else "PRACTICE") or "PRACTICE").upper() == "ASSESSMENT":
             assessment_rows.append(common)
         else:
+            if attempt.assignment_id:
+                common.update(ChainIndex.attempt_fields(attempt.id, attempt.assignment_id, student.id))
             dps_rows.append(common)
 
     assessment_attempt_rows = _admin_assessment_attempt_report_rows(
@@ -4151,8 +4161,6 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
         teacher_context,
         module_id=module_id,
         level_id=level_id,
-        lesson_id=lesson_id,
-        dps_id=dps_id,
     )
     ExistingAssessmentAttemptIds = {Row.get("attemptId") for Row in assessment_rows if Row.get("attemptId")}
     assessment_rows.extend([
@@ -4167,16 +4175,20 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
         if Row.get("levelId"):
             level_ids.add(Row.get("levelId"))
 
-    if student.current_level_id and (not level_id or student.current_level_id == level_id):
+    # the journey covers every level of the module the student has worked in
+    for attempt, scope in module_attempts:
+        if scope.get("level"):
+            level_ids.add(scope["level"].id)
+    if student.current_level_id:
         current_level = db.get(Level, student.current_level_id)
         if current_level and (not module_id or current_level.module_id == module_id):
             level_ids.add(current_level.id)
 
     level_progress = []
     for Promotion in promotion_records:
-        if Promotion.from_level_id:
+        if Promotion.from_level_id and (not module_id or Promotion.from_module_id == module_id):
             level_ids.add(Promotion.from_level_id)
-        if Promotion.to_level_id and (not level_id or Promotion.to_level_id == level_id):
+        if Promotion.to_level_id and (not module_id or Promotion.to_module_id == module_id):
             level_ids.add(Promotion.to_level_id)
 
     for level_key in sorted(level_ids):
@@ -4188,23 +4200,24 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
         lesson_ids = [lesson.id for lesson in lessons]
         dps_items = db.query(DPS).filter(DPS.lesson_id.in_(lesson_ids)).all() if lesson_ids else []
         dps_ids = {dps.id for dps in dps_items}
-        level_attempts = [attempt for attempt, scope in filtered_attempts if scope.get("level") and scope["level"].id == level.id and attempt.dps_id in dps_ids]
-        latest_by_dps: dict[str, Attempt] = {}
-        for attempt in level_attempts:
-            current = latest_by_dps.get(attempt.dps_id)
-            attempt_date = attempt.submitted_at or attempt.started_at
-            current_date = (current.submitted_at or current.started_at) if current else None
-            if not current or (attempt_date and (not current_date or attempt_date > current_date)):
-                latest_by_dps[attempt.dps_id] = attempt
-        completed = [attempt for attempt in latest_by_dps.values() if (attempt.status or "").upper() in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}]
-        passed = ClearedConceptAttempts(completed, BENCHMARK_PERCENTAGE)
-        needs_reattempt = NeedsReattemptAttempts(completed, BENCHMARK_PERCENTAGE)
+        level_attempts = [attempt for attempt, scope in module_attempts if scope.get("level") and scope["level"].id == level.id and attempt.dps_id in dps_ids and ((scope.get("assignment").assignment_type if scope.get("assignment") else "PRACTICE") or "PRACTICE").upper() != "ASSESSMENT"]
+        completed = [attempt for attempt in level_attempts if (attempt.status or "").upper() in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}]
+        # each DPS once, by its shared state
+        LevelBuckets = {"CLEARED": 0, "NEEDS_REATTEMPT": 0}
+        for DpsKey in dps_ids:
+            Concept = ChainIndex.concepts.get((student.id, DpsKey))
+            if Concept is not None and Concept.bucket in LevelBuckets:
+                LevelBuckets[Concept.bucket] += 1
+        attempted_dps = len({attempt.dps_id for attempt in level_attempts})
+        cleared_dps = LevelBuckets["CLEARED"]
+        needs_reattempt_count = LevelBuckets["NEEDS_REATTEMPT"]
+        # every submitted practice attempt, as the DPS Avg Accuracy tile
         avg_accuracy = round_half_up(sum(float(attempt.accuracy_percentage or 0) for attempt in completed) / len(completed)) if completed else 0
         avg_score = round_half_up(sum(float(attempt.total_score or 0) for attempt in completed) / len(completed)) if completed else 0
-        performance_zone = "Excellence Zone" if avg_accuracy >= 90 else "Growth Zone" if avg_accuracy >= 70 else "Needs Improvement" if completed else "Not Started"
+        performance_zone = "Excellence Zone" if avg_accuracy >= 90 else "Growth Zone" if avg_accuracy >= BENCHMARK_PERCENTAGE else "Needs Improvement" if completed else "Not Started"
         required_dps = len(dps_items)
-        completed_dps = len({attempt.dps_id for attempt in completed})
-        readiness = "Ready" if required_dps > 0 and completed_dps >= required_dps and not needs_reattempt else "Not Ready"
+        completed_dps = cleared_dps
+        readiness = "Ready" if required_dps > 0 and cleared_dps >= required_dps else "Not Ready"
         last_activity = max([(attempt.submitted_at or attempt.started_at) for attempt in completed if (attempt.submitted_at or attempt.started_at)], default=None)
         PromotionValue = _admin_latest_promotion_for_level(promotion_records, level.id)
         PromotionPayload = _admin_promotion_payload_for_report(db, PromotionValue) if PromotionValue else None
@@ -4217,11 +4230,13 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
             "levelCode": level.level_code,
             "levelName": level.level_name,
             "requiredDps": required_dps,
-            "attemptedDps": len(latest_by_dps),
+            "attemptedDps": attempted_dps,
             "completedDps": completed_dps,
-            "passedDps": len(passed),
-            "pendingDps": max(required_dps - completed_dps, 0),
-            "needsReattempt": len(needs_reattempt),
+            "clearedDps": cleared_dps,
+            "passedDps": cleared_dps,
+            "pendingDps": max(required_dps - cleared_dps, 0),
+            "needsReattempt": needs_reattempt_count,
+            "isCurrentLevel": level.id == student.current_level_id,
             "averageScore": avg_score,
             "averageAccuracy": avg_accuracy,
             "performanceZone": performance_zone,
@@ -4234,13 +4249,7 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
             "lastActivity": last_activity.isoformat() if last_activity else (PromotionPayload.get("promotedAt") if PromotionPayload else None),
         })
 
-    dps_cleared_rows = [
-        Row for Row in dps_rows
-        if ((Row.get("attemptStatus") or Row.get("status") or "").upper() in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED", "CLEARED"}
-            or (Row.get("completedDate") or Row.get("submittedAt")))
-        and not Row.get("requiresAttention")
-        and float(Row.get("accuracyPercentage") or 0) >= BENCHMARK_PERCENTAGE
-    ]
+    DpsBuckets = _admin_dps_buckets_for_rows([{**Row, "studentId": student.id} for Row in dps_rows])
     assessment_cleared_rows = [
         Row for Row in assessment_rows
         if ((Row.get("attemptStatus") or Row.get("status") or "").upper() in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED", "CLEARED"}
@@ -4248,16 +4257,17 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
         and not Row.get("requiresAttention")
         and float(Row.get("accuracyPercentage") or 0) >= BENCHMARK_PERCENTAGE
     ]
-    cleared_level_ids = {Row.get("levelId") for Row in assessment_cleared_rows if Row.get("levelId")}
-    levels_cleared = len(cleared_level_ids)
-
-    candidate_module_ids = {Row.get("moduleId") for Row in level_progress if Row.get("moduleId")}
-    candidate_module_ids.update(Row.get("moduleId") for Row in assessment_cleared_rows if Row.get("moduleId"))
+    # A level is completed when the student is promoted out of it, and a
+    # module when every one of its levels is (the promotions are the record).
+    assessment_cleared_level_ids = {Row.get("levelId") for Row in assessment_cleared_rows if Row.get("levelId")}
+    promoted_level_ids = {Promotion.from_level_id for Promotion in promotion_records if Promotion.from_level_id and (not module_id or Promotion.from_module_id == module_id)}
+    levels_cleared = len(promoted_level_ids)
+    candidate_module_ids = {Promotion.from_module_id for Promotion in promotion_records if Promotion.from_module_id and (not module_id or Promotion.from_module_id == module_id)}
     modules_cleared = 0
     for module_key in candidate_module_ids:
         module_levels = db.query(Level).filter(Level.module_id == module_key).all()
         module_level_ids = {Item.id for Item in module_levels}
-        if module_level_ids and module_level_ids.issubset(cleared_level_ids):
+        if module_level_ids and module_level_ids.issubset(promoted_level_ids):
             modules_cleared += 1
 
     completed_dps_percentages = [
@@ -4347,7 +4357,7 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
     last_activity = max(activity_dates, default=None)
     student_payload = {
         "studentId": student.id,
-        "studentName": student_user.full_name if student_user else "-",
+        "studentName": student_user.full_name if student_user else "—",
         "studentCode": student.student_code,
         "className": student.class_name,
         "section": student.section,
@@ -4365,9 +4375,12 @@ def _admin_build_student_report(db: Session, student_id: str, module_id: str | N
             "modulesCleared": modules_cleared,
             "modulesCompleted": modules_cleared,
             "dpsAttempts": len(dps_rows),
-            "dpsCleared": len(dps_cleared_rows),
-            "dpsCompleted": len(dps_cleared_rows),
-            "needsReattempt": CountNeedsReattemptConcepts(completed_attempts, BENCHMARK_PERCENTAGE),
+            "dpsCovered": DpsBuckets["TOTAL"],
+            "dpsCleared": DpsBuckets["CLEARED"],
+            "dpsCompleted": DpsBuckets["CLEARED"],
+            "needsReattempt": DpsBuckets["NEEDS_REATTEMPT"],
+            "assessmentLevelsCleared": len(assessment_cleared_level_ids),
+            "promotionReady": _admin_promotion_ready_count(db, [student.id], module_id=module_id) > 0,
             "assessmentAttempts": len(assessment_rows),
             "assessmentsCleared": len(assessment_cleared_rows),
             "promotedLevels": len(promotion_records),
@@ -4394,8 +4407,21 @@ def _admin_filter_attempts_for_learning_performance(db: Session, teacher_id: str
     # separate lookup per attempt for its assignment / DPS / student / user.
     EnableRequestCache(db)
     PinRows(db, Assignment, DPS, Lesson, Level, Module, Student, User, Teacher)
+    module_id, level_id, lesson_id, dps_id = (None if Value in (None, "", "__ALL__") else Value for Value in (module_id, level_id, lesson_id, dps_id))
+    teacher_id = None if teacher_id in (None, "", "__ALL__") else teacher_id
+    # 2026-10-21 (Performance Reports, Part 1): only the attempts in scope are
+    # read (and healed), not every attempt on the platform.
+    AttemptQuery = db.query(Attempt)
+    if dps_id:
+        AttemptQuery = AttemptQuery.filter(Attempt.dps_id == dps_id)
+    elif lesson_id:
+        AttemptQuery = AttemptQuery.join(DPS, DPS.id == Attempt.dps_id).filter(DPS.lesson_id == lesson_id)
+    elif level_id:
+        AttemptQuery = AttemptQuery.join(DPS, DPS.id == Attempt.dps_id).join(Lesson, Lesson.id == DPS.lesson_id).filter(Lesson.level_id == level_id)
+    elif module_id:
+        AttemptQuery = AttemptQuery.join(DPS, DPS.id == Attempt.dps_id).join(Lesson, Lesson.id == DPS.lesson_id).join(Level, Level.id == Lesson.level_id).filter(Level.module_id == module_id)
     # Demo accounts are left out (app/services/demo_students.py).
-    Attempts = WithoutDemoColumn(db, db.query(Attempt), Attempt.student_id).all()
+    Attempts = WithoutDemoColumn(db, AttemptQuery, Attempt.student_id).all()
     # 2026-09-17 (Shailesh: "never ever anywhere"): this Learning Performance
     # report reads score/accuracy fields off every one of these attempts
     # below -- self-heal each one first. Cheap relative to the rest of this
@@ -4520,14 +4546,92 @@ def _students_by_level(db: Session, StudentIds) -> dict[str, list[str]]:
     return Out
 
 
-def _admin_learning_performance_payload(db: Session, teacher_id: str | None = None, module_id: str | None = None, level_id: str | None = None, lesson_id: str | None = None, dps_id: str | None = None) -> dict:
+def _admin_dps_buckets_for_rows(Rows: list[dict], ByKey: dict | None = None) -> dict[str, int]:
+    """Each (student, DPS) once, by the shared DPS state the rows carry.
+    ByKey, when given, is filled with each (student, DPS)'s bucket."""
+    Seen: dict[tuple, str] = {}
+    Fallback: dict[tuple, str] = {}
+    for Row in Rows:
+        Key = (Row.get("studentId"), Row.get("dpsId"))
+        if None in Key:
+            continue
+        Chain = Row.get("dpsChain") or {}
+        Bucket = Chain.get("bucket")
+        if Bucket:
+            Seen[Key] = Bucket
+            continue
+        # no active assignment behind it (an old, removed one): judge by its
+        # attempts, a cleared attempt clears the DPS
+        Completed = (Row.get("attemptStatus") or "").upper() in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}
+        Cleared = Completed and float(Row.get("accuracyPercentage") or 0) >= BENCHMARK_PERCENTAGE
+        Current = Fallback.get(Key, "PENDING")
+        if Cleared:
+            Fallback[Key] = "CLEARED"
+        elif Completed and Current == "PENDING":
+            Fallback[Key] = "NEEDS_REATTEMPT"
+        else:
+            Fallback.setdefault(Key, Current)
+    for Key, Bucket in Fallback.items():
+        Seen.setdefault(Key, Bucket)
+    if ByKey is not None:
+        ByKey.update(Seen)
+    Counts = {"CLEARED": 0, "NEEDS_REATTEMPT": 0, "PENDING": 0}
+    for Bucket in Seen.values():
+        Counts[Bucket if Bucket in Counts else "PENDING"] += 1
+    Counts["TOTAL"] = len(Seen)
+    return Counts
+
+
+def _admin_promotion_ready_count(db: Session, StudentIds: set[str] | list[str], module_id: str | None = None, level_id: str | None = None) -> int:
+    return len(_admin_promotion_ready_ids(db, StudentIds, module_id=module_id, level_id=level_id))
+
+
+def _admin_promotion_ready_ids(db: Session, StudentIds, module_id: str | None = None, level_id: str | None = None) -> set[str]:
+    """Students in scope with a cleared level assessment who have not been
+    promoted for it yet: exactly the rule behind Assessment Control's Promote
+    button (AssessmentAssignmentPayload -> isReadyForNextLevel)."""
+    Ids = [Item for Item in StudentIds if Item]
+    if not Ids:
+        return set()
+    Query = (
+        db.query(AssessmentAssignment)
+        .join(AssessmentBlueprint, AssessmentBlueprint.id == AssessmentAssignment.blueprint_id)
+        .filter(AssessmentAssignment.student_id.in_(Ids), AssessmentAssignment.is_active == True)
+    )
+    if level_id:
+        Query = Query.filter(AssessmentBlueprint.level_id == level_id)
+    elif module_id:
+        Query = Query.filter(AssessmentBlueprint.module_id == module_id)
+    Ready: set[str] = set()
+    for AssignmentValue in Query.all():
+        if AssignmentValue.student_id in Ready:
+            continue
+        try:
+            Payload = AssessmentAssignmentPayload(db, AssignmentValue)
+        except Exception:
+            continue
+        if Payload.get("isReadyForNextLevel"):
+            Ready.add(AssignmentValue.student_id)
+    return Ready
+
+
+def _admin_learning_period_start(period: str | None) -> datetime | None:
+    """2026-10-21 (Part 3): Learning Performance's period -- 7d, 30d, 90d
+    (as on the Overview), or all time when none is given."""
+    if not period or period == "all":
+        return None
+    from app.services.performance_overview_service import PERIODS, ResolvePeriod
+
+    if period not in PERIODS:
+        return None
+    return ResolvePeriod(period)[2]
+
+
+def _admin_learning_performance_payload(db: Session, teacher_id: str | None = None, module_id: str | None = None, level_id: str | None = None, lesson_id: str | None = None, dps_id: str | None = None, period: str | None = None, KeepAllRows: bool = False) -> dict:
     HealExpiredPracticeAttempts(db)
     FilteredAttempts = _admin_filter_attempts_for_learning_performance(db, teacher_id, module_id, level_id, lesson_id, dps_id)
     Rows = []
-    CompletedRows = []
     StudentIds: set[str] = set()
-    BenchmarkMet = 0
-    NeedsImprovement = 0
     for AttemptValue, Scope in FilteredAttempts:
         StudentValue = db.get(Student, AttemptValue.student_id)
         StudentUser = db.get(User, StudentValue.user_id) if StudentValue else None
@@ -4537,16 +4641,8 @@ def _admin_learning_performance_payload(db: Session, teacher_id: str | None = No
         LessonValue = Scope.get("lesson")
         DpsValue = Scope.get("dps")
         BenchmarkPayload = benchmark_payload_for_attempt(AttemptValue)
-        RequiresAttention = bool(BenchmarkPayload.get("requiresAttention"))
-        IsCompleted = (AttemptValue.status or "").upper() in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}
         if StudentValue:
             StudentIds.add(StudentValue.id)
-        if IsCompleted:
-            CompletedRows.append(AttemptValue)
-            if RequiresAttention:
-                NeedsImprovement += 1
-            else:
-                BenchmarkMet += 1
         Rows.append({
             "attemptId": AttemptValue.id,
             "studentId": AttemptValue.student_id,
@@ -4587,16 +4683,36 @@ def _admin_learning_performance_payload(db: Session, teacher_id: str | None = No
         AssignmentId = AttemptAssignments.get(Row["attemptId"])
         if AssignmentId and Row.get("studentId"):
             Row.update(ChainIndex.attempt_fields(Row["attemptId"], AssignmentId, Row["studentId"]))
-    AverageAccuracy = round_half_up(sum(float(AttemptValue.accuracy_percentage or 0) for AttemptValue in CompletedRows) / len(CompletedRows)) if CompletedRows else 0
-    AverageScore = round(sum(float(AttemptValue.total_score or 0) for AttemptValue in CompletedRows) / len(CompletedRows)) if CompletedRows else 0
+    # 2026-10-21 (Part 3): the period keeps the attempts made in it; each
+    # DPS keeps its current shared state.
+    from app.services.learning_rollup_service import RowsInPeriod
+
+    AllRows = Rows
+    PeriodStart = _admin_learning_period_start(period)
+    Rows = RowsInPeriod(AllRows, PeriodStart)
+    StudentIds = {Row["studentId"] for Row in Rows if Row.get("studentId")}
+    CompletedRows = [Row for Row in Rows if (Row.get("attemptStatus") or "").upper() in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}]
+    AttemptsBelowBenchmark = sum(1 for Row in CompletedRows if Row.get("requiresAttention"))
+    AverageAccuracy = round_half_up(sum(float(Row.get("accuracyPercentage") or 0) for Row in CompletedRows) / len(CompletedRows)) if CompletedRows else 0
+    AverageScore = round(sum(float(Row.get("score") or 0) for Row in CompletedRows) / len(CompletedRows)) if CompletedRows else 0
+    # 2026-10-21 (Performance Reports, Part 1): the screen, the Excel and the
+    # trackers count each DPS once, by its shared state (dps_chain_state_service),
+    # not every attempt. Attempt counts stay alongside, named as attempts.
+    DpsBuckets = _admin_dps_buckets_for_rows(Rows)
+    BenchmarkMet = DpsBuckets["CLEARED"]
+    NeedsImprovement = DpsBuckets["NEEDS_REATTEMPT"]
     PromotionRecords = _admin_promotion_records_for_scope(
         db,
         teacher_id=teacher_id,
         module_id=module_id if module_id and module_id != "__ALL__" else None,
         level_id=level_id if level_id and level_id != "__ALL__" else None,
     )
+    if PeriodStart is not None:
+        PromotionRecords = [Promotion for Promotion in PromotionRecords if Promotion.promoted_at and (Promotion.promoted_at if Promotion.promoted_at.tzinfo else Promotion.promoted_at.replace(tzinfo=datetime_timezone.utc)) >= PeriodStart]
     PromotedStudentIds = {Promotion.student_id for Promotion in PromotionRecords if Promotion.student_id}
-    return {
+    Payload = {
+        "period": period if PeriodStart is not None else "all",
+        "periodFrom": PeriodStart.isoformat() if PeriodStart is not None else None,
         "summary": {
             "scopeType": _admin_learning_scope_type(module_id, level_id, lesson_id, dps_id),
             "studentsCovered": len(StudentIds),
@@ -4605,6 +4721,12 @@ def _admin_learning_performance_payload(db: Session, teacher_id: str | None = No
             "dpsCompleted": len(CompletedRows),
             "benchmarkMet": BenchmarkMet,
             "needsImprovement": NeedsImprovement,
+            "dpsCovered": DpsBuckets["TOTAL"],
+            "dpsCleared": BenchmarkMet,
+            "dpsNeedsReattempt": NeedsImprovement,
+            "dpsPending": DpsBuckets["PENDING"],
+            "attemptsBelowBenchmark": AttemptsBelowBenchmark,
+            "promotionReady": _admin_promotion_ready_count(db, StudentIds, module_id=module_id, level_id=level_id),
             "promotedStudents": len(PromotedStudentIds),
             "promotionRecords": len(PromotionRecords),
             "averageScore": AverageScore,
@@ -4619,6 +4741,9 @@ def _admin_learning_performance_payload(db: Session, teacher_id: str | None = No
         },
         "results": Rows,
     }
+    if KeepAllRows:
+        Payload["_allRows"] = AllRows
+    return Payload
 
 
 def _admin_combined_lesson_label(LessonNumber: Any, LessonTitle: Any) -> str:
@@ -4638,52 +4763,190 @@ def _admin_combined_dps_label(DpsNumber: Any, DpsTitle: Any) -> str:
 
 
 def _admin_learning_export_rows(Payload: dict, TimezoneName: str | None = None, TimezoneOffsetMinutes: int | None = None) -> tuple[list[dict], list[dict]]:
+    """2026-10-21 (Performance Reports, Part 1): the same labels as the screen.
+    Status is the shared DPS state of the attempt; Improvement Focus lists each
+    DPS that needs a re-attempt once (its current attempt), as the tile counts."""
     DetailRows = []
-    ImprovementRows = []
+    LatestNeeding: dict[tuple, tuple[str, dict]] = {}
+    BucketByKey: dict = {}
+    _admin_dps_buckets_for_rows(Payload.get("results", []), BucketByKey)
     for Row in Payload.get("results", []):
         CompletedValue = Row.get("completedDate") or Row.get("submittedAt")
+        Completed = (Row.get("attemptStatus") or "").upper() in {"SUBMITTED", "AUTO_SUBMITTED", "COMPLETED"}
         ExportRow = {
-            "Student Name": Row.get("studentName") or "-",
-            "Student Code": Row.get("studentCode") or "-",
+            "Student Name": Row.get("studentName") or "—",
+            "Student Code": Row.get("studentCode") or "—",
             "Teacher Name": Row.get("teacherName") or "Not Assigned",
-            "Teacher Code": Row.get("teacherCode") or "-",
-            "Module Code": Row.get("moduleCode") or "-",
-            "Module": Row.get("moduleName") or "-",
-            "Level Code": Row.get("levelCode") or "-",
-            "Level": Row.get("levelName") or "-",
+            "Teacher Code": Row.get("teacherCode") or "—",
+            "Module Code": Row.get("moduleCode") or "—",
+            "Module": Row.get("moduleName") or "—",
+            "Level Code": Row.get("levelCode") or "—",
+            "Level": Row.get("levelName") or "—",
             "Lesson": _admin_combined_lesson_label(Row.get("lessonNumber"), Row.get("lessonTitle")),
             "DPS": _admin_combined_dps_label(Row.get("dpsNumber"), Row.get("dpsTitle")),
-            "Status": Row.get("displayStatus") or Row.get("status") or "-",
-            "Score": Row.get("score") or 0,
-            "Total Marks": Row.get("maxScore") or 0,
-            "Accuracy %": Row.get("accuracyPercentage") or 0,
-            "Benchmark Status": "Needs Improvement" if Row.get("requiresAttention") else "Benchmark Met",
-            "Correct Answers": Row.get("correct") or 0,
-            "Completed Date": _admin_report_date(CompletedValue, TimezoneName, TimezoneOffsetMinutes),
-            "Completion Time": _admin_report_time(CompletedValue, TimezoneName, TimezoneOffsetMinutes),
-            "Time Taken": _admin_report_duration(Row.get("timeTakenSeconds")),
+            "Attempt": Row.get("attemptLabel") or "Original",
+            "Status": Row.get("chainRowLabel") or Row.get("displayStatus") or Row.get("status") or "—",
+            "Score": Row.get("score") if Completed and Row.get("score") is not None else "—",
+            "Total Marks": Row.get("maxScore") if Row.get("maxScore") is not None else "—",
+            "Accuracy %": Row.get("accuracyPercentage") if Completed and Row.get("accuracyPercentage") is not None else "—",
+            "Benchmark": ("Benchmark Not Met" if Row.get("requiresAttention") else "Benchmark Met") if Completed else "Not Submitted",
+            "Correct Answers": Row.get("correct") if Completed and Row.get("correct") is not None else "—",
+            "Completed Date": _admin_report_date(CompletedValue, TimezoneName, TimezoneOffsetMinutes) if CompletedValue else "—",
+            "Completion Time": _admin_report_time(CompletedValue, TimezoneName, TimezoneOffsetMinutes) if CompletedValue else "—",
+            "Time Taken": _admin_report_duration(Row.get("timeTakenSeconds")) if Completed else "—",
         }
         DetailRows.append(ExportRow)
-        if Row.get("requiresAttention"):
-            ImprovementRows.append(ExportRow)
+        Chain = Row.get("dpsChain") or {}
+        Key = (Row.get("studentId"), Row.get("dpsId"))
+        if BucketByKey.get(Key) == "NEEDS_REATTEMPT" and Completed:
+            Stamp = str(CompletedValue or "")
+            if Key not in LatestNeeding or Stamp >= LatestNeeding[Key][0]:
+                LatestNeeding[Key] = (Stamp, {**ExportRow, "Status": Chain.get("label") or ExportRow["Status"]})
+    ImprovementRows = [Item[1] for Item in LatestNeeding.values()]
     return DetailRows, ImprovementRows
 
 
+@router.get("/results/overview")
+def performance_overview(period: str | None = None, teacherId: str | None = None, moduleId: str | None = None, levelId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    """Performance Reports > Overview (2026-10-21, Part 2)."""
+    from app.services.performance_overview_service import BuildPerformanceOverview, OverviewScope, ResolvePeriod
+
+    teacherId, moduleId, levelId = (None if Value in (None, "", "__ALL__") else Value for Value in (teacherId, moduleId, levelId))
+    EnableRequestCache(db)
+    PinRows(db, Student, User, Teacher, Level, Module)
+    LevelIds: set[str] | None = None
+    DpsIds: set[str] | None = None
+    if levelId:
+        LevelIds = {levelId}
+    elif moduleId:
+        LevelIds = {Row.id for Row in db.query(Level.id).filter(Level.module_id == moduleId).all()}
+    if LevelIds is not None:
+        LessonIds = [Row.id for Row in db.query(Lesson.id).filter(Lesson.level_id.in_(list(LevelIds))).all()] if LevelIds else []
+        DpsIds = {Row.id for Row in db.query(DPS.id).filter(DPS.lesson_id.in_(LessonIds)).all()} if LessonIds else set()
+    # active students (not demo accounts), of the teacher when one is chosen,
+    # on a level in scope -- or with practice in scope in the two periods
+    _Key, PreviousStart, _Start, _End = ResolvePeriod(period)
+    Candidates = [Item for Item in WithoutDemoColumn(db, db.query(Student).filter(Student.is_active == True), Student.id).all() if _admin_student_matches_teacher(db, Item, teacherId)]
+    StudentIds = {Item.id for Item in Candidates if LevelIds is None or Item.current_level_id in LevelIds}
+    if DpsIds:
+        CandidateIds = {Item.id for Item in Candidates}
+        Recent = db.query(Attempt.student_id).filter(Attempt.dps_id.in_(list(DpsIds)), Attempt.submitted_at >= PreviousStart).distinct().all()
+        StudentIds |= {Row.student_id for Row in Recent if Row.student_id in CandidateIds}
+    Payload = BuildPerformanceOverview(
+        db,
+        OverviewScope(StudentIds=StudentIds, LevelIds=LevelIds, DpsIds=DpsIds),
+        Period=period,
+        PromotionReadyIds=lambda Ids: _admin_promotion_ready_ids(db, Ids, module_id=moduleId, level_id=levelId),
+    )
+    Payload["scope"] = {
+        "teacherScope": _admin_teacher_label(db, teacherId),
+        "moduleScope": _admin_module_label(db, moduleId),
+        "levelScope": _admin_level_label(db, levelId),
+    }
+    return Payload
+
+
+LEARNING_VIEWS = ("content", "students", "teachers", "attempts")
+
+
+def _admin_learning_rollup_payload(db: Session, view: str | None, period: str | None, teacher_id: str | None = None, module_id: str | None = None, level_id: str | None = None, lesson_id: str | None = None, dps_id: str | None = None) -> dict:
+    """Performance Reports > Learning Performance views (2026-10-21, Part 3):
+    the drill-down, By Student and By Teacher, from the same rows and the same
+    DPS counting as the tiles and the attempt list."""
+    from app.services import learning_rollup_service as rollup
+
+    view = view if view in ("content", "students", "teachers") else "content"
+    teacher_id, module_id, level_id, lesson_id, dps_id = (None if Value in (None, "", "__ALL__") else Value for Value in (teacher_id, module_id, level_id, lesson_id, dps_id))
+    Payload = _admin_learning_performance_payload(db, teacher_id, module_id, level_id, lesson_id, dps_id, period=period, KeepAllRows=True)
+    AllRows = Payload.pop("_allRows")
+    PeriodRows = Payload.pop("results")
+    Buckets: dict = {}
+    _admin_dps_buckets_for_rows(PeriodRows, Buckets)
+    Stats = rollup.KeyStats(AllRows, BENCHMARK_PERCENTAGE)
+    ListLevel = None
+    if view == "content":
+        ListLevel = rollup.ContentLevel(module_id, level_id, lesson_id, dps_id)
+        Rows = rollup.BuildDpsStudents(PeriodRows, Buckets, Stats, BENCHMARK_PERCENTAGE) if ListLevel == "student" else rollup.BuildContentRollup(PeriodRows, Buckets, Stats, ListLevel, BENCHMARK_PERCENTAGE)
+    elif view == "students":
+        CurrentLevel: dict[str, dict] = {}
+        for StudentId in {Row["studentId"] for Row in PeriodRows if Row.get("studentId")}:
+            StudentValue = db.get(Student, StudentId)
+            LevelValue = db.get(Level, StudentValue.current_level_id) if StudentValue and StudentValue.current_level_id else None
+            if LevelValue:
+                CurrentLevel[StudentId] = {"levelCode": LevelValue.level_code, "levelName": LevelValue.level_name}
+        Rows = rollup.BuildStudentRollup(PeriodRows, Buckets, Stats, BENCHMARK_PERCENTAGE, CurrentLevel)
+    else:
+        TeacherQuery = db.query(Teacher).filter(Teacher.is_active == True)
+        if teacher_id:
+            TeacherQuery = TeacherQuery.filter(Teacher.id == teacher_id)
+        Roster = [Item for Item in WithoutDemoColumn(db, db.query(Student).filter(Student.is_active == True), Student.id).all()]
+        RosterByTeacher: dict[str | None, list[str]] = {}
+        for StudentValue in Roster:
+            RosterByTeacher.setdefault(_admin_teacher_context_for_student(db, StudentValue).get("teacherId"), []).append(StudentValue.id)
+        Teachers = []
+        for TeacherValue in TeacherQuery.all():
+            TeacherUser = db.get(User, TeacherValue.user_id)
+            Teachers.append({"teacherId": TeacherValue.id, "teacherName": TeacherUser.full_name if TeacherUser else TeacherValue.teacher_code, "teacherCode": TeacherValue.teacher_code, "roster": len(RosterByTeacher.get(TeacherValue.id, []))})
+        ReadyByTeacher: dict[str | None, int] = {}
+        for TeacherKey, Ids in RosterByTeacher.items():
+            if teacher_id and TeacherKey != teacher_id:
+                continue
+            ReadyByTeacher[TeacherKey] = len(_admin_promotion_ready_ids(db, Ids, module_id=module_id, level_id=level_id))
+        Rows = rollup.BuildTeacherRollup(PeriodRows, AllRows, Buckets, Stats, BENCHMARK_PERCENTAGE, Teachers, ReadyByTeacher)
+    Path = [{"kind": "all", "id": None, "label": "All Modules"}]
+    for Kind, ModelValue, IdValue, Formatter in (
+        ("module", Module, module_id, lambda Item: Item.module_code),
+        ("level", Level, level_id, lambda Item: Item.level_code),
+        ("lesson", Lesson, lesson_id, lambda Item: f"Lesson {Item.lesson_number}"),
+        ("dps", DPS, dps_id, lambda Item: f"DPS {Item.dps_number}"),
+    ):
+        if not IdValue:
+            break
+        Item = db.get(ModelValue, IdValue)
+        Path.append({"kind": Kind, "id": IdValue, "label": Formatter(Item) if Item else IdValue})
+    return {
+        **Payload,
+        "view": view,
+        "level": ListLevel,
+        "path": Path,
+        "rows": Rows,
+        "rules": {"benchmark": round(BENCHMARK_PERCENTAGE), "flagMinAttempts": rollup.FLAG_MIN_ATTEMPTS, "flagFirstTry": rollup.FLAG_FIRST_TRY},
+    }
+
+
 @router.get("/results/learning-performance")
-def learning_performance_results(teacherId: str | None = None, moduleId: str | None = None, levelId: str | None = None, lessonId: str | None = None, dpsId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
-    return _admin_learning_performance_payload(db, teacherId, moduleId, levelId, lessonId, dpsId)
+def learning_performance_results(teacherId: str | None = None, moduleId: str | None = None, levelId: str | None = None, lessonId: str | None = None, dpsId: str | None = None, period: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return _admin_learning_performance_payload(db, teacherId, moduleId, levelId, lessonId, dpsId, period=period)
+
+
+@router.get("/results/learning-rollup")
+def learning_performance_rollup(view: str | None = None, period: str | None = None, teacherId: str | None = None, moduleId: str | None = None, levelId: str | None = None, lessonId: str | None = None, dpsId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    return _admin_learning_rollup_payload(db, view, period, teacherId, moduleId, levelId, lessonId, dpsId)
 
 
 @router.get("/results/export/learning-performance")
-def export_learning_performance_results(teacherId: str | None = None, moduleId: str | None = None, levelId: str | None = None, lessonId: str | None = None, dpsId: str | None = None, timezone: str | None = None, timezoneOffsetMinutes: int | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
-    Payload = _admin_learning_performance_payload(db, teacherId, moduleId, levelId, lessonId, dpsId)
+def export_learning_performance_results(teacherId: str | None = None, moduleId: str | None = None, levelId: str | None = None, lessonId: str | None = None, dpsId: str | None = None, timezone: str | None = None, timezoneOffsetMinutes: int | None = None, view: str | None = None, period: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    # 2026-10-21 (Part 3): the Excel follows the view on screen
+    View = view if view in LEARNING_VIEWS else "attempts"
+    if View == "attempts":
+        Payload = _admin_learning_performance_payload(db, teacherId, moduleId, levelId, lessonId, dpsId, period=period)
+        DetailRows, ImprovementRows = _admin_learning_export_rows(Payload, timezone, timezoneOffsetMinutes)
+        Sheets = [("All Attempts", DetailRows), ("Needs Re-Attempt", ImprovementRows)]
+    else:
+        Payload = _admin_learning_rollup_payload(db, View, period, teacherId, moduleId, levelId, lessonId, dpsId)
+        Sheets = [_admin_learning_rollup_sheet(Payload, timezone, timezoneOffsetMinutes)]
     Summary = Payload.get("summary", {})
     Scope = Payload.get("scope", {})
-    DetailRows, ImprovementRows = _admin_learning_export_rows(Payload, timezone, timezoneOffsetMinutes)
+    PeriodLabel = {"7d": "Last 7 Days", "30d": "Last 30 Days", "90d": "Last 90 Days"}.get(Payload.get("period") or "", "All Time")
+    if Payload.get("periodFrom"):
+        PeriodLabel += f" (from {_admin_report_date(Payload['periodFrom'], timezone, timezoneOffsetMinutes)})"
+    ViewLabel = {"content": "Drill-Down", "students": "By Student", "teachers": "By Teacher", "attempts": "All Attempts"}[View]
     return BuildWorkbookResponse(
         _admin_learning_export_filename(db, teacherId, moduleId, levelId, lessonId, dpsId),
         [
             ("Report Type", "Learning Performance"),
+            ("View", ViewLabel),
+            ("Period", PeriodLabel),
             ("Generated Date", _admin_report_date(datetime.now(datetime_timezone.utc), timezone, timezoneOffsetMinutes)),
             ("Generated Time", _admin_report_time(datetime.now(datetime_timezone.utc), timezone, timezoneOffsetMinutes)),
             ("Teacher Scope", Scope.get("teacherScope", "All Teachers")),
@@ -4694,24 +4957,119 @@ def export_learning_performance_results(teacherId: str | None = None, moduleId: 
             ("Students Covered", Summary.get("studentsCovered", 0)),
             ("Attempts Reviewed", Summary.get("attemptsReviewed", 0)),
             ("Completed Attempts", Summary.get("completedAttempts", 0)),
-            ("Benchmark Met", Summary.get("benchmarkMet", 0)),
-            ("Needs Improvement", Summary.get("needsImprovement", 0)),
+            ("DPS Covered", Summary.get("dpsCovered", 0)),
+            ("DPS Cleared (Benchmark Met)", Summary.get("dpsCleared", 0)),
+            ("DPS Needing Re-Attempt", Summary.get("dpsNeedsReattempt", 0)),
+            ("Attempts Below Benchmark", Summary.get("attemptsBelowBenchmark", 0)),
+            ("Promotion Ready", Summary.get("promotionReady", 0)),
             ("Promoted Students", Summary.get("promotedStudents", 0)),
             ("Promotion Records", Summary.get("promotionRecords", 0)),
             ("Average Score", Summary.get("averageScore", 0)),
             ("Average Accuracy %", Summary.get("averageAccuracy", 0)),
-            ("Benchmark Rule", "70% minimum accuracy"),
+            ("Benchmark Rule", f"{round(BENCHMARK_PERCENTAGE)}% minimum accuracy"),
+            ("How DPS Are Counted", "Each DPS practised in the period, once per student, by its current state (as on the Performance Reports page)"),
         ],
-        [
-            ("Student Performance", DetailRows),
-            ("Improvement Focus", ImprovementRows),
-        ],
+        Sheets,
     )
+
+
+def _admin_report_percent(Value: Any) -> Any:
+    return f"{Value}%" if Value is not None else "—"
+
+
+def _admin_learning_rollup_sheet(Payload: dict, TimezoneName: str | None = None, TimezoneOffsetMinutes: int | None = None) -> tuple[str, list[dict]]:
+    """One sheet with the rows of the view on screen, under the same headings."""
+    View, Level = Payload.get("view"), Payload.get("level")
+
+    def When(Value: Any) -> str:
+        return _admin_report_date(Value, TimezoneName, TimezoneOffsetMinutes) if Value else "—"
+
+    def Measures(Row: dict) -> dict:
+        Flag = {"LOW_ACCURACY": "Accuracy Below Benchmark", "LOW_FIRST_TRY": "Few Cleared First Try"}.get(Row.get("flag") or "", "—")
+        return {
+            "Students": Row.get("students", 0),
+            "DPS Practised": Row.get("dpsCovered", 0),
+            "DPS Cleared": Row.get("dpsCleared", 0),
+            "First-Try Clear %": _admin_report_percent(Row.get("firstTryClearRate")),
+            "Average Tries To Clear": Row.get("averageTriesToClear") if Row.get("averageTriesToClear") is not None else "—",
+            "Average Accuracy %": _admin_report_percent(Row.get("averageAccuracy")),
+            "Median Time": _admin_report_duration(Row.get("medianTimeSeconds")) if Row.get("medianTimeSeconds") else "—",
+            "Needs Re-Attempt": Row.get("dpsNeedsReattempt", 0),
+            "Attempts": Row.get("attempts", 0),
+            "Needs A Look": Flag,
+        }
+
+    Rows: list[dict] = []
+    if View == "content" and Level == "student":
+        for Row in Payload.get("rows", []):
+            Rows.append({
+                "Student Name": Row.get("studentName") or "—",
+                "Student Code": Row.get("studentCode") or "—",
+                "Teacher": Row.get("teacherName") or "Not Assigned",
+                "Status": Row.get("statusLabel") or "—",
+                "Tries": Row.get("triesText") or "—",
+                "Best Accuracy %": _admin_report_percent(Row.get("bestAccuracy")),
+                "Last Active": When(Row.get("lastActive")),
+            })
+        return ("DPS Students", Rows)
+    if View == "content":
+        Heading = {"module": "Module", "level": "Level", "lesson": "Lesson", "dps": "DPS"}.get(Level or "", "Scope")
+        for Row in Payload.get("rows", []):
+            Rows.append({Heading: Row.get("code") or "—", f"{Heading} Name": Row.get("name") or "—", **Measures(Row)})
+        return (f"By {Heading}", Rows)
+    if View == "students":
+        for Row in Payload.get("rows", []):
+            Measured = Measures(Row)
+            Measured.pop("Students")
+            Rows.append({
+                "Student Name": Row.get("studentName") or "—",
+                "Student Code": Row.get("studentCode") or "—",
+                "Teacher": Row.get("teacherName") or "Not Assigned",
+                "Current Level": Row.get("currentLevelCode") or "—",
+                **Measured,
+                "Practice Time": _admin_report_duration(Row.get("practiceSeconds")) if Row.get("practiceSeconds") else "—",
+                "Last Active": When(Row.get("lastActive")),
+            })
+        return ("By Student", Rows)
+    for Row in Payload.get("rows", []):
+        Rows.append({
+            "Teacher": Row.get("teacherName") or "Not Assigned",
+            "Teacher Code": Row.get("teacherCode") or "—",
+            "Students": Row.get("roster") if Row.get("roster") is not None else "—",
+            "Practised In Period": Row.get("students", 0),
+            "Active Last 7 Days": Row.get("activeLast7Days", 0),
+            **{Key: Value for Key, Value in Measures(Row).items() if Key != "Students"},
+            "Approvals Waiting": Row.get("approvalsWaiting", 0),
+            "Ready To Promote": Row.get("readyToPromote", 0),
+        })
+    return ("By Teacher", Rows)
 
 
 @router.get("/results/student")
 def student_results(studentId: str, moduleId: str | None = None, levelId: str | None = None, lessonId: str | None = None, dpsId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     return _admin_build_student_report(db, studentId, moduleId, levelId, lessonId, dpsId)
+
+
+@router.get("/results/student-insights")
+def student_results_insights(studentId: str, moduleId: str | None = None, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    """Student History > Summary (2026-10-21, Part 4): the module's report at a glance."""
+    from app.services.student_insights_service import BuildStudentInsights
+
+    Report = _admin_build_student_report(db, studentId, moduleId)
+    Payload = BuildStudentInsights(db, Report)
+    StudentValue = db.get(Student, studentId)
+    LevelValue = db.get(Level, StudentValue.current_level_id) if StudentValue and StudentValue.current_level_id else None
+    ModuleValue = db.get(Module, LevelValue.module_id) if LevelValue else None
+    Payload["student"] = {
+        **(Report.get("student") or {}),
+        "currentLevelCode": LevelValue.level_code if LevelValue else None,
+        "currentLevelName": LevelValue.level_name if LevelValue else None,
+        "currentModuleCode": ModuleValue.module_code if ModuleValue else None,
+        "currentModuleName": ModuleValue.module_name if ModuleValue else None,
+    }
+    Payload["summary"] = Report.get("summary") or {}
+    Payload["rules"] = {"benchmark": round(BENCHMARK_PERCENTAGE)}
+    return Payload
 
 
 @router.get("/results/export/dps")
@@ -4774,46 +5132,48 @@ def export_student_results(studentId: str, moduleId: str | None = None, levelId:
     ProfileRows = [{
         "Student Name": Student.get("studentName"),
         "Student Code": Student.get("studentCode"),
-        "Class": Student.get("className") or "-",
-        "Section": Student.get("section") or "-",
+        "Class": Student.get("className") or "—",
+        "Section": Student.get("section") or "—",
         "Account Status": Student.get("status"),
         "Current / Assigned Teacher": Student.get("teacherName") or "Not Assigned",
-        "Teacher Code": Student.get("teacherCode") or "-",
+        "Teacher Code": Student.get("teacherCode") or "—",
         "Levels In Report": Summary.get("levels", 0),
-        "Modules Cleared": Summary.get("modulesCleared", Summary.get("modulesCompleted", 0)),
-        "Levels Cleared": Summary.get("levelsCleared", Summary.get("levelsCompleted", 0)),
+        "Modules Completed": Summary.get("modulesCleared", Summary.get("modulesCompleted", 0)),
+        "Levels Completed": Summary.get("levelsCleared", Summary.get("levelsCompleted", 0)),
         "DPS Cleared": Summary.get("dpsCleared", Summary.get("dpsCompleted", 0)),
+        "DPS Needing Re-Attempt": Summary.get("needsReattempt", 0),
         "DPS Attempts": Summary.get("dpsAttempts", 0),
         "Assessments Cleared": Summary.get("assessmentsCleared", 0),
         "Promoted Levels": Summary.get("promotedLevels", 0),
         "Promotion History Records": Summary.get("promotionHistoryCount", 0),
-        "Average Accuracy %": Summary.get("averageAccuracy", 0),
+        "DPS Average Accuracy %": Summary.get("dpsAverageAccuracy", 0),
+        "Assessment Average Accuracy %": Summary.get("assessmentAverageAccuracy", 0),
         "Last Activity Date": _admin_report_date(Summary.get("lastActivity"), timezone, timezoneOffsetMinutes),
     }]
     LevelRows = []
     for Row in Payload.get("levelProgress", []):
         LevelRows.append({
-            "Module Code": Row.get("moduleCode") or "-",
-            "Module": Row.get("moduleName") or "-",
-            "Level Code": Row.get("levelCode") or "-",
-            "Level": Row.get("levelName") or "-",
+            "Module Code": Row.get("moduleCode") or "—",
+            "Module": Row.get("moduleName") or "—",
+            "Level Code": Row.get("levelCode") or "—",
+            "Level": Row.get("levelName") or "—",
             "Teacher Name": Row.get("teacherName") or Student.get("teacherName") or "Not Assigned",
-            "Teacher Code": Row.get("teacherCode") or Student.get("teacherCode") or "-",
+            "Teacher Code": Row.get("teacherCode") or Student.get("teacherCode") or "—",
             "Required DPS": Row.get("requiredDps") or 0,
-            "Completed DPS": Row.get("completedDps") or 0,
-            "Passed DPS": Row.get("passedDps") or 0,
+            "Attempted DPS": Row.get("attemptedDps") or 0,
+            "Cleared DPS": Row.get("clearedDps", Row.get("completedDps")) or 0,
             "Pending DPS": Row.get("pendingDps") or 0,
             "Needs Re-Attempt": Row.get("needsReattempt") or 0,
             "Average Score": Row.get("averageScore") or 0,
             "Average Accuracy %": Row.get("averageAccuracy") or 0,
-            "Performance Zone": Row.get("performanceZone") or "-",
-            "Assessment Readiness": Row.get("assessmentReadiness") or "-",
+            "Performance Zone": Row.get("performanceZone") or "—",
+            "Assessment Readiness": Row.get("assessmentReadiness") or "—",
             "Promotion Status": Row.get("promotionStatus") or "Not Promoted",
-            "From Level": Row.get("fromLevelCode") or "-",
-            "To Level": Row.get("toLevelCode") or "-",
+            "From Level": Row.get("fromLevelCode") or "—",
+            "To Level": Row.get("toLevelCode") or "—",
             "Promoted Date": _admin_report_date(Row.get("promotedAt"), timezone, timezoneOffsetMinutes),
             "Promoted Time": _admin_report_time(Row.get("promotedAt"), timezone, timezoneOffsetMinutes),
-            "Promoted By": Row.get("promotedByName") or "-",
+            "Promoted By": Row.get("promotedByName") or "—",
             "Last Activity Date": _admin_report_date(Row.get("lastActivity"), timezone, timezoneOffsetMinutes),
         })
     LevelRows = sorted(
@@ -4827,37 +5187,38 @@ def export_student_results(studentId: str, moduleId: str | None = None, levelId:
     PromotionRows = []
     for Row in Payload.get("promotionHistory", []):
         PromotionRows.append({
-            "Student Name": Row.get("studentName") or Student.get("studentName") or "-",
-            "Student Code": Row.get("studentCode") or Student.get("studentCode") or "-",
+            "Student Name": Row.get("studentName") or Student.get("studentName") or "—",
+            "Student Code": Row.get("studentCode") or Student.get("studentCode") or "—",
             "Promotion Status": Row.get("promotionStatus") or "Promoted",
-            "From Module": Row.get("fromModuleCode") or "-",
-            "From Level": Row.get("fromLevelCode") or "-",
-            "To Module": Row.get("toModuleCode") or "-",
-            "To Level": Row.get("toLevelCode") or "-",
+            "From Module": Row.get("fromModuleCode") or "—",
+            "From Level": Row.get("fromLevelCode") or "—",
+            "To Module": Row.get("toModuleCode") or "—",
+            "To Level": Row.get("toLevelCode") or "—",
             "Promotion Assessment": Row.get("assessmentTitle") or "Assessment",
             "Promotion Score": NormalizeAssessmentScore(Row.get("score") or 0, Row.get("maxScore") or Row.get("totalMarks") or 100),
             "Promotion Percentage": NormalizeAssessmentPercentage(Row.get("percentage") or 0, 100),
             "Promoted Date": _admin_report_date(Row.get("promotedAt"), timezone, timezoneOffsetMinutes),
             "Promoted Time": _admin_report_time(Row.get("promotedAt"), timezone, timezoneOffsetMinutes),
-            "Promoted By": Row.get("promotedByName") or "Admin",
+            "Promoted By": Row.get("promotedByName") or "—",
         })
     DpsRows = []
     for Row in Payload.get("dpsAttempts", []):
         CompletedValue = Row.get("completedDate") or Row.get("submittedAt")
         DpsRows.append({
-            "Module Code": Row.get("moduleCode") or "-",
-            "Module": Row.get("moduleName") or "-",
-            "Level Code": Row.get("levelCode") or "-",
-            "Level": Row.get("levelName") or "-",
+            "Module Code": Row.get("moduleCode") or "—",
+            "Module": Row.get("moduleName") or "—",
+            "Level Code": Row.get("levelCode") or "—",
+            "Level": Row.get("levelName") or "—",
             "Lesson": _admin_combined_lesson_label(Row.get("lessonNumber"), Row.get("lessonTitle")),
             "DPS": _admin_combined_dps_label(Row.get("dpsNumber"), Row.get("dpsTitle")),
             "Teacher Name": Row.get("teacherName") or Student.get("teacherName") or "Not Assigned",
-            "Teacher Code": Row.get("teacherCode") or Student.get("teacherCode") or "-",
-            "Status": Row.get("displayStatus") or Row.get("status") or "-",
+            "Teacher Code": Row.get("teacherCode") or Student.get("teacherCode") or "—",
+            "Attempt": Row.get("attemptLabel") or "Original",
+            "Status": Row.get("chainRowLabel") or Row.get("displayStatus") or Row.get("status") or "—",
             "Score": Row.get("score") or 0,
             "Total Marks": Row.get("maxScore") or 0,
             "Accuracy %": Row.get("accuracyPercentage") or 0,
-            "Benchmark Status": "Needs Improvement" if Row.get("requiresAttention") else "Benchmark Met",
+            "Benchmark": "Benchmark Not Met" if Row.get("requiresAttention") else "Benchmark Met",
             "Correct Answers": Row.get("correct") or 0,
             "Completed Date": _admin_report_date(CompletedValue, timezone, timezoneOffsetMinutes),
             "Completion Time": _admin_report_time(CompletedValue, timezone, timezoneOffsetMinutes),
@@ -4867,15 +5228,15 @@ def export_student_results(studentId: str, moduleId: str | None = None, levelId:
     for Row in Payload.get("assessmentHistory", []):
         CompletedValue = Row.get("completedDate") or Row.get("submittedAt")
         AssessmentRows.append({
-            "Module Code": Row.get("moduleCode") or "-",
-            "Module": Row.get("moduleName") or "-",
-            "Level Code": Row.get("levelCode") or "-",
-            "Level": Row.get("levelName") or "-",
-            "Assessment": Row.get("assessmentTitle") or Row.get("assignmentTitle") or f"Level Assessment - {Row.get('levelCode') or '-'}",
+            "Module Code": Row.get("moduleCode") or "—",
+            "Module": Row.get("moduleName") or "—",
+            "Level Code": Row.get("levelCode") or "—",
+            "Level": Row.get("levelName") or "—",
+            "Assessment": Row.get("assessmentTitle") or Row.get("assignmentTitle") or f"Level Assessment - {Row.get('levelCode') or '—'}",
             "Attempt": Row.get("attemptLabel") or Row.get("attemptType") or "Original",
             "Teacher Name": Row.get("teacherName") or Student.get("teacherName") or "Not Assigned",
-            "Teacher Code": Row.get("teacherCode") or Student.get("teacherCode") or "-",
-            "Status": Row.get("displayStatus") or Row.get("status") or "-",
+            "Teacher Code": Row.get("teacherCode") or Student.get("teacherCode") or "—",
+            "Status": Row.get("displayStatus") or Row.get("status") or "—",
             "Score": NormalizeAssessmentScore(Row.get("score") or 0, Row.get("maxScore") or Row.get("totalMarks") or 100),
             "Total Marks": NormalizeAssessmentScore(Row.get("maxScore") or Row.get("totalMarks") or 0, Row.get("maxScore") or Row.get("totalMarks") or 0),
             "Accuracy %": NormalizeAssessmentPercentage(Row.get("accuracyPercentage") or Row.get("percentage") or 0, 100),
@@ -4906,26 +5267,28 @@ def export_student_results(studentId: str, moduleId: str | None = None, levelId:
             ("Generated Date", _admin_report_date(datetime.now(datetime_timezone.utc), timezone, timezoneOffsetMinutes)),
             ("Generated Time", _admin_report_time(datetime.now(datetime_timezone.utc), timezone, timezoneOffsetMinutes)),
             ("Student", f"{Student.get('studentName')} ({Student.get('studentCode')})"),
-            ("Class", Student.get("className") or "-"),
-            ("Section", Student.get("section") or "-"),
-            ("Account Status", Student.get("status") or "-"),
+            ("Class", Student.get("className") or "—"),
+            ("Section", Student.get("section") or "—"),
+            ("Account Status", Student.get("status") or "—"),
             ("Current / Assigned Teacher", Student.get("teacherName") or "Not Assigned"),
-            ("Teacher Code", Student.get("teacherCode") or "-"),
+            ("Teacher Code", Student.get("teacherCode") or "—"),
             ("Module Scope", SelectedModuleLabel),
             ("Level Scope", SelectedLevelLabel),
             ("Lesson Scope", SelectedLessonLabel),
             ("DPS Scope", SelectedDpsLabel),
-            ("Modules Cleared", Summary.get("modulesCleared", Summary.get("modulesCompleted", 0))),
-            ("Levels Cleared", Summary.get("levelsCleared", Summary.get("levelsCompleted", 0))),
-            ("Levels In Scope", Summary.get("levels", 0)),
+            ("Levels Completed (Promoted)", Summary.get("levelsCleared", Summary.get("levelsCompleted", 0))),
+            ("Modules Completed", Summary.get("modulesCleared", Summary.get("modulesCompleted", 0))),
+            ("Levels In Report", Summary.get("levels", 0)),
             ("DPS Attempts Reviewed", Summary.get("dpsAttempts", 0)),
             ("DPS Cleared", Summary.get("dpsCleared", Summary.get("dpsCompleted", 0))),
+            ("DPS Needing Re-Attempt", Summary.get("needsReattempt", 0)),
             ("Assessments Cleared", Summary.get("assessmentsCleared", 0)),
-            ("Promoted Levels", Summary.get("promotedLevels", 0)),
+            ("Ready To Promote", "Yes" if Summary.get("promotionReady") else "No"),
             ("Promotion History Records", Summary.get("promotionHistoryCount", 0)),
             ("DPS Avg Accuracy %", Summary.get("practiceAverageAccuracy", Summary.get("dpsAverageAccuracy", 0))),
             ("Assessment Avg Accuracy %", Summary.get("assessmentAverageAccuracy", 0)),
-            ("Benchmark Rule", "70% minimum accuracy"),
+            ("Benchmark Rule", f"{round(BENCHMARK_PERCENTAGE)}% minimum accuracy"),
+            ("How DPS Are Counted", "Each DPS once, by its current state (as on the Performance Reports page)"),
         ],
         [
             ("Level Progress", LevelRows),
@@ -5216,8 +5579,8 @@ def _admin_build_parent_progress_pdf_data(Payload: dict, TimezoneName: str | Non
             break
         RowMaxScore = PromotionRow.get("maxScore") or PromotionRow.get("totalMarks") or 100
         MovementRows.append({
-            "fromLevel": PromotionRow.get("fromLevelCode") or "-",
-            "toLevel": PromotionRow.get("toLevelCode") or "-",
+            "fromLevel": PromotionRow.get("fromLevelCode") or "—",
+            "toLevel": PromotionRow.get("toLevelCode") or "—",
             "assessment": PromotionRow.get("assessmentTitle") or "Level Assessment",
             "score": f"{NormalizeAssessmentScore(PromotionRow.get('score') or 0, RowMaxScore)} / {NormalizeAssessmentScore(RowMaxScore, RowMaxScore)}",
             "percentage": f"{NormalizeAssessmentPercentage(PromotionRow.get('percentage') or 0, 100)}%",
@@ -5254,7 +5617,7 @@ def _admin_build_parent_progress_pdf_data(Payload: dict, TimezoneName: str | Non
     return {
         "student": {
             "name": StudentName,
-            "code": StudentValue.get("studentCode") or "-",
+            "code": StudentValue.get("studentCode") or "—",
             "classSection": f"{StudentValue.get('className') or '-'} / {StudentValue.get('section') or '-'}",
             "photoRef": PhotoRef,
         },

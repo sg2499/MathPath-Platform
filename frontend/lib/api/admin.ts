@@ -136,6 +136,58 @@ export type LearningPerformanceParams = {
   dpsId?: string;
   timezone?: string;
   timezoneOffsetMinutes?: number;
+  // 2026-10-21 (Part 3)
+  period?: LearningPeriod;
+  view?: LearningView;
+};
+
+export type LearningPeriod = "7d" | "30d" | "90d" | "all";
+export type LearningView = "content" | "students" | "teachers" | "attempts";
+export type LearningFlag = "LOW_ACCURACY" | "LOW_FIRST_TRY" | null;
+export type LearningMeasures = {
+  students: number;
+  dpsCovered: number;
+  dpsCleared: number;
+  dpsNeedsReattempt: number;
+  firstTryClearRate: number | null;
+  averageTriesToClear: number | null;
+  averageAccuracy: number | null;
+  medianTimeSeconds: number | null;
+  attempts: number;
+  practiceSeconds: number;
+  lastActive: string | null;
+  flag: LearningFlag;
+};
+export type LearningContentRow = LearningMeasures & { kind: "module" | "level" | "lesson" | "dps"; id: string; code: string | null; name: string | null };
+export type LearningDpsStudentRow = {
+  studentId: string;
+  studentName: string | null;
+  studentCode: string | null;
+  teacherName: string | null;
+  statusLabel: string;
+  statusTone: string;
+  bucket: string;
+  tries: number;
+  triesText: string;
+  bestAccuracy: number | null;
+  benchmarkMet: boolean;
+  lastActive: string | null;
+  dpsId: string;
+  assignmentId: string | null;
+  attemptId: string | null;
+  awaitingApproval: boolean;
+};
+export type LearningStudentRow = LearningMeasures & { studentId: string; studentName: string | null; studentCode: string | null; teacherId: string | null; teacherName: string | null; currentLevelCode: string | null; currentLevelName: string | null };
+export type LearningTeacherRow = LearningMeasures & { teacherId: string | null; teacherName: string | null; teacherCode: string | null; roster: number | null; activeLast7Days: number; approvalsWaiting: number; readyToPromote: number };
+export type LearningRollup = {
+  view: Exclude<LearningView, "attempts">;
+  level: "module" | "level" | "lesson" | "dps" | "student" | null;
+  period: LearningPeriod;
+  periodFrom: string | null;
+  path: { kind: "all" | "module" | "level" | "lesson" | "dps"; id: string | null; label: string }[];
+  rows: (LearningContentRow | LearningDpsStudentRow | LearningStudentRow | LearningTeacherRow)[];
+  summary: Record<string, unknown>;
+  rules: { benchmark: number; flagMinAttempts: number; flagFirstTry: number };
 };
 
 export type StudentHistoryParams = {
@@ -159,8 +211,79 @@ export async function getLevelResults(params: { moduleId?: string; levelId: stri
   return data;
 }
 
+// Performance Reports > Overview (2026-10-21, Part 2)
+export type OverviewPeriod = "7d" | "30d" | "90d";
+export type OverviewTile = { value: number | null; previous: number | null; change: number | null; of?: number; taken?: number; passed?: number; students?: number; official?: number };
+export type OverviewAttentionKind = "APPROVAL" | "STUCK" | "READY" | "FALLING" | "INACTIVE";
+export type OverviewAttentionItem = {
+  kind: OverviewAttentionKind;
+  label: string;
+  detail: string;
+  studentId: string;
+  studentCode: string | null;
+  studentName: string | null;
+  teacherName: string | null;
+  levelCode?: string | null;
+  lessonNumber?: number | null;
+  dpsNumber?: number | null;
+  dpsId?: string | null;
+  assignmentId?: string | null;
+  attemptId?: string | null;
+  since?: string | null;
+  idleDays?: number | null;
+  drop?: number;
+};
+export type PerformanceOverview = {
+  period: { key: OverviewPeriod; days: number; from: string; to: string; previousFrom: string; previousTo: string };
+  studentsInScope: number;
+  tiles: Record<
+    "activeStudents" | "dpsCleared" | "firstTryClearRate" | "averageAccuracy" | "practiceMinutes" | "attempts" | "reattemptBacklog" | "assessmentPassRate" | "promotions" | "mocksTaken" | "annualAttempts",
+    OverviewTile
+  >;
+  series: { from: string; to: string; attempts: number; dpsCleared: number; activeStudents: number; averageAccuracy: number | null }[];
+  seriesStep: "day" | "week";
+  levels: { levelId: string; levelCode: string; levelName: string; moduleCode: string | null; onLevel: number; readyToPromote: number; promotedOut: number }[];
+  attention: OverviewAttentionItem[];
+  attentionTotal: number;
+  attentionCounts: Record<OverviewAttentionKind, number>;
+  rules: { benchmark: number; inactiveDays: number; stuckTries: number; fallingPoints: number };
+  scope: { teacherScope: string; moduleScope: string; levelScope: string };
+};
+
+export async function getAdminPerformanceOverview(params: { period?: OverviewPeriod; teacherId?: string; moduleId?: string; levelId?: string }): Promise<PerformanceOverview> {
+  const { data } = await api.get('/admin/results/overview', { params });
+  return data;
+}
+
 export async function getAdminLearningPerformance(params: LearningPerformanceParams) {
   const { data } = await api.get('/admin/results/learning-performance', { params });
+  return data;
+}
+
+export async function getAdminLearningRollup(params: LearningPerformanceParams): Promise<LearningRollup> {
+  const { data } = await api.get('/admin/results/learning-rollup', { params });
+  return data;
+}
+
+export type StudentInsightsEvent = { kind: "STARTED" | "ASSESSMENT" | "PROMOTED"; at: string; title: string; detail: string; levelCode: string | null; attemptId?: string | null; tone: "blue" | "green" | "amber" | "purple" };
+export type StudentConcept = { concept: string; questions: number; correct: number; accuracy: number };
+export type StudentInsights = {
+  student: Record<string, unknown> & { studentId: string; studentName: string; studentCode: string; teacherName?: string | null; teacherCode?: string | null; status?: string; currentLevelCode: string | null; currentLevelName: string | null; currentModuleCode: string | null; currentModuleName: string | null };
+  summary: Record<string, unknown>;
+  profile: { lastActive: string | null; daysSinceActive: number | null; streakDays: number; activeDaysLast30: number; practiceDays: number };
+  trend: { from: string; to: string; practiceAccuracy: number | null; attempts: number; assessmentAccuracy: number | null; assessments: number }[];
+  concepts: { strengths: StudentConcept[]; weakSpots: StudentConcept[]; concepts: StudentConcept[]; minQuestions: number; strongFrom: number };
+  timeline: StudentInsightsEvent[];
+  competition: null | {
+    mocksTaken: number; mockBest: number | null; mockLatest: number | null; mockLatestTitle: string | null; mockLatestAt: string | null; mockLatestAttemptId: string | null;
+    annualPapers: number; annualOfficial: number; annualLatest: number | null; annualLatestEvent: string | null; annualLatestAttemptId: string | null; annualLatestRank: number | null; annualLatestReleased: boolean;
+  };
+  parentReport: { available: boolean; levelCode: string | null; moduleCode: string | null };
+  rules: { benchmark: number };
+};
+
+export async function getAdminStudentInsights(params: { studentId: string; moduleId?: string }): Promise<StudentInsights> {
+  const { data } = await api.get('/admin/results/student-insights', { params });
   return data;
 }
 
