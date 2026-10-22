@@ -6,12 +6,31 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { SortableHeader } from "@/components/common/SortableHeader";
+import { StatePill } from "@/components/common/DetailWorkspaceViews";
+import { InlineError } from "@/components/payments/PaymentsUi";
+import { PerformanceOverview } from "@/components/admin/PerformanceOverview";
+import { StudentPicker } from "@/components/admin/StudentPicker";
+import { StudentSummary } from "@/components/admin/StudentSummary";
+import {
+  LEARNING_PERIODS,
+  LEARNING_VIEWS,
+  LearningBreadcrumb,
+  LearningContentTable,
+  LearningDpsStudentsTable,
+  LearningStudentsTable,
+  LearningTeachersTable,
+  LearningViewBar,
+  PeriodLabel,
+} from "@/components/admin/LearningViews";
+import type { LearningContentRow, LearningRollup, LearningStudentRow, LearningTeacherRow, OverviewPeriod } from "@/lib/api/admin";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
+import { useUrlParamState, useUrlTabState } from "@/hooks/useUrlTabState";
 import { apiErrorMessage } from "@/lib/api";
 import {
   downloadAdminLearningPerformanceReport,
   downloadAdminStudentReport,
   getAdminLearningPerformance,
+  getAdminLearningRollup,
   getAdminStudents,
   getAdminTeachers,
   getDpsByLesson,
@@ -41,6 +60,8 @@ import {
   Boxes,
   CheckCheck,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   Clock3,
   Database,
@@ -62,10 +83,10 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 type AnyRecord = Record<string, unknown>;
-type ResultsMode = "LEARNING" | "STUDENT";
+type ResultsMode = "OVERVIEW" | "LEARNING" | "STUDENT";
 type LearningSortKey =
   | "student"
   | "teacher"
@@ -113,7 +134,7 @@ type PromotionHistorySortKey =
   | "promotionDate"
   | "promotedBy";
 type SortDirection = "asc" | "desc";
-type StudentHistoryDetailTab = "CURRENT" | "DPS" | "ASSESSMENT" | "PROMOTION";
+type StudentHistoryDetailTab = "SUMMARY" | "CURRENT" | "DPS" | "ASSESSMENT" | "PROMOTION";
 
 const LEARNING_SORT_FIELDS: { Key: LearningSortKey; Label: string }[] = [
   { Key: "student", Label: "Student" },
@@ -122,7 +143,6 @@ const LEARNING_SORT_FIELDS: { Key: LearningSortKey; Label: string }[] = [
   { Key: "status", Label: "Status" },
   { Key: "score", Label: "Score" },
   { Key: "accuracy", Label: "Accuracy" },
-  { Key: "benchmark", Label: "Benchmark" },
   { Key: "completedDate", Label: "Completed Date" },
   { Key: "timeTaken", Label: "Time Taken" },
 ];
@@ -217,18 +237,18 @@ function PickFirstString(
 }
 
 function FormatDate(Value: unknown) {
-  if (!Value || Value === "-") return "-";
+  if (!Value || Value === "-") return "—";
   return formatMathPathDateTime(String(Value));
 }
 
 function FormatDateOnly(Value: unknown) {
-  if (!Value || Value === "-") return "-";
+  if (!Value || Value === "-") return "—";
   return formatMathPathDate(String(Value));
 }
 
 function FormatTimeTaken(Value: unknown) {
   const TotalSeconds = NumberValue(Value, Number.NaN);
-  if (!Number.isFinite(TotalSeconds)) return "-";
+  if (!Number.isFinite(TotalSeconds)) return "—";
   const RoundedSeconds = Math.max(0, Math.round(TotalSeconds));
   if (RoundedSeconds < 60) return `${RoundedSeconds} Sec`;
   const Minutes = Math.floor(RoundedSeconds / 60);
@@ -776,19 +796,41 @@ function IdForApi(Value: string) {
   return Value && Value !== AllValue ? Value : undefined;
 }
 
+const RESULTS_TABS = ["overview", "learning", "student"] as const;
+
+// 2026-10-21 (Performance Reports, Part 1): the sub-tab and every filter live
+// in the page address (?tab=&teacher=&module=...), so a refresh, back/forward
+// and a copied link open exactly the same report.
 export default function AdminResultsPage() {
+  return (
+    <Suspense fallback={<LoadingState message="Loading report data..." />}>
+      <AdminResultsPageInner />
+    </Suspense>
+  );
+}
+
+function AdminResultsPageInner() {
   const Ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const Router = useRouter();
 
   const ResultsStateKey = CreatePersistedUiStateKey("admin", "performance-reports");
-  const [Mode, SetMode] = usePersistentUiState<ResultsMode>(CreatePersistedUiStateKey(ResultsStateKey, "mode"), "LEARNING");
-  const [SelectedTeacherId, SetSelectedTeacherId] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "teacher-filter"), "");
-  const [SelectedStudentId, SetSelectedStudentId] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "student-filter"), "");
-  const [SelectedModuleId, SetSelectedModuleId] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "module-filter"), "");
-  const [SelectedLevelId, SetSelectedLevelId] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "level-filter"), "");
-  const [SelectedLessonId, SetSelectedLessonId] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "lesson-filter"), "");
-  const [SelectedDpsId, SetSelectedDpsId] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "dps-filter"), "");
-  const [SearchText, SetSearchText] = usePersistentUiState(CreatePersistedUiStateKey(ResultsStateKey, "search"), "");
+  const [ModeTab, SetModeTab] = useUrlTabState("tab", RESULTS_TABS, "overview");
+  const Mode: ResultsMode = ModeTab === "student" ? "STUDENT" : ModeTab === "learning" ? "LEARNING" : "OVERVIEW";
+  const SetMode = (Next: ResultsMode) => SetModeTab(Next === "STUDENT" ? "student" : Next === "LEARNING" ? "learning" : "overview");
+  // one period for the Overview and Learning Performance (Learning also has All Time)
+  const [PeriodValue, SetPeriodValue] = useUrlTabState("period", LEARNING_PERIODS, "30d");
+  const OverviewPeriodValue: OverviewPeriod = PeriodValue === "all" ? "30d" : PeriodValue;
+  const SetOverviewPeriod = (Next: OverviewPeriod) => SetPeriodValue(Next);
+  // 2026-10-21 (Part 3): Learning Performance's view; the drill-down first
+  const [LearningViewValue, SetLearningView] = useUrlTabState("lp", LEARNING_VIEWS, "content");
+  const [SelectedTeacherId, SetSelectedTeacherId] = useUrlParamState("teacher", "");
+  const [SelectedStudentId, SetSelectedStudentId] = useUrlParamState("student", "");
+  const [SelectedModuleId, SetSelectedModuleId] = useUrlParamState("module", "");
+  const [SelectedLevelId, SetSelectedLevelId] = useUrlParamState("level", "");
+  const [SelectedLessonId, SetSelectedLessonId] = useUrlParamState("lesson", "");
+  const [SelectedDpsId, SetSelectedDpsId] = useUrlParamState("dps", "");
+  const [SearchText, SetSearchText] = useUrlParamState("q", "");
+  const [ExportError, SetExportError] = useState<unknown>(null);
   const [LearningSortKeyValue, SetLearningSortKeyValue] =
     usePersistentUiState<LearningSortKey>(CreatePersistedUiStateKey(ResultsStateKey, "learning-sort-key"), "completedDate");
   const [StudentSortKeyValue, SetStudentSortKeyValue] =
@@ -838,6 +880,7 @@ export default function AdminResultsPage() {
       SelectedLevelId,
       SelectedLessonId,
       SelectedDpsId,
+      PeriodValue,
     ],
     queryFn: () =>
       getAdminLearningPerformance({
@@ -846,8 +889,34 @@ export default function AdminResultsPage() {
         levelId: IdForApi(SelectedLevelId),
         lessonId: IdForApi(SelectedLessonId),
         dpsId: IdForApi(SelectedDpsId),
+        period: PeriodValue,
       }),
-    enabled: Ready && Mode === "LEARNING" && Boolean(SelectedModuleId),
+    enabled: Ready && Mode === "LEARNING" && LearningViewValue === "attempts",
+  });
+
+  const LearningRollupQuery = useQuery({
+    queryKey: [
+      "admin-learning-rollup",
+      LearningViewValue,
+      PeriodValue,
+      SelectedTeacherId,
+      SelectedModuleId,
+      SelectedLevelId,
+      SelectedLessonId,
+      SelectedDpsId,
+    ],
+    queryFn: () =>
+      getAdminLearningRollup({
+        view: LearningViewValue,
+        period: PeriodValue,
+        teacherId: IdForApi(SelectedTeacherId),
+        moduleId: IdForApi(SelectedModuleId),
+        levelId: IdForApi(SelectedLevelId),
+        lessonId: IdForApi(SelectedLessonId),
+        dpsId: IdForApi(SelectedDpsId),
+      }),
+    enabled: Ready && Mode === "LEARNING" && LearningViewValue !== "attempts",
+    placeholderData: (Previous) => Previous,
   });
 
   const StudentReportQuery = useQuery({
@@ -874,62 +943,51 @@ export default function AdminResultsPage() {
       SelectedStudentId !== AllValue,
   });
 
-  const StudentAssessmentScopeReportQuery = useQuery({
-    queryKey: [
-      "admin-results-student-assessment-scope-report",
-      SelectedStudentId,
-      SelectedModuleId,
-      SelectedLevelId,
-    ],
-    queryFn: () =>
-      getStudentReport({
-        studentId: SelectedStudentId,
-        moduleId: IdForApi(SelectedModuleId),
-        levelId: IdForApi(SelectedLevelId),
-      }),
-    enabled:
-      Ready &&
-      Mode === "STUDENT" &&
-      Boolean(SelectedStudentId) &&
-      SelectedStudentId !== AllValue,
-  });
-
-  const ParentReportScopeQuery = useQuery({
-    queryKey: [
-      "admin-results-parent-report-scope",
-      SelectedStudentId,
-      SelectedModuleId,
-    ],
-    queryFn: () =>
-      getStudentReport({
-        studentId: SelectedStudentId,
-        moduleId: IdForApi(SelectedModuleId),
-      }),
-    enabled:
-      Ready &&
-      Mode === "STUDENT" &&
-      Boolean(SelectedStudentId) &&
-      SelectedStudentId !== AllValue,
-  });
-
   const ReportStudents = useMemo(
     () => StudentsQuery.data ?? [],
     [StudentsQuery.data],
   );
+  // 2026-10-21 (Part 4): a picker you can type into
+  const PickerStudents = useMemo(
+    () =>
+      ReportStudents.filter((Student: AdminStudent) => Student.isActive !== false || Student.studentId === SelectedStudentId)
+        .map((Student: AdminStudent) => ({
+          studentId: Student.studentId,
+          name: Student.studentName || Student.fullName,
+          code: Student.studentCode,
+          teacher: Student.teacherName || Student.teacher,
+          level: Student.currentLevelCode,
+        }))
+        .sort((First, Second) => First.name.localeCompare(Second.name)),
+    [ReportStudents, SelectedStudentId],
+  );
 
+  // A narrower filter is cleared when a wider one changes -- but not when the
+  // page opens from an address that already holds them all.
+  const PreviousScope = useRef({ Module: SelectedModuleId, Level: SelectedLevelId, Lesson: SelectedLessonId, Student: SelectedStudentId });
   useEffect(() => {
+    if (PreviousScope.current.Module === SelectedModuleId) return;
+    PreviousScope.current.Module = SelectedModuleId;
     SetSelectedLevelId("");
     SetSelectedLessonId("");
     SetSelectedDpsId("");
   }, [SelectedModuleId]);
 
   useEffect(() => {
+    if (PreviousScope.current.Level === SelectedLevelId) return;
+    PreviousScope.current.Level = SelectedLevelId;
     SetSelectedLessonId("");
     SetSelectedDpsId("");
   }, [SelectedLevelId]);
 
-  useEffect(() => SetSelectedDpsId(""), [SelectedLessonId]);
+  useEffect(() => {
+    if (PreviousScope.current.Lesson === SelectedLessonId) return;
+    PreviousScope.current.Lesson = SelectedLessonId;
+    SetSelectedDpsId("");
+  }, [SelectedLessonId]);
 
+  // Choosing a student opens their current module (the admin can then pick
+  // another one); a module already in the address is kept.
   useEffect(() => {
     if (Mode !== "STUDENT") return;
     if (!SelectedStudentId || SelectedStudentId === AllValue) return;
@@ -937,6 +995,9 @@ export default function AdminResultsPage() {
       (Item) => Item.studentId === SelectedStudentId,
     );
     if (!Student) return;
+    const Changed = PreviousScope.current.Student !== SelectedStudentId;
+    PreviousScope.current.Student = SelectedStudentId;
+    if (!Changed && SelectedModuleId) return;
     const StudentModuleId = Student.currentModuleId || "";
     if (StudentModuleId !== SelectedModuleId) {
       SetSelectedModuleId(StudentModuleId);
@@ -969,12 +1030,18 @@ export default function AdminResultsPage() {
     () => AsArray(RawLearningData?.results),
     [RawLearningData],
   );
+  const RollupData = LearningRollupQuery.data as LearningRollup | undefined;
   const LearningSummary =
-    (RawLearningData?.summary as AnyRecord | undefined) ?? {};
+    ((LearningViewValue === "attempts" ? RawLearningData?.summary : RollupData?.summary) as AnyRecord | undefined) ?? {};
+  const LearningHasPractice = PickFirstNumber(LearningSummary, ["completedAttempts"], 0) > 0;
+  const RollupStudentRows = useMemo(() => {
+    if (!RollupData || RollupData.view !== "students") return RollupData;
+    const Query = SearchText.trim().toLowerCase();
+    if (!Query) return RollupData;
+    return { ...RollupData, rows: (RollupData.rows as LearningStudentRow[]).filter((Row) => `${Row.studentName ?? ""} ${Row.studentCode ?? ""} ${Row.teacherName ?? ""}`.toLowerCase().includes(Query)) };
+  }, [RollupData, SearchText]);
 
   const RawStudentData = StudentReportQuery.data as AnyRecord | undefined;
-  const RawAssessmentScopeStudentData =
-    StudentAssessmentScopeReportQuery.data as AnyRecord | undefined;
   const StudentSummary =
     (RawStudentData?.summary as AnyRecord | undefined) ?? {};
   const StudentLevelRows = useMemo(
@@ -986,25 +1053,17 @@ export default function AdminResultsPage() {
     [RawStudentData],
   );
   const StudentAssessmentRows = useMemo(
-    () => AsArray(RawAssessmentScopeStudentData?.assessmentHistory),
-    [RawAssessmentScopeStudentData],
+    () => AsArray(RawStudentData?.assessmentHistory),
+    [RawStudentData],
   );
   const StudentPromotionRows = useMemo(
     () => AsArray(RawStudentData?.promotionHistory),
     [RawStudentData],
   );
 
-  const RawParentReportScopeData = ParentReportScopeQuery.data as
-    | AnyRecord
-    | undefined;
-  const StudentJourneyLevelRows = useMemo(
-    () => AsArray(RawParentReportScopeData?.levelProgress),
-    [RawParentReportScopeData],
-  );
-  const StudentJourneyPromotionRows = useMemo(
-    () => AsArray(RawParentReportScopeData?.promotionHistory),
-    [RawParentReportScopeData],
-  );
+  // the journey (levels and promotions) is always the module's, from the same payload
+  const StudentJourneyLevelRows = StudentLevelRows;
+  const StudentJourneyPromotionRows = StudentPromotionRows;
 
   const FilteredLearningRows = useMemo(() => {
     const FilteredRows = FilterSearchRows(LearningRows, SearchText);
@@ -1083,51 +1142,18 @@ export default function AdminResultsPage() {
     [StudentPromotionRows, SearchText],
   );
 
-  const StudentHistoryMetricValues = useMemo(() => {
-    const DpsCurrentRows = BuildCurrentAttemptGroups(
-      FilteredStudentAttempts,
-    ).map((Group) => Group.CurrentRow);
-    const AssessmentCurrentRows = BuildCurrentAttemptGroups(
-      FilteredAssessmentRows,
-    ).map((Group) => Group.CurrentRow);
-    const DpsClearedCount = DpsCurrentRows.filter((Row) =>
-      IsBenchmarkMetAttempt(Row),
-    ).length;
-    const AssessmentClearedCount = AssessmentCurrentRows.filter((Row) =>
-      IsBenchmarkMetAttempt(Row),
-    ).length;
-    const LevelKeys = new Set(
-      AssessmentCurrentRows.filter((Row) => IsBenchmarkMetAttempt(Row))
-        .map((Row) => PickFirstString(Row, ["levelId", "levelCode"], ""))
-        .filter(Boolean),
-    );
-    const ModuleKeys = new Set(
-      AssessmentCurrentRows.filter((Row) => IsBenchmarkMetAttempt(Row))
-        .map((Row) => PickFirstString(Row, ["moduleId", "moduleCode"], ""))
-        .filter(Boolean),
-    );
-
-    return {
-      dpsCleared: DpsClearedCount,
-      assessmentsCleared: AssessmentClearedCount,
-      levelsCleared:
-        LevelKeys.size ||
-        PickFirstNumber(
-          StudentSummary,
-          ["levelsCleared", "levelsCompleted"],
-          0,
-        ),
-      modulesCleared:
-        ModuleKeys.size ||
-        PickFirstNumber(
-          StudentSummary,
-          ["modulesCleared", "modulesCompleted"],
-          0,
-        ),
-      dpsAverageAccuracy: VisibleAttemptAverageAccuracy(FilteredStudentAttempts),
-      assessmentAverageAccuracy: VisibleAttemptAverageAccuracy(FilteredAssessmentRows),
-    };
-  }, [FilteredStudentAttempts, FilteredAssessmentRows, StudentSummary]);
+  // Every tile is the server's count (each DPS once, by its shared state;
+  // a level completed when the student is promoted out of it), so the page,
+  // the Excel and the trackers always agree. Search narrows the tables only.
+  const StudentHistoryMetricValues = {
+    dpsCleared: PickFirstNumber(StudentSummary, ["dpsCleared"], 0),
+    needsReattempt: PickFirstNumber(StudentSummary, ["needsReattempt"], 0),
+    assessmentsCleared: PickFirstNumber(StudentSummary, ["assessmentsCleared"], 0),
+    levelsCleared: PickFirstNumber(StudentSummary, ["levelsCleared", "levelsCompleted"], 0),
+    modulesCleared: PickFirstNumber(StudentSummary, ["modulesCleared", "modulesCompleted"], 0),
+    dpsAverageAccuracy: StudentDpsAttempts.length ? PickFirstNumber(StudentSummary, ["dpsAverageAccuracy"], Number.NaN) : null,
+    assessmentAverageAccuracy: StudentAssessmentRows.length ? PickFirstNumber(StudentSummary, ["assessmentAverageAccuracy"], Number.NaN) : null,
+  };
 
   const Error =
     TeachersQuery.error ||
@@ -1137,8 +1163,8 @@ export default function AdminResultsPage() {
     LessonsQuery.error ||
     DpsQuery.error ||
     LearningPerformanceQuery.error ||
-    StudentReportQuery.error ||
-    StudentAssessmentScopeReportQuery.error;
+    (Mode === "LEARNING" && LearningViewValue !== "attempts" ? LearningRollupQuery.error : null) ||
+    StudentReportQuery.error;
   const IsLoading =
     TeachersQuery.isLoading ||
     StudentsQuery.isLoading ||
@@ -1146,10 +1172,9 @@ export default function AdminResultsPage() {
     LevelsQuery.isLoading ||
     LessonsQuery.isLoading ||
     DpsQuery.isLoading ||
-    (Mode === "LEARNING" && LearningPerformanceQuery.isLoading) ||
-    (Mode === "STUDENT" &&
-      (StudentReportQuery.isLoading ||
-        StudentAssessmentScopeReportQuery.isLoading));
+    (Mode === "LEARNING" && LearningViewValue === "attempts" && LearningPerformanceQuery.isLoading) ||
+    (Mode === "LEARNING" && LearningViewValue !== "attempts" && LearningRollupQuery.isLoading) ||
+    (Mode === "STUDENT" && StudentReportQuery.isLoading);
 
   function ToggleLearningSort(Key: LearningSortKey) {
     const Next = SortDirectionFor(
@@ -1180,17 +1205,15 @@ export default function AdminResultsPage() {
       return SelectedStudent
         ? `${SelectedStudent.studentName || SelectedStudent.fullName} (${SelectedStudent.studentCode})`
         : "Choose Student";
-    if (!SelectedModuleId) return "Choose Module";
     if (SelectedDps)
       return `DPS ${SelectedDps.dpsNumber}: ${SelectedDps.dpsTitle}`;
     if (SelectedLesson)
       return `Lesson ${SelectedLesson.lessonNumber}: ${SelectedLesson.lessonTitle}`;
     if (SelectedLevel)
       return `${SelectedLevel.levelCode}: ${SelectedLevel.levelName}`;
-    if (SelectedModuleId === AllValue) return "All Modules";
     return SelectedModule
       ? `${SelectedModule.moduleCode}: ${SelectedModule.moduleName}`
-      : "Learning Performance";
+      : "All Modules";
   }
 
   function LearningFileName() {
@@ -1198,8 +1221,9 @@ export default function AdminResultsPage() {
       ? `DPS-${SelectedDps.dpsNumber}`
       : SelectedLesson
         ? `Lesson-${SelectedLesson.lessonNumber}`
-        : SelectedLevel?.levelCode || SelectedModule?.moduleCode || "Scope";
-    return `${SafeSlug(["MP", "Learning", "Performance", ScopeCode, TodayLabel()].join("_"))}.xlsx`;
+        : SelectedLevel?.levelCode || SelectedModule?.moduleCode || "All-Modules";
+    const ViewName = { content: "Drill-Down", students: "By-Student", teachers: "By-Teacher", attempts: "Attempts" }[LearningViewValue];
+    return `${SafeSlug(["MP", "Learning", "Performance", ViewName, ScopeCode, TodayLabel()].join("_"))}.xlsx`;
   }
 
   function StudentFileName() {
@@ -1208,17 +1232,19 @@ export default function AdminResultsPage() {
 
   async function HandleExport() {
     try {
+      SetExportError(null);
       SetExportingMode(Mode);
       if (Mode === "LEARNING") {
-        if (!SelectedModuleId) return;
         const BlobValue = await downloadAdminLearningPerformanceReport({
+          view: LearningViewValue,
+          period: PeriodValue,
           teacherId: IdForApi(SelectedTeacherId),
           moduleId: IdForApi(SelectedModuleId),
           levelId: IdForApi(SelectedLevelId),
           lessonId: IdForApi(SelectedLessonId),
           dpsId: IdForApi(SelectedDpsId),
-          timezone: "Asia/Kolkata",
-          timezoneOffsetMinutes: 330,
+          timezone: ViewerTimezone(),
+          timezoneOffsetMinutes: ViewerTimezoneOffsetMinutes(),
         });
         DownloadBlob(BlobValue, LearningFileName());
       } else {
@@ -1229,25 +1255,14 @@ export default function AdminResultsPage() {
           levelId: IdForApi(SelectedLevelId),
           lessonId: IdForApi(SelectedLessonId),
           dpsId: IdForApi(SelectedDpsId),
-          timezone: "Asia/Kolkata",
-          timezoneOffsetMinutes: 330,
+          timezone: ViewerTimezone(),
+          timezoneOffsetMinutes: ViewerTimezoneOffsetMinutes(),
         });
         DownloadBlob(BlobValue, StudentFileName());
       }
     } catch (ErrorValue) {
-      const MessageValue =
-        typeof ErrorValue === "object" &&
-        ErrorValue !== null &&
-        "message" in ErrorValue
-          ? String(
-              (ErrorValue as { message?: unknown }).message ??
-                "Report export failed",
-            )
-          : "Report export failed";
-      console.warn(`Report export could not be completed: ${MessageValue}`);
-      window.alert(
-        "Report export could not be completed. Please restart the backend and try again.",
-      );
+      // shown under the button, as everywhere else on the platform
+      SetExportError(ErrorValue);
     } finally {
       SetExportingMode(null);
     }
@@ -1257,10 +1272,11 @@ export default function AdminResultsPage() {
 
   const ExportDisabled =
     Mode === "LEARNING"
-      ? !SelectedModuleId
+      ? false
       : !SelectedStudentId || SelectedStudentId === AllValue;
   const SearchPlaceholder =
-    Mode === "LEARNING" ? "Search Performance" : "Search History";
+    Mode === "LEARNING" ? (LearningViewValue === "students" ? "Search Students" : "Search Attempts") : "Search History";
+  const ShowSearch = Mode === "STUDENT" || (Mode === "LEARNING" && (LearningViewValue === "attempts" || LearningViewValue === "students"));
   const LearningScopeType = PickFirstString(
     LearningSummary,
     ["scopeType"],
@@ -1294,12 +1310,11 @@ export default function AdminResultsPage() {
       );
     }) ??
     CurrentLevelSourceRows[0];
-  const CurrentLevelRow = RawCurrentLevelRow
-    ? BuildCurrentLevelTrackerRow(RawCurrentLevelRow, StudentDpsAttempts)
-    : undefined;
+  const CurrentLevelRow =
+    CurrentLevelSourceRows.find((Row) => Row.isCurrentLevel === true) ?? RawCurrentLevelRow;
   const CurrentLevelProgress = CurrentLevelRow
     ? Math.round(
-        (PickFirstNumber(CurrentLevelRow, ["completedDps"], 0) /
+        (PickFirstNumber(CurrentLevelRow, ["clearedDps", "completedDps"], 0) /
           Math.max(PickFirstNumber(CurrentLevelRow, ["requiredDps"], 0), 1)) *
           100,
       )
@@ -1311,42 +1326,33 @@ export default function AdminResultsPage() {
             "Teacher",
             SelectedTeacher
               ? `${SelectedTeacher.teacherName} (${SelectedTeacher.teacherCode})`
-              : SelectedTeacherId === AllValue
-                ? "All Teachers"
-                : "Choose Teacher",
+              : "All Teachers",
           ],
           [
             "Module",
-            SelectedModuleId === AllValue
-              ? "All Modules"
-              : SelectedModule
-                ? `${SelectedModule.moduleCode} - ${SelectedModule.moduleName}`
-                : "Choose Module",
+            SelectedModule
+              ? `${SelectedModule.moduleCode} - ${SelectedModule.moduleName}`
+              : "All Modules",
           ],
           [
             "Level",
-            SelectedLevelId === AllValue
-              ? "All Levels"
-              : SelectedLevel
-                ? `${SelectedLevel.levelCode} - ${SelectedLevel.levelName}`
-                : "Choose Level",
+            SelectedLevel
+              ? `${SelectedLevel.levelCode} - ${SelectedLevel.levelName}`
+              : "All Levels",
           ],
           [
             "Lesson",
-            SelectedLessonId === AllValue
-              ? "All Lessons"
-              : SelectedLesson
-                ? `Lesson ${SelectedLesson.lessonNumber} - ${SelectedLesson.lessonTitle}`
-                : "Choose Lesson",
+            SelectedLesson
+              ? `Lesson ${SelectedLesson.lessonNumber} - ${SelectedLesson.lessonTitle}`
+              : "All Lessons",
           ],
           [
             "DPS",
-            SelectedDpsId === AllValue
-              ? "All DPS"
-              : SelectedDps
-                ? `DPS ${SelectedDps.dpsNumber} - ${SelectedDps.dpsTitle}`
-                : "Choose DPS",
+            SelectedDps
+              ? `DPS ${SelectedDps.dpsNumber} - ${SelectedDps.dpsTitle}`
+              : "All DPS",
           ],
+          ["Period", PeriodLabel(PeriodValue)],
         ]
       : [
           [
@@ -1367,27 +1373,21 @@ export default function AdminResultsPage() {
           ],
           [
             "Level",
-            SelectedLevelId === AllValue
-              ? "All Levels"
-              : SelectedLevel
-                ? `${SelectedLevel.levelCode} - ${SelectedLevel.levelName}`
-                : "Choose Level",
+            SelectedLevel
+              ? `${SelectedLevel.levelCode} - ${SelectedLevel.levelName}`
+              : "All Levels",
           ],
           [
             "Lesson",
-            SelectedLessonId === AllValue
-              ? "All Lessons"
-              : SelectedLesson
-                ? `Lesson ${SelectedLesson.lessonNumber} - ${SelectedLesson.lessonTitle}`
-                : "Choose Lesson",
+            SelectedLesson
+              ? `Lesson ${SelectedLesson.lessonNumber} - ${SelectedLesson.lessonTitle}`
+              : "All Lessons",
           ],
           [
             "DPS",
-            SelectedDpsId === AllValue
-              ? "All DPS"
-              : SelectedDps
-                ? `DPS ${SelectedDps.dpsNumber} - ${SelectedDps.dpsTitle}`
-                : "Choose DPS",
+            SelectedDps
+              ? `DPS ${SelectedDps.dpsNumber} - ${SelectedDps.dpsTitle}`
+              : "All DPS",
           ],
         ];
 
@@ -1398,20 +1398,30 @@ export default function AdminResultsPage() {
           <p className="math-block-header"><BarChart3 size={14} />Admin Reports</p>
           <h1 className="math-title">Performance Reports</h1>
           <p className="math-subtitle">
-            Review learning performance and student history with
-            hierarchy-aware, Excel-native reports.
+            How students are doing on their practice, by module, level, lesson and DPS, and each student&apos;s full learning history.
           </p>
         </div>
       </section>
 
       <section className="math-report-mode-tabs-section mt-5 math-card p-3">
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-3">
+          <ModeButton
+            active={Mode === "OVERVIEW"}
+            icon={<BarChart3 size={16} />}
+            kicker={OverviewPeriodValue === "7d" ? "Last 7 Days" : OverviewPeriodValue === "90d" ? "Last 90 Days" : "Last 30 Days"}
+            title="Overview"
+            text="How practice is going and who needs following up."
+            onClick={() => {
+              SetMode("OVERVIEW");
+              SetSearchText("");
+            }}
+          />
           <ModeButton
             active={Mode === "LEARNING"}
             icon={<ClipboardCheck size={16} />}
             kicker="Learning Scope"
             title="Learning Performance"
-            text="Module, level, lesson, and DPS performance from one place."
+            text="Every practice attempt, by module, level, lesson and DPS."
             onClick={() => {
               SetMode("LEARNING");
               SetSearchText("");
@@ -1423,7 +1433,7 @@ export default function AdminResultsPage() {
             icon={<UserRound size={16} />}
             kicker="Learner Journey"
             title="Student History"
-            text="Complete student journey with module, level, lesson, and DPS drilldown."
+            text="One student's levels, practice, assessments and promotions."
             onClick={() => {
               SetMode("STUDENT");
               SetSearchText("");
@@ -1432,15 +1442,41 @@ export default function AdminResultsPage() {
         </div>
       </section>
 
+      {Mode === "LEARNING" ? (
+        <div className="mt-5">
+          <LearningViewBar
+            View={LearningViewValue}
+            OnView={(Next) => {
+              SetLearningView(Next);
+              SetSearchText("");
+            }}
+            Period={PeriodValue}
+            OnPeriod={SetPeriodValue}
+          />
+        </div>
+      ) : null}
+
       {Error ? (
         <div className="mt-6">
           <ErrorState message={apiErrorMessage(Error)} />
         </div>
       ) : null}
 
-      <section className="mt-5 grid gap-3 xl:grid-cols-6">
-        {Mode === "LEARNING" ? (
+      {/* the person filter gets the most room (long names); two to a row on phones */}
+      <section
+        className={
+          Mode === "OVERVIEW"
+            ? "pr-filters mt-5 grid grid-cols-2 gap-3 md:grid-cols-3"
+            : ShowSearch
+              ? Mode === "STUDENT"
+                ? "pr-filters mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))_minmax(0,1.2fr)]"
+                : "pr-filters mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,1fr))_minmax(0,1.2fr)]"
+              : "pr-filters mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,1fr))]"
+        }
+      >
+        {Mode !== "STUDENT" ? (
           <SelectCard
+            className={Mode === "OVERVIEW" ? "col-span-2 md:col-span-1" : undefined}
             label="Teacher"
             value={SelectedTeacherId}
             onChange={SetSelectedTeacherId}
@@ -1450,36 +1486,25 @@ export default function AdminResultsPage() {
                 label: `${Teacher.teacherName} (${Teacher.teacherCode})`,
               }),
             )}
-            placeholder="Choose Teacher"
-            allOption={{ value: AllValue, label: "All Teachers" }}
+            placeholder="All Teachers"
           />
         ) : (
-          <SelectCard
-            label="Student"
-            value={SelectedStudentId}
-            onChange={SetSelectedStudentId}
-            options={ReportStudents.map((Student: AdminStudent) => ({
-              value: Student.studentId,
-              label: `${Student.studentName || Student.fullName} (${Student.studentCode})`,
-            }))}
-            placeholder="Choose Student"
-            allOption={{ value: AllValue, label: "All Students" }}
+          <StudentPicker
+            Students={PickerStudents}
+            Value={SelectedStudentId === AllValue ? "" : SelectedStudentId}
+            OnChange={SetSelectedStudentId}
           />
         )}
         <SelectCard
           label="Module"
-          value={SelectedModuleId}
+          value={Mode !== "STUDENT" && SelectedModuleId === AllValue ? "" : SelectedModuleId}
           onChange={SetSelectedModuleId}
           options={(ModulesQuery.data ?? []).map((Module: ModuleItem) => ({
             value: Module.moduleId,
             label: `${Module.moduleCode} - ${Module.moduleName}`,
           }))}
-          placeholder="Choose Module"
-          allOption={
-            Mode === "STUDENT"
-              ? { value: AllValue, label: "All Modules" }
-              : { value: AllValue, label: "All Modules" }
-          }
+          placeholder={Mode !== "STUDENT" ? "All Modules" : "Choose Module"}
+          allOption={Mode !== "STUDENT" ? undefined : { value: AllValue, label: "All Modules" }}
         />
         <SelectCard
           label="Level"
@@ -1489,8 +1514,7 @@ export default function AdminResultsPage() {
             value: Level.levelId,
             label: `${Level.levelCode} - ${Level.levelName}`,
           }))}
-          placeholder="Choose Level"
-          allOption={{ value: AllValue, label: "All Levels" }}
+          placeholder="All Levels"
           disabled={!SelectedModuleId || SelectedModuleId === AllValue}
         />
         <SelectCard
@@ -1501,9 +1525,9 @@ export default function AdminResultsPage() {
             value: Lesson.lessonId,
             label: `Lesson ${Lesson.lessonNumber} - ${Lesson.lessonTitle}`,
           }))}
-          placeholder="Choose Lesson"
-          allOption={{ value: AllValue, label: "All Lessons" }}
+          placeholder="All Lessons"
           disabled={!SelectedLevelId || SelectedLevelId === AllValue}
+          hidden={Mode === "OVERVIEW"}
         />
         <SelectCard
           label="DPS"
@@ -1519,11 +1543,11 @@ export default function AdminResultsPage() {
               value: Dps.dpsId,
               label: `DPS ${Dps.dpsNumber} - ${Dps.dpsTitle}`,
             }))}
-          placeholder="Choose DPS"
-          allOption={{ value: AllValue, label: "All DPS" }}
+          placeholder="All DPS"
           disabled={!SelectedLessonId || SelectedLessonId === AllValue}
+          hidden={Mode === "OVERVIEW"}
         />
-        <div className="math-card p-4">
+        <div className="math-card col-span-2 min-w-0 p-4 md:col-span-1" hidden={!ShowSearch}>
           <label className="math-label">Search</label>
           <div className="relative mt-3">
             <Search
@@ -1540,6 +1564,19 @@ export default function AdminResultsPage() {
         </div>
       </section>
 
+      {Mode === "OVERVIEW" ? (
+        <div className="mt-5">
+          <PerformanceOverview
+            Period={OverviewPeriodValue}
+            OnPeriod={SetOverviewPeriod}
+            TeacherId={IdForApi(SelectedTeacherId)}
+            ModuleId={IdForApi(SelectedModuleId)}
+            LevelId={IdForApi(SelectedLevelId)}
+            Enabled={Ready}
+          />
+        </div>
+      ) : (
+      <>
       <section className="mt-5 math-card math-selected-scope-card p-4 sm:p-5">
         <div className="space-y-3">
           <div className="min-w-0">
@@ -1573,6 +1610,7 @@ export default function AdminResultsPage() {
                   : "Export Student History"}
             </button>
           </div>
+          {ExportError ? <InlineError error={ExportError} /> : null}
         </div>
       </section>
 
@@ -1585,57 +1623,42 @@ export default function AdminResultsPage() {
             <MetricCard
               icon={<Users size={16} />}
               label="Students Covered"
-              value={String(
-                PickFirstNumber(
-                  LearningSummary,
-                  ["studentsCovered", "totalStudents"],
-                  0,
-                ),
-              )}
+              value={String(PickFirstNumber(LearningSummary, ["studentsCovered", "totalStudents"], 0))}
             />
             <MetricCard
-              icon={<ClipboardCheck size={16} />}
-              label="Attempts Reviewed"
-              value={String(
-                PickFirstNumber(
-                  LearningSummary,
-                  ["attemptsReviewed", "completedAttempts"],
-                  0,
-                ),
-              )}
+              icon={<Layers3 size={16} />}
+              label="DPS Covered"
+              value={String(PickFirstNumber(LearningSummary, ["dpsCovered"], 0))}
             />
             <MetricCard
               icon={<Trophy size={16} />}
-              label="Benchmark Met"
-              value={String(CurrentBenchmarkMetCount(LearningRows))}
+              label="DPS Cleared"
+              value={String(PickFirstNumber(LearningSummary, ["dpsCleared", "benchmarkMet"], 0))}
             />
             <MetricCard
               icon={<AlertTriangle size={16} />}
               label="Needs Re-Attempt"
-              value={String(CurrentNeedsReAttemptCount(LearningRows))}
+              value={String(PickFirstNumber(LearningSummary, ["dpsNeedsReattempt", "needsImprovement"], 0))}
             />
             <MetricCard
-              icon={<Sparkles size={16} />}
-              label="Promotion Ready"
-              value={String(
-                PickFirstNumber(
-                  LearningSummary,
-                  ["promotionReady", "promotionReadyStudents"],
-                  CurrentPromotionReadyCount(LearningRows),
-                ),
-              )}
-            />
-            <MetricCard
-              icon={<GraduationCap size={16} />}
-              label="Promoted Students"
-              value={String(
-                PickFirstNumber(LearningSummary, ["promotedStudents"], 0),
-              )}
+              icon={<ClipboardCheck size={16} />}
+              label="Attempts Reviewed"
+              value={String(PickFirstNumber(LearningSummary, ["attemptsReviewed", "completedAttempts"], 0))}
             />
             <MetricCard
               icon={<BarChart3 size={16} />}
               label="Average Accuracy"
-              value={FormatAccuracyOrDash(VisibleAttemptAverageAccuracy(FilteredLearningRows))}
+              value={LearningHasPractice ? `${PickFirstNumber(LearningSummary, ["averageAccuracy"], 0)}%` : "—"}
+            />
+            <MetricCard
+              icon={<Sparkles size={16} />}
+              label="Promotion Ready"
+              value={String(PickFirstNumber(LearningSummary, ["promotionReady"], 0))}
+            />
+            <MetricCard
+              icon={<GraduationCap size={16} />}
+              label="Promoted Students"
+              value={String(PickFirstNumber(LearningSummary, ["promotedStudents"], 0))}
             />
           </>
         ) : (
@@ -1647,15 +1670,15 @@ export default function AdminResultsPage() {
               compact
             />
             <MetricCard
-              icon={<Layers3 size={15} />}
-              label="Modules Cleared"
-              value={String(StudentHistoryMetricValues.modulesCleared)}
+              icon={<Trophy size={15} />}
+              label="Levels Completed"
+              value={String(StudentHistoryMetricValues.levelsCleared)}
               compact
             />
             <MetricCard
-              icon={<Trophy size={15} />}
-              label="Levels Cleared"
-              value={String(StudentHistoryMetricValues.levelsCleared)}
+              icon={<Layers3 size={15} />}
+              label="Modules Completed"
+              value={String(StudentHistoryMetricValues.modulesCleared)}
               compact
             />
             <MetricCard
@@ -1665,21 +1688,15 @@ export default function AdminResultsPage() {
               compact
             />
             <MetricCard
-              icon={<GraduationCap size={15} />}
-              label="Assessments Cleared"
-              value={String(StudentHistoryMetricValues.assessmentsCleared)}
+              icon={<AlertTriangle size={15} />}
+              label="Needs Re-Attempt"
+              value={String(StudentHistoryMetricValues.needsReattempt)}
               compact
             />
             <MetricCard
-              icon={<Trophy size={15} />}
-              label="Promoted Levels"
-              value={String(
-                PickFirstNumber(
-                  StudentSummary,
-                  ["promotedLevels", "promotionHistoryCount"],
-                  0,
-                ),
-              )}
+              icon={<GraduationCap size={15} />}
+              label="Assessments Cleared"
+              value={String(StudentHistoryMetricValues.assessmentsCleared)}
               compact
             />
             <MetricCard
@@ -1701,10 +1718,63 @@ export default function AdminResultsPage() {
       <section className="mt-5 math-card p-4 sm:p-5">
         {IsLoading ? (
           <LoadingState message="Loading report data..." />
+        ) : Mode === "LEARNING" && LearningViewValue !== "attempts" ? (
+          !RollupData ? null : RollupData.view === "content" ? (
+            <div className="space-y-4" aria-busy={LearningRollupQuery.isFetching || undefined}>
+              <LearningBreadcrumb
+                Path={RollupData.path}
+                OnCrumb={(Kind) => {
+                  if (Kind === "all") SetSelectedModuleId("");
+                  else if (Kind === "module") SetSelectedLevelId("");
+                  else if (Kind === "level") SetSelectedLessonId("");
+                  else if (Kind === "lesson") SetSelectedDpsId("");
+                }}
+              />
+              {!RollupData.rows.length ? (
+                <EmptyState title="No Practice In This Period" message="No DPS was practised in this scope and period. Try All Time or a wider scope." />
+              ) : RollupData.level === "student" ? (
+                <LearningDpsStudentsTable Data={RollupData} />
+              ) : (
+                <LearningContentTable
+                  Data={RollupData}
+                  OnOpen={(Row: LearningContentRow) => {
+                    if (Row.kind === "module") SetSelectedModuleId(Row.id);
+                    else if (Row.kind === "level") SetSelectedLevelId(Row.id);
+                    else if (Row.kind === "lesson") SetSelectedLessonId(Row.id);
+                    else SetSelectedDpsId(Row.id);
+                  }}
+                />
+              )}
+            </div>
+          ) : RollupData.view === "students" && RollupStudentRows ? (
+            !RollupStudentRows.rows.length ? (
+              <EmptyState title={SearchText.trim() ? "No Matching Students" : "No Practice In This Period"} message={SearchText.trim() ? "No student in this scope matches the search." : "No student practised in this scope and period. Try All Time or a wider scope."} />
+            ) : (
+              <LearningStudentsTable
+                Data={RollupStudentRows}
+                OnOpen={(Row: LearningStudentRow) => {
+                  SetSelectedStudentId(Row.studentId);
+                  SetMode("STUDENT");
+                  SetSearchText("");
+                }}
+              />
+            )
+          ) : RollupData.view === "teachers" ? (
+            !RollupData.rows.length ? (
+              <EmptyState title="No Teachers" message="No active teacher in this scope." />
+            ) : (
+              <LearningTeachersTable
+                Data={RollupData}
+                OnOpen={(Row: LearningTeacherRow) => {
+                  if (!Row.teacherId) return;
+                  SetSelectedTeacherId(Row.teacherId);
+                  SetLearningView("content");
+                }}
+              />
+            )
+          ) : null
         ) : Mode === "LEARNING" ? (
-          !SelectedModuleId ? (
-            <EmptyState message="Choose Module to review Learning Performance." />
-          ) : FilteredLearningRows.length ? (
+          FilteredLearningRows.length ? (
             <LearningPerformanceTable
               Rows={FilteredLearningRows}
               SortKey={LearningSortKeyValue}
@@ -1713,12 +1783,15 @@ export default function AdminResultsPage() {
               Router={Router}
             />
           ) : (
-            <EmptyState message="No learning performance found for this scope." />
+            <EmptyState title="No Practice In This Period" message="No DPS attempts in this scope and period. Try All Time, a wider scope or another teacher." />
           )
         ) : !SelectedStudentId || SelectedStudentId === AllValue ? (
-          <EmptyState message="Choose Student to review Student History." />
+          <EmptyState title="Choose A Student" message="Pick a student to see their levels, practice, assessments and promotions." />
         ) : (
           <StudentHistoryView
+            StudentId={SelectedStudentId}
+            ModuleId={IdForApi(SelectedModuleId)}
+            PromotionReady={StudentSummary.promotionReady === true}
             StudentName={
               SelectedStudent?.studentName ||
               SelectedStudent?.fullName ||
@@ -1741,6 +1814,8 @@ export default function AdminResultsPage() {
           />
         )}
       </section>
+      </>
+      )}
     </AppShell>
   );
 }
@@ -1790,6 +1865,43 @@ function ModeButton({
   );
 }
 
+const LEARNING_PAGE_SIZE = 50;
+
+// The status of one attempt, as the trackers name it (the server's shared DPS
+// state); the page's own reading only for an attempt without one.
+function AttemptStatusPill({ Row }: { Row: AnyRecord }) {
+  const Label = typeof Row.chainRowLabel === "string" && Row.chainRowLabel ? Row.chainRowLabel : "";
+  if (Label) {
+    const Tone = (typeof Row.chainRowTone === "string" && Row.chainRowTone ? Row.chainRowTone : "slate") as Parameters<typeof StatePill>[0]["tone"];
+    return <StatePill tone={Tone}>{Label}</StatePill>;
+  }
+  return <StatusChip Label={AttemptDisplayStatus(Row)} />;
+}
+
+function ScoreAndAccuracy({ Row }: { Row: AnyRecord }) {
+  const Score = PickFirstNumber(Row, ["score", "totalScore"], Number.NaN);
+  const MaxScore = PickFirstNumber(Row, ["maxScore", "totalMarks"], Number.NaN);
+  const Accuracy = PickFirstNumber(Row, ["accuracyPercentage", "accuracy"], Number.NaN);
+  if (!IsCompletedAttempt(Row) || !Number.isFinite(Accuracy)) return <span className="pr-muted">—</span>;
+  const Met = Accuracy >= PickFirstNumber(Row, ["benchmarkPercentage"], 70);
+  return (
+    <span className="pr-score">
+      <span className="pr-score-marks">{Number.isFinite(Score) && Number.isFinite(MaxScore) ? `${WholeNumberLabel(Score)} / ${WholeNumberLabel(MaxScore)}` : "—"}</span>
+      <span className="pr-score-accuracy" data-met={Met ? "true" : "false"}>{`${WholeNumberLabel(Accuracy)}%`}</span>
+    </span>
+  );
+}
+
+function CompletedWhen({ Value }: { Value: string }) {
+  if (!Value || Value === "-") return <span className="pr-muted">—</span>;
+  return (
+    <span className="pr-when">
+      <span>{FormatDateOnly(Value)}</span>
+      <span className="pr-when-time">{formatMathPathDateTime(Value).split(", ").slice(-1)[0]}</span>
+    </span>
+  );
+}
+
 function LearningPerformanceTable({
   Rows,
   SortKey,
@@ -1803,11 +1915,28 @@ function LearningPerformanceTable({
   ToggleSort: (Key: LearningSortKey) => void;
   Router: ReturnType<typeof useRouter>;
 }) {
-  const DisplayRows = BuildDisplayAttemptRows(Rows);
+  const DisplayRows = useMemo(() => BuildDisplayAttemptRows(Rows), [Rows]);
+  // 2026-10-21: a page of rows at a time (all of them made the page take
+  // seconds to draw); a new scope, search or sort starts at the first page.
+  const [PageIndex, SetPageIndex] = useState(0);
+  useEffect(() => SetPageIndex(0), [Rows]);
+  const PageCount = Math.max(1, Math.ceil(DisplayRows.length / LEARNING_PAGE_SIZE));
+  const SafePage = Math.min(PageIndex, PageCount - 1);
+  const PageRows = DisplayRows.slice(SafePage * LEARNING_PAGE_SIZE, (SafePage + 1) * LEARNING_PAGE_SIZE);
+  const First = DisplayRows.length ? SafePage * LEARNING_PAGE_SIZE + 1 : 0;
+  const Last = Math.min(DisplayRows.length, (SafePage + 1) * LEARNING_PAGE_SIZE);
+  const Header = (Key: LearningSortKey, Label: ReactNode) => (
+    <SortableHeader active={SortKey === Key} direction={SortDirectionValue} onClick={() => ToggleSort(Key)}>
+      {Label}
+    </SortableHeader>
+  );
 
   return (
-    <div className="math-table math-learning-performance-table performance-report-table">
-      <div className="flex justify-end border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+    <div className="pr-attempts">
+      <div className="pr-attempts-bar">
+        <p className="pr-attempts-count">
+          {`Showing ${First.toLocaleString("en-IN")}–${Last.toLocaleString("en-IN")} of ${DisplayRows.length.toLocaleString("en-IN")} Attempts`}
+        </p>
         <ResultsSortDropdown
           ClassName="w-full sm:w-auto sm:min-w-[260px]"
           Fields={LEARNING_SORT_FIELDS}
@@ -1817,220 +1946,88 @@ function LearningPerformanceTable({
           OnToggleDirection={() => ToggleSort(SortKey)}
         />
       </div>
-      <table>
-        <colgroup>
-          <col className="math-lp-col-student" />
-          <col className="math-lp-col-teacher" />
-          <col className="math-lp-col-scope" />
-          <col className="math-lp-col-attempt" />
-          <col className="math-lp-col-status" />
-          <col className="math-lp-col-score" />
-          <col className="math-lp-col-accuracy" />
-          <col className="math-lp-col-benchmark" />
-          <col className="math-lp-col-completed" />
-          <col className="math-lp-col-time" />
-          <col className="math-lp-col-review" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>
-              <SortableHeader
-                active={SortKey === "student"}
-                direction={SortDirectionValue}
-                onClick={() => ToggleSort("student")}
-              >
-                Student
-              </SortableHeader>
-            </th>
-            <th>
-              <SortableHeader
-                active={SortKey === "teacher"}
-                direction={SortDirectionValue}
-                onClick={() => ToggleSort("teacher")}
-              >
-                Teacher
-              </SortableHeader>
-            </th>
-            <th>
-              <SortableHeader
-                active={SortKey === "scope"}
-                direction={SortDirectionValue}
-                onClick={() => ToggleSort("scope")}
-              >
-                Learning Scope
-              </SortableHeader>
-            </th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Attempt</span></th>
-            <th>
-              <SortableHeader
-                active={SortKey === "status"}
-                direction={SortDirectionValue}
-                onClick={() => ToggleSort("status")}
-              >
-                Status
-              </SortableHeader>
-            </th>
-            <th>
-              <SortableHeader
-                active={SortKey === "score"}
-                direction={SortDirectionValue}
-                onClick={() => ToggleSort("score")}
-              >
-                Score
-              </SortableHeader>
-            </th>
-            <th>
-              <SortableHeader
-                active={SortKey === "accuracy"}
-                direction={SortDirectionValue}
-                onClick={() => ToggleSort("accuracy")}
-              >
-                Accuracy
-              </SortableHeader>
-            </th>
-            <th>
-              <SortableHeader
-                active={SortKey === "benchmark"}
-                direction={SortDirectionValue}
-                onClick={() => ToggleSort("benchmark")}
-              >
-                Benchmark
-              </SortableHeader>
-            </th>
-            <th>
-              <SortableHeader
-                active={SortKey === "completedDate"}
-                direction={SortDirectionValue}
-                onClick={() => ToggleSort("completedDate")}
-              >
-                Completion Date
-              </SortableHeader>
-            </th>
-            <th>
-              <SortableHeader
-                active={SortKey === "timeTaken"}
-                direction={SortDirectionValue}
-                onClick={() => ToggleSort("timeTaken")}
-              >
-                <span className="math-table-header-label-wrap">Time<br />Taken</span>
-              </SortableHeader>
-            </th>
-            <th><span className="math-table-header-label math-table-header-label-nowrap">Review</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          {DisplayRows.map((Row, Index) => {
-            const AttemptId = PickFirstString(
-              Row,
-              ["attemptId"],
-              `attempt-${Index}`,
-            );
-            const Score = PickFirstNumber(
-              Row,
-              ["score", "totalScore"],
-              Number.NaN,
-            );
-            const MaxScore = PickFirstNumber(
-              Row,
-              ["maxScore", "totalMarks"],
-              Number.NaN,
-            );
-            const Accuracy = PickFirstNumber(
-              Row,
-              ["accuracyPercentage", "accuracy"],
-              Number.NaN,
-            );
-            const RequiresAttention =
-              String(PickFirstString(Row, ["requiresAttention"], "false")) ===
-              "true";
-            return (
-              <tr key={AttemptId}>
-                <td>
-                  <p className="font-black">
-                    {PickFirstString(Row, ["studentName"], "-")}
-                  </p>
-                  <p className="mt-0.5 text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">
-                                    {PickFirstString(Row, ["studentCode"], "-")}
-                                  </p>
-                </td>
-                <td>
-                  <p className="font-black">
-                    {PickFirstString(Row, ["teacherName"], "Not Assigned")}
-                  </p>
-                  {PickFirstString(Row, ["teacherCode"], "") ? (
-                    <p className="text-xs text-slate-500">
-                      {PickFirstString(Row, ["teacherCode"], "")}
-                    </p>
-                  ) : null}
-                </td>
-                <td>
-                  <p className="font-black">
-                    {PickFirstString(Row, ["moduleCode"], "-")} →{" "}
-                    {PickFirstString(Row, ["levelCode"], "-")}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Lesson {PickFirstNumber(Row, ["lessonNumber"], 0)} · DPS{" "}
-                    {PickFirstNumber(Row, ["dpsNumber"], 0)}
-                  </p>
-                </td>
-                <td className="math-table-chip-cell">
-                  <AttemptChip Label={AttemptLabel(Row)} />
-                </td>
-                <td className="math-table-chip-cell">
-                  <StatusChip Label={AttemptDisplayStatus(Row)} />
-                </td>
-                <td className="math-table-chip-cell math-lp-score-value-cell">
-                  <ScoreValueChip Score={Score} MaxScore={MaxScore} />
-                </td>
-                <td className="math-table-chip-cell math-lp-accuracy-value-cell">
-                  <AccuracyValueChip Accuracy={Accuracy} />
-                </td>
-                <td className="math-table-chip-cell">
-                  <BenchmarkBadge
-                    status={PickFirstString(
-                      Row,
-                      ["benchmarkStatus"],
-                      "PENDING",
-                    )}
-                    requiresAttention={RequiresAttention}
-                    percentage={PickFirstNumber(
-                      Row,
-                      ["benchmarkPercentage"],
-                      70,
-                    )}
-                  />
-                </td>
-                <td className="math-lp-date-cell">
-                  {FormatDate(
-                    PickFirstString(Row, ["completedDate", "submittedAt"], "-"),
-                  )}
-                </td>
-                <td>
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <Clock3 size={14} />
-                    {FormatTimeTaken(
-                      PickFirstNumber(
-                        Row,
-                        ["timeTakenSeconds", "durationSeconds", "timeTaken"],
-                        Number.NaN,
-                      ),
-                    )}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    className="math-role-action-button math-history-review-button"
-                    onClick={() => Router.push(`/admin/results/${AttemptId}`)}
-                  >
-                    <Eye size={14} />
-                    <span>View</span>
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="math-table pr-attempts-table">
+        <table className="ad-cards">
+          <colgroup>
+            <col className="pr-col-student" />
+            <col className="pr-col-teacher" />
+            <col className="pr-col-scope" />
+            <col className="pr-col-attempt" />
+            <col className="pr-col-status" />
+            <col className="pr-col-score" />
+            <col className="pr-col-when" />
+            <col className="pr-col-time" />
+            <col className="pr-col-review" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>{Header("student", "Student")}</th>
+              <th>{Header("teacher", "Teacher")}</th>
+              <th>{Header("scope", "Learning Scope")}</th>
+              <th className="pr-center"><span className="math-table-header-label">Attempt</span></th>
+              <th className="pr-center">{Header("status", "Status")}</th>
+              <th className="pr-center">{Header("accuracy", "Score")}</th>
+              <th>{Header("completedDate", "Completed")}</th>
+              <th>{Header("timeTaken", "Time Taken")}</th>
+              <th className="pr-center"><span className="math-table-header-label">Review</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {PageRows.map((Row, Index) => {
+              const AttemptId = PickFirstString(Row, ["attemptId"], `attempt-${Index}`);
+              const TeacherCode = PickFirstString(Row, ["teacherCode"], "");
+              return (
+                <tr key={AttemptId}>
+                  <td className="ad-card-title" data-label="Student">
+                    <p className="pr-name">{PickFirstString(Row, ["studentName"], "—")}</p>
+                    <p className="pr-code">{PickFirstString(Row, ["studentCode"], "—")}</p>
+                  </td>
+                  <td data-label="Teacher">
+                    <p className="pr-name">{PickFirstString(Row, ["teacherName"], "Not Assigned")}</p>
+                    {TeacherCode ? <p className="pr-sub">{TeacherCode}</p> : null}
+                  </td>
+                  <td data-label="Learning Scope">
+                    <p className="pr-name">{`${PickFirstString(Row, ["moduleCode"], "—")} → ${PickFirstString(Row, ["levelCode"], "—")}`}</p>
+                    <p className="pr-sub">{`Lesson ${PickFirstNumber(Row, ["lessonNumber"], 0)} · DPS ${PickFirstNumber(Row, ["dpsNumber"], 0)}`}</p>
+                  </td>
+                  <td className="pr-center" data-label="Attempt"><AttemptChip Label={AttemptLabel(Row)} /></td>
+                  <td className="pr-center" data-label="Status"><AttemptStatusPill Row={Row} /></td>
+                  <td className="pr-center" data-label="Score"><ScoreAndAccuracy Row={Row} /></td>
+                  <td data-label="Completed"><CompletedWhen Value={PickFirstString(Row, ["completedDate", "submittedAt"], "")} /></td>
+                  <td data-label="Time Taken">
+                    {IsCompletedAttempt(Row)
+                      ? FormatTimeTaken(PickFirstNumber(Row, ["timeTakenSeconds", "durationSeconds", "timeTaken"], Number.NaN))
+                      : <span className="pr-muted">—</span>}
+                  </td>
+                  <td className="pr-center ad-card-wide" data-label="Review">
+                    <button
+                      type="button"
+                      className="math-role-action-button math-history-review-button"
+                      onClick={() => Router.push(`/admin/results/${AttemptId}`)}
+                    >
+                      <Eye size={14} />
+                      <span>View</span>
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {PageCount > 1 ? (
+        <nav className="pr-pager" aria-label="Pages">
+          <button type="button" className="math-button-secondary" disabled={SafePage === 0} onClick={() => SetPageIndex(SafePage - 1)}>
+            <ChevronLeft size={16} />
+            Previous
+          </button>
+          <span className="pr-pager-text">{`Page ${SafePage + 1} Of ${PageCount}`}</span>
+          <button type="button" className="math-button-secondary" disabled={SafePage >= PageCount - 1} onClick={() => SetPageIndex(SafePage + 1)}>
+            Next
+            <ChevronRight size={16} />
+          </button>
+        </nav>
+      ) : null}
     </div>
   );
 }
@@ -2087,7 +2084,7 @@ function BuildDpsHistoryHierarchy(Rows: AnyRecord[]) {
     const ModuleGroup = AddGroupedRow(
       ModuleMap,
       ModuleKey,
-      `${PickFirstString(Row, ["moduleName"], "Module")}: ${PickFirstString(Row, ["moduleCode"], "-")}`,
+      `${PickFirstString(Row, ["moduleName"], "Module")}: ${PickFirstString(Row, ["moduleCode"], "—")}`,
       "Learning Module",
       Row,
     );
@@ -2098,7 +2095,7 @@ function BuildDpsHistoryHierarchy(Rows: AnyRecord[]) {
     const LevelGroup = AddGroupedRow(
       LevelMap,
       LevelKey,
-      `${PickFirstString(Row, ["levelCode"], "Level")} · ${PickFirstString(Row, ["levelName"], "-")}`,
+      `${PickFirstString(Row, ["levelCode"], "Level")} · ${PickFirstString(Row, ["levelName"], "—")}`,
       "Level",
       Row,
     );
@@ -2111,7 +2108,7 @@ function BuildDpsHistoryHierarchy(Rows: AnyRecord[]) {
     const LessonGroup = AddGroupedRow(
       LessonMap,
       LessonKey,
-      `Lesson ${LessonNumber || "-"}: ${PickFirstString(Row, ["lessonTitle"], "Learning Lesson")}`,
+      `Lesson ${LessonNumber || "—"}: ${PickFirstString(Row, ["lessonTitle"], "Learning Lesson")}`,
       "Lesson Block",
       Row,
     );
@@ -2133,7 +2130,7 @@ function BuildAssessmentHistoryHierarchy(Rows: AnyRecord[]) {
     const ModuleGroup = AddGroupedRow(
       ModuleMap,
       ModuleKey,
-      `${PickFirstString(Row, ["moduleName"], "Assessment Module")}: ${PickFirstString(Row, ["moduleCode"], "-")}`,
+      `${PickFirstString(Row, ["moduleName"], "Assessment Module")}: ${PickFirstString(Row, ["moduleCode"], "—")}`,
       "Assessment Module",
       Row,
     );
@@ -2144,7 +2141,7 @@ function BuildAssessmentHistoryHierarchy(Rows: AnyRecord[]) {
     const LevelGroup = AddGroupedRow(
       LevelMap,
       LevelKey,
-      `${PickFirstString(Row, ["levelCode"], "Level")} · ${PickFirstString(Row, ["levelName"], "-")}`,
+      `${PickFirstString(Row, ["levelCode"], "Level")} · ${PickFirstString(Row, ["levelName"], "—")}`,
       "Level Assessment",
       Row,
     );
@@ -2245,7 +2242,7 @@ function BuildCompletedLevelHierarchy(Rows: AnyRecord[]) {
     if (!ModuleMap.has(ModuleKey)) {
       ModuleMap.set(ModuleKey, {
         Key: ModuleKey,
-        Label: `${PickFirstString(Row, ["moduleName"], "Learning Module")} · ${PickFirstString(Row, ["moduleCode"], "-")}`,
+        Label: `${PickFirstString(Row, ["moduleName"], "Learning Module")} · ${PickFirstString(Row, ["moduleCode"], "—")}`,
         SubLabel: "Completed Level Module",
         Levels: [],
       });
@@ -2287,10 +2284,12 @@ function HistoryHierarchyRow({
   Group: HistoryGroup;
   Depth: number;
   ExpandedKeys: Record<string, boolean>;
-  ToggleExpanded: (Key: string) => void;
+  ToggleExpanded: (Key: string, Was?: boolean) => void;
   children: ReactNode;
 }) {
-  const Expanded = ExpandedKeys[Group.Key] === true;
+  // the module and level open by default, so the lessons show at once;
+  // whatever the admin opens or closes is remembered
+  const Expanded = ExpandedKeys[Group.Key] ?? Depth < 2;
   const Tone =
     Depth === 0
       ? "border-blue-100 bg-white"
@@ -2305,7 +2304,8 @@ function HistoryHierarchyRow({
       <button
         type="button"
         className="flex w-full items-center justify-between gap-4 text-left"
-        onClick={() => ToggleExpanded(Group.Key)}
+        aria-expanded={Expanded}
+        onClick={() => ToggleExpanded(Group.Key, Expanded)}
       >
         <div className="flex min-w-0 items-center gap-3">
           <HierarchyToggle Expanded={Expanded} />
@@ -2331,6 +2331,9 @@ function HistoryHierarchyRow({
 }
 
 function StudentHistoryView({
+  StudentId,
+  ModuleId,
+  PromotionReady = false,
   StudentName,
   StudentCode,
   CurrentLevelRow,
@@ -2343,6 +2346,9 @@ function StudentHistoryView({
   ToggleSort,
   Router,
 }: {
+  StudentId: string;
+  ModuleId?: string;
+  PromotionReady?: boolean;
   StudentName: string;
   StudentCode: string;
   CurrentLevelRow?: AnyRecord;
@@ -2368,8 +2374,10 @@ function StudentHistoryView({
   const [PromotionExpandedKeys, SetPromotionExpandedKeys] = usePersistentUiState<
     Record<string, boolean>
   >(CreatePersistedUiStateKey(StudentHistoryStateKey, "promotion-expanded"), {});
-  const [ActiveStudentHistoryTab, SetActiveStudentHistoryTab] =
-    usePersistentUiState<StudentHistoryDetailTab>(CreatePersistedUiStateKey(StudentHistoryStateKey, "active-tab"), "CURRENT");
+  // the open section is kept in the address too (?view=dps), like the sub-tab
+  const [HistoryView, SetHistoryView] = useUrlTabState("view", ["summary", "current", "dps", "assessment", "promotion"] as const, "summary");
+  const ActiveStudentHistoryTab = HistoryView.toUpperCase() as StudentHistoryDetailTab;
+  const SetActiveStudentHistoryTab = (Next: StudentHistoryDetailTab) => SetHistoryView(Next.toLowerCase() as typeof HistoryView);
   const DisplayAttemptRows = BuildDisplayAttemptRows(AttemptRows);
   const DisplayAssessmentRows = BuildDisplayAttemptRows(AssessmentRows);
   const DpsHierarchy = useMemo(
@@ -2400,31 +2408,31 @@ function StudentHistoryView({
       Date.parse(PickFirstString(Second, ["promotedAt"], "")) -
       Date.parse(PickFirstString(First, ["promotedAt"], "")),
   )[0];
-  function ToggleDpsExpanded(Key: string) {
+  function ToggleDpsExpanded(Key: string, Was?: boolean) {
     SetDpsExpandedKeys((Current) => ({
       ...Current,
-      [Key]: Current[Key] !== true,
+      [Key]: Was === undefined ? Current[Key] !== true : !Was,
     }));
   }
 
-  function ToggleAssessmentExpanded(Key: string) {
+  function ToggleAssessmentExpanded(Key: string, Was?: boolean) {
     SetAssessmentExpandedKeys((Current) => ({
       ...Current,
-      [Key]: Current[Key] !== true,
+      [Key]: Was === undefined ? Current[Key] !== true : !Was,
     }));
   }
 
-  function ToggleCompletedLevelExpanded(Key: string) {
+  function ToggleCompletedLevelExpanded(Key: string, Was?: boolean) {
     SetCompletedLevelExpandedKeys((Current) => ({
       ...Current,
-      [Key]: Current[Key] !== true,
+      [Key]: Was === undefined ? Current[Key] !== true : !Was,
     }));
   }
 
-  function TogglePromotionExpanded(Key: string) {
+  function TogglePromotionExpanded(Key: string, Was?: boolean) {
     SetPromotionExpandedKeys((Current) => ({
       ...Current,
-      [Key]: Current[Key] !== true,
+      [Key]: Was === undefined ? Current[Key] !== true : !Was,
     }));
   }
 
@@ -2497,27 +2505,33 @@ function StudentHistoryView({
     CountLabel: string;
   }> = [
     {
+      Key: "SUMMARY",
+      Label: "Summary",
+      Description: "Streak, accuracy, strengths and the journey",
+      CountLabel: "At A Glance",
+    },
+    {
       Key: "CURRENT",
       Label: "Current Level Tracker",
-      Description: "Active level and completed level journey",
+      Description: "The level they are on and the levels they finished",
       CountLabel: `${CompletedLevelRows.length} Completed Level${CompletedLevelRows.length === 1 ? "" : "s"}`,
     },
     {
       Key: "DPS",
       Label: "DPS History",
-      Description: "Practice attempts and DPS drilldown",
+      Description: "Every practice attempt, by lesson and DPS",
       CountLabel: `${AttemptRows.length} Attempt${AttemptRows.length === 1 ? "" : "s"}`,
     },
     {
       Key: "ASSESSMENT",
       Label: "Assessment History",
-      Description: "Assessment attempts and results",
+      Description: "Level assessments and their results",
       CountLabel: `${AssessmentRows.length} Attempt${AssessmentRows.length === 1 ? "" : "s"}`,
     },
     {
       Key: "PROMOTION",
       Label: "Promotion Journey",
-      Description: "Level movement and progression audit",
+      Description: "Each promotion to the next level",
       CountLabel: `${PromotionRows.length} Promotion${PromotionRows.length === 1 ? "" : "s"}`,
     },
   ];
@@ -2537,6 +2551,11 @@ function StudentHistoryView({
             {CompletedLevelRows.length === 1 ? "" : "s"}
           </span>
         </div>
+        {PromotionReady ? (
+          <p className="mb-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-800 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-200">
+            Level assessment cleared: ready to promote. Promote from Assessment Control.
+          </p>
+        ) : null}
         {CurrentLevelRow ? (
           <CurrentLevelProgressBlock Row={CurrentLevelRow} />
         ) : null}
@@ -2681,32 +2700,31 @@ function StudentHistoryView({
   return (
     <div className="space-y-6">
       <div className="math-card p-3 sm:p-4">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
           {StudentHistoryTabs.map((Tab) => {
             const IsActive = ActiveStudentHistoryTab === Tab.Key;
             return (
               <button
                 key={Tab.Key}
                 type="button"
-                className={`math-role-tab-card min-h-[96px] p-4 text-left ${IsActive ? "math-role-tab-card-active" : ""}`}
+                className={`math-role-tab-card min-h-[88px] p-4 text-left ${IsActive ? "math-role-tab-card-active" : ""}`}
+                aria-pressed={IsActive}
                 onClick={() => SetActiveStudentHistoryTab(Tab.Key)}
               >
-                <div className="flex h-full items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className="text-[0.78rem] font-black uppercase leading-5 tracking-[0.18em]"
-                    >
+                {/* the label and its count share the top line; the
+                    description has the card's full width under them */}
+                <div className="flex h-full flex-col gap-2">
+                  <div className="flex flex-col items-start gap-1">
+                    <p className="text-[0.82rem] font-black leading-5">
                       {Tab.Label}
                     </p>
-                    <p className="mt-2 text-sm font-semibold leading-5 text-slate-500">
-                      {Tab.Description}
-                    </p>
+                    <span className="math-badge shrink-0 whitespace-nowrap">
+                      {Tab.CountLabel}
+                    </span>
                   </div>
-                  <span
-                    className="math-badge shrink-0 whitespace-nowrap"
-                  >
-                    {Tab.CountLabel}
-                  </span>
+                  <p className="text-sm font-semibold leading-5 text-slate-500">
+                    {Tab.Description}
+                  </p>
                 </div>
               </button>
             );
@@ -2714,6 +2732,13 @@ function StudentHistoryView({
         </div>
       </div>
 
+      {ActiveStudentHistoryTab === "SUMMARY" ? (
+        <StudentSummary
+          StudentId={StudentId}
+          ModuleId={ModuleId}
+          OnAssessments={() => SetActiveStudentHistoryTab("ASSESSMENT")}
+        />
+      ) : null}
       {ActiveStudentHistoryTab === "CURRENT"
         ? RenderCurrentLevelTrackerTab()
         : null}
@@ -2803,12 +2828,12 @@ function PromotionHistoryRecordsTable({ Rows }: { Rows: AnyRecord[] }) {
             return (
               <tr key={`${PickFirstString(Row, ["promotionId"], "promotion")}-${Index}`}>
                 <td>
-                  <p className="font-black">{PickFirstString(Row, ["fromLevelCode"], "-")}</p>
-                  <p className="text-xs text-slate-500">{PickFirstString(Row, ["fromModuleCode"], "-")}</p>
+                  <p className="font-black">{PickFirstString(Row, ["fromLevelCode"], "—")}</p>
+                  <p className="text-xs text-slate-500">{PickFirstString(Row, ["fromModuleCode"], "—")}</p>
                 </td>
                 <td>
-                  <p className="font-black">{PickFirstString(Row, ["toLevelCode"], "-")}</p>
-                  <p className="text-xs text-slate-500">{PickFirstString(Row, ["toModuleCode"], "-")}</p>
+                  <p className="font-black">{PickFirstString(Row, ["toLevelCode"], "—")}</p>
+                  <p className="text-xs text-slate-500">{PickFirstString(Row, ["toModuleCode"], "—")}</p>
                 </td>
                 <td><p className="font-black">{PickFirstString(Row, ["assessmentTitle"], "Assessment")}</p></td>
                 <td><ScoreValueChip Score={Score} MaxScore={MaxScore} /></td>
@@ -2888,10 +2913,13 @@ function AccuracyValueChip({ Accuracy }: { Accuracy: number }) {
   const DisplayValue = Number.isFinite(Accuracy)
     ? `${WholeNumberLabel(Accuracy)}%`
     : "—";
+  // green only at or above the benchmark (a 0% used to show green)
   const ClassName =
     DisplayValue === "—"
       ? "border-slate-200 bg-slate-50 text-slate-500"
-      : "border-emerald-200 bg-emerald-50 text-emerald-700";
+      : Accuracy >= 70
+        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+        : "border-rose-200 bg-rose-50 text-rose-700";
   return (
     <span className={`math-badge whitespace-nowrap ${ClassName}`}>
       {DisplayValue}
@@ -2982,7 +3010,7 @@ function DpsAttemptRecordsTable({
             const RequiresAttention = String(PickFirstString(Row, ["requiresAttention"], "false")) === "true";
             return (
               <tr key={AttemptId}>
-                <td><p className="font-black">DPS {PickFirstNumber(Row, ["dpsNumber"], 0) || "-"}</p></td>
+                <td><p className="font-black">DPS {PickFirstNumber(Row, ["dpsNumber"], 0) || "—"}</p></td>
                 <td>
                   <p className="font-black">{PickFirstString(Row, ["teacherName"], "Not Assigned")}</p>
                   {PickFirstString(Row, ["teacherCode"], "") ? (
@@ -2990,7 +3018,7 @@ function DpsAttemptRecordsTable({
                   ) : null}
                 </td>
                 <td className="math-table-chip-cell text-center"><AttemptChip Label={AttemptLabel(Row)} /></td>
-                <td className="math-table-chip-cell text-center"><StatusChip Label={AttemptDisplayStatus(Row)} /></td>
+                <td className="math-table-chip-cell text-center"><AttemptStatusPill Row={Row} /></td>
                 <td className="math-table-chip-cell text-center"><ScoreValueChip Score={Score} MaxScore={MaxScore} /></td>
                 <td className="math-table-chip-cell text-center"><AccuracyValueChip Accuracy={Accuracy} /></td>
                 <td className="math-table-chip-cell text-center">
@@ -3096,7 +3124,7 @@ function AssessmentAttemptRecordsTable({
               <tr key={`${PickFirstString(Row, ["attemptId", "assessmentAttemptId"], "assessment")}-${Index}`}>
                 <td>
                   <p className="font-black">{PickFirstString(Row, ["assessmentTitle", "assignmentTitle"], "Assessment")}</p>
-                  <p className="text-xs text-slate-500">{PickFirstString(Row, ["moduleCode"], "-")} → {PickFirstString(Row, ["levelCode"], "-")}</p>
+                  <p className="text-xs text-slate-500">{PickFirstString(Row, ["moduleCode"], "—")} → {PickFirstString(Row, ["levelCode"], "—")}</p>
                 </td>
                 <td className="math-table-chip-cell text-center"><AttemptChip Label={AttemptLabel(Row)} /></td>
                 <td className="math-table-chip-cell text-center"><StatusChip Label={AttemptDisplayStatus(Row)} /></td>
@@ -3146,11 +3174,9 @@ function LevelProgressionSummary({
   const PromotedDate = FormatDate(
     PickFirstString(LatestPromotionRow, ["promotedAt"], "-"),
   );
-  const PromotedBy = PickFirstString(
-    LatestPromotionRow,
-    ["promotedByName"],
-    "Admin",
-  );
+  const PromotedBy = HasPromotion
+    ? PickFirstString(LatestPromotionRow, ["promotedByName"], "Admin")
+    : "—";
 
   return (
     <div className="overflow-hidden rounded-[30px] border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-cyan-50 p-5 shadow-sm">
@@ -3277,7 +3303,7 @@ function CompletedLevelSummaryBlock({
             <p className="math-block-header"><Route size={14} />Level</p>
             <h5 className="mt-1 text-base font-black text-slate-950">
               {PickFirstString(Row, ["levelCode"], "Level")} ·{" "}
-              {PickFirstString(Row, ["levelName"], "-")}
+              {PickFirstString(Row, ["levelName"], "—")}
             </h5>
           </div>
         </div>
@@ -3296,7 +3322,10 @@ function CompletedLevelSummaryBlock({
 }
 
 function CurrentLevelProgressBlock({ Row }: { Row: AnyRecord }) {
-  const CompletedDps = PickFirstNumber(Row, ["completedDps"], 0);
+  // the server's counts: each DPS once, by its shared state
+  const CompletedDps = PickFirstNumber(Row, ["clearedDps", "completedDps"], 0);
+  const NeedsReattempt = PickFirstNumber(Row, ["needsReattempt"], 0);
+  const AttemptedDps = PickFirstNumber(Row, ["attemptedDps"], 0);
   const RequiredDps = Math.max(PickFirstNumber(Row, ["requiredDps"], 0), 1);
   const ProgressValue = Math.min(
     100,
@@ -3314,8 +3343,9 @@ function CurrentLevelProgressBlock({ Row }: { Row: AnyRecord }) {
             {PickFirstString(Row, ["levelName"], "Current Level")}
           </h4>
           <p className="mt-1 text-sm text-slate-600">
-            {CompletedDps} of {RequiredDps} DPS completed in the current level
-            scope.
+            {`${CompletedDps} of ${RequiredDps} DPS cleared`}
+            {NeedsReattempt ? ` · ${NeedsReattempt} need a re-attempt` : ""}
+            {AttemptedDps > CompletedDps + NeedsReattempt ? ` · ${AttemptedDps - CompletedDps - NeedsReattempt} in progress` : ""}
           </p>
         </div>
         <div className="min-w-[180px] text-right">
@@ -3424,7 +3454,11 @@ function SelectCard({
   placeholder,
   allOption,
   disabled,
+  className,
+  hidden,
 }: {
+  className?: string;
+  hidden?: boolean;
   label: string;
   value: string;
   onChange: (Value: string) => void;
@@ -3434,9 +3468,10 @@ function SelectCard({
   disabled?: boolean;
 }) {
   return (
-    <div className="math-card p-4">
+    <div className={`math-card min-w-0 p-4 ${className ?? ""}`} hidden={hidden}>
       <label className="math-label">{label}</label>
       <select
+        aria-label={label}
         className="math-select mt-3"
         value={value}
         onChange={(Event) => onChange(Event.target.value)}
