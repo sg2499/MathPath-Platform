@@ -17,6 +17,7 @@ import {
   getFirstMathPathTimestamp,
 } from "@/lib/date";
 import { CompareStudentCodes } from "@/lib/studentSort";
+import { AssessmentScheduleCell } from "@/components/assessments/AssessmentScheduleCell";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -747,13 +748,14 @@ function TeacherAssessmentHierarchyRecords({
                       {LevelExpanded ? (
                         <div className="overflow-hidden border-t border-slate-200 dark:border-slate-800">
                           <div className="w-full overflow-x-auto">
-                            <div className="min-w-[900px] xl:min-w-0">
-                              <div className="math-teacher-assessment-tracker-table-header grid grid-cols-[1.08fr_.58fr_.76fr_.56fr_.56fr_.88fr_.88fr_104px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900">
+                            <div className="min-w-[1040px] xl:min-w-0">
+                              <div className="math-teacher-assessment-tracker-table-header grid grid-cols-[1.08fr_.58fr_.76fr_.56fr_.56fr_1fr_.88fr_.88fr_104px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900">
                                 <div>Assessment</div>
                                 <div>Attempt</div>
                                 <div>Status</div>
                                 <div>Score</div>
                                 <div>Accuracy</div>
+                                <div>Scheduled For</div>
                                 <div>Assigned Date</div>
                                 <div>Completion Date</div>
                                 <div>Action</div>
@@ -773,7 +775,7 @@ function TeacherAssessmentHierarchyRecords({
                                     <div
                                       id={FocusId}
                                       key={RowKey}
-                                      className={`grid grid-cols-[1.08fr_.58fr_.76fr_.56fr_.56fr_.88fr_.88fr_104px] items-center gap-3 px-4 py-3 ${IsFocused ? "ring-2 ring-[color:var(--mp-role-border-strong)] bg-[color:var(--mp-role-softer)]" : ""}`}
+                                      className={`grid grid-cols-[1.08fr_.58fr_.76fr_.56fr_.56fr_1fr_.88fr_.88fr_104px] items-center gap-3 px-4 py-3 ${IsFocused ? "ring-2 ring-[color:var(--mp-role-border-strong)] bg-[color:var(--mp-role-softer)]" : ""}`}
                                     >
                                       <div className="min-w-0">
                                         <p className="truncate text-sm font-black text-slate-950 dark:text-white">
@@ -810,6 +812,9 @@ function TeacherAssessmentHierarchyRecords({
                                             ? "—"
                                             : `${CleanNumber(AccuracyValue)}%`}
                                         </Chip>
+                                      </div>
+                                      <div className="min-w-0">
+                                        <AssessmentScheduleCell Row={Row as any} Editable InvalidateKeys={[["teacher-assessments"]]} />
                                       </div>
                                       <div className="text-sm font-bold text-slate-600">
                                         {DateTimeLabel(Row, [

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -18,6 +19,24 @@ from app.models import (
     User,
 )
 from app.services.notification_service import ActiveAdminUsers, CreateNotification
+
+
+_INDIA_TIMEZONE = timezone(timedelta(hours=5, minutes=30))
+
+
+def _assessment_time_sentence(assignment: AssessmentAssignment | None) -> str:
+    """ "Your assessment time: 7 Nov 2026, 11:30 AM IST. Instructions open 10
+    minutes before." or "" when there is no set time (2026-11-02)."""
+    start_at = getattr(assignment, "scheduled_start_at", None) if assignment else None
+    if not start_at:
+        return ""
+    if start_at.tzinfo is None:
+        start_at = start_at.replace(tzinfo=timezone.utc)
+    local = start_at.astimezone(_INDIA_TIMEZONE)
+    hour = local.hour % 12 or 12
+    meridiem = "AM" if local.hour < 12 else "PM"
+    when = f"{local.day} {local.strftime('%b %Y')}, {hour}:{local.minute:02d} {meridiem} IST"
+    return f"Your assessment time: {when}. Instructions open 10 minutes before."
 
 
 def _student_user(db: Session, student: Student | None) -> User | None:
@@ -146,7 +165,12 @@ def NotifyAssessmentAssignmentsCreated(
         is_reattempt = assignment_type == "RE_ATTEMPT"
 
         student_title = "Re-Attempt Assessment Assigned" if is_reattempt else "Assessment Assigned"
-        student_message = f"{assessment_identity} is now available in your Assessments tab."
+        time_sentence = _assessment_time_sentence(assignment)
+        student_message = (
+            f"{assessment_identity} is assigned. {time_sentence}"
+            if time_sentence
+            else f"{assessment_identity} is now available in your Assessments tab."
+        )
         if student_user:
             CreateNotification(
                 db,
@@ -184,6 +208,47 @@ def NotifyAssessmentAssignmentsCreated(
             target_tab="student-records",
             metadata={"assignmentId": assignment.id, "assignmentType": assignment_type, "studentCode": context.get("student_code"), "moduleCode": module_code, "levelCode": level_code or level_label, "highlightId": assignment.id, "targetAction": "view", **_assessment_identity_metadata(context)},
         )
+
+
+def NotifyAssessmentRescheduled(
+    db: Session,
+    *,
+    assignment_id: str,
+    actor_user_id: str | None,
+) -> None:
+    """The teacher changed the date and time before the student started."""
+    assignment = db.get(AssessmentAssignment, assignment_id)
+    context = _assignment_context(db, assignment)
+    if not assignment or not context:
+        return
+    student = context.get("student")
+    student_user = context.get("student_user")
+    teacher = context.get("teacher")
+    module = context.get("module")
+    level = context.get("level")
+    assessment_identity = _assessment_notification_identity(context)
+    time_sentence = _assessment_time_sentence(assignment)
+    if not student_user or not time_sentence:
+        return
+    CreateNotification(
+        db,
+        recipient_user_id=student_user.id,
+        recipient_role="STUDENT",
+        actor_user_id=actor_user_id,
+        actor_role="TEACHER",
+        student_id=student.id if student else None,
+        teacher_id=teacher.id if teacher else None,
+        module_id=module.id if module else None,
+        level_id=level.id if level else None,
+        assessment_id=assignment.id,
+        type="ASSESSMENT_RESCHEDULED",
+        category="ASSESSMENT",
+        title="Assessment Time Changed",
+        message=f"{assessment_identity} has a new time. {time_sentence}",
+        target_route="/student/assessments",
+        target_tab="assessments",
+        metadata={"assignmentId": assignment.id, "studentCode": context.get("student_code"), "moduleCode": context.get("module_code"), "levelCode": context.get("level_code") or context.get("level_label"), "highlightId": assignment.id, "targetAction": "start", **_assessment_identity_metadata(context)},
+    )
 
 
 def NotifyAssessmentAttemptSubmitted(

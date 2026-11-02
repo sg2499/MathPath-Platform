@@ -21,8 +21,8 @@ from app.services.attempt_service import ensure_active_or_auto_submit, result_pa
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, NeedsReattemptAttempts
 from app.services.assessment_eligibility_service import EligibilityPrefetch, assessment_eligibility_payload, eligibility_for_students
 from app.services.assessment_blueprint_service import blueprint_payload, teacher_visible_blueprints
-from app.services.assessment_engine_service import AvailablePublishedVersions, AssessmentVersionOptionPayload, ExistingAssessmentAssignmentForLevel, AssessmentAssignmentPayload, AssessmentResultPayload, AssessmentProgressionPayload, StudentLevelPromotionPayload, EnsureAssessmentAttemptActiveOrAutoSubmit, IsAssessmentOpenAccessStudent
-from app.services.assessment_notification_service import NotifyAssessmentAssignmentsCreated
+from app.services.assessment_engine_service import AvailablePublishedVersions, AssessmentVersionOptionPayload, ExistingAssessmentAssignmentForLevel, AssessmentAssignmentPayload, AssessmentResultPayload, AssessmentProgressionPayload, StudentLevelPromotionPayload, EnsureAssessmentAttemptActiveOrAutoSubmit, IsAssessmentOpenAccessStudent, ParseAssessmentScheduledStartAt, EnsureAssessmentScheduleInFuture
+from app.services.assessment_notification_service import NotifyAssessmentAssignmentsCreated, NotifyAssessmentRescheduled
 from app.services.practice_notification_service import NotifyPracticeAssignmentsCreated
 from app.services.lesson_progress_service import (
     active_reattempt_permission_for_teacher,
@@ -81,6 +81,14 @@ class TeacherAssignAssessmentRequest(BaseModel):
     assessmentVersionId: str
     studentIds: list[str]
     instructions: str | None = None
+    # 2026-11-02: the date and time for the selected students (ISO; without a
+    # time zone it is India time). Required for every student except the
+    # test account, which opens straight away when none is given.
+    scheduledStartAt: str | None = None
+
+
+class TeacherRescheduleAssessmentRequest(BaseModel):
+    scheduledStartAt: str
 
 
 class AssessmentRemarkRequest(BaseModel):
@@ -2264,6 +2272,9 @@ def teacher_assign_assessment(
     TeacherUser = teacher_user(db, teacher)
     CreatedAssignments = []
     Rejected = []
+    ScheduledStartAt = ParseAssessmentScheduledStartAt(payload.scheduledStartAt)
+    if ScheduledStartAt:
+        EnsureAssessmentScheduleInFuture(ScheduledStartAt)
 
     for StudentId in payload.studentIds:
         StudentItem = own_students_query(db, teacher, include_demo=True).filter(Student.id == StudentId, Student.is_active == True).first()
@@ -2299,6 +2310,8 @@ def teacher_assign_assessment(
             TestRow.assigned_by_user_id = TeacherUser.id if TeacherUser else None
             TestRow.assigned_at = datetime.now(timezone.utc)
             TestRow.instructions = payload.instructions
+            # The test account: no time unless the teacher gives one.
+            TestRow.scheduled_start_at = ScheduledStartAt
             TestRow.is_active = True
             db.flush()
             CreatedAssignments.append(TestRow.id)
@@ -2331,6 +2344,9 @@ def teacher_assign_assessment(
         if IsReattemptAssignment and ExistingAssignment and ExistingAssignment.assessment_version_id == Version.id:
             Rejected.append({"studentId": StudentId, "reason": "Different Assessment Version Required."})
             continue
+        if not ScheduledStartAt:
+            Rejected.append({"studentId": StudentId, "reason": "Set the assessment date and time first."})
+            continue
 
         AssignmentRow = AssessmentAssignment(
             assessment_version_id=Version.id,
@@ -2345,6 +2361,7 @@ def teacher_assign_assessment(
             current_attempt_number=0,
             max_attempts=1,
             instructions=payload.instructions,
+            scheduled_start_at=ScheduledStartAt,
             is_active=True,
         )
         db.add(AssignmentRow)
@@ -2368,6 +2385,44 @@ def teacher_assign_assessment(
         "message": f"Assessment assigned to {len(CreatedAssignments)} student(s).",
         "assignmentIds": CreatedAssignments,
         "rejected": Rejected,
+    }
+
+
+@router.patch("/assessment-assignments/{assignment_id}/schedule")
+def teacher_reschedule_assessment(
+    assignment_id: str,
+    payload: TeacherRescheduleAssessmentRequest,
+    db: Session = Depends(get_db),
+    teacher: Teacher = Depends(get_current_teacher),
+):
+    """2026-11-02 (Shailesh): the teacher may change a student's date and
+    time until the student starts the assessment."""
+    AssignmentRow = db.get(AssessmentAssignment, assignment_id)
+    if not AssignmentRow or not AssignmentRow.is_active:
+        api_error(404, "ASSESSMENT_ASSIGNMENT_NOT_FOUND", "Assessment assignment not found.")
+    StudentItem = own_students_query(db, teacher, include_demo=True).filter(Student.id == AssignmentRow.student_id).first()
+    if not StudentItem:
+        api_error(403, "ASSESSMENT_ASSIGNMENT_NOT_YOURS", "This student is not assigned to you.")
+    Started = (
+        db.query(AssessmentAttempt.id)
+        .filter(AssessmentAttempt.assessment_assignment_id == AssignmentRow.id)
+        .first()
+    )
+    if Started:
+        api_error(409, "ASSESSMENT_ALREADY_STARTED", "The student has already started this assessment, so its time can no longer change.")
+    ScheduledStartAt = ParseAssessmentScheduledStartAt(payload.scheduledStartAt)
+    if not ScheduledStartAt:
+        api_error(422, "ASSESSMENT_SCHEDULE_REQUIRED", "Choose a date and time.")
+    EnsureAssessmentScheduleInFuture(ScheduledStartAt)
+    AssignmentRow.scheduled_start_at = ScheduledStartAt
+    TeacherUser = teacher_user(db, teacher)
+    NotifyAssessmentRescheduled(db, assignment_id=AssignmentRow.id, actor_user_id=TeacherUser.id if TeacherUser else None)
+    db.commit()
+    db.refresh(AssignmentRow)
+    return {
+        "updated": True,
+        "message": "Assessment date and time updated.",
+        "assignment": AssessmentAssignmentPayload(db, AssignmentRow),
     }
 
 

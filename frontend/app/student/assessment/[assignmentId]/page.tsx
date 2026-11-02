@@ -4,14 +4,15 @@ import { AppShell } from "@/components/common/AppShell";
 import { BackButton } from "@/components/student/BackButton";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
-import { apiErrorMessage } from "@/lib/api";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api";
+import { AssessmentInstructionsOpenAtMs, AssessmentStartAtMs, FormatAssessmentCountdown, FormatAssessmentSchedule, RecordAssessmentServerNow, useAssessmentClock } from "@/lib/assessmentSchedule";
 import { getStudentAssessmentDetail, startAssessmentAttempt } from "@/lib/api/student";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { InitCaps } from "@/lib/initCaps";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Award, Brain, ClipboardCheck, ClipboardList, Clock3, Keyboard, Layers3, PlayCircle, RotateCcw, ShieldCheck, Target } from "lucide-react";
+import { Award, Brain, CalendarClock, ClipboardCheck, ClipboardList, Clock3, Hourglass, Keyboard, Layers3, PlayCircle, RotateCcw, ShieldCheck, Target } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 function FormatDuration(Seconds: number) {
   const Total = Math.max(0, Number(Seconds || 0));
@@ -39,7 +40,27 @@ export default function StudentAssessmentStartPage() {
     queryKey: ["student-assessment-detail", AssignmentId],
     queryFn: () => getStudentAssessmentDetail(AssignmentId),
     enabled: Ready && Boolean(AssignmentId),
+    // Opened too early is an answer, not a failure: don't retry it.
+    retry: (FailureCount, Error) => apiErrorDetail(Error)?.code !== "ASSESSMENT_INSTRUCTIONS_NOT_OPEN_YET" && FailureCount < 2,
   });
+
+  // 2026-11-02 (Shailesh): the teacher-set date and time, like the Annual
+  // Competition. Opened before the instructions are open: a waiting card
+  // that loads the brief by itself at the right second. On the brief: Start
+  // shows "Not Open Yet" until the set time, then switches on by itself.
+  const GateDetail = apiErrorDetail(Query.error);
+  const InstructionsNotOpen = GateDetail?.code === "ASSESSMENT_INSTRUCTIONS_NOT_OPEN_YET";
+  const GateDetails = (GateDetail?.details || {}) as { scheduledStartAt?: string | null; instructionsOpenAt?: string | null };
+  RecordAssessmentServerNow(Query.data?.serverNow);
+  const InstructionsOpenAtMs = InstructionsNotOpen ? AssessmentInstructionsOpenAtMs(GateDetails) : null;
+  const StartAtMs = AssessmentStartAtMs(Query.data) ?? (InstructionsNotOpen ? AssessmentStartAtMs(GateDetails) : null);
+  const WaitUntilMs = InstructionsOpenAtMs ?? (Query.data && Query.data.action === "Start Assessment" ? StartAtMs : null);
+  const NowMs = useAssessmentClock(WaitUntilMs);
+  const InstructionsReached = InstructionsOpenAtMs != null && NowMs >= InstructionsOpenAtMs;
+  useEffect(() => {
+    if (InstructionsNotOpen && InstructionsReached) Query.refetch();
+  }, [InstructionsNotOpen, InstructionsReached]); // eslint-disable-line react-hooks/exhaustive-deps
+  const StartTimeNotReached = Boolean(Query.data && Query.data.action === "Start Assessment" && StartAtMs != null && NowMs < StartAtMs);
 
   const Mutation = useMutation({
     mutationFn: () => startAssessmentAttempt(AssignmentId),
@@ -52,7 +73,9 @@ export default function StudentAssessmentStartPage() {
   const Sections = Data?.sections || [];
   const ShowResult = Data?.action === "View Result";
   const CanStart = Data ? !ShowResult || Boolean(Data.canRetake) : false;
-  const StartLabel = Mutation.isPending
+  const StartLabel = StartTimeNotReached
+    ? "Not Open Yet"
+    : Mutation.isPending
     ? "Starting..."
     : Data?.action === "Resume Assessment"
       ? "Resume Assessment"
@@ -64,7 +87,24 @@ export default function StudentAssessmentStartPage() {
     <AppShell title="Level Assessment">
       <BackButton href="/student/assessments" />
       {Query.isLoading ? <LoadingState label="Loading assessment details..." /> : null}
-      {Query.error ? <ErrorState message={apiErrorMessage(Query.error)} /> : null}
+      {Query.error && !InstructionsNotOpen ? <ErrorState message={apiErrorMessage(Query.error)} /> : null}
+      {InstructionsNotOpen ? (
+        <section className="mx-auto mt-6 w-full max-w-xl rounded-[32px] border border-white/70 bg-white/92 p-6 text-center shadow-xl dark:border-slate-800 dark:bg-slate-950/80 sm:p-8">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300">
+            <Hourglass size={26} />
+          </div>
+          <h1 className="mt-4 text-2xl font-black text-slate-950 dark:text-white">Your Assessment Opens Soon</h1>
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
+            The instructions open 10 minutes before your assessment time. This page opens them by itself.
+          </p>
+          <div className="mt-5 grid gap-3 rounded-[22px] bg-slate-50 p-4 text-left dark:bg-slate-900/70">
+            <DetailRow icon={<CalendarClock size={18} className="text-amber-500" />} label="Assessment Time" value={FormatAssessmentSchedule(GateDetails.scheduledStartAt)} />
+            {InstructionsOpenAtMs != null ? (
+              <DetailRow icon={<Clock3 size={18} className="text-sky-500" />} label="Instructions Open" value={InstructionsReached ? "Opening..." : FormatAssessmentCountdown(InstructionsOpenAtMs, NowMs)} />
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       {Data ? (
         <section className="grid min-h-[calc(100vh-170px)] w-full grid-rows-[auto_1fr] gap-4">
@@ -144,6 +184,9 @@ export default function StudentAssessmentStartPage() {
                   {Sections.length > 1 ? (
                     <DetailRow icon={<Layers3 size={18} className="text-sky-500" />} label="Sections" value={Sections.length} />
                   ) : null}
+                  {Data.scheduledStartAt ? (
+                    <DetailRow icon={<CalendarClock size={18} className="text-orange-500" />} label="Assessment Time" value={FormatAssessmentSchedule(Data.scheduledStartAt)} />
+                  ) : null}
                   <DetailRow icon={<Award size={18} className="text-violet-500" />} label="Total Marks" value={FormatMarks(Data.details.totalMarks || 100)} />
                   <DetailRow icon={<Clock3 size={18} className="text-amber-500" />} label="Total Duration" value={FormatDuration(Data.details.durationSeconds)} />
                   <DetailRow icon={<Target size={18} className="text-emerald-500" />} label="Score To Clear" value={`${FormatMarks(Data.details.benchmarkPercentage)}%`} />
@@ -163,7 +206,8 @@ export default function StudentAssessmentStartPage() {
                   {CanStart ? (
                     <button
                       className="math-button-primary w-full shadow-lg shadow-orange-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={Mutation.isPending}
+                      disabled={Mutation.isPending || StartTimeNotReached}
+                      title={StartTimeNotReached && Data.scheduledStartAt ? `Opens ${FormatAssessmentSchedule(Data.scheduledStartAt)}` : undefined}
                       onClick={() => Mutation.mutate()}
                     >
                       {ShowResult ? <RotateCcw size={18} /> : <PlayCircle size={18} />}
@@ -177,6 +221,11 @@ export default function StudentAssessmentStartPage() {
                     >
                       View Result
                     </button>
+                  ) : null}
+                  {StartTimeNotReached && StartAtMs != null ? (
+                    <div className="mt-4 rounded-2xl border border-dashed border-amber-300 bg-amber-50/80 p-3 text-xs font-bold text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/20 dark:text-amber-200">
+                      Start opens at {FormatAssessmentSchedule(Data.scheduledStartAt)} ({FormatAssessmentCountdown(StartAtMs, NowMs)}). Read the instructions while you wait.
+                    </div>
                   ) : null}
                   {Mutation.error ? <div className="mt-4"><ErrorState message={apiErrorMessage(Mutation.error)} /></div> : null}
                 </div>

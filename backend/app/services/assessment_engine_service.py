@@ -276,6 +276,69 @@ def Iso(Value: Any) -> str | None:
     return Value.isoformat() if hasattr(Value, "isoformat") else str(Value)
 
 
+# --- The teacher-set date and time (2026-11-02, Shailesh) -------------------
+# Level assessments follow the Annual Competition's flow: the instructions
+# open 10 minutes before the set time, and Start opens exactly at it (never
+# before) and then stays open. An assignment with no set time (the test
+# account, or one assigned before this rule) opens straight away, as before.
+ASSESSMENT_INSTRUCTIONS_OPEN_MINUTES_BEFORE = 10
+
+
+def AssessmentScheduledStartAt(Assignment: AssessmentAssignment | None) -> datetime | None:
+    """The set time as an aware UTC datetime, or None when there is none.
+    Stored naive on some databases; naive values are UTC."""
+    if not Assignment:
+        return None
+    return AwareUtc(getattr(Assignment, "scheduled_start_at", None))
+
+
+def AssessmentScheduleState(Assignment: AssessmentAssignment | None, Now: datetime | None = None) -> dict[str, Any]:
+    """scheduledStartAt / instructionsOpenAt (ISO, UTC) and whether each has
+    been reached. Both are open when there is no set time."""
+    Now = Now or NowUtc()
+    StartAt = AssessmentScheduledStartAt(Assignment)
+    if not StartAt:
+        return {
+            "scheduledStartAt": None,
+            "instructionsOpenAt": None,
+            "instructionsOpen": True,
+            "startOpen": True,
+            "serverNow": Now.isoformat(),
+        }
+    OpenAt = StartAt - timedelta(minutes=ASSESSMENT_INSTRUCTIONS_OPEN_MINUTES_BEFORE)
+    return {
+        "scheduledStartAt": StartAt.isoformat(),
+        "instructionsOpenAt": OpenAt.isoformat(),
+        "instructionsOpen": Now >= OpenAt,
+        "startOpen": Now >= StartAt,
+        "serverNow": Now.isoformat(),
+    }
+
+
+def ParseAssessmentScheduledStartAt(Value: Any) -> datetime | None:
+    """A date and time from a request (ISO text or datetime) as aware UTC.
+    A value without a time zone is read as India time, which is what the
+    teacher's screen shows."""
+    if Value is None or Value == "":
+        return None
+    if isinstance(Value, datetime):
+        Parsed = Value
+    else:
+        try:
+            Parsed = datetime.fromisoformat(str(Value).strip().replace("Z", "+00:00"))
+        except ValueError:
+            api_error(422, "ASSESSMENT_SCHEDULE_INVALID", "Choose a valid date and time.")
+    if Parsed.tzinfo is None:
+        Parsed = Parsed.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
+    return Parsed.astimezone(timezone.utc)
+
+
+def EnsureAssessmentScheduleInFuture(StartAt: datetime, Now: datetime | None = None) -> None:
+    # One minute of grace, so a time picked "now" on a slow connection passes.
+    if StartAt < (Now or NowUtc()) - timedelta(minutes=1):
+        api_error(422, "ASSESSMENT_SCHEDULE_IN_PAST", "Choose a date and time that has not passed yet.")
+
+
 def SafeFloatOrNone(Value: Any) -> float | None:
     if Value is None:
         return None
@@ -2680,6 +2743,9 @@ def AssessmentAssignmentPayload(Db: Session, Assignment: AssessmentAssignment) -
         "reattemptNextAttemptNumber": ReattemptApproval.next_attempt_number if ReattemptApproval else None,
         "reattemptAllowedAt": Iso(ReattemptApproval.approved_at or ReattemptApproval.requested_at) if ReattemptApproval else None,
         "createdAt": Iso(Assignment.assigned_at),
+        **AssessmentScheduleState(Assignment),
+        # The teacher may change the time until the student starts.
+        "canReschedule": Attempt is None and Result is None,
         "startedAt": Iso(Attempt.started_at) if Attempt else None,
         "submittedAt": Iso(Attempt.submitted_at) if Attempt else None,
         "attemptDate": Iso(Attempt.started_at) if Attempt else None,
@@ -2806,6 +2872,15 @@ def StudentAssessmentStartPayload(Db: Session, StudentItem: Student, AssignmentI
         .order_by(AssessmentResult.completion_date.desc().nullslast(), AssessmentResult.created_at.desc())
         .first()
     )
+    Schedule = AssessmentScheduleState(Assignment)
+    if not LatestAttempt and not LatestResult and not Schedule["instructionsOpen"]:
+        # Not yet: the instructions open 10 minutes before the set time.
+        api_error(
+            403,
+            "ASSESSMENT_INSTRUCTIONS_NOT_OPEN_YET",
+            f"The instructions open {ASSESSMENT_INSTRUCTIONS_OPEN_MINUTES_BEFORE} minutes before your assessment time.",
+            {"scheduledStartAt": Schedule["scheduledStartAt"], "instructionsOpenAt": Schedule["instructionsOpenAt"]},
+        )
     Sections = AssessmentVersionSections(Db, Version)
     HasRemainderAnswers = bool(Version) and (
         Db.query(AssessmentQuestion.id)
@@ -2832,6 +2907,7 @@ def StudentAssessmentStartPayload(Db: Session, StudentItem: Student, AssignmentI
         "resultAttemptId": LatestResult.assessment_attempt_id if LatestResult else None,
         "action": Action,
         "canRetake": IsAssessmentOpenAccessStudent(StudentItem) and Action == "View Result",
+        **Schedule,
         "details": {
             "questions": Version.total_questions if Version else 0,
             "totalMarks": Version.total_marks if Version else 100,
@@ -2881,6 +2957,15 @@ def StartAssessmentAttempt(Db: Session, StudentItem: Student, AssignmentId: str)
     )
     if LatestAttempt and LatestAttempt.status == "IN_PROGRESS":
         return LatestAttempt
+    Schedule = AssessmentScheduleState(Assignment)
+    if not Schedule["startOpen"]:
+        # Start opens exactly at the teacher-set time, never before.
+        api_error(
+            403,
+            "ASSESSMENT_NOT_OPEN_YET",
+            "Your assessment has not opened yet. Start opens at your set time.",
+            {"scheduledStartAt": Schedule["scheduledStartAt"]},
+        )
     OpenAccess = IsAssessmentOpenAccessStudent(StudentItem)
     if LatestAttempt and LatestAttempt.status in {"CLEARED", "NEEDS_RE_ATTEMPT", "SUBMITTED", "AUTO_SUBMITTED"} and not OpenAccess:
         api_error(400, "ASSESSMENT_ALREADY_ATTEMPTED", "This assessment attempt is already completed. View the result or wait for re-attempt access.")
