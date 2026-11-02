@@ -32,6 +32,9 @@ export type AssessmentSectionItem = {
   // assessment_blueprint_service.py.
   isWeighted: boolean;
   marksPerQuestion: number;
+  // 2026-11-02: the whole-number marks each section starts at in the studio
+  // (1, or 5 for Skill Stacker / Concept Drill); the admin may change it.
+  defaultMarksPerQuestion?: number;
 };
 
 export type AssessmentSectionsForLevelResponse = {
@@ -994,6 +997,10 @@ export type AssessmentBlueprintSectionDistribution = {
   sectionTitle: string | null;
   questionCount: number;
   displayOrder?: number;
+  // 2026-11-02: admin-set whole marks per question, and whether the section
+  // is in the paper (0 questions = left out).
+  marksPerQuestion?: number;
+  included?: boolean;
 };
 
 export type AssessmentBlueprint = {
@@ -1055,6 +1062,8 @@ export type AssessmentBlueprintCreatePayload = {
     lessonId?: string;
     sectionKey?: string;
     questionCount: number;
+    // Section-wise only (2026-11-02): whole marks per question.
+    marksPerQuestion?: number;
     conceptRules?: Record<string, unknown> | null;
   }>;
 };

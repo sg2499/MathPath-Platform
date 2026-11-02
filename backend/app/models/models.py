@@ -945,8 +945,15 @@ class AssessmentBlueprintSection(Base):
     id = Column(String, primary_key=True, default=uuid_str)
     blueprint_id = Column(String, ForeignKey("assessment_blueprints.id", ondelete="CASCADE"), nullable=False, index=True)
     section_key = Column(String(100), nullable=False)
+    # 0 = the section is left out of this paper (2026-11-02, Shailesh: "it
+    # must have all the sections but still lets have the option of omission
+    # in special scenarios"). At least one section always has questions.
     question_count = Column(Integer, nullable=False)
     display_order = Column(Integer, default=0, nullable=False)
+    # Whole-number marks for each question in this section, set by the admin
+    # (2026-11-02). Null = a structure saved before this existed: the old
+    # rule applies (1, or 5 for Skill Stacker / Concept Drill).
+    marks_per_question = Column(Integer, nullable=True)
 
     blueprint = relationship("AssessmentBlueprint")
 
@@ -1003,6 +1010,10 @@ class AssessmentQuestion(Base):
     explanation = Column(Text, nullable=True)
     difficulty = Column(String(50), nullable=True)
     concept_tag = Column(String(100), nullable=True)
+    # The marks this question is worth, fixed when the paper is generated
+    # (2026-11-02). Null = a paper generated before this existed: marks then
+    # come from the old concept rule (ResolvedAssessmentQuestionMark).
+    marks = Column(Float, nullable=True)
     source_type = Column(String(50), default="ASSESSMENT_ENGINE", nullable=False)
     source_reference_id = Column(String, nullable=True)
     seed = Column(Text, nullable=False)

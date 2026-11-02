@@ -464,6 +464,25 @@ def ensure_assessment_reattempt_columns() -> None:
                     connection.execute(text(f"ALTER TABLE assessment_reattempt_approvals ADD COLUMN {name} {ddl}"))
 
 
+def ensure_assessment_section_marks_columns() -> None:
+    """2026-11-02: per-section marks set by the admin
+    (assessment_blueprint_sections.marks_per_question) and each generated
+    question's fixed marks (assessment_questions.marks). See Alembic
+    c9d4e7f1a2b5."""
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    for table, column, ddl in (
+        ("assessment_blueprint_sections", "marks_per_question", "INTEGER"),
+        ("assessment_questions", "marks", "FLOAT"),
+    ):
+        if table not in tables:
+            continue
+        existing = {item["name"] for item in inspector.get_columns(table)}
+        if column not in existing:
+            with engine.begin() as connection:
+                connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+
+
 def ensure_assessment_questions_lesson_id_nullable() -> None:
     """Relax assessment_questions.lesson_id to nullable.
 

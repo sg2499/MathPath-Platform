@@ -296,18 +296,56 @@ def validate_distribution(
     return parsed
 
 
+def _whole_marks(raw: Any, default: int) -> int:
+    """Whole-number marks for one section (2026-11-02, Shailesh: "whole
+    numbers only"). Accepts 3, 3.0 or "3"; refuses 2.5, 0, negatives and text."""
+    if raw is None or raw == "":
+        return default
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        api_error(400, "INVALID_SECTION_MARKS", "Marks per question must be a whole number.")
+    if not value.is_integer():
+        api_error(400, "INVALID_SECTION_MARKS", "Marks per question must be a whole number (1, 2, 3 ...), not a fraction.")
+    marks = int(value)
+    if marks < 1 or marks > int(TOTAL_ASSESSMENT_MARKS):
+        api_error(
+            400,
+            "INVALID_SECTION_MARKS",
+            f"Marks per question must be between 1 and {int(TOTAL_ASSESSMENT_MARKS)}.",
+        )
+    return marks
+
+
+def default_section_marks(module_code: str, registry_config: dict[str, Any]) -> dict[str, int]:
+    """Each section's starting marks per question: today's rule -- 5 for a
+    Skill Stacker / Concept Drill section, 1 for every other section
+    (Shailesh, 2026-11-02: "keep that as 1 and 5 and let the admin change it")."""
+    return {
+        key: int(round(float(meta.get("marksPerQuestion") or 1)))
+        for key, meta in section_marks_metadata(module_code, registry_config).items()
+    }
+
+
 def validate_section_distribution(
     db: Session,
     module_code: str,
     level: Level,
     total_questions: int,
     section_distribution: list[dict[str, Any]],
-) -> list[tuple[dict[str, Any], int]]:
-    """Section-wise counterpart of validate_distribution() above, for
-    SECTION_WISE_ASSESSMENT_MODULES. Same shape and same error philosophy
-    (full coverage required, counts must sum to the total) -- just keyed by
-    sectionKey against that level's mock section registry instead of by
-    lessonId against that level's active lessons.
+) -> list[tuple[dict[str, Any], int, int]]:
+    """Checks a section-wise assessment structure and returns
+    (section definition, question count, marks per question) for every
+    section of the level, in the order given.
+
+    2026-11-02 (Shailesh): the admin sets, for each section, the number of
+    questions and the whole-number marks per question; the paper must total
+    exactly TOTAL_ASSESSMENT_MARKS (100). Every section of the level is still
+    listed, but a section may be left out with 0 questions ("the option of
+    omission in special scenarios") as long as at least one section has
+    questions. A row without marks (an older screen) uses the section's
+    default -- 1, or 5 for Skill Stacker / Concept Drill -- which is exactly
+    the old fixed rule, so an old-style distribution validates as before.
     """
     if total_questions <= 0:
         api_error(400, "INVALID_TOTAL_QUESTIONS", "Total questions must be greater than zero.")
@@ -315,12 +353,13 @@ def validate_section_distribution(
     registry_config = level_section_registry_config(module_code, level)
     section_defs = registry_config["sectionDefinitions"]
     section_by_key = {row["key"]: row for row in section_defs}
+    default_marks = default_section_marks(module_code, registry_config)
 
     if not section_distribution:
         api_error(400, "MISSING_SECTION_DISTRIBUTION", "Section-wise question distribution is required.")
 
     seen: set[str] = set()
-    parsed: list[tuple[dict[str, Any], int]] = []
+    parsed: list[tuple[dict[str, Any], int, int]] = []
 
     for item in section_distribution:
         section_key = str(item.get("sectionKey") or item.get("section_key") or "").strip()
@@ -342,10 +381,11 @@ def validate_section_distribution(
         except Exception:
             api_error(400, "INVALID_QUESTION_COUNT", "Question count must be a number.")
 
-        if count <= 0:
-            api_error(400, "INVALID_QUESTION_COUNT", "Each section must contribute at least one question.")
+        if count < 0:
+            api_error(400, "INVALID_QUESTION_COUNT", "A section's question count cannot be negative. Use 0 to leave the section out.")
 
-        parsed.append((section_def, count))
+        marks = _whole_marks(item.get("marksPerQuestion", item.get("marks_per_question")), default_marks.get(section_key, 1))
+        parsed.append((section_def, count, marks))
 
     missing_keys = set(section_by_key.keys()) - seen
     if missing_keys:
@@ -353,11 +393,14 @@ def validate_section_distribution(
         api_error(
             400,
             "FULL_SECTION_COVERAGE_REQUIRED",
-            "Assessment must include every section this level's mock exam uses.",
+            "Every section of this level must be listed. To leave one out, set its questions to 0.",
             {"missingSections": missing_titles},
         )
 
-    total_from_distribution = sum(count for _, count in parsed)
+    if not any(count > 0 for _, count, _ in parsed):
+        api_error(400, "ASSESSMENT_NEEDS_A_SECTION", "At least one section must have questions.")
+
+    total_from_distribution = sum(count for _, count, _ in parsed)
     if total_from_distribution != total_questions:
         api_error(
             400,
@@ -366,72 +409,19 @@ def validate_section_distribution(
             {"totalQuestions": total_questions, "distributionTotal": total_from_distribution},
         )
 
-    # 2026-07-23, Shailesh: every assessment (across every module) must total
-    # exactly TOTAL_ASSESSMENT_MARKS (100) -- never more, never less. MM is
-    # flat 1 mark/question, so that's simply "always 100 questions". Concept-
-    # weighted modules (IM today) mix 1-mark and _CONCEPT_WEIGHTED_MARKS-mark
-    # (5) questions, so the invariant is on marks, not question count: this
-    # is what lets the admin freely pick how many Skill Stacker/Concept Drill
-    # questions to include while the rest of the paper auto-balances around
-    # it (see the frontend's Skill Stacker/Concept Drill Questions field).
-    # Both checks are hard failures with the same coverage-check philosophy
-    # as everything else in this function -- never silently clamp or scale.
-    module_upper = (module_code or "").upper()
-    # PM and BM are included alongside _CONCEPT_WEIGHTED_MODULES (2026-08-05
-    # for PM, Shailesh; 2026-08-07 for BM): PM-L2+ and BM-L1 each introduce
-    # their own Concept Drill section, weighted exactly like IM's Skill
-    # Stacker/Concept Drill. This does not change PM-L1's behavior at all --
-    # PM-L1's registry has zero sections whose concept pool is tagged
-    # conceptFamily="CONCEPT_DRILL", so _weighted_section_keys() returns an
-    # empty set for it, which makes the weighted computation below
-    # mathematically identical to the old flat "total_questions must be 100"
-    # check it replaces (computed_marks reduces to exactly total_questions
-    # when nothing is weighted). Before BM was added here, this whole check
-    # was skipped for BM (fell through to no marks validation at all),
-    # letting a distribution that doesn't actually sum to 100 real marks
-    # save/publish successfully and only fail later, inside
-    # GenerateAssessmentVersion, with a much less actionable
-    # ASSESSMENT_MARKS_MISMATCH error -- caught live via Chrome verification.
-    if module_upper in _CONCEPT_WEIGHTED_MODULES or module_upper in {"MM", "PM", "BM"}:
-        weighted_keys = _weighted_section_keys(registry_config)
-        computed_marks = sum(
-            (_CONCEPT_WEIGHTED_MARKS if section_def["key"] in weighted_keys else 1.0) * count
-            for section_def, count in parsed
+    # Every assessment, every module, totals exactly 100 marks -- never more,
+    # never less (2026-07-23 rule, kept). Marks now come from each section's
+    # own setting instead of a fixed per-module rule.
+    computed_marks = sum(count * marks for _, count, marks in parsed)
+    if computed_marks != int(TOTAL_ASSESSMENT_MARKS):
+        api_error(
+            400,
+            "ASSESSMENT_MARKS_MISMATCH",
+            f"Total marks must always equal {int(TOTAL_ASSESSMENT_MARKS)}. This structure totals {computed_marks} marks "
+            "(questions x marks each, added over every included section). Change a section's questions or marks "
+            f"so the total is exactly {int(TOTAL_ASSESSMENT_MARKS)}.",
+            {"currentMarks": computed_marks, "requiredMarks": int(TOTAL_ASSESSMENT_MARKS)},
         )
-        if computed_marks != TOTAL_ASSESSMENT_MARKS:
-            api_error(
-                400,
-                "ASSESSMENT_MARKS_MISMATCH",
-                f"Total marks must always equal {int(TOTAL_ASSESSMENT_MARKS)}. This distribution totals "
-                f"{computed_marks:g} marks ({int(_CONCEPT_WEIGHTED_MARKS)} marks per Skill Stacker/Concept Drill "
-                "question, 1 mark per other question). Adjust the Skill Stacker/Concept Drill question count or "
-                "the other sections' counts so the total is exactly right.",
-                {
-                    "currentMarks": computed_marks,
-                    "requiredMarks": TOTAL_ASSESSMENT_MARKS,
-                    "weightedSectionKeys": sorted(weighted_keys),
-                },
-            )
-    elif module_upper in {"YLM"}:
-        # YLM has no Skill Stacker/Concept Drill-style weighted concept at
-        # all, so it stays flat 1 mark/question -- "always 100 questions"
-        # (2026-08-11, Shailesh: "each question would have 1 mark each for
-        # both the flows"). MM used to share this exact branch (explicit
-        # product decision to keep MM's marking flat everywhere) until
-        # 2026-08-31, when that decision was reversed (Shailesh: "for the
-        # master module as well lets have all the concept drill and skill
-        # stacker sums as 5 marks each across all the workflows") and MM
-        # moved up into the weighted-marks branch above, alongside
-        # IM/PM/BM.
-        if total_questions != int(TOTAL_ASSESSMENT_MARKS):
-            api_error(
-                400,
-                "ASSESSMENT_QUESTION_COUNT_MUST_BE_100",
-                f"{module_upper} assessments are always {int(TOTAL_ASSESSMENT_MARKS)} questions at 1 mark each, so total "
-                f"marks are always {int(TOTAL_ASSESSMENT_MARKS)}. Adjust the section distribution so it sums to "
-                f"exactly {int(TOTAL_ASSESSMENT_MARKS)} questions.",
-                {"totalQuestions": total_questions, "required": int(TOTAL_ASSESSMENT_MARKS)},
-            )
 
     return parsed
 
@@ -464,6 +454,7 @@ def blueprint_payload(db: Session, blueprint: AssessmentBlueprint) -> dict[str, 
     if section_wise:
         registry_config = level_section_registry_config(module_code, level) if level else {"sectionDefinitions": []}
         section_by_key = {row["key"]: row for row in registry_config.get("sectionDefinitions", [])}
+        default_marks = default_section_marks(module_code, registry_config) if section_by_key else {}
         section_rows = (
             db.query(AssessmentBlueprintSection)
             .filter(AssessmentBlueprintSection.blueprint_id == blueprint.id)
@@ -480,6 +471,11 @@ def blueprint_payload(db: Session, blueprint: AssessmentBlueprint) -> dict[str, 
                     "sectionTitle": section_def.get("title"),
                     "questionCount": row.question_count,
                     "displayOrder": row.display_order,
+                    # 2026-11-02: the admin-set marks per question (or the
+                    # section's default for a structure saved before), and
+                    # whether the section is in the paper at all.
+                    "marksPerQuestion": row.marks_per_question if row.marks_per_question is not None else default_marks.get(row.section_key, 1),
+                    "included": (row.question_count or 0) > 0,
                 }
             )
     else:
@@ -623,13 +619,14 @@ def create_blueprint(db: Session, *, title: str, module_id: str, level_id: str, 
     db.flush()
 
     if section_wise:
-        for display_order, (section_def, count) in enumerate(parsed_sections, start=1):
+        for display_order, (section_def, count, marks) in enumerate(parsed_sections, start=1):
             db.add(
                 AssessmentBlueprintSection(
                     blueprint_id=blueprint.id,
                     section_key=section_def["key"],
                     question_count=count,
                     display_order=display_order,
+                    marks_per_question=marks,
                 )
             )
     else:
@@ -699,13 +696,14 @@ def update_blueprint(db: Session, blueprint_id: str, *, title: str | None = None
 
             db.query(AssessmentBlueprintSection).filter(AssessmentBlueprintSection.blueprint_id == blueprint.id).delete()
 
-            for display_order, (section_def, count) in enumerate(parsed_sections, start=1):
+            for display_order, (section_def, count, marks) in enumerate(parsed_sections, start=1):
                 db.add(
                     AssessmentBlueprintSection(
                         blueprint_id=blueprint.id,
                         section_key=section_def["key"],
                         question_count=count,
                         display_order=display_order,
+                        marks_per_question=marks,
                     )
                 )
         else:
@@ -744,7 +742,10 @@ def publish_blueprint(db: Session, blueprint_id: str, published_by_user_id: str 
 
     if section_wise:
         rows = db.query(AssessmentBlueprintSection).filter(AssessmentBlueprintSection.blueprint_id == blueprint.id).all()
-        distribution = [{"sectionKey": row.section_key, "questionCount": row.question_count} for row in rows]
+        distribution = [
+            {"sectionKey": row.section_key, "questionCount": row.question_count, "marksPerQuestion": row.marks_per_question}
+            for row in rows
+        ]
         validate_section_distribution(db, module.module_code, level, blueprint.total_questions, distribution)
     else:
         rows = db.query(AssessmentBlueprintLesson).filter(AssessmentBlueprintLesson.blueprint_id == blueprint.id).all()

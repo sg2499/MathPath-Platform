@@ -244,6 +244,13 @@ def ResolvedAssessmentQuestionMark(Db: Session, Version: AssessmentVersion | Non
     unlisted future module) keeps the original flat evenly-balanced-100
     behavior via AssessmentQuestionMark(), byte-for-byte unchanged.
     """
+    # 2026-11-02: a question generated since the admin-set section marks
+    # carries its own marks, fixed at generation. That stored value wins
+    # everywhere (display, saving an answer, grading, review). Questions
+    # generated before have none and keep the old rules below, unchanged.
+    StoredMarks = getattr(Question, "marks", None) if Question is not None else None
+    if StoredMarks is not None:
+        return float(StoredMarks)
     ModuleCode = _AssessmentModuleCodeForVersion(Db, Version)
     if ModuleCode == "MM":
         ConceptTag = Question.concept_tag if Question else None
@@ -1372,8 +1379,18 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
 
     QuestionNumber = 1
 
+    # 2026-11-02 (Shailesh): a section may be left out (0 questions). The
+    # sections that are in the paper are then numbered 1, 2, 3 ... in order,
+    # so the student never sees a gap. When nothing is left out the level's
+    # own numbers and titles are kept exactly as before.
+    SectionsOmitted = SectionWise and any(int(Row.question_count or 0) <= 0 for Row in SectionRows)
+    IncludedSectionNumber = 0
+
     if SectionWise:
         for BlueprintSection in SectionRows:
+            if int(BlueprintSection.question_count or 0) <= 0:
+                continue  # left out of this paper
+            IncludedSectionNumber += 1
             SectionDef = SectionDefsByKey.get(BlueprintSection.section_key)
             if not SectionDef:
                 api_error(
@@ -1390,6 +1407,16 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                     f"Section '{SectionDef['title']}' has no concept pool configured.",
                     {"sectionKey": SectionDef["key"]},
                 )
+
+            if SectionsOmitted:
+                ShownSectionNumber = IncludedSectionNumber
+                ShownSectionTitle = f"Section {IncludedSectionNumber} - {AssessmentSectionName(SectionDef.get('title')) or SectionDef['key']}"
+            else:
+                ShownSectionNumber = SectionDef.get("number")
+                ShownSectionTitle = SectionDef.get("title")
+            # The admin-set whole marks for this section (None for a structure
+            # saved before 2026-11-02 -> the old per-concept rule below).
+            SectionMarksSetting = getattr(BlueprintSection, "marks_per_question", None)
 
             Counts = SplitCountAcrossSources(BlueprintSection.question_count, len(ConceptPool))
             for ConceptIndex, Count in enumerate(Counts):
@@ -1485,14 +1512,21 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                     else:
                         QuestionMarks = ImConceptWeightedQuestionMark(ConceptTag)
                         MarksMode = "CONCEPT_WEIGHTED"
+                    # 2026-11-02: the admin-set section marks. Left at the
+                    # section's default they equal the rule above (and keep
+                    # its label); changed, they win and are labelled
+                    # SECTION_SET.
+                    if SectionMarksSetting is not None and float(SectionMarksSetting) != QuestionMarks:
+                        QuestionMarks = float(SectionMarksSetting)
+                        MarksMode = "SECTION_SET"
                     RunningWeightedMarksTotal += QuestionMarks
                     Metadata.update(
                         {
                             "questionMarks": QuestionMarks,
                             "marksMode": MarksMode,
                             "assessmentSectionKey": SectionDef["key"],
-                            "assessmentSectionNumber": SectionDef.get("number"),
-                            "assessmentSectionTitle": SectionDef.get("title"),
+                            "assessmentSectionNumber": ShownSectionNumber,
+                            "assessmentSectionTitle": ShownSectionTitle,
                             "levelWideAssessment": True,
                             "randomizedAssessment": True,
                         }
@@ -1527,6 +1561,8 @@ def GenerateAssessmentVersion(Db: Session, Blueprint: AssessmentBlueprint, Gener
                         explanation=Generated.get("explanation") or _DefaultAssessmentExplanation(ModuleCode),
                         difficulty="MIXED",
                         concept_tag=ConceptTag,
+                        # Fixed at generation: every screen and the grading use it.
+                        marks=QuestionMarks,
                         source_type="ASSESSMENT_SECTION_REGISTRY",
                         source_reference_id=SectionDef["key"],
                         seed=Generated.get("seed") or ConceptSeed,
