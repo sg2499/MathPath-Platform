@@ -493,6 +493,10 @@ class AssessmentLessonDistributionRequest(BaseModel):
     lessonId: str | None = None
     sectionKey: str | None = None
     questionCount: int
+    # 2026-11-02: whole-number marks per question for a section (validated in
+    # assessment_blueprint_service._whole_marks, which explains a fraction
+    # clearly instead of a bare type error). Omitted = the section's default.
+    marksPerQuestion: float | None = None
     conceptRules: dict[str, Any] | None = None
 
 
@@ -2215,6 +2219,10 @@ def assessment_sections_for_level(level_id: str, db: Session = Depends(get_db), 
             # marksPerQuestion (5) each, everything else is worth 1.
             "isWeighted": marks_meta.get(row["key"], {}).get("isWeighted", False),
             "marksPerQuestion": marks_meta.get(row["key"], {}).get("marksPerQuestion", 1.0),
+            # 2026-11-02: the whole-number marks each section starts at in the
+            # studio (1, or 5 for Skill Stacker / Concept Drill); the admin
+            # may change it.
+            "defaultMarksPerQuestion": int(round(float(marks_meta.get(row["key"], {}).get("marksPerQuestion", 1.0) or 1))),
         }
         for row in registry_config["sectionDefinitions"]
     ]

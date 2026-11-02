@@ -2315,6 +2315,23 @@ html .math-role-admin .ad-hero-tiles.ad-hero-tiles-5:not(#ad) {
     font-weight: 700;
     color: var(--ad-ink-soft);
   }
+  /* Section-wise papers (2026-11-02): number and topic; include switch,
+     questions and marks each; the section's marks and its status */
+  html .math-role-admin .ad-matrix-row.ad-matrix-marks:not(#ad) {
+    grid-template-columns: minmax(0, 4.5rem) minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+
+  html .math-role-admin .ad-matrix-row.ad-matrix-marks > :nth-child(6):not(#ad) {
+    grid-column: 1 / 3;
+  }
+
+  html .math-role-admin .ad-matrix-marks .ad-matrix-cap:not(#ad) {
+    display: block;
+  }
+
+  html .math-role-admin .ad-matrix-marks .ad-matrix-weight::before {
+    content: "Marks\00a0";
+  }
 }
 
 /* ===========================================================================

@@ -277,6 +277,8 @@ def _EnsureSchema():
     ensure_assignment_notified_at_column()
     ensure_assignments_assigned_to_id_indexed()
     ensure_assessment_reattempt_columns()
+    from app.services.schema_migration import ensure_assessment_section_marks_columns
+    ensure_assessment_section_marks_columns()
     ensure_assessment_questions_lesson_id_nullable()
     ensure_student_level_promotions_table()
     ensure_assignment_attempt_chain_columns()
