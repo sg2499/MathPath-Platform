@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
+from app.services.mock_paper_scope import EnsureMockPaper
 from app.models import (
     CompetitionMockAssignment,
     CompetitionMockExam,
@@ -79,6 +80,9 @@ def _ValidatedMockExams(db: Session, MockExamIds: list[str]) -> list[Competition
         .filter(CompetitionMockExam.id.in_(UniqueIds), CompetitionMockExam.is_active == True, CompetitionMockExam.status != "ARCHIVED")
         .all()
     )
+    # 2026-11-02: an Annual Competition paper is never assigned as a mock.
+    for Exam in Exams:
+        EnsureMockPaper(Exam)
     ExamById = {Exam.id: Exam for Exam in Exams}
     MissingIds = [MockExamId for MockExamId in UniqueIds if MockExamId not in ExamById]
     if MissingIds:

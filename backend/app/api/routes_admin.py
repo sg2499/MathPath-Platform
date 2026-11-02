@@ -84,6 +84,7 @@ from app.services.parent_report_notification_service import (
     NotifyParentReportDeliveryDeleted,
     ResolveStudentTeacher,
 )
+from app.services.mock_paper_scope import EnsureMockPaper
 from app.services.competition_mock_generation_service import (
     GenerateCompetitionMockDraft,
     ListCompetitionMockDrafts,
@@ -6495,16 +6496,25 @@ def admin_get_competition_mock_exam(mock_exam_id: str, db: Session = Depends(get
     ExamRecord = db.get(CompetitionMockExam, mock_exam_id)
     if not ExamRecord or not ExamRecord.is_active:
         api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Competition mock exam was not found.")
+    # Manage Mocks' View never opens an Annual Competition paper (2026-11-02).
+    EnsureMockPaper(ExamRecord)
     return CompetitionMockExamPayload(db, ExamRecord, IncludeQuestions=True)
 
 @router.delete("/competition/mock-exams/{mock_exam_id}")
 def admin_delete_competition_mock_exam(mock_exam_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    # Manage Mocks never deletes an Annual Competition paper (2026-11-02).
+    # The guard is here, not in DeleteCompetitionMockExam, because the
+    # Annual Competition's own maintenance scripts use that function to clear
+    # superseded annual papers.
+    EnsureMockPaper(db.get(CompetitionMockExam, mock_exam_id))
     Deleted = DeleteCompetitionMockExam(db, MockExamId=mock_exam_id)
     return {"ok": True, "message": "Competition mock exam permanently deleted.", "deleted": Deleted}
 
 
 @router.patch("/competition/mock-exams/{mock_exam_id}/archive")
 def admin_archive_competition_mock_exam(mock_exam_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    # Manage Mocks never archives an Annual Competition paper (2026-11-02).
+    EnsureMockPaper(db.get(CompetitionMockExam, mock_exam_id))
     Archived = ArchiveCompetitionMockExam(db, MockExamId=mock_exam_id)
     return {"ok": True, "message": "Competition mock exam archived.", "mockExam": Archived}
 

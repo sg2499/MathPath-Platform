@@ -185,7 +185,11 @@ function AdminCompetitionMockStudioPageContent() {
   const Levels = LevelsQuery.data || [];
   const ManageLevels = ManageLevelsQuery.data || [];
   const Students = StudentsQuery.data || [];
-  const MockExams = MocksQuery.data || [];
+  // 2026-11-02 (Shailesh): Manage Mocks lists mock papers only -- never an
+  // Annual Competition paper, official or practice. The server already
+  // leaves them out (backend/app/services/mock_paper_scope.py); this second
+  // check keeps the screen right even if one were ever sent.
+  const MockExams = (MocksQuery.data || []).filter((Exam) => !String((Exam as { competitionScope?: string | null }).competitionScope || "").toUpperCase().startsWith("ANNUAL"));
   const SectionPlan = SectionPlanQuery.data || null;
 
   // SectionCounts only ever holds keys the admin has actually edited (typing

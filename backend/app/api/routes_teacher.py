@@ -22,6 +22,7 @@ from app.services.reattempt_operational_service import CountNeedsReattemptConcep
 from app.services.assessment_eligibility_service import EligibilityPrefetch, assessment_eligibility_payload, eligibility_for_students
 from app.services.assessment_blueprint_service import blueprint_payload, teacher_visible_blueprints
 from app.services.assessment_engine_service import AvailablePublishedVersions, AssessmentVersionOptionPayload, ExistingAssessmentAssignmentForLevel, AssessmentAssignmentPayload, AssessmentResultPayload, AssessmentProgressionPayload, StudentLevelPromotionPayload, EnsureAssessmentAttemptActiveOrAutoSubmit, IsAssessmentOpenAccessStudent, ParseAssessmentScheduledStartAt, EnsureAssessmentScheduleInFuture
+from app.services.mock_paper_scope import MockPaperCondition
 from app.services.assessment_notification_service import NotifyAssessmentAssignmentsCreated, NotifyAssessmentRescheduled
 from app.services.practice_notification_service import NotifyPracticeAssignmentsCreated
 from app.services.lesson_progress_service import (
@@ -2532,7 +2533,8 @@ def teacher_mock_leaderboard_hierarchy(db: Session = Depends(get_db), teacher: T
     levels = db.query(Level).filter(Level.is_active == True).order_by(Level.display_order).all()  # noqa: E712
     exams = (
         db.query(CompetitionMockExam)
-        .filter(CompetitionMockExam.is_active == True, CompetitionMockExam.status != "ARCHIVED")  # noqa: E712
+        # Mock papers only: never Annual Competition papers (2026-11-02).
+        .filter(CompetitionMockExam.is_active == True, CompetitionMockExam.status != "ARCHIVED", MockPaperCondition())  # noqa: E712
         .order_by(CompetitionMockExam.title.asc())
         .all()
     )

@@ -1098,6 +1098,10 @@ class AssessmentAttempt(Base):
     # guards can't interfere with each other -- see EconomyService's
     # evaluate_activity_performance() and the matching Alembic migration.
     gamification_processed_at = Column(DateTime(timezone=True), nullable=True)
+    # 2026-11-02 (Shailesh): the upcoming-section slide pauses the paper's
+    # timer. {"<section number>": {"shownAt": iso, "creditedSeconds": n}};
+    # each section's pause is credited once, capped, by moving expires_at on.
+    section_briefings_json = Column(Text, nullable=True)
 
     assessment_assignment = relationship("AssessmentAssignment")
     assessment_version = relationship("AssessmentVersion")

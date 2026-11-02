@@ -16,13 +16,15 @@ import { useProtectedPage } from "@/hooks/useProtectedPage";
 import { apiErrorMessage } from "@/lib/api";
 import {
   autoSubmitAssessmentAttempt,
+  endAssessmentSectionBriefing,
   resumeAssessmentAttempt,
+  startAssessmentSectionBriefing,
   saveAssessmentAnswer,
   submitAssessmentAttempt,
   type AssessmentSection,
 } from "@/lib/api/student";
 import { setPaperInProgress } from "@/lib/paperFocus";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardCheck, Gauge, Layers3 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -122,6 +124,12 @@ export default function StudentAssessmentAttemptPage() {
   const [Briefing, SetBriefing] = useState<{ Upcoming: AssessmentSection; Previous: AssessmentSection | null } | null>(null);
   const SeenSectionsRef = useRef<Set<number> | null>(null);
   const LastSectionNumberRef = useRef<number | null>(null);
+  // 2026-11-02 (Shailesh): the slide pauses the paper's timer. The server
+  // is told when the slide appears (BriefingStartRef holds that request) and
+  // when the section starts; it then moves the deadline on by the time the
+  // slide was up, and the screen takes the new time from its reply.
+  const BriefingStartRef = useRef<Promise<unknown> | null>(null);
+  const QueryClientRef = useQueryClient();
 
   const Query = useQuery({
     queryKey: ["assessment-attempt", AttemptId],
@@ -188,7 +196,8 @@ export default function StudentAssessmentAttemptPage() {
       .finally(() => AutoSubmitMutation.mutate());
   }, [Attempt, Questions.length, AutoSubmitMutation, ManualSubmitMutation.isPending, FlushAndAwaitAllPendingSaves]);
 
-  const RemainingSeconds = useAttemptTimer(Attempt ? Attempt.remainingSeconds : 999999, HandleTimeUp, () => Query.refetch());
+  // Paused while a section slide is on screen.
+  const RemainingSeconds = useAttemptTimer(Attempt ? Attempt.remainingSeconds : 999999, HandleTimeUp, () => Query.refetch(), Boolean(Briefing));
 
   const SavedAnswers: Record<string, string> = {};
   Questions.forEach((Question) => {
@@ -213,6 +222,7 @@ export default function StudentAssessmentAttemptPage() {
       : null;
     AnswerInputRef.current?.flushPendingSave();
     SetBriefing({ Upcoming: Section, Previous });
+    BriefingStartRef.current = startAssessmentSectionBriefing(AttemptId, Section.sectionNumber).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [AttemptRunning, CurrentQuestion?.questionNumber, Sections.length, AttemptId]);
 
@@ -224,7 +234,20 @@ export default function StudentAssessmentAttemptPage() {
     WriteSeenSections(AttemptId, Seen);
     // The student stays on the question that brought them here (the first
     // question of the section when moving on, or the one they picked).
+    const SectionNumber = Briefing.Upcoming.sectionNumber;
     SetBriefing(null);
+    // The timer resumes from where it was paused straight away; the server's
+    // reply (the deadline moved on by the pause) then confirms the time.
+    const StartRequest = BriefingStartRef.current || Promise.resolve();
+    BriefingStartRef.current = null;
+    void StartRequest
+      .then(() => endAssessmentSectionBriefing(AttemptId, SectionNumber))
+      .then((Timing) => {
+        QueryClientRef.setQueryData(["assessment-attempt", AttemptId], (Previous: unknown) =>
+          Previous && typeof Previous === "object" ? { ...(Previous as Record<string, unknown>), remainingSeconds: Timing.remainingSeconds } : Previous,
+        );
+      })
+      .catch(() => undefined);
   }
 
   async function PersistAnswer(QuestionId: string, AnswerText: string) {

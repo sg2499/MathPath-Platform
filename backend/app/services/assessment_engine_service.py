@@ -2933,7 +2933,7 @@ def AssessmentInstructions(Version: AssessmentVersion | None, Sections: list[dic
     if HasRemainderAnswers:
         Lines.append("For a division with a remainder, type the quotient and the remainder separated by a comma, for example 12, 3.")
     if len(Sections) > 1:
-        Lines.append(f"The paper has {len(Sections)} sections. A short briefing opens as you reach each one; the timer keeps running.")
+        Lines.append(f"The paper has {len(Sections)} sections. A short briefing opens as you reach each one; the timer pauses while it is on screen.")
         Lines.append("You can go back to any earlier question or section and change your answer before you submit.")
     else:
         Lines.append("You can go back to any question and change your answer before you submit.")
@@ -3111,6 +3111,94 @@ def _AnsweredCount(Db: Session, AttemptId: str) -> int:
     )
 
 
+# --- Section slides pause the timer (2026-11-02, Shailesh) -----------------
+# "when the upcoming section slide is shown, that should pause the overall
+# timer and resume it when the student actually starts that section". The
+# slide auto-starts the section after 10 seconds, so a pause is capped at that
+# plus a little network grace, and each section is credited once only. The
+# credit moves expires_at on, so the server's own deadline (auto-submit,
+# remaining time) pauses exactly as the screen does.
+ASSESSMENT_SECTION_BRIEFING_MAX_PAUSE_SECONDS = 15
+
+
+def _SectionBriefings(Attempt: AssessmentAttempt) -> dict[str, dict[str, Any]]:
+    Value = SafeJson(getattr(Attempt, "section_briefings_json", None), {}) or {}
+    return Value if isinstance(Value, dict) else {}
+
+
+def AssessmentBriefingCreditedSeconds(Attempt: AssessmentAttempt | None) -> int:
+    if not Attempt:
+        return 0
+    return sum(int(Entry.get("creditedSeconds") or 0) for Entry in _SectionBriefings(Attempt).values() if isinstance(Entry, dict))
+
+
+def _BriefingSectionAttempt(Db: Session, StudentItem: Student, AttemptId: str, SectionNumber: int) -> tuple[AssessmentAttempt, bool]:
+    Attempt = GetAssessmentAttemptForStudent(Db, StudentItem, AttemptId)
+    if Attempt.status != "IN_PROGRESS":
+        return Attempt, False
+    Attempt = _LockAssessmentAttempt(Db, Attempt.id) or Attempt
+    if Attempt.status != "IN_PROGRESS":
+        return Attempt, False
+    Version = Db.get(AssessmentVersion, Attempt.assessment_version_id)
+    Numbers = {int(Section["sectionNumber"]) for Section in AssessmentVersionSections(Db, Version)}
+    if len(Numbers) < 2 or int(SectionNumber) not in Numbers:
+        api_error(422, "ASSESSMENT_SECTION_NOT_FOUND", "That section is not part of this assessment.")
+    return Attempt, True
+
+
+def _BriefingPayload(Attempt: AssessmentAttempt, CreditedSeconds: int = 0) -> dict[str, Any]:
+    return {
+        "status": Attempt.status,
+        "remainingSeconds": AssessmentRemainingSeconds(Attempt) if Attempt.status == "IN_PROGRESS" else 0,
+        "expiresAt": Iso(Attempt.expires_at),
+        "creditedSeconds": CreditedSeconds,
+    }
+
+
+def StartAssessmentSectionBriefing(Db: Session, StudentItem: Student, AttemptId: str, SectionNumber: int) -> dict[str, Any]:
+    """The slide for SectionNumber is on screen: note when (once)."""
+    Attempt, Running = _BriefingSectionAttempt(Db, StudentItem, AttemptId, SectionNumber)
+    if not Running:
+        Db.commit()
+        return _BriefingPayload(Attempt)
+    Briefings = _SectionBriefings(Attempt)
+    Key = str(int(SectionNumber))
+    if Key not in Briefings:
+        Briefings[Key] = {"shownAt": NowUtc().isoformat()}
+        Attempt.section_briefings_json = json.dumps(Briefings)
+    Db.commit()
+    return _BriefingPayload(Attempt)
+
+
+def EndAssessmentSectionBriefing(Db: Session, StudentItem: Student, AttemptId: str, SectionNumber: int) -> dict[str, Any]:
+    """The student started the section (button or the slide's countdown):
+    credit the time the slide was up -- once per section, capped -- by
+    moving the paper's deadline on by that much."""
+    Attempt, Running = _BriefingSectionAttempt(Db, StudentItem, AttemptId, SectionNumber)
+    if not Running:
+        Db.commit()
+        return _BriefingPayload(Attempt)
+    Briefings = _SectionBriefings(Attempt)
+    Key = str(int(SectionNumber))
+    Entry = Briefings.get(Key)
+    Credited = 0
+    if isinstance(Entry, dict) and Entry.get("shownAt") and Entry.get("creditedSeconds") is None:
+        try:
+            ShownAt = AwareUtc(datetime.fromisoformat(str(Entry["shownAt"])))
+        except ValueError:
+            ShownAt = None
+        if ShownAt:
+            Credited = int(max(0, min(ASSESSMENT_SECTION_BRIEFING_MAX_PAUSE_SECONDS, round((NowUtc() - ShownAt).total_seconds()))))
+        Entry["creditedSeconds"] = Credited
+        Entry["endedAt"] = NowUtc().isoformat()
+        Briefings[Key] = Entry
+        Attempt.section_briefings_json = json.dumps(Briefings)
+        if Credited:
+            Attempt.expires_at = AwareUtc(Attempt.expires_at) + timedelta(seconds=Credited)
+    Db.commit()
+    return _BriefingPayload(Attempt, Credited)
+
+
 def SaveAssessmentAnswer(Db: Session, StudentItem: Student, AttemptId: str, QuestionId: str, AnswerText: str | None = None, SelectedOptionId: str | None = None) -> dict[str, Any]:
     """Saves one typed answer (2026-10-11). An empty answer clears the
     question. SelectedOptionId is still accepted for a multiple-choice attempt
@@ -3265,7 +3353,10 @@ def _SubmitAssessmentAttemptCore(Db: Session, Attempt: AssessmentAttempt, Auto: 
     Attempt.percentage = Percentage
     Attempt.performance_band = PerformanceBand(Percentage)
     Attempt.result_status = Status
-    Attempt.time_taken_seconds = max(0, int((SubmittedAt - StartedAt).total_seconds())) if StartedAt else None
+    # Time on the paper itself: the section-slide pauses are not counted.
+    Attempt.time_taken_seconds = (
+        max(0, int((SubmittedAt - StartedAt).total_seconds()) - AssessmentBriefingCreditedSeconds(Attempt)) if StartedAt else None
+    )
 
     if Assignment:
         Assignment.status = "CLEARED" if Status == "CLEARED" else "NEEDS_RE_ATTEMPT"
