@@ -4,9 +4,11 @@
 // (2026-10-11, Shailesh: "section slides on starting, like the annual
 // competition"). Same look as the Annual Competition's own section screen
 // (components/competition/AnnualSectionBriefing.tsx), with one difference
-// that matters: an assessment has ONE timer for the whole paper, and it keeps
-// running while this slide is up. So the slide never holds the student for
-// long: it moves on by itself after a short countdown, and Start Section
+// that matters: an assessment has ONE timer for the whole paper. Since
+// 2026-11-02 (Shailesh) that timer is paused while this slide is up -- the
+// server credits the time, once per section (see the assessment attempt page
+// and EndAssessmentSectionBriefing). The slide still never holds the student
+// for long: it moves on by itself after a short countdown, and Start Section
 // moves on at once. It is shown the first time a section is reached; going
 // back to an earlier section shows no slide.
 
@@ -48,7 +50,7 @@ export function AssessmentSectionBriefing({
   // How many of Previous's questions are answered.
   PreviousAnswered: number;
   TotalSections: number;
-  // The whole assessment's time left. It does not stop for this slide.
+  // The whole assessment's time left, paused while this slide is up.
   RemainingSeconds: number;
   CountdownSeconds?: number;
   OnStart: () => void;
@@ -176,7 +178,7 @@ export function AssessmentSectionBriefing({
         <p className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
           <Timer size={16} className="shrink-0" />
           <span>
-            Assessment time left <span className="font-black tabular-nums text-slate-900 dark:text-white">{FormatClock(RemainingSeconds)}</span>. The timer keeps running.
+            Assessment time left <span className="font-black tabular-nums text-slate-900 dark:text-white">{FormatClock(RemainingSeconds)}</span>. Paused while you read this.
           </span>
         </p>
         <button

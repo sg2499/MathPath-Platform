@@ -20,6 +20,8 @@ from app.services.assessment_engine_service import (
     AssessmentAttemptPayload,
     GetAssessmentAttemptForStudent,
     SaveAssessmentAnswer,
+    StartAssessmentSectionBriefing,
+    EndAssessmentSectionBriefing,
     EnsureOpenAccessAssessmentAssignments,
     IsAssessmentOpenAccessStudent,
     SubmitAssessmentAttempt,
@@ -110,6 +112,10 @@ class SaveAssessmentAnswerRequest(BaseModel):
     questionId: str
     answerText: str | None = None
     selectedOptionId: str | None = None
+
+
+class AssessmentSectionBriefingRequest(BaseModel):
+    sectionNumber: int
 
 
 class StartCompetitionMockRequest(BaseModel):
@@ -1179,6 +1185,19 @@ def resume_assessment_attempt(attempt_id: str, db: Session = Depends(get_db), st
 @router.post("/assessment-attempts/{attempt_id}/answers")
 def save_assessment_attempt_answer(attempt_id: str, payload: SaveAssessmentAnswerRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
     return SaveAssessmentAnswer(db, student, attempt_id, payload.questionId, AnswerText=payload.answerText, SelectedOptionId=payload.selectedOptionId)
+
+
+# 2026-11-02 (Shailesh): the upcoming-section slide pauses the timer. The
+# screen reports when a slide appears and when the section starts; the server
+# credits that time (once per section, capped) by moving the deadline on.
+@router.post("/assessment-attempts/{attempt_id}/section-briefing/start")
+def start_assessment_section_briefing(attempt_id: str, payload: AssessmentSectionBriefingRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return StartAssessmentSectionBriefing(db, student, attempt_id, payload.sectionNumber)
+
+
+@router.post("/assessment-attempts/{attempt_id}/section-briefing/end")
+def end_assessment_section_briefing(attempt_id: str, payload: AssessmentSectionBriefingRequest, db: Session = Depends(get_db), student: Student = Depends(get_current_student)):
+    return EndAssessmentSectionBriefing(db, student, attempt_id, payload.sectionNumber)
 
 
 @router.post("/assessment-attempts/{attempt_id}/submit")

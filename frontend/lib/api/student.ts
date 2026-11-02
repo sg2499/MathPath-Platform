@@ -327,6 +327,21 @@ export async function resumeAssessmentAttempt(attemptId: string): Promise<Assess
   return data;
 }
 
+// 2026-11-02: the upcoming-section slide pauses the assessment timer. The
+// server notes when the slide appears and, when the section starts, moves the
+// paper's deadline on by the time the slide was up (once per section, capped).
+export type AssessmentBriefingTiming = { status: string; remainingSeconds: number; expiresAt?: string | null; creditedSeconds: number };
+
+export async function startAssessmentSectionBriefing(attemptId: string, sectionNumber: number): Promise<AssessmentBriefingTiming> {
+  const { data } = await api.post<AssessmentBriefingTiming>(`/student/assessment-attempts/${attemptId}/section-briefing/start`, { sectionNumber });
+  return data;
+}
+
+export async function endAssessmentSectionBriefing(attemptId: string, sectionNumber: number): Promise<AssessmentBriefingTiming> {
+  const { data } = await api.post<AssessmentBriefingTiming>(`/student/assessment-attempts/${attemptId}/section-briefing/end`, { sectionNumber });
+  return data;
+}
+
 export async function saveAssessmentAnswer(attemptId: string, payload: { questionId: string; answerText: string }) {
   const { data } = await api.post(`/student/assessment-attempts/${attemptId}/answers`, payload);
   return data;

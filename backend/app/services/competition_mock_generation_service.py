@@ -10,6 +10,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.core.errors import api_error
+from app.services.mock_paper_scope import MockPaperCondition
 from app.models import (
     CompetitionMockExam,
     CompetitionMockQuestion,
@@ -2512,6 +2513,8 @@ def _RecentMmCompetitionQuestionSignatures(
             CompetitionMockExam.module_id == ModuleRecord.id,
             CompetitionMockExam.level_id == LevelRecord.id,
             CompetitionMockExam.is_active == True,
+            # Only earlier mocks count as "recent mocks" (2026-11-02).
+            MockPaperCondition(),
         )
         .order_by(CompetitionMockExam.created_at.desc(), CompetitionMockExam.id.desc())
         .limit(max(0, int(WindowMockCount or 0)))
@@ -3492,15 +3495,20 @@ def _NaturalSortKey(TitleValue: str) -> list:
 
 
 def ListCompetitionMockDrafts(db: Session, LevelId: str | None = None) -> list[dict[str, Any]]:
-    Query = db.query(CompetitionMockExam).filter(CompetitionMockExam.is_active == True)
+    """Every Competition Mock paper for Manage Mocks -- and nothing else.
+
+    2026-11-02 (Shailesh): "no annual competition papers be it official or
+    practice should ever show up there" and "all the mocks that are in the
+    system must be visible at all times no matter what". Annual Competition
+    papers share this table (see app/services/mock_paper_scope.py) and had
+    filled the old 500-row cap: 496 of the 500 rows were annual papers and 31
+    of the 35 real mocks were never shown. They are now left out in SQL, and
+    there is no row cap at all -- the mock library itself is small (35 papers
+    on 2 Nov 2026) and every one of them must always be listed."""
+    Query = db.query(CompetitionMockExam).filter(CompetitionMockExam.is_active == True, MockPaperCondition())
     if LevelId:
         Query = Query.filter(CompetitionMockExam.level_id == LevelId)
-    # Cap raised 100 -> 500 (2026-07-19, Shailesh): there is no pagination UI
-    # on Manage Mocks, so a hard 100-row cap was silent -- once the library
-    # passed 100 active papers, the oldest ones would simply stop appearing
-    # with no error or indicator. 500 buys real headroom; a true paginated
-    # endpoint is the right long-term fix if this library keeps growing.
-    Rows = Query.order_by(CompetitionMockExam.created_at.desc()).limit(500).all()
+    Rows = Query.order_by(CompetitionMockExam.created_at.desc()).all()
 
     AssignedMockIds: set[str] = set()
     if Rows:

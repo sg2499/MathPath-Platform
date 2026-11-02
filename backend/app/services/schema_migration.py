@@ -255,6 +255,10 @@ def ensure_assessment_attempt_gamification_processed_column() -> None:
     if "gamification_processed_at" not in existing:
         with engine.begin() as connection:
             connection.execute(text("ALTER TABLE assessment_attempts ADD COLUMN gamification_processed_at TIMESTAMP"))
+    # 2026-11-02: the section-slide pauses (AssessmentAttempt.section_briefings_json).
+    if "section_briefings_json" not in existing:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE assessment_attempts ADD COLUMN section_briefings_json TEXT"))
 
 
 DPS_COLUMNS = {
