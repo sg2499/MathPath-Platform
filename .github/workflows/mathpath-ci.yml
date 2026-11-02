@@ -17,10 +17,14 @@ permissions:
 env:
   CI_ARTIFACT_RETENTION_DAYS: '14'
 
+# 2026-11-02: runners pinned to ubuntu-24.04. GitHub moved ubuntu-latest to
+# 26.04, where Playwright 1.60 cannot install Chromium (frontend-e2e-tests) and
+# the empty pip cache folder fails setup-python's post step. The governance job
+# installs no Python packages, so it no longer asks for a pip cache at all.
 jobs:
   governance-audit:
     name: governance-audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       test_plan_mode: ${{ steps.classification.outputs.test_plan_mode }}
       run_backend: ${{ steps.classification.outputs.run_backend }}
@@ -34,8 +38,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: pip
-          cache-dependency-path: backend/requirements.txt
       - name: Resolve comparison base
         id: base
         shell: bash
@@ -105,7 +107,7 @@ jobs:
 
   repository-safety:
     name: repository-safety
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -194,7 +196,7 @@ jobs:
     name: backend-tests
     needs: governance-audit
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -264,7 +266,7 @@ jobs:
     name: mathpath-generator-validation
     needs: governance-audit
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -346,7 +348,7 @@ jobs:
     name: frontend-typecheck
     needs: governance-audit
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -414,7 +416,7 @@ jobs:
     name: frontend-build
     needs: governance-audit
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -482,7 +484,7 @@ jobs:
     name: frontend-e2e-tests
     needs: [frontend-build, backend-tests]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       DATABASE_URL: sqlite:///./backend/mathpath_e2e.db
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
@@ -560,7 +562,7 @@ jobs:
   ci-summary:
     name: ci-summary
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - governance-audit
       - repository-safety
