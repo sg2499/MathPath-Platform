@@ -14,7 +14,8 @@ import {
   type TeacherAvailableAssessment,
 } from "@/lib/api/teacher";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, FilePenLine, GraduationCap, ListChecks, RotateCcw, Search, ShieldCheck, UserCheck, UsersRound } from "lucide-react";
+import { ASSESSMENT_INSTRUCTIONS_OPEN_MINUTES_BEFORE, FormatAssessmentSchedule, FromIndiaDateTimeLocal, IndiaDateTimeLocalMin } from "@/lib/assessmentSchedule";
+import { AlertTriangle, CalendarClock, CheckCircle2, FilePenLine, GraduationCap, ListChecks, RotateCcw, Search, ShieldCheck, UserCheck, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 function Metric({ label, value, helper, icon }: { label: string; value: string | number; helper?: string; icon?: ReactNode }) {
@@ -170,6 +171,9 @@ export default function TeacherAssignAssessmentPage() {
   const [SelectedAssessmentVersionId, SetSelectedAssessmentVersionId] = usePersistentUiState(CreatePersistedUiStateKey(AssignAssessmentStateKey, "selected-assessment"), "");
   const [SelectedStudentIds, SetSelectedStudentIds] = usePersistentUiState<string[]>(CreatePersistedUiStateKey(AssignAssessmentStateKey, "selected-students"), []);
   const [Instructions, SetInstructions] = usePersistentUiState(CreatePersistedUiStateKey(AssignAssessmentStateKey, "instructions"), "Complete the assessment carefully before submitting.");
+  // 2026-11-02 (Shailesh): the date and time, in India time. Not remembered
+  // between visits on purpose -- a time from last week must never be reused.
+  const [ScheduleLocal, SetScheduleLocal] = useState("");
 
   const OptionsQuery = useQuery({
     queryKey: ["teacher-assign-assessment-options"],
@@ -183,9 +187,11 @@ export default function TeacherAssignAssessmentPage() {
         assessmentVersionId: SelectedAssessmentVersionId,
         studentIds: SelectedStudentIds,
         instructions: Instructions.trim() || undefined,
+        scheduledStartAt: FromIndiaDateTimeLocal(ScheduleLocal),
       }),
     onSuccess: () => {
       SetSelectedStudentIds([]);
+      SetScheduleLocal("");
       QueryClient.invalidateQueries({ queryKey: ["teacher-assign-assessment-options"] });
       QueryClient.invalidateQueries({ queryKey: ["teacher-assessments"] });
     },
@@ -279,6 +285,15 @@ export default function TeacherAssignAssessmentPage() {
       return Next.length === Current.length ? Current : Next;
     });
   }, [AssignableStudents]);
+
+  // Every student needs a date and time; only the test account may go
+  // without one (it then opens straight away).
+  const SelectedStudents = Students.filter((Student) => SelectedStudentIds.includes(Student.studentId));
+  const ScheduleRequired = SelectedStudents.some((Student) => !Student.testAccount);
+  const ScheduleIso = FromIndiaDateTimeLocal(ScheduleLocal);
+  const ScheduleInPast = Boolean(ScheduleIso && new Date(ScheduleIso).getTime() < Date.now() - 60 * 1000);
+  const ScheduleMissing = ScheduleRequired && !ScheduleIso;
+  const ScheduleBlocked = ScheduleMissing || ScheduleInPast;
 
   function ToggleStudent(StudentId: string) {
     SetSelectedStudentIds((Current) =>
@@ -397,7 +412,7 @@ export default function TeacherAssignAssessmentPage() {
                   <button type="button" className="math-role-action-button px-4 py-2" onClick={SelectAllAssignable} disabled={!SelectedAssessment || !AssignableStudents.length}>
                     <UsersRound size={16} /> Select Eligible
                   </button>
-                  <button type="button" className="math-button-primary px-4 py-2" onClick={() => AssignMutation.mutate()} disabled={!SelectedAssessmentVersionId || !SelectedStudentIds.length || AssignMutation.isPending}>
+                  <button type="button" className="math-button-primary px-4 py-2" onClick={() => AssignMutation.mutate()} disabled={!SelectedAssessmentVersionId || !SelectedStudentIds.length || ScheduleBlocked || AssignMutation.isPending} title={ScheduleMissing ? "Set the assessment date and time first" : ScheduleInPast ? "Choose a date and time that has not passed yet" : undefined}>
                     <UserCheck size={16} /> Assign Assessment
                   </button>
                 </div>
@@ -410,9 +425,33 @@ export default function TeacherAssignAssessmentPage() {
               ) : null}
               {AssignMutation.isError ? <div className="mt-4"><ErrorState message={apiErrorMessage(AssignMutation.error)} /></div> : null}
 
-              <div className="mt-5 rounded-[24px] bg-slate-50 p-4 dark:bg-slate-900/70">
+              <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+              <div className="rounded-[24px] bg-slate-50 p-4 dark:bg-slate-900/70">
+                <label className="te-mini-label flex items-center gap-2" htmlFor="assessment-schedule">
+                  <CalendarClock size={14} /> Assessment Date &amp; Time
+                </label>
+                <input
+                  id="assessment-schedule"
+                  type="datetime-local"
+                  className="math-input mt-3"
+                  value={ScheduleLocal}
+                  min={IndiaDateTimeLocalMin()}
+                  onChange={(Event) => SetScheduleLocal(Event.target.value)}
+                />
+                <p className={`mt-2 text-xs font-bold ${ScheduleBlocked && SelectedStudentIds.length ? "text-rose-700 dark:text-rose-300" : "text-slate-500 dark:text-slate-400"}`}>
+                  {ScheduleInPast
+                    ? "This time has passed. Choose a later one."
+                    : ScheduleIso
+                      ? `Instructions open ${ASSESSMENT_INSTRUCTIONS_OPEN_MINUTES_BEFORE} minutes before; Start opens at ${FormatAssessmentSchedule(ScheduleIso)}.`
+                      : ScheduleRequired
+                        ? "Required. Set the date and time for the selected students."
+                        : `India time. Instructions open ${ASSESSMENT_INSTRUCTIONS_OPEN_MINUTES_BEFORE} minutes before; Start opens at this time.`}
+                </p>
+              </div>
+              <div className="rounded-[24px] bg-slate-50 p-4 dark:bg-slate-900/70">
                 <p className="te-mini-label">Assessment Instructions</p>
                 <textarea className="math-input mt-3 min-h-[88px]" value={Instructions} onChange={(Event) => SetInstructions(Event.target.value)} placeholder="Assessment instructions" />
+              </div>
               </div>
 
               <div className="mt-5 space-y-3">

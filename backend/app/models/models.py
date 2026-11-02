@@ -1045,6 +1045,11 @@ class AssessmentAssignment(Base):
     max_attempts = Column(Integer, default=1, nullable=False)
     assigned_at = Column(DateTime(timezone=True), server_default=func.now())
     due_at = Column(DateTime(timezone=True), nullable=True)
+    # 2026-11-02 (Shailesh): the date and time the teacher sets for this
+    # student. The instructions open 10 minutes before it and Start opens at
+    # it. Null = no set time (the test account, and assessments assigned
+    # before this rule), which opens straight away as before.
+    scheduled_start_at = Column(DateTime(timezone=True), nullable=True)
     instructions = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 

@@ -421,6 +421,8 @@ ASSESSMENT_ASSIGNMENT_COLUMNS = {
     "assessment_assignment_type": "VARCHAR(30) DEFAULT 'ORIGINAL'",
     "source_assignment_id": "VARCHAR",
     "reattempt_approval_id": "VARCHAR",
+    # 2026-11-02: the teacher-set date and time (see AssessmentAssignment).
+    "scheduled_start_at": "TIMESTAMP",
 }
 
 ASSESSMENT_REATTEMPT_APPROVAL_COLUMNS = {

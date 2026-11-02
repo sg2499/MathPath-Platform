@@ -1,5 +1,6 @@
 "use client";
 
+import { AssessmentScheduleCell } from "@/components/assessments/AssessmentScheduleCell";
 import { AppShell } from "@/components/common/AppShell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -2407,12 +2408,13 @@ function AssessmentHierarchyRecords({
                       </button>
                       {LevelExpanded ? (
                         <div className="overflow-x-auto border-t border-slate-200 dark:border-slate-800">
-                          <div className="math-admin-assessment-control-table-header math-admin-assessment-student-records-header grid grid-cols-[1.08fr_.58fr_.76fr_.56fr_.56fr_.88fr_.88fr_104px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900">
+                          <div className="math-admin-assessment-control-table-header math-admin-assessment-student-records-header grid min-w-[1040px] xl:min-w-0 grid-cols-[1.08fr_.58fr_.76fr_.56fr_.56fr_1fr_.88fr_.88fr_104px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-900">
                             <div>Assessment</div>
                             <div>Attempt</div>
                             <div>Status</div>
                             <div>Score</div>
                             <div>Accuracy</div>
+                            <div>Scheduled For</div>
                             <div>Assigned Date</div>
                             <div>Completion Date</div>
                             <div>Action</div>
@@ -2433,7 +2435,7 @@ function AssessmentHierarchyRecords({
                                 <div
                                   id={FocusId}
                                   key={RowKey}
-                                  className={`grid grid-cols-[1.08fr_.58fr_.76fr_.56fr_.56fr_.88fr_.88fr_104px] items-center gap-3 px-4 py-3 ${IsFocused ? "ring-2 ring-cyan-400 bg-cyan-50/70 dark:bg-cyan-950/20" : ""}`}
+                                  className={`grid min-w-[1040px] xl:min-w-0 grid-cols-[1.08fr_.58fr_.76fr_.56fr_.56fr_1fr_.88fr_.88fr_104px] items-center gap-3 px-4 py-3 ${IsFocused ? "ring-2 ring-cyan-400 bg-cyan-50/70 dark:bg-cyan-950/20" : ""}`}
                                 >
                                   <div className="min-w-0">
                                     <p className="truncate text-sm font-black text-slate-950 dark:text-white">
@@ -2470,6 +2472,9 @@ function AssessmentHierarchyRecords({
                                     >
                                       {cleanPercent(RowAccuracyValue)}
                                     </Chip>
+                                  </div>
+                                  <div className="min-w-0">
+                                    <AssessmentScheduleCell Row={Row as any} />
                                   </div>
                                   <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
                                     {assessmentDateTimeLabel(Row, [

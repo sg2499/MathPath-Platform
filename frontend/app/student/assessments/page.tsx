@@ -14,10 +14,11 @@ import {
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { SortByDropdown } from "@/components/common/SortByDropdown";
 import { NATURAL_SORT_KEY, compareSortValues, type NaturalSortKey, type SortDirection, type SortFieldOption } from "@/lib/sortable";
-import { AlertTriangle, BarChart3, ChevronDown, Clock3, GraduationCap, PlayCircle, Search, ShieldCheck, Sparkles, Trophy, Radio, Milestone } from "lucide-react";
+import { AlertTriangle, BarChart3, CalendarClock, ChevronDown, Clock3, Hourglass, GraduationCap, PlayCircle, Search, ShieldCheck, Sparkles, Trophy, Radio, Milestone } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { AssessmentInstructionsOpenAtMs, AssessmentStartAtMs, FormatAssessmentClock, FormatAssessmentSchedule, RecordAssessmentServerNow, useAssessmentClock } from "@/lib/assessmentSchedule";
 
 type AssessmentRow = Record<string, any>;
 
@@ -747,7 +748,17 @@ function StudentAssessmentRecordRow({ row, FocusTarget }: { row: AssessmentRow; 
   const status = statusDisplay(row.status);
   const href = assessmentHref(row);
   const isFinished = ["COMPLETED", "CLEARED", "NEEDS_RE_ATTEMPT", "REATTEMPT_AVAILABLE"].includes(normalizeStatus(row.status));
-  const actionLabel = isFinished ? (canRetakeRow(row) ? "Open Assessment" : "View Result") : normalizeStatus(row.status) === "IN_PROGRESS" ? "Resume Assessment" : "Start Assessment";
+  const isInProgress = normalizeStatus(row.status) === "IN_PROGRESS";
+  // 2026-11-02 (Shailesh): the teacher-set date and time. Instructions open
+  // 10 minutes before it, Start at it; this row switches on by itself.
+  RecordAssessmentServerNow(row.serverNow);
+  const startAtMs = AssessmentStartAtMs(row);
+  const instructionsOpenAtMs = AssessmentInstructionsOpenAtMs(row);
+  const waitingForSchedule = !isFinished && !isInProgress && startAtMs != null;
+  const nowMs = useAssessmentClock(waitingForSchedule ? startAtMs : null);
+  const instructionsLocked = waitingForSchedule && instructionsOpenAtMs != null && nowMs < instructionsOpenAtMs;
+  const startLocked = waitingForSchedule && nowMs < (startAtMs as number);
+  const actionLabel = isFinished ? (canRetakeRow(row) ? "Open Assessment" : "View Result") : isInProgress ? "Resume Assessment" : startLocked ? "View Instructions" : "Start Assessment";
   const isPrimaryAssessmentAction = actionLabel !== "View Result";
   const FocusId = String(value(row, ["attemptId", "assignmentId", "assessmentAssignmentId", "assessmentId", "id"], ""));
   const IsFocused = FocusTarget ? studentAssessmentMatchesTarget(row, FocusTarget) : false;
@@ -757,6 +768,11 @@ function StudentAssessmentRecordRow({ row, FocusTarget }: { row: AssessmentRow; 
       <div data-label="Assessment" className="se-card-title min-w-0">
         <p className="font-black text-slate-950 dark:text-white">{title}</p>
         <p className="mt-1 text-xs font-semibold text-slate-500">{scopeText(row) || "Level Assessment"}</p>
+        {waitingForSchedule ? (
+          <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-black text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-200">
+            <CalendarClock size={12} /> Scheduled: {FormatAssessmentSchedule(row.scheduledStartAt)}
+          </p>
+        ) : null}
       </div>
       <div data-label="Attempt" className="flex justify-center"><span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{attemptLabel(row)}</span></div>
       <div data-label="Status" className="flex justify-center"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusTone(row.status)}`}>{status}</span></div>
@@ -765,9 +781,19 @@ function StudentAssessmentRecordRow({ row, FocusTarget }: { row: AssessmentRow; 
       <div data-label="Assigned Date" className="text-xs font-bold text-slate-500">{assignedDate(row)}</div>
       <div data-label="Completion Date" className="text-xs font-bold text-slate-500">{completionDate(row)}</div>
       <div data-label="Action" className="se-card-action flex min-w-[156px] justify-end pr-1">
-        <Link className={`${isPrimaryAssessmentAction ? "math-button-primary" : "math-role-action-button"} whitespace-nowrap px-3.5 py-2 text-xs`} href={href}>
-          <PlayCircle size={15} /> {actionLabel}
-        </Link>
+        {instructionsLocked ? (
+          <span
+            className="math-role-action-button cursor-not-allowed whitespace-nowrap px-3.5 py-2 text-xs opacity-60"
+            aria-disabled="true"
+            title={`Instructions open at ${FormatAssessmentClock(new Date(instructionsOpenAtMs as number).toISOString())}`}
+          >
+            <Hourglass size={15} /> Opens {FormatAssessmentClock(new Date(instructionsOpenAtMs as number).toISOString())}
+          </span>
+        ) : (
+          <Link className={`${isPrimaryAssessmentAction ? "math-button-primary" : "math-role-action-button"} whitespace-nowrap px-3.5 py-2 text-xs`} href={href}>
+            <PlayCircle size={15} /> {actionLabel}
+          </Link>
+        )}
       </div>
     </div>
   );

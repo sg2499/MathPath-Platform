@@ -193,6 +193,12 @@ export type AssessmentSection = {
 
 export type StudentAssessmentDetail = {
   assignmentId: string;
+  // 2026-11-02: the teacher-set date and time (null = open straight away).
+  scheduledStartAt?: string | null;
+  instructionsOpenAt?: string | null;
+  instructionsOpen?: boolean;
+  startOpen?: boolean;
+  serverNow?: string | null;
   assessmentVersionId: string;
   blueprintId: string;
   title: string;

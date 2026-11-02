@@ -425,8 +425,17 @@ export async function teacherAssignAssessment(payload: {
   assessmentVersionId: string;
   studentIds: string[];
   instructions?: string;
+  // 2026-11-02: the date and time (ISO with offset). Required for every
+  // student except the test account.
+  scheduledStartAt?: string | null;
 }): Promise<{ created: boolean; message: string; assignmentIds: string[]; rejected: Array<{ studentId: string; reason: string }> }> {
   const { data } = await api.post("/teacher/assessment-assignments", payload);
+  return data;
+}
+
+// 2026-11-02: change one student's date and time, until they start.
+export async function teacherRescheduleAssessment(assignmentId: string, scheduledStartAt: string): Promise<{ updated: boolean; message: string }> {
+  const { data } = await api.patch(`/teacher/assessment-assignments/${assignmentId}/schedule`, { scheduledStartAt });
   return data;
 }
 
