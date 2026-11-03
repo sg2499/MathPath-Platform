@@ -827,6 +827,36 @@ def teacher_students(db: Session = Depends(get_db), teacher: Teacher = Depends(g
     }
 
 
+def _NotPublishedLabel(numbers: list[int]) -> str:
+    """'DPS 3', 'DPS 3 and 4', 'DPS 3, 4 and 5'."""
+    numbers = sorted(numbers)
+    if not numbers:
+        return ""
+    if len(numbers) == 1:
+        return f"DPS {numbers[0]}"
+    return "DPS " + ", ".join(str(n) for n in numbers[:-1]) + f" and {numbers[-1]}"
+
+
+def LessonSheetCounts(db: Session, lesson_ids: list[str]) -> dict[str, dict]:
+    """Per lesson: every active sheet, how many Admin has published, and the
+    numbers of the ones still waiting (2026-11-03, Shailesh: a teacher must
+    know "only n number of sheets are getting scheduled and not the entire
+    5 sheets" before scheduling a lesson that is only partly published)."""
+    result: dict[str, dict] = {}
+    if not lesson_ids:
+        return result
+    for dps in db.query(DPS).filter(DPS.lesson_id.in_(lesson_ids), DPS.is_active == True).all():
+        entry = result.setdefault(dps.lesson_id, {"totalSheets": 0, "publishedSheets": 0, "notPublishedDpsNumbers": []})
+        entry["totalSheets"] += 1
+        if (getattr(dps, "publication_status", "DRAFT") or "DRAFT") == "PUBLISHED":
+            entry["publishedSheets"] += 1
+        else:
+            entry["notPublishedDpsNumbers"].append(dps.dps_number)
+    for entry in result.values():
+        entry["notPublishedDpsNumbers"].sort()
+    return result
+
+
 @router.get("/available-dps")
 def available_dps(
     moduleId: str | None = None,
@@ -875,6 +905,18 @@ def available_dps(
         for level in levels
     ]
     DpsPayloads = [dps_payload(db, dps) for dps in dps_rows]
+    SheetCounts = LessonSheetCounts(db, lesson_ids)
+    LessonPayloads = [
+        {
+            "lessonId": lesson.id,
+            "levelId": lesson.level_id,
+            "lessonNumber": lesson.lesson_number,
+            "lessonTitle": lesson.lesson_title,
+            **SheetCounts.get(lesson.id, {"totalSheets": 0, "publishedSheets": 0, "notPublishedDpsNumbers": []}),
+        }
+        for lesson in lessons
+        if lesson.id in SheetCounts
+    ]
     LessonProgressByStudent = ComputeLessonProgressByLevelGroups(db, ScopedStudents)
     StudentPayloads = [
         student_payload(db, StudentItem, LessonProgressByStudent.get(StudentItem.id))
@@ -889,6 +931,7 @@ def available_dps(
             "assignableStudents": len(StudentPayloads),
         },
         "levels": LevelPayloads,
+        "lessons": LessonPayloads,
         "dps": DpsPayloads,
         "students": StudentPayloads,
         "routeStatus": "OK",
@@ -1141,8 +1184,13 @@ def assign_lesson_dps_to_students(
     sheet_count = len(publishable_dps)
     total_dps_count = len(all_lesson_dps)
     message = f"Assigned {sheet_count} sheet(s) to {len(own_students)} student(s)."
-    if sheet_count < total_dps_count:
-        message += f" {total_dps_count - sheet_count} sheet(s) in this lesson aren't published yet and were skipped."
+    not_published_numbers = [dps.dps_number for dps in all_lesson_dps if dps not in publishable_dps]
+    if not_published_numbers:
+        message += (
+            f" Only {sheet_count} of {total_dps_count} sheets in this lesson are published: "
+            f"{_NotPublishedLabel(not_published_numbers)} {'is' if len(not_published_numbers) == 1 else 'are'} not published yet. "
+            "Assign them once Admin publishes them."
+        )
     if blocked_pairs:
         message += f" Skipped {len(blocked_pairs)} already-assigned combination(s)."
 
@@ -1152,6 +1200,7 @@ def assign_lesson_dps_to_students(
         "assignmentIds": [assignment.id for assignment in all_created],
         "sheetsAssigned": sheet_count,
         "totalSheetsInLesson": total_dps_count,
+        "notPublishedDpsNumbers": not_published_numbers,
         "studentsAssigned": len(own_students),
     }
 
@@ -1332,7 +1381,19 @@ def schedule_lesson_dps_to_students(
     db.commit()
 
     students_actually_scheduled = len(own_students) - len(students_with_nothing_left)
-    message = f"Scheduled {len(payload.scheduleItems)} sheet(s) to {students_actually_scheduled} student(s)."
+    # 2026-11-03: count what was really scheduled (each student only gets
+    # the sheets they still need), and say plainly when part of the lesson
+    # is not published yet.
+    scheduled_sheet_ids = {dps_id for (dps_id, _start), _students in plan.items()}
+    message = f"Scheduled {len(scheduled_sheet_ids)} sheet(s) to {students_actually_scheduled} student(s)."
+    sheet_counts = LessonSheetCounts(db, [lesson.id]).get(lesson.id, {})
+    not_published_numbers = sheet_counts.get("notPublishedDpsNumbers", [])
+    if not_published_numbers:
+        message += (
+            f" Only {sheet_counts.get('publishedSheets', 0)} of {sheet_counts.get('totalSheets', 0)} sheets in this lesson are published: "
+            f"{_NotPublishedLabel(not_published_numbers)} {'is' if len(not_published_numbers) == 1 else 'are'} not published yet. "
+            "Schedule them once Admin publishes them."
+        )
     if students_with_nothing_left:
         message += (
             f" {len(students_with_nothing_left)} student(s) have no remaining sheets in this lesson "
@@ -1347,6 +1408,8 @@ def schedule_lesson_dps_to_students(
         "assignmentIds": [assignment.id for assignment in all_created],
         "warnings": warnings,
         "studentsAssigned": students_actually_scheduled,
+        "sheetsScheduled": len(scheduled_sheet_ids),
+        "notPublishedDpsNumbers": not_published_numbers,
     }
 
 

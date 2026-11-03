@@ -56,6 +56,7 @@ def EmptyTeacherDpsOptionsResponse(module_id: str | None = None, level_id: str |
             "assignableStudents": 0,
         },
         "levels": [],
+        "lessons": [],
         "dps": [],
         "students": [],
         "routeStatus": "EMPTY_SAFE_SCOPE",

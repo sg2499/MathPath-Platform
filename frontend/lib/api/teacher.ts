@@ -169,8 +169,20 @@ export async function getTeacherStudents(): Promise<TeacherStudent[]> {
   return data.students;
 }
 
-export async function getTeacherAvailableDps(): Promise<{ levels: TeacherAvailableLevel[]; dps: TeacherAvailableDps[] }> {
-  const { data } = await api.get<{ levels: TeacherAvailableLevel[]; dps: TeacherAvailableDps[] }>("/teacher/available-dps");
+// 2026-11-03: every sheet in a lesson vs. how many Admin has published, so
+// the teacher knows when only part of a lesson can be scheduled.
+export type TeacherLessonSheetCounts = {
+  lessonId: string;
+  levelId: string;
+  lessonNumber: number;
+  lessonTitle: string;
+  totalSheets: number;
+  publishedSheets: number;
+  notPublishedDpsNumbers: number[];
+};
+
+export async function getTeacherAvailableDps(): Promise<{ levels: TeacherAvailableLevel[]; lessons?: TeacherLessonSheetCounts[]; dps: TeacherAvailableDps[] }> {
+  const { data } = await api.get<{ levels: TeacherAvailableLevel[]; lessons?: TeacherLessonSheetCounts[]; dps: TeacherAvailableDps[] }>("/teacher/available-dps");
   return data;
 }
 
