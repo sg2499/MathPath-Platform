@@ -30,6 +30,7 @@ from app.core.rate_limit import limiter
 from app.database import SessionLocal, get_db
 from app.dependencies import require_roles
 from app.models import PaymentCentre, User, Module, Level, Lesson, DPS, Assignment, Attempt, AttemptAnswer, GeneratedQuestionSet, GeneratedQuestion, QuestionOption, Student, Teacher, Batch, StudentBatch, Notification, AssignmentReattemptPermission, AssessmentBlueprint, AssessmentBlueprintLesson, AssessmentVersion, AssessmentAssignment, AssessmentAttempt, AssessmentResult, AssessmentReattemptApproval, AssessmentAttemptAnswer, StudentLevelPromotion, ParentReportEmailLog, AssessmentReadinessTestingOverride, AuditLog, CompetitionMockExam, CompetitionMockAssignment, CompetitionMockAttempt, CompetitionMockAttemptAnswer, CompetitionMockResultSummary
+from app.services.lesson_publish_notification_service import NotifyTeachersRestOfLessonPublished
 from app.services.assignment_service import create_assignment
 from app.services.attempt_service import ensure_active_or_auto_submit, result_payload
 from app.services.reattempt_operational_service import CountNeedsReattemptConcepts, ClearedConceptAttempts, CurrentOperationalAttempts, NeedsReattemptAttempts
@@ -2276,12 +2277,17 @@ def publish_dps_route(dps_id: str, db: Session = Depends(get_db), user: User = D
     if not getattr(dps, "last_preview_seed", None):
         api_error(400, "PREVIEW_REQUIRED", "Generate and review a fresh DPS preview before publishing.")
 
+    was_published = (dps.publication_status or "") == "PUBLISHED"
     dps.publication_status = "PUBLISHED"
     dps.published_seed = dps.last_preview_seed
     dps.published_at = datetime.now(datetime_timezone.utc)
     dps.published_by_user_id = user.id
     db.commit()
     db.refresh(dps)
+    # 2026-11-03: tell teachers whose students already hold the earlier
+    # sheets of this lesson (never blocks the publish).
+    if not was_published:
+        NotifyTeachersRestOfLessonPublished(db, lesson_id=dps.lesson_id, published_dps=[dps], actor_user_id=user.id)
     return {
         "published": True,
         "message": "DPS published successfully. Teachers can now assign this sheet.",
@@ -2388,11 +2394,14 @@ def publish_all_dps_for_lesson(
         api_error(404, "NOT_FOUND", "One or more selected DPS sheets were not found in this lesson.")
 
     published = []
+    newly_published = []
     skipped = []
     for dps in sorted(rows, key=lambda item: item.dps_number):
         if not getattr(dps, "last_preview_seed", None):
             skipped.append({"dpsId": dps.id, "dpsNumber": dps.dps_number, "reason": "PREVIEW_REQUIRED"})
             continue
+        if (dps.publication_status or "") != "PUBLISHED":
+            newly_published.append(dps)
         dps.publication_status = "PUBLISHED"
         dps.published_seed = dps.last_preview_seed
         dps.published_at = datetime.now(datetime_timezone.utc)
@@ -2402,6 +2411,9 @@ def publish_all_dps_for_lesson(
     db.commit()
     for dps in published:
         db.refresh(dps)
+    # 2026-11-03: one notification per teacher for the whole batch.
+    if newly_published:
+        NotifyTeachersRestOfLessonPublished(db, lesson_id=lesson_id, published_dps=newly_published, actor_user_id=user.id)
 
     message = f"Published {len(published)} of {len(rows)} DPS sheet(s) for this lesson."
     if skipped:

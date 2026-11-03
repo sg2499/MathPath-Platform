@@ -12,7 +12,7 @@ import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persisted
 import { getTeacherAvailableDps, getTeacherStudents, teacherAssignAllSheetsForLesson, teacherAssignDps, teacherScheduleDpsForLesson, type TeacherLessonStatus, type TeacherStudent } from "@/lib/api/teacher";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, CalendarDays, CheckCircle2, ClipboardPlus, Layers, Send, UserCheck, Users, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 
 function getTeacherAssignErrorMessage(error: unknown) {
@@ -109,6 +109,21 @@ function NextWeekdaySequence(count: number, startFrom: Date = new Date()): strin
   return dates;
 }
 
+// "DPS 3", "DPS 3 and 4", "DPS 3, 4 and 5".
+function SheetNumbersLabel(numbers: number[]) {
+  const sorted = numbers.slice().sort((a, b) => a - b);
+  if (!sorted.length) return "";
+  if (sorted.length === 1) return `DPS ${sorted[0]}`;
+  return `DPS ${sorted.slice(0, -1).join(", ")} and ${sorted[sorted.length - 1]}`;
+}
+
+function ShortDayLabel(dateValue: string) {
+  if (!dateValue) return "No date";
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const value = new Date(year, (month || 1) - 1, day || 1);
+  return value.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+}
+
 // 2026-10-15 (second pass): Assign Practice filter chips are about what the
 // teacher has to do, not about the lesson picked in the dropdown.
 //   Needs Assigning  the student's own next lesson isn't given yet (or they
@@ -142,7 +157,10 @@ export default function TeacherAssignDpsPage() {
   const [showAssignAllConfirm, setShowAssignAllConfirm] = useState(false);
   const [showAssignAllSheetsConfirm, setShowAssignAllSheetsConfirm] = useState(false);
   const [showScheduleConfirm, setShowScheduleConfirm] = useState(false);
-  const [scheduleDates, setScheduleDates] = useState<Record<string, string>>({});
+  // 2026-11-03: one date per schedule day. Each student gets the sheets they
+  // still need, in lesson order, on Day 1, Day 2, ... (the server pairs them
+  // the same way), so a part-done lesson starts from the day it is opened.
+  const [scheduleDayDates, setScheduleDayDates] = useState<string[]>([]);
   const [lessonStateFilter, setLessonStateFilter] = usePersistentUiState<LessonStateFilter>(CreatePersistedUiStateKey(AssignDpsStateKey, "student-filter"), "ALL");
   const queryClient = useQueryClient();
 
@@ -151,6 +169,28 @@ export default function TeacherAssignDpsPage() {
 
   const levels = dpsQuery.data?.levels ?? [];
   const dpsRows = dpsQuery.data?.dps ?? [];
+  const lessonSheetCounts = dpsQuery.data?.lessons ?? [];
+
+  // A notification ("the rest of Lesson 8 is now published") links here
+  // with ?lesson=<id>: open that lesson once the sheets have loaded.
+  useEffect(() => {
+    if (!dpsRows.length || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const linkedLessonId = params.get("lesson");
+    if (!linkedLessonId) return;
+    const linkedSheet = dpsRows.find((dps) => dps.lessonId === linkedLessonId);
+    if (linkedSheet) {
+      setLevelId(linkedSheet.levelId);
+      setLessonId(linkedSheet.lessonId);
+      setDpsId("");
+      setSelectedStudentIds([]);
+      setLessonStateFilter("ALL");
+    }
+    params.delete("lesson");
+    const rest = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dpsRows.length]);
   const students = studentsQuery.data ?? [];
 
   const dpsForLevel = useMemo(
@@ -211,6 +251,13 @@ export default function TeacherAssignDpsPage() {
   );
 
   const selectedDps = dpsForLesson.find((dps) => dps.dpsId === dpsId);
+
+  // 2026-11-03 (Shailesh): "prompt the teacher saying that only n number of
+  // sheets are getting scheduled and not the entire 5 sheets".
+  const selectedLessonCounts = lessonSheetCounts.find((lesson) => lesson.lessonId === lessonId);
+  const lessonTotalSheets = Math.max(selectedLessonCounts?.totalSheets ?? 0, dpsForLesson.length);
+  const notPublishedNumbers = selectedLessonCounts?.notPublishedDpsNumbers ?? [];
+  const lessonPartlyPublished = notPublishedNumbers.length > 0 && dpsForLesson.length > 0;
 
   // Bulk mode: a lesson is chosen but no specific sheet is -- eligibility
   // still needs a level to check students against, which the lesson alone
@@ -295,6 +342,19 @@ export default function TeacherAssignDpsPage() {
     .filter((student) => matchesFilter(student, lessonStateFilter))
     .sort((a, b) => sortRank(a) - sortRank(b) || a.studentName.localeCompare(b.studentName));
   const eligibleStudentIds = useMemo(() => eligibleStudents.map((student) => student.studentId), [eligibleStudents]);
+  // The sheets each selected student still needs in this lesson, in lesson
+  // order -- exactly what the server will schedule for them.
+  const scheduleNeeds = selectedStudentIds
+    .map((studentId) => {
+      const student = students.find((item) => item.studentId === studentId);
+      const assignable = new Set(student?.assignableDpsIds || []);
+      return { student, sheets: dpsForLesson.filter((dps) => assignable.has(dps.dpsId)) };
+    })
+    .filter((entry) => entry.student && entry.sheets.length);
+  const scheduleSheets = dpsForLesson.filter((dps) => scheduleNeeds.some((entry) => entry.sheets.some((sheet) => sheet.dpsId === dps.dpsId)));
+  const scheduleDayCount = scheduleNeeds.reduce((max, entry) => Math.max(max, entry.sheets.length), 0);
+  const scheduleSameSheets = scheduleNeeds.every((entry) => entry.sheets.map((sheet) => sheet.dpsId).join() === (scheduleNeeds[0]?.sheets.map((sheet) => sheet.dpsId).join() ?? ""));
+  const scheduleSkipsSomeone = scheduleNeeds.length < selectedStudentIds.length;
   const visibleEligibleIds = visibleStudents.filter((student) => eligibleIdSet.has(student.studentId)).map((student) => student.studentId);
 
   // A successful assign/schedule changes who has what -- reload the roster
@@ -338,7 +398,9 @@ export default function TeacherAssignDpsPage() {
     mutationFn: () => teacherScheduleDpsForLesson({
       lessonId,
       studentIds: selectedStudentIds,
-      scheduleItems: dpsForLesson.map((dps) => ({ dpsId: dps.dpsId, date: scheduleDates[dps.dpsId] || "" })),
+      // Every sheet someone still needs, each on its schedule day; a student
+      // needing fewer sheets simply starts on Day 1 with their own next one.
+      scheduleItems: scheduleSheets.map((dps, index) => ({ dpsId: dps.dpsId, date: scheduleDayDates[Math.min(index, scheduleDayCount - 1)] || "" })),
       instructions: "Complete this practice within the given time.",
     }),
     onSuccess: (data) => {
@@ -392,25 +454,17 @@ export default function TeacherAssignDpsPage() {
   }
 
   function openScheduleConfirmation() {
-    if (!selectedStudentIds.length || !selectedLesson || dpsId || !dpsForLesson.length || scheduleMutation.isPending) return;
-    // Seed defaults for any sheet that doesn't already have a date picked
-    // (e.g. first time opening this lesson's scheduler) -- preserves
-    // whatever the teacher already edited if they close and reopen without
-    // changing lesson.
-    setScheduleDates((prev) => {
-      const defaults = NextWeekdaySequence(dpsForLesson.length);
-      const next = { ...prev };
-      dpsForLesson.forEach((dps, index) => {
-        if (!next[dps.dpsId]) next[dps.dpsId] = defaults[index];
-      });
-      return next;
-    });
+    if (!selectedStudentIds.length || !selectedLesson || dpsId || !scheduleDayCount || scheduleMutation.isPending) return;
+    // Dates always start on the day the teacher opens this (Shailesh:
+    // "schedule the remaining sheets ... on the dates according to the day
+    // the teacher is viewing this"); every date stays editable.
+    setScheduleDayDates(NextWeekdaySequence(scheduleDayCount));
     setShowScheduleConfirm(true);
   }
 
   function confirmSchedule() {
     if (!selectedStudentIds.length || !selectedLesson || dpsId) return;
-    if (dpsForLesson.some((dps) => !scheduleDates[dps.dpsId])) return;
+    if (scheduleDayDates.length < scheduleDayCount || scheduleDayDates.slice(0, scheduleDayCount).some((value) => !value)) return;
     scheduleMutation.mutate();
   }
 
@@ -545,8 +599,18 @@ export default function TeacherAssignDpsPage() {
                 <p className="mt-1 text-sm text-slate-600">
                   {selectedDps
                     ? `Only students in ${selectedDps.levelCode} can be selected.`
-                    : `${dpsForLesson.length === 1 ? "The 1 sheet" : `All ${dpsForLesson.length} sheets`} in this lesson. Only students in ${selectedLesson.levelCode} can be selected.`}
+                    : lessonPartlyPublished
+                      ? `${dpsForLesson.length} of ${lessonTotalSheets} sheets in this lesson are published. Only students in ${selectedLesson.levelCode} can be selected.`
+                      : `${dpsForLesson.length === 1 ? "The 1 sheet" : `All ${dpsForLesson.length} sheets`} in this lesson. Only students in ${selectedLesson.levelCode} can be selected.`}
                 </p>
+                {!selectedDps && lessonPartlyPublished ? (
+                  <div data-partly-published className="mt-3 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-100">
+                    <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                    <p className="text-sm font-bold leading-6">
+                      {SheetNumbersLabel(notPublishedNumbers)} {notPublishedNumbers.length === 1 ? "is" : "are"} not published yet, so only {dpsForLesson.length} of {lessonTotalSheets} sheets can be assigned or scheduled now. Ask Admin to publish {notPublishedNumbers.length === 1 ? "it" : "them"} to give the whole lesson at once.
+                    </p>
+                  </div>
+                ) : null}
               </div>
               <div className="te-actions">
                 <button
@@ -587,11 +651,11 @@ export default function TeacherAssignDpsPage() {
                 <button
                   type="button"
                   className="math-button-secondary w-full justify-center gap-2 whitespace-nowrap"
-                  disabled={!selectedStudentIds.length || Boolean(dpsId) || !dpsForLesson.length || scheduleMutation.isPending}
+                  disabled={!selectedStudentIds.length || Boolean(dpsId) || !scheduleDayCount || scheduleMutation.isPending}
                   title={
                     dpsId
                       ? "Clear the DPS Sheet selection (choose \"All Sheets In This Lesson\") to use this."
-                      : `Schedule ${dpsForLesson.length} ${dpsForLesson.length === 1 ? "sheet" : "sheets"} across consecutive days for the selected students.`
+                      : `Schedule the sheets the selected students still need, one a day from today.`
                   }
                   onClick={openScheduleConfirmation}
                 >
@@ -658,6 +722,8 @@ export default function TeacherAssignDpsPage() {
                     status={lessonStatusFor(student)}
                     hasThis={!Selectable}
                     singleSheet={Boolean(selectedDps)}
+                    lessonTotalSheets={lessonTotalSheets}
+                    notPublishedCount={notPublishedNumbers.length}
                   />
                 );
                 return Selectable ? (
@@ -676,7 +742,7 @@ export default function TeacherAssignDpsPage() {
                     key={student.studentId}
                     data-student-card={student.studentCode}
                     data-has-this-lesson
-                    title={selectedDps ? "Can't assign again: already has this sheet" : `Can't assign again: already has every Lesson ${selectedLesson.lessonNumber} sheet`}
+                    title={selectedDps ? "Can't assign again: already has this sheet" : notPublishedNumbers.length ? `Has every published Lesson ${selectedLesson.lessonNumber} sheet; ${SheetNumbersLabel(notPublishedNumbers)} not published yet` : `Can't assign again: already has every Lesson ${selectedLesson.lessonNumber} sheet`}
                     className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-900/40">
                     <CheckCircle2 size={16} className="mt-1 text-emerald-600 dark:text-emerald-300" aria-label={selectedDps ? "Can't assign again: already has this sheet" : `Can't assign again: already has every Lesson ${selectedLesson.lessonNumber} sheet`} />
                     {Body}
@@ -823,6 +889,14 @@ export default function TeacherAssignDpsPage() {
                 Any sheet a student already has (or has completed) is skipped automatically, same as assigning one sheet at a time.
               </p>
             </div>
+            {lessonPartlyPublished ? (
+              <div data-assign-all-partial className="mt-3 flex gap-3 rounded-[22px] border border-rose-200 bg-rose-50 p-4 text-rose-900 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-100">
+                <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                <p className="text-sm font-bold leading-6">
+                  Only {dpsForLesson.length} of the {lessonTotalSheets} sheets in Lesson {selectedLesson.lessonNumber} are published, so only {dpsForLesson.length === 1 ? "that sheet" : `those ${dpsForLesson.length} sheets`} will be assigned. {SheetNumbersLabel(notPublishedNumbers)} {notPublishedNumbers.length === 1 ? "is" : "are"} not published yet. Ask Admin to publish {notPublishedNumbers.length === 1 ? "it" : "them"} to assign the whole lesson together.
+                </p>
+              </div>
+            ) : null}
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
@@ -840,7 +914,7 @@ export default function TeacherAssignDpsPage() {
                 disabled={bulkLessonMutation.isPending}
               >
                 <Layers size={18} />
-                {bulkLessonMutation.isPending ? "Assigning..." : "Confirm Assignment"}
+                {bulkLessonMutation.isPending ? "Assigning..." : lessonPartlyPublished ? `Assign ${dpsForLesson.length} ${dpsForLesson.length === 1 ? "Sheet" : "Sheets"}` : "Confirm Assignment"}
               </button>
             </div>
           </div>
@@ -861,7 +935,7 @@ export default function TeacherAssignDpsPage() {
                     <CalendarDays size={14} />
                     Schedule The Week
                   </p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Pick a date for each sheet</h2>
+                  <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{scheduleSameSheets ? "Pick a date for each sheet" : "Pick a date for each day"}</h2>
                 </div>
               </div>
               <button
@@ -884,25 +958,43 @@ export default function TeacherAssignDpsPage() {
                   </p>
                 </div>
                 <div className="space-y-2">
-                  {dpsForLesson.map((dps) => {
-                    const dateValue = scheduleDates[dps.dpsId] || "";
+                  {Array.from({ length: scheduleDayCount }, (_, dayIndex) => {
+                    const dateValue = scheduleDayDates[dayIndex] || "";
+                    const sheet = scheduleSameSheets ? scheduleNeeds[0]?.sheets[dayIndex] : undefined;
                     return (
-                      <div key={dps.dpsId} className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950">
+                      <div key={dayIndex} data-schedule-day={dayIndex + 1} className="rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <p className="min-w-0 truncate text-sm font-black text-slate-950 dark:text-white">
-                            DPS {dps.dpsNumber}: {dps.dpsTitle}
+                            {sheet ? `DPS ${sheet.dpsNumber}: ${sheet.dpsTitle}` : `Day ${dayIndex + 1}`}
                           </p>
                           <input
                             type="date"
                             className="math-select w-full sm:w-auto"
+                            aria-label={sheet ? `Date for DPS ${sheet.dpsNumber}` : `Date for day ${dayIndex + 1}`}
                             value={dateValue}
-                            onChange={(e) => setScheduleDates((prev) => ({ ...prev, [dps.dpsId]: e.target.value }))}
+                            onChange={(e) => setScheduleDayDates((prev) => { const next = prev.slice(); next[dayIndex] = e.target.value; return next; })}
                           />
                         </div>
                       </div>
                     );
                   })}
                 </div>
+                {!scheduleSameSheets ? (
+                  <div data-schedule-preview className="space-y-1.5 rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Each student gets the sheets they still need</p>
+                    {scheduleNeeds.map((entry) => (
+                      <p key={entry.student!.studentId} className="font-semibold leading-6 text-slate-700 dark:text-slate-200">
+                        <span className="font-black text-slate-950 dark:text-white">{entry.student!.studentName}:</span>{" "}
+                        {entry.sheets.map((sheet, index) => `DPS ${sheet.dpsNumber} ${ShortDayLabel(scheduleDayDates[index] || "")}`).join(" · ")}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+                {scheduleSkipsSomeone ? (
+                  <p className="text-xs font-bold text-slate-500">
+                    {selectedStudentIds.length - scheduleNeeds.length} selected {selectedStudentIds.length - scheduleNeeds.length === 1 ? "student already has" : "students already have"} every published sheet of this lesson and will be skipped.
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -911,9 +1003,17 @@ export default function TeacherAssignDpsPage() {
               <div className="flex gap-3 rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-amber-900">
                 <AlertTriangle size={18} className="mt-0.5 shrink-0" />
                 <p className="text-sm font-bold leading-6">
-                  Each sheet unlocks for the selected students at the start of its date (IST) and stays visible after that — earlier sheets remain available once later ones unlock too. Dates default to 5 consecutive days starting today, weekends included, and every date can be edited above.
+                  Each sheet unlocks for the selected students at the start of its date (IST) and stays visible after that — earlier sheets remain available once later ones unlock too. Dates start today and run on consecutive days, weekends included; every date can be edited above.
                 </p>
               </div>
+              {lessonPartlyPublished ? (
+                <div data-schedule-partial className="mt-3 flex gap-3 rounded-[22px] border border-rose-200 bg-rose-50 p-4 text-rose-900 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-100">
+                  <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                  <p className="text-sm font-bold leading-6">
+                    Only {dpsForLesson.length} of the {lessonTotalSheets} sheets in Lesson {selectedLesson.lessonNumber} are published, so only {scheduleSheets.length === 1 ? "this sheet" : `these ${scheduleSheets.length} sheets`} will be scheduled now. {SheetNumbersLabel(notPublishedNumbers)} {notPublishedNumbers.length === 1 ? "is" : "are"} not published yet. Ask Admin to publish {notPublishedNumbers.length === 1 ? "it" : "them"} to schedule the whole lesson together, or go ahead and schedule the rest once {notPublishedNumbers.length === 1 ? "it is" : "they are"} published.
+                  </p>
+                </div>
+              ) : null}
 
               <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <button
@@ -928,10 +1028,10 @@ export default function TeacherAssignDpsPage() {
                   type="button"
                   className="math-button-primary"
                   onClick={confirmSchedule}
-                  disabled={scheduleMutation.isPending || dpsForLesson.some((dps) => !scheduleDates[dps.dpsId])}
+                  disabled={scheduleMutation.isPending || !scheduleDayCount || scheduleDayDates.slice(0, scheduleDayCount).some((value) => !value)}
                 >
                   <CalendarDays size={18} />
-                  {scheduleMutation.isPending ? "Scheduling..." : "Confirm Schedule"}
+                  {scheduleMutation.isPending ? "Scheduling..." : lessonPartlyPublished || scheduleSheets.length < lessonTotalSheets ? `Schedule ${scheduleSheets.length} ${scheduleSheets.length === 1 ? "Sheet" : "Sheets"}` : "Confirm Schedule"}
                 </button>
               </div>
             </div>
@@ -951,12 +1051,16 @@ function StudentLessonCard({
   status,
   hasThis,
   singleSheet,
+  lessonTotalSheets = 0,
+  notPublishedCount = 0,
 }: {
   student: TeacherStudent;
   selectedLessonNumber: number;
   status?: TeacherLessonStatus;
   hasThis: boolean;
   singleSheet: boolean;
+  lessonTotalSheets?: number;
+  notPublishedCount?: number;
 }) {
   const Journey = StudentJourney(student);
   // Not for a student new to the level: their "Lesson 1" is only a
@@ -969,15 +1073,25 @@ function StudentLessonCard({
   // next to "Needs Lesson 5" looked like it was about the student's
   // current position.
   const LessonFinished = Boolean(status && status.done >= Math.max(status.assignableTotal || status.total || 0, 1));
+  // 2026-11-03: has every PUBLISHED sheet, but the lesson has more waiting
+  // for Admin -- say so instead of "Already Assigned".
+  const WaitingOnPublish = !singleSheet && notPublishedCount > 0 && Boolean(status);
   const HasThisLabel = singleSheet
     ? "Already Has This Sheet"
-    : LessonFinished
+    : WaitingOnPublish
+      ? `${status?.given ?? 0} Of ${Math.max(lessonTotalSheets, status?.total ?? 0)} Given · ${notPublishedCount} Not Published Yet`
+      : LessonFinished
       ? `Lesson ${selectedLessonNumber} Done`
       : `Lesson ${selectedLessonNumber} Already Assigned`;
   const Tag = IsThisLesson ? (
     <span className="math-badge border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-300 dark:bg-amber-100 dark:text-amber-900" data-lesson-tag="THIS">
       <ArrowLeft size={12} />
       This Lesson
+    </span>
+  ) : hasThis && WaitingOnPublish ? (
+    <span className="math-badge border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100" data-lesson-tag="WAITING">
+      <AlertTriangle size={12} />
+      {HasThisLabel}
     </span>
   ) : hasThis ? (
     <span className="math-badge border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-200" data-lesson-tag="HAS">
