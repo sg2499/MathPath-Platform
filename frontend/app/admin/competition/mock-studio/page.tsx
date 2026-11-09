@@ -147,7 +147,13 @@ function AdminCompetitionMockStudioPageContent() {
   // Create Mock's selection too. See ManageLevelsQuery below for where its
   // options come from.
   const [ManageLevelFilterId, SetManageLevelFilterId] = useState("");
-  const [SectionCounts, SetSectionCounts] = useState<Record<string, string>>({});
+  // 2026-11-09 (Shailesh: per-section marks for mocks, same freedom as the
+  // Assessment Studio): one row per section -- questions, whole marks each,
+  // and whether it is in the paper. Rows start from the server's starting
+  // layout and follow it (e.g. when Total Marks changes) until the admin
+  // edits a row; after that they stay exactly as the admin set them.
+  const [SectionRows, SetSectionRows] = useState<Record<string, { count: string; marks: string; included: boolean }>>({});
+  const [RowsTouched, SetRowsTouched] = useState(false);
   const [LastMessage, SetLastMessage] = useState<string | null>(null);
 
   const ModulesQuery = useQuery({ queryKey: ["admin", "competition", "modules"], queryFn: getModules, enabled: Ready });
@@ -192,19 +198,11 @@ function AdminCompetitionMockStudioPageContent() {
   const MockExams = (MocksQuery.data || []).filter((Exam) => !String((Exam as { competitionScope?: string | null }).competitionScope || "").toUpperCase().startsWith("ANNUAL"));
   const SectionPlan = SectionPlanQuery.data || null;
 
-  // SectionCounts only ever holds keys the admin has actually edited (typing
-  // a number, including 0 to omit a section) -- it is deliberately NOT
-  // pre-seeded with every section's default value. A section absent from
-  // this map is "floating": LiveSections (below) keeps it auto-split with
-  // whatever total-questions budget is left after the admin's explicit
-  // edits, live, as those edits change -- that's what makes the panel
-  // renumber and redistribute in real time instead of only after a
-  // round-trip. Switching level (or the section plan reloading for any
-  // other reason, e.g. a totally different level's section list coming in)
-  // clears every touch, since a fresh level's sections start with nothing
-  // omitted.
+  // Switching level starts the new level's rows fresh from its own
+  // starting layout.
   useEffect(() => {
-    SetSectionCounts({});
+    SetSectionRows({});
+    SetRowsTouched(false);
   }, [SectionPlan?.levelId]);
 
   const SelectedLevel = Levels.find((LevelValue) => LevelValue.levelId === SelectedLevelId) || null;
@@ -243,145 +241,132 @@ function AdminCompetitionMockStudioPageContent() {
   }, [IsSelectedMasterModule, IsSelectedIntermediateModule, IsSelectedPreparatoryModule, IsSelectedBridgeModule, IsSelectedYoungLearnersModule]);
 
 
-  // 2026-09-01: Concept Drill/Skill Stacker sections are worth 5
-  // marks/question, same as assessments -- a mock must always total
-  // exactly 100 marks, not just whatever "Total Questions" the admin
-  // typed (that's the bug: a 100-question MM mock with Section 10 at 5
-  // marks/question actually totalled 140 marks). isWeighted/marksPerQuestion
-  // come from the backend's own section plan (see
-  // _CompetitionMockSectionPlanSections in
-  // competition_mock_generation_service.py).
+  // A level "has a weighted section" when it starts with a section worth
+  // more than 1 mark (Skill Stacker / Concept Drill). That only decides
+  // which Total Marks box backs the field (the 100-mark default vs the
+  // module's 1-mark default question count); every section's marks are
+  // editable either way.
   const HasWeightedSection = (SectionPlan?.sections || []).some((SectionValue) => SectionValue.isWeighted);
-  // Admin-chosen total marks, clamped 10-100 and defaulting to 100 when
-  // empty/invalid -- everything below (RemainingMarks, the Section
-  // Allocation badge, MarksMismatch, the generate payload) already keys
-  // off this one constant, so a flexible target just means computing it
-  // from MarksTargetInput instead of hardcoding 100. Applies the same way
-  // whether or not this level actually has a weighted section (Shailesh:
-  // "that should not matter at all").
   const MockMarksTarget = Math.max(10, Math.min(100, Math.floor(Number(MarksTargetInput) || 0))) || 100;
+  const TargetInputValue = HasWeightedSection ? MarksTargetInput : QuestionCount;
+  const TargetNumber = Number(TargetInputValue);
+  const TargetValid = Number.isInteger(TargetNumber) && TargetNumber >= 10 && TargetNumber <= 100;
+  const TargetMarks = TargetValid ? TargetNumber : 0;
 
-  // LiveSections mirrors the backend's redistribution so the admin sees the
-  // exact split that will actually happen at generation time, live, with no
-  // round-trip. Two modes:
-  //   - Weighted level (HasWeightedSection): 2026-09-03 -- every section is
-  //     now admin-editable, not just the weighted one (Shailesh, live
-  //     report: "all the sections except the skill stacker and concept
-  //     drill one remain greyed out... the user should be able to edit any
-  //     of the section's question numbers as they deem fit and the other
-  //     sections should adjust accordingly"). Weighted sections resolve
-  //     exactly as before -- the admin's override, else the backend's own
-  //     default -- since they've always been a concrete pinned count either
-  //     way. A flat section the admin has touched is now ALSO pinned the
-  //     same way, its marks (1/question) coming straight out of the shared
-  //     budget; only the flat sections still left untouched float, filling
-  //     whatever marks remain (MockMarksTarget - every pinned section's
-  //     marks) split evenly with the remainder to the first few in
-  //     definition order -- mirrors _BalanceCompetitionMockSectionCounts
-  //     exactly (same function, same order of operations).
-  //   - Flat level (no weighted section anywhere, e.g. PM-L1/YLM): exactly
-  //     the original behaviour below -- any section can be touched, the
-  //     rest float to fill "Total Marks".
+  // Rows follow the server's starting layout until the admin edits one.
+  useEffect(() => {
+    if (RowsTouched || !SectionPlan?.sections?.length) return;
+    const Next: Record<string, { count: string; marks: string; included: boolean }> = {};
+    SectionPlan.sections.forEach((SectionValue) => {
+      const Included = SectionValue.included ?? SectionValue.questionCount > 0;
+      Next[SectionValue.sectionKey] = {
+        count: String(Included ? SectionValue.questionCount : 0),
+        marks: String(SectionValue.defaultMarksPerQuestion ?? Math.max(1, Math.round(SectionValue.marksPerQuestion || 1))),
+        included: Included,
+      };
+    });
+    SetSectionRows(Next);
+  }, [SectionPlan, RowsTouched]);
+
   const LiveSections = useMemo(() => {
-    const Sections = SectionPlan?.sections || [];
-
-    if (HasWeightedSection) {
-      const WeightedSections = Sections.filter((SectionValue) => SectionValue.isWeighted);
-      const FlatSections = Sections.filter((SectionValue) => !SectionValue.isWeighted);
-
-      let WeightedMarksTotal = 0;
-      const WeightedCounts: Record<string, number> = {};
-      WeightedSections.forEach((SectionValue) => {
-        const Touched = SectionCounts[SectionValue.sectionKey];
-        const Count = Math.max(0, Math.floor(Number(Touched !== undefined ? Touched : SectionValue.questionCount) || 0));
-        WeightedCounts[SectionValue.sectionKey] = Count;
-        WeightedMarksTotal += Count * (SectionValue.marksPerQuestion || 5);
-      });
-
-      let PinnedFlatMarksTotal = 0;
-      const PinnedFlatCounts: Record<string, number> = {};
-      const FloatingFlatSections: typeof FlatSections = [];
-      FlatSections.forEach((SectionValue) => {
-        const Touched = SectionCounts[SectionValue.sectionKey];
-        if (Touched !== undefined) {
-          const Count = Math.max(0, Math.floor(Number(Touched) || 0));
-          PinnedFlatCounts[SectionValue.sectionKey] = Count;
-          PinnedFlatMarksTotal += Count * (SectionValue.marksPerQuestion || 1);
-        } else {
-          FloatingFlatSections.push(SectionValue);
-        }
-      });
-
-      const RemainingMarks = MockMarksTarget - WeightedMarksTotal - PinnedFlatMarksTotal;
-      const FloatingBudget = Math.max(0, Math.round(RemainingMarks));
-      const FloatingBase = FloatingFlatSections.length > 0 ? Math.floor(FloatingBudget / FloatingFlatSections.length) : 0;
-      const FloatingRemainder = FloatingFlatSections.length > 0 ? FloatingBudget % FloatingFlatSections.length : 0;
-
-      let FloatingIndex = 0;
-      let DenseNumber = 0;
-      return Sections.map((SectionValue) => {
-        let LiveCount: number;
-        if (SectionValue.isWeighted) {
-          LiveCount = WeightedCounts[SectionValue.sectionKey] ?? 0;
-        } else if (SectionValue.sectionKey in PinnedFlatCounts) {
-          LiveCount = PinnedFlatCounts[SectionValue.sectionKey];
-        } else {
-          LiveCount = FloatingBase + (FloatingIndex < FloatingRemainder ? 1 : 0);
-          FloatingIndex += 1;
-        }
-        const LiveNumber = LiveCount > 0 ? (DenseNumber += 1) : null;
-        return { ...SectionValue, liveCount: LiveCount, liveNumber: LiveNumber };
-      });
-    }
-
-    const Target = Math.max(0, Math.floor(Number(QuestionCount) || 0)) || DefaultQuestionCount;
-
-    let PinnedSum = 0;
-    let FloatingCount = 0;
-    Sections.forEach((SectionValue) => {
-      const Touched = SectionCounts[SectionValue.sectionKey];
-      if (Touched !== undefined) {
-        PinnedSum += Math.max(0, Math.floor(Number(Touched) || 0));
-      } else {
-        FloatingCount += 1;
-      }
-    });
-
-    const FloatingBudget = Math.max(0, Target - PinnedSum);
-    const FloatingBase = FloatingCount > 0 ? Math.floor(FloatingBudget / FloatingCount) : 0;
-    const FloatingRemainder = FloatingCount > 0 ? FloatingBudget % FloatingCount : 0;
-
-    let FloatingIndex = 0;
     let DenseNumber = 0;
-    return Sections.map((SectionValue) => {
-      const Touched = SectionCounts[SectionValue.sectionKey];
-      let LiveCount: number;
-      if (Touched !== undefined) {
-        LiveCount = Math.max(0, Math.floor(Number(Touched) || 0));
-      } else {
-        LiveCount = FloatingBase + (FloatingIndex < FloatingRemainder ? 1 : 0);
-        FloatingIndex += 1;
-      }
-      const LiveNumber = LiveCount > 0 ? (DenseNumber += 1) : null;
-      return { ...SectionValue, liveCount: LiveCount, liveNumber: LiveNumber };
+    return (SectionPlan?.sections || []).map((SectionValue) => {
+      const Row = SectionRows[SectionValue.sectionKey] || { count: String(SectionValue.questionCount), marks: String(SectionValue.defaultMarksPerQuestion ?? 1), included: true };
+      const Count = Number(Row.count);
+      const Marks = Number(Row.marks);
+      const CountValid = Number.isInteger(Count) && Count >= 1;
+      const MarksValid = Number.isInteger(Marks) && Marks >= 1 && Marks <= 100;
+      const LiveCount = Row.included && CountValid ? Count : 0;
+      const LiveNumber = Row.included ? (DenseNumber += 1) : null;
+      return {
+        ...SectionValue,
+        row: Row,
+        liveCount: LiveCount,
+        liveMarks: MarksValid ? Marks : 0,
+        liveNumber: LiveNumber,
+        rowValid: !Row.included || (CountValid && MarksValid),
+        sectionMarks: Row.included && CountValid && MarksValid ? Count * Marks : 0,
+      };
     });
-  }, [SectionPlan, SectionCounts, QuestionCount, HasWeightedSection]);
+  }, [SectionPlan, SectionRows]);
 
-  const CleanSectionCounts = useMemo(() => {
-    const Counts: Record<string, number> = {};
-    LiveSections.forEach((SectionValue) => {
-      if (SectionValue.liveCount > 0) Counts[SectionValue.sectionKey] = SectionValue.liveCount;
+  const IncludedSections = LiveSections.filter((SectionValue) => SectionValue.row.included);
+  const LeftOutSections = LiveSections.filter((SectionValue) => !SectionValue.row.included);
+  const SectionCountTotal = IncludedSections.reduce((Total, SectionValue) => Total + SectionValue.liveCount, 0);
+  const TotalMarks = IncludedSections.reduce((Total, SectionValue) => Total + SectionValue.sectionMarks, 0);
+  const RowsValid = LiveSections.length > 0 && IncludedSections.length > 0 && LiveSections.every((SectionValue) => SectionValue.rowValid);
+  const MarksMismatch = !TargetValid || TotalMarks !== TargetMarks;
+  const QuestionCountValid = SectionCountTotal >= 10 && SectionCountTotal <= 100;
+  const AllocationValid = RowsValid && !MarksMismatch && QuestionCountValid;
+  const AllocationMessage = !TargetValid
+    ? "Total Marks must be a whole number from 10 to 100."
+    : !RowsValid
+      ? "Every included section needs at least 1 question and whole marks from 1 to 100."
+      : TotalMarks !== TargetMarks
+        ? `Sections add up to ${TotalMarks} marks, ${Math.abs(TotalMarks - TargetMarks)} ${TotalMarks > TargetMarks ? "over" : "short of"} ${TargetMarks}. Change a section's questions or marks each, or use Auto Balance.`
+        : SectionCountTotal < 10
+          ? `A mock needs at least 10 questions (${SectionCountTotal} now). Lower some marks each or include another section.`
+          : SectionCountTotal > 100
+            ? `A mock can have at most 100 questions (${SectionCountTotal} now). Raise some marks each or lower questions.`
+            : `${SectionCountTotal} questions, exactly ${TargetMarks} marks. Ready to generate.`;
+
+  function EditSectionRow(SectionKey: string, Change: Partial<{ count: string; marks: string; included: boolean }>) {
+    SetRowsTouched(true);
+    SetSectionRows((CurrentValue) => {
+      const Current = CurrentValue[SectionKey] || { count: "1", marks: "1", included: true };
+      return { ...CurrentValue, [SectionKey]: { ...Current, ...Change } };
     });
-    return Counts;
-  }, [LiveSections]);
+  }
 
-  const SectionCountTotal = useMemo(() => LiveSections.reduce((Total, SectionValue) => Total + SectionValue.liveCount, 0), [LiveSections]);
+  // Leave a section out, or bring it back (at least one always stays in).
+  function ToggleSectionIncluded(SectionKey: string) {
+    const Row = SectionRows[SectionKey];
+    if (!Row) return;
+    if (Row.included && IncludedSections.length <= 1) return;
+    if (Row.included) {
+      EditSectionRow(SectionKey, { included: false, count: "0" });
+    } else {
+      const Count = Number(Row.count);
+      EditSectionRow(SectionKey, { included: true, count: String(Number.isInteger(Count) && Count >= 1 ? Count : 1) });
+    }
+  }
 
-  const TotalMarks = useMemo(() => LiveSections.reduce((Total, SectionValue) => Total + SectionValue.liveCount * (SectionValue.marksPerQuestion || 1), 0), [LiveSections]);
-  const MarksMismatch = HasWeightedSection && TotalMarks !== MockMarksTarget;
+  // Auto Balance (same rule as the Assessment Studio): the included sections
+  // at the most common marks value share whatever marks the other included
+  // sections leave, as evenly as whole questions allow; sections at other
+  // marks keep their question count (at least 1).
+  function AutoBalanceSections() {
+    if (!TargetValid) return;
+    const Included = LiveSections.filter((SectionValue) => SectionValue.row.included);
+    if (!Included.length) return;
+    const MarksOf = (SectionValue: (typeof Included)[number]) => SectionValue.liveMarks || 1;
+    const Frequency = new Map<number, number>();
+    Included.forEach((SectionValue) => Frequency.set(MarksOf(SectionValue), (Frequency.get(MarksOf(SectionValue)) || 0) + 1));
+    const FillMarks = [...Frequency.entries()].sort((A, B) => B[1] - A[1] || A[0] - B[0])[0][0];
+    const Fillers = Included.filter((SectionValue) => MarksOf(SectionValue) === FillMarks);
+    const Fixed = Included.filter((SectionValue) => MarksOf(SectionValue) !== FillMarks);
+    const FixedMarks = Fixed.reduce((Total, SectionValue) => Total + Math.max(1, SectionValue.liveCount) * MarksOf(SectionValue), 0);
+    const FillQuestions = Math.max(Fillers.length, Math.floor(Math.max(0, TargetMarks - FixedMarks) / FillMarks));
+    const Base = Math.floor(FillQuestions / Fillers.length);
+    let Extra = FillQuestions - Base * Fillers.length;
+    SetRowsTouched(true);
+    SetSectionRows((CurrentValue) => {
+      const Next = { ...CurrentValue };
+      Fillers.forEach((SectionValue) => {
+        const Add = Extra > 0 ? 1 : 0;
+        Extra -= Add;
+        Next[SectionValue.sectionKey] = { ...Next[SectionValue.sectionKey], count: String(Math.max(1, Base + Add)), marks: String(MarksOf(SectionValue)) };
+      });
+      Fixed.forEach((SectionValue) => {
+        Next[SectionValue.sectionKey] = { ...Next[SectionValue.sectionKey], count: String(Math.max(1, SectionValue.liveCount)), marks: String(MarksOf(SectionValue)) };
+      });
+      return Next;
+    });
+  }
 
-  function UpdateSectionCount(SectionKey: string, Value: string) {
-    SetSectionCounts((CurrentValue) => ({ ...CurrentValue, [SectionKey]: Value }));
+  function ResetSectionRows() {
+    SetSectionRows({});
+    SetRowsTouched(false);
   }
 
   const SelectedMockExams = useMemo(
@@ -435,12 +420,17 @@ function AdminCompetitionMockStudioPageContent() {
       // same target anyway (see LiveSections above), so in practice the two
       // only differ transiently before a re-render -- but QuestionCount is
       // the source of truth, never the box sum.
-      totalQuestions: HasWeightedSection ? SectionCountTotal : (Number(QuestionCount) || DefaultQuestionCount),
-      totalMarks: MockMarksTarget,
+      totalQuestions: SectionCountTotal,
+      totalMarks: TargetMarks,
       durationSeconds: (Number(DurationMinutes) || DefaultDurationMinutes) * 60,
       competitionScope: "GENERAL",
       difficultyBand: "COMPETITION",
-      sectionCounts: CleanSectionCounts,
+      // 2026-11-09: the whole section table; the server checks it adds up.
+      sectionPlan: LiveSections.map((SectionValue) => ({
+        sectionKey: SectionValue.sectionKey,
+        questionCount: SectionValue.row.included ? SectionValue.liveCount : 0,
+        marksPerQuestion: SectionValue.liveMarks,
+      })),
     }),
     onSuccess: (ResultValue) => {
       SetLastMessage(`Draft mock generated: ${ResultValue.title}`);
@@ -464,7 +454,7 @@ function AdminCompetitionMockStudioPageContent() {
   useEffect(() => {
     GenerateMutation.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [SelectedLevelId, MockMarksTarget, QuestionCount, SectionCounts, DurationMinutes]);
+  }, [SelectedLevelId, MockMarksTarget, QuestionCount, SectionRows, DurationMinutes]);
 
   const AssignMutation = useMutation({
     mutationFn: () => assignCompetitionMockExams({
@@ -510,7 +500,8 @@ function AdminCompetitionMockStudioPageContent() {
     SetSelectedStudentIds([]);
     SetDeleteMockId(null);
     SetArchiveMockId(null);
-    SetSectionCounts({});
+    SetSectionRows({});
+    SetRowsTouched(false);
   }
 
   function ToggleMock(MockId: string) {
@@ -521,7 +512,7 @@ function AdminCompetitionMockStudioPageContent() {
     SetSelectedStudentIds((CurrentValue) => CurrentValue.includes(StudentId) ? CurrentValue.filter((Item) => Item !== StudentId) : [...CurrentValue, StudentId]);
   }
 
-  const CanGenerate = Boolean(SelectedLevelId) && SectionCountTotal >= 10 && !MarksMismatch && !GenerateMutation.isPending;
+  const CanGenerate = Boolean(SelectedLevelId) && AllocationValid && !GenerateMutation.isPending;
   const CanAssign = Boolean(AssignmentScope) && SelectedMockIds.length > 0 && (AssignToAll || SelectedStudentIds.length > 0) && !AssignMutation.isPending;
 
   const FilteredMockExams = useMemo(() => {
@@ -600,7 +591,7 @@ function AdminCompetitionMockStudioPageContent() {
                   </label>
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     Level
-                    <select value={SelectedLevelId} onChange={(EventValue) => { SetSelectedLevelId(EventValue.target.value); SetSelectedMockIds([]); SetSelectedStudentIds([]); SetDeleteMockId(null); SetArchiveMockId(null); SetSectionCounts({}); }} disabled={!SelectedModuleId || LevelsQuery.isLoading} className="math-input">
+                    <select value={SelectedLevelId} onChange={(EventValue) => { SetSelectedLevelId(EventValue.target.value); SetSelectedMockIds([]); SetSelectedStudentIds([]); SetDeleteMockId(null); SetArchiveMockId(null); SetSectionRows({}); SetRowsTouched(false); }} disabled={!SelectedModuleId || LevelsQuery.isLoading} className="math-input">
                       <option value="">Select Level</option>
                       {Levels.map((LevelValue: LevelItem) => <option key={LevelValue.levelId} value={LevelValue.levelId}>{LevelValue.levelCode} · {LevelValue.levelName}</option>)}
                     </select>
@@ -638,9 +629,7 @@ function AdminCompetitionMockStudioPageContent() {
                         <input value={QuestionCount} onChange={(EventValue) => SetQuestionCount(EventValue.target.value)} type="number" min={10} max={100} className="math-input" />
                       )}
                       <span className="block text-xs font-bold text-slate-400 dark:text-slate-500">
-                        {HasWeightedSection
-                          ? "Concept Drill/Skill Stacker questions are worth 5 marks each, every other section 1 mark each. Set any section's question count below and the rest auto-adjust so the mock always totals this many marks."
-                          : "Every question in this level is worth 1 mark, so Total Marks and total questions are the same number. Set any section's question count below and the rest auto-adjust to match."}
+                        From 10 to 100. Set each section&apos;s questions and marks each below; the sections must add up to exactly this many marks.
                       </span>
                     </label>
                     <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
@@ -661,52 +650,103 @@ function AdminCompetitionMockStudioPageContent() {
                     </button>
                   </div>
 
-                  <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
+                  <div data-mock-allocation className="rounded-[28px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
                         <p className="math-block-header"><SlidersHorizontal size={14} />Section Allocation</p>
-                        <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Balance question count per competition section before generating.</p>
+                        <p className="mt-1 text-sm font-bold text-slate-500 dark:text-slate-400">Choose the sections, how many questions each has and how many marks each question is worth.</p>
                       </div>
-                      <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-black ${SectionCountTotal >= 10 && !MarksMismatch ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200" : "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"}`}>
-                        {HasWeightedSection ? `${SectionCountTotal} Questions \u00b7 ${TotalMarks}/${MockMarksTarget} Marks` : `${SectionCountTotal} Selected`}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span data-mock-total className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-black ${AllocationValid ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200" : "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"}`}>
+                          {`${SectionCountTotal} Questions \u00b7 ${TotalMarks}/${TargetMarks || "?"} Marks`}
+                        </span>
+                        <button type="button" className={AdminRowActionButtonClass} disabled={!LiveSections.length || !TargetValid} onClick={AutoBalanceSections} title="Fill the included sections so the mock adds up to Total Marks with the marks you set">Auto Balance</button>
+                        <button type="button" className={AdminRowActionButtonClass} disabled={!LiveSections.length || !RowsTouched} onClick={ResetSectionRows} title="Go back to the starting layout for this level">Reset</button>
+                      </div>
                     </div>
+
+                    {SelectedLevelId && LiveSections.length ? (
+                      <p data-mock-allocation-status className={`mt-3 rounded-2xl px-4 py-2.5 text-sm font-bold ${AllocationValid ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200" : "bg-rose-50 text-rose-800 dark:bg-rose-950/30 dark:text-rose-200"}`}>{AllocationMessage}</p>
+                    ) : null}
 
                     <div className="mt-4 space-y-2">
                       {SectionPlanQuery.isLoading && <LoadingState label="Loading section plan..." />}
                       {!SelectedLevelId && <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Select a level to load section allocation.</p>}
+                      {LiveSections.length ? (
+                        <div className="hidden grid-cols-[minmax(0,1fr)_64px_96px_96px_64px] gap-3 px-4 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:grid">
+                          <span>Section</span><span>Include</span><span>Questions</span><span>Marks Each</span><span>Marks</span>
+                        </div>
+                      ) : null}
                       {LiveSections.map((SectionValue) => {
-                        const IsOmitted = SectionValue.liveCount === 0;
-                        // 2026-09-03: every section is editable now -- the
-                        // admin used to only be able to touch the weighted
-                        // (Skill Stacker/Concept Drill) section, with every
-                        // flat section forced into a greyed-out, read-only
-                        // computed box no matter what. IsTouched purely
-                        // drives the "Auto" vs "Section N" subtitle below;
-                        // it no longer gates whether the box is an input.
-                        const IsTouched = SectionCounts[SectionValue.sectionKey] !== undefined;
+                        const Included = SectionValue.row.included;
+                        const LastIncluded = Included && IncludedSections.length <= 1;
+                        const BareTitle = String(SectionValue.sectionTitle || "").replace(/^\s*Section\s+\d+\s*-\s*/i, "") || SectionValue.sectionTitle;
                         return (
-                          <div key={SectionValue.sectionKey} className={`grid gap-3 rounded-2xl border px-4 py-3 sm:grid-cols-[1fr_110px] sm:items-center ${IsOmitted ? "border-slate-200 bg-slate-100/70 dark:border-slate-800 dark:bg-slate-900/30" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/50"}`}>
+                          <div key={SectionValue.sectionKey} data-mock-section={SectionValue.sectionKey} className={`grid grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-2xl border px-4 py-3 sm:grid-cols-[minmax(0,1fr)_64px_96px_96px_64px] sm:items-center ${Included ? (SectionValue.rowValid ? "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/50" : "border-rose-300 bg-white dark:border-rose-800 dark:bg-slate-950/50") : "border-slate-200 bg-slate-100/70 dark:border-slate-800 dark:bg-slate-900/30"}`}>
                             <div className="min-w-0">
-                              <p className={`text-sm font-black ${IsOmitted ? "text-slate-400 line-through dark:text-slate-600" : "text-slate-950 dark:text-white"}`}>{SectionValue.sectionTitle}</p>
+                              <p className={`truncate text-sm font-black ${Included ? "text-slate-950 dark:text-white" : "text-slate-400 line-through dark:text-slate-600"}`} title={SectionValue.sectionTitle}>{BareTitle}</p>
                               <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                {IsOmitted ? "Omitted — questions redistributed to remaining sections" : `Section ${SectionValue.liveNumber}`}
-                                {SectionValue.isWeighted ? " · 5 marks/question" : HasWeightedSection ? " · 1 mark/question" : ""}
-                                {HasWeightedSection && !IsTouched ? " · Auto-adjusts to balance marks" : ""}
+                                {Included ? `Students see Section ${SectionValue.liveNumber}` : "Left out of this mock"}
                               </p>
                             </div>
-                            <input
-                              value={SectionCounts[SectionValue.sectionKey] ?? String(SectionValue.liveCount)}
-                              onChange={(EventValue) => UpdateSectionCount(SectionValue.sectionKey, EventValue.target.value)}
-                              type="number"
-                              min={0}
-                              max={300}
-                              className="math-input text-center font-black"
-                              aria-label={`${SectionValue.sectionTitle} question count`}
-                            />
+                            <div className="flex items-center justify-end sm:justify-start">
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={Included}
+                                aria-label={`Include ${BareTitle}`}
+                                disabled={LastIncluded}
+                                title={LastIncluded ? "At least one section must stay in the mock" : Included ? "Leave this section out" : "Put this section back in"}
+                                onClick={() => ToggleSectionIncluded(SectionValue.sectionKey)}
+                                className={`relative h-7 w-12 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${Included ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"}`}
+                              >
+                                <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${Included ? "left-6" : "left-1"}`} />
+                              </button>
+                            </div>
+                            <div className="col-span-2 grid grid-cols-3 gap-3 sm:contents">
+                              <span className="flex min-w-0 flex-col gap-1">
+                                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 sm:hidden">Questions</span>
+                                <input
+                                  value={Included ? SectionValue.row.count : "0"}
+                                  onChange={(EventValue) => EditSectionRow(SectionValue.sectionKey, { count: EventValue.target.value })}
+                                  type="number"
+                                  min={1}
+                                  max={100}
+                                  step={1}
+                                  inputMode="numeric"
+                                  disabled={!Included}
+                                  className="math-input text-center font-black"
+                                  aria-label={`${BareTitle} questions`}
+                                />
+                              </span>
+                              <span className="flex min-w-0 flex-col gap-1">
+                                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 sm:hidden">Marks Each</span>
+                                <input
+                                  value={SectionValue.row.marks}
+                                  onChange={(EventValue) => EditSectionRow(SectionValue.sectionKey, { marks: EventValue.target.value })}
+                                  type="number"
+                                  min={1}
+                                  max={100}
+                                  step={1}
+                                  inputMode="numeric"
+                                  disabled={!Included}
+                                  className="math-input text-center font-black"
+                                  aria-label={`${BareTitle} marks for each question`}
+                                />
+                              </span>
+                              <span className="flex min-w-0 flex-col gap-1">
+                                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 sm:hidden">Marks</span>
+                                <span data-mock-section-marks className="flex h-11 items-center justify-center text-sm font-black text-slate-700 sm:justify-start dark:text-slate-200">{SectionValue.sectionMarks}</span>
+                              </span>
+                            </div>
                           </div>
                         );
                       })}
+                      {LeftOutSections.length ? (
+                        <p data-mock-left-out className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                          {LeftOutSections.length === 1 ? "1 section is" : `${LeftOutSections.length} sections are`} left out of this mock ({LeftOutSections.map((SectionValue) => String(SectionValue.sectionTitle || "").replace(/^\s*Section\s+\d+\s*-\s*/i, "")).join(", ")}). Students only see the included sections, numbered 1, 2, 3 in order.
+                        </p>
+                      ) : null}
                     </div>
                   </div>
 
