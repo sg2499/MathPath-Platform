@@ -57,7 +57,7 @@ def _competition_section_title(question: CompetitionMockQuestion) -> str:
         section_number = int(question.section_number or 0)
     except Exception:
         section_number = 0
-    return MM_COMPETITION_SECTION_TITLES.get(section_number) or "Competition Mock"
+    return MM_COMPETITION_SECTION_TITLES.get(section_number) or "Mock Exam"
 
 
 # A handful of competition-only sub-generators (competition_mock_generation_
@@ -154,7 +154,7 @@ def _section_performance_from_review(review: list[dict[str, Any]]) -> tuple[list
         # See _competition_section_title() above: the persisted per-question title
         # is always correct and module-specific; the fixed MM dict is only a
         # legacy fallback and must not override it.
-        section_title = question.get("sectionTitle") or MM_COMPETITION_SECTION_TITLES.get(section_number) or "Competition Mock"
+        section_title = question.get("sectionTitle") or MM_COMPETITION_SECTION_TITLES.get(section_number) or "Mock Exam"
         concept_name = question.get("concept") or section_title
         bucket = concept_totals.setdefault(
             concept_name,
@@ -298,7 +298,7 @@ def _attempt_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, 
     assignment = db.get(CompetitionMockAssignment, attempt.mock_assignment_id)
     exam = db.get(CompetitionMockExam, attempt.mock_exam_id)
     if not assignment or not exam:
-        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition mock attempt could not be loaded.")
+        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Mock attempt could not be loaded.")
 
     questions = (
         db.query(CompetitionMockQuestion)
@@ -498,10 +498,10 @@ def ListStudentCompetitionMockAssignmentsForAttempt(db: Session, student: Studen
 def StartCompetitionMockAttempt(db: Session, student: Student, assignment_id: str) -> dict[str, Any]:
     assignment = db.get(CompetitionMockAssignment, assignment_id)
     if not assignment or assignment.student_id != student.id or not assignment.is_active:
-        api_error(404, "COMPETITION_ASSIGNMENT_NOT_FOUND", "Competition mock assignment not found.")
+        api_error(404, "COMPETITION_ASSIGNMENT_NOT_FOUND", "Mock assignment not found.")
     exam = db.get(CompetitionMockExam, assignment.mock_exam_id)
     if not exam or not exam.is_active or exam.status == "ARCHIVED":
-        api_error(404, "COMPETITION_MOCK_NOT_AVAILABLE", "Competition mock is not available.")
+        api_error(404, "COMPETITION_MOCK_NOT_AVAILABLE", "This mock is not available.")
     if student.current_level_id and exam.level_id != student.current_level_id:
         api_error(403, "WRONG_LEVEL_COMPETITION_MOCK", "This mock is not assigned for your current level.")
 
@@ -568,13 +568,13 @@ def EnsureCompetitionAttemptActiveOrSubmit(db: Session, attempt: CompetitionMock
 def GetCompetitionMockAttemptForStudent(db: Session, student: Student, attempt_id: str) -> dict[str, Any]:
     attempt = db.get(CompetitionMockAttempt, attempt_id)
     if not attempt or attempt.student_id != student.id:
-        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition mock attempt not found.")
+        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Mock attempt not found.")
     attempt = EnsureCompetitionAttemptActiveOrSubmit(db, attempt)
     if attempt.status != ACTIVE_STATUS:
         return {
             "attemptId": attempt.id,
             "status": attempt.status,
-            "message": "Competition mock has already been submitted.",
+            "message": "This mock has already been submitted.",
             "resultAvailable": True,
         }
     return _attempt_payload(db, attempt)
@@ -583,7 +583,7 @@ def GetCompetitionMockAttemptForStudent(db: Session, student: Student, attempt_i
 def SaveCompetitionMockAnswer(db: Session, student: Student, attempt_id: str, question_id: str, selected_option_id: str) -> dict[str, Any]:
     attempt = db.get(CompetitionMockAttempt, attempt_id)
     if not attempt or attempt.student_id != student.id:
-        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition mock attempt not found.")
+        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Mock attempt not found.")
     attempt = EnsureCompetitionAttemptActiveOrSubmit(db, attempt)
     if attempt.status != ACTIVE_STATUS:
         # If this save call is the one that tipped the attempt into a lazy
@@ -597,7 +597,7 @@ def SaveCompetitionMockAnswer(db: Session, student: Student, attempt_id: str, qu
         return {
             "saved": False,
             "status": attempt.status,
-            "message": "Competition mock is no longer active.",
+            "message": "This mock is no longer active.",
             "resultAvailable": True,
             "unlockedBadges": side_effects.get("unlockedBadges", []),
             "rankedUp": side_effects.get("rankedUp", False),
@@ -1059,7 +1059,7 @@ def _ProcessMockCompletionSideEffects(db: Session, attempt: CompetitionMockAttem
 def SubmitCompetitionMockAttemptForStudent(db: Session, student: Student, attempt_id: str, auto: bool = False) -> dict[str, Any]:
     attempt = db.get(CompetitionMockAttempt, attempt_id)
     if not attempt or attempt.student_id != student.id:
-        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Competition mock attempt not found.")
+        api_error(404, "COMPETITION_ATTEMPT_NOT_FOUND", "Mock attempt not found.")
     attempt = SubmitCompetitionMockAttempt(db, attempt, auto=auto)
 
     # If THIS request is the one that completed the attempt, the result of
@@ -1238,7 +1238,7 @@ def _result_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, A
     assignment = db.get(CompetitionMockAssignment, attempt.mock_assignment_id)
     exam = db.get(CompetitionMockExam, attempt.mock_exam_id)
     if not assignment or not exam:
-        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result could not be loaded.")
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Mock result could not be loaded.")
 
     if attempt.status not in COMPLETED_STATUSES:
         api_error(409, "COMPETITION_ATTEMPT_NOT_SUBMITTED", "Submit the mock before viewing the result.")
@@ -1257,7 +1257,7 @@ def _result_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, A
             .first()
         )
     if not summary:
-        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result summary is not available.")
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Mock result summary is not available.")
 
     level_record = db.get(Level, exam.level_id)
     module_record = db.get(Module, exam.module_id)
@@ -1311,7 +1311,7 @@ def _result_payload(db: Session, attempt: CompetitionMockAttempt) -> dict[str, A
 def GetCompetitionMockResultForStudent(db: Session, student: Student, attempt_id: str) -> dict[str, Any]:
     attempt = db.get(CompetitionMockAttempt, attempt_id)
     if not attempt or attempt.student_id != student.id:
-        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result not found.")
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Mock result not found.")
     attempt = EnsureCompetitionAttemptActiveOrSubmit(db, attempt)
     return _result_payload(db, attempt)
 
@@ -1319,11 +1319,11 @@ def GetCompetitionMockResultForStudent(db: Session, student: Student, attempt_id
 def GetCompetitionMockResultForTeacher(db: Session, teacher: Teacher, attempt_id: str) -> dict[str, Any]:
     attempt = db.get(CompetitionMockAttempt, attempt_id)
     if not attempt:
-        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result not found.")
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Mock result not found.")
 
     student = db.get(Student, attempt.student_id) if attempt.student_id else None
     if not student or not getattr(student, "is_active", True):
-        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result not found.")
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Mock result not found.")
 
     teacher_name = ""
     if getattr(teacher, "user_id", None):
@@ -1333,7 +1333,7 @@ def GetCompetitionMockResultForTeacher(db: Session, teacher: Teacher, attempt_id
     linked_by_id = bool(getattr(student, "teacher_id", None) and student.teacher_id == teacher.id)
     linked_by_name = bool(teacher_name and getattr(student, "teacher", None) == teacher_name)
     if not linked_by_id and not linked_by_name:
-        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result not found.")
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Mock result not found.")
 
     attempt = EnsureCompetitionAttemptActiveOrSubmit(db, attempt)
     return _result_payload(db, attempt)
@@ -1342,7 +1342,7 @@ def GetCompetitionMockResultForTeacher(db: Session, teacher: Teacher, attempt_id
 def GetCompetitionMockResultForAdmin(db: Session, attempt_id: str) -> dict[str, Any]:
     attempt = db.get(CompetitionMockAttempt, attempt_id)
     if not attempt:
-        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Competition mock result not found.")
+        api_error(404, "COMPETITION_RESULT_NOT_FOUND", "Mock result not found.")
     attempt = EnsureCompetitionAttemptActiveOrSubmit(db, attempt)
     return _result_payload(db, attempt)
 

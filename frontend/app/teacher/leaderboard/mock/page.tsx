@@ -381,7 +381,7 @@ function TeacherMockLeaderboardPageInner() {
         <div className="math-card p-6 md:p-8 rounded-3xl">
           <div className="math-block-header mb-3"><Trophy size={16} className="text-yellow-500" /> Leaderboard</div>
           <h1 className="math-title mb-2">Mock Exam Leaderboard</h1>
-          <p className="math-subtitle">See how your students rank in competition mock exams, across the whole class.</p>
+          <p className="math-subtitle">See how your students rank in mock exams, across the whole class.</p>
 
           <div className="mt-6 flex flex-col xl:flex-row xl:items-center justify-between gap-6 border-t border-slate-100 dark:border-slate-800 pt-6">
             <div className="te-board-views flex flex-wrap gap-3 w-fit" role="group" aria-label="Leaderboard view">

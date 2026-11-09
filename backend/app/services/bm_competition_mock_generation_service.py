@@ -208,7 +208,7 @@ def _build_bm_config(concept_spec: dict[str, Any], question_count: int, seed: st
         allow_negative_operands=True,
         allow_negative_answer=False,
         seed=seed,
-        lesson_title="BM Competition Mock",
+        lesson_title="BM Mock",
         dps_title=str(concept_spec["title"]),
         generation_template=concept_spec.get("generationTemplate", "DIRECT"),
         revision_templates=tuple(concept_spec.get("revisionTemplates") or ()),
@@ -341,8 +341,8 @@ def BmCompetitionLevelConfig(LevelRecord: Level) -> dict[str, Any]:
         api_error(
             400,
             "BM_COMPETITION_LEVEL_NOT_CONFIGURED",
-            f"No competition mock section structure has been defined yet for BM level '{LevelCode}'. "
-            "BM competition mocks are designed level by level — add this level's own sections and "
+            f"No mock section structure has been defined yet for BM level '{LevelCode}'. "
+            "BM mocks are designed level by level — add this level's own sections and "
             "concept pools to BM_COMPETITION_LEVEL_REGISTRY before generating mocks for it.",
             {"levelCode": LevelCode, "configuredLevels": sorted(BM_COMPETITION_LEVEL_REGISTRY.keys())},
         )

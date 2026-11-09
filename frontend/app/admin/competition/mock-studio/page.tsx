@@ -476,7 +476,7 @@ function AdminCompetitionMockStudioPageContent() {
   const ArchiveMutation = useMutation({
     mutationFn: (MockExamId: string) => archiveCompetitionMockExam(MockExamId),
     onSuccess: (ResultValue) => {
-      SetLastMessage(ResultValue.message || "Competition mock exam archived.");
+      SetLastMessage(ResultValue.message || "Mock exam archived.");
       SetSelectedMockIds((CurrentValue) => CurrentValue.filter((MockId) => MockId !== ArchiveMockId));
       SetArchiveMockId(null);
       QueryClient.invalidateQueries({ queryKey: ["admin", "competition"] });
@@ -486,7 +486,7 @@ function AdminCompetitionMockStudioPageContent() {
   const DeleteMutation = useMutation({
     mutationFn: (MockExamId: string) => deleteCompetitionMockExam(MockExamId),
     onSuccess: (ResultValue) => {
-      SetLastMessage(ResultValue.message || "Competition mock exam deleted.");
+      SetLastMessage(ResultValue.message || "Mock exam deleted.");
       SetSelectedMockIds((CurrentValue) => CurrentValue.filter((MockId) => MockId !== DeleteMockId));
       SetDeleteMockId(null);
       QueryClient.invalidateQueries({ queryKey: ["admin", "competition"] });
@@ -526,16 +526,16 @@ function AdminCompetitionMockStudioPageContent() {
   }, [MockExams, ManageSearch, ManageStatusFilter]);
 
   if (!Ready) return null;
-  if (ModulesQuery.isLoading) return <AppShell title="Competition Mock Studio"><LoadingState label="Loading Competition Mock Studio..." /></AppShell>;
+  if (ModulesQuery.isLoading) return <AppShell title="Mock Studio"><LoadingState label="Loading Mock Studio..." /></AppShell>;
 
   return (
-    <AppShell title="Competition Mock Studio">
+    <AppShell title="Mock Studio">
       <section className="space-y-6">
         <div className="math-card p-6">
           <p className="math-block-header"><PackageOpen size={14} />Mock Studio</p>
-          <h1 className="math-title">Competition Mock Studio</h1>
+          <h1 className="math-title">Mock Studio</h1>
           <p className="mt-3 max-w-none text-sm font-semibold leading-relaxed text-slate-600 dark:text-slate-300">
-            Create draft championship-style mock papers and assign one or multiple mocks directly to students by level. This remains independent from DPS Practice, Assessments, readiness, and progression.
+            Create draft mock papers and assign one or multiple mocks directly to students by level. This remains independent from DPS Practice, Assessments, readiness, and progression.
           </p>
         </div>
 
@@ -587,7 +587,7 @@ function AdminCompetitionMockStudioPageContent() {
                         .filter((ModuleValue: ModuleItem) => CompetitionMockSupportedModuleCodes.has(ModuleValue.moduleCode))
                         .map((ModuleValue: ModuleItem) => <option key={ModuleValue.moduleId} value={ModuleValue.moduleId}>{ModuleValue.moduleCode} · {ModuleValue.moduleName}</option>)}
                     </select>
-                    <span className="block text-xs font-bold text-slate-400 dark:text-slate-500">Only modules with a real competition-mock section design are selectable here.</span>
+                    <span className="block text-xs font-bold text-slate-400 dark:text-slate-500">Only modules with a mock section design are selectable here.</span>
                   </label>
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     Level
@@ -606,7 +606,7 @@ function AdminCompetitionMockStudioPageContent() {
                   <div className="grid gap-4 sm:grid-cols-[1.35fr_0.65fr]">
                     <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                       Mock Title
-                      <input value={MockTitle} onChange={(EventValue) => SetMockTitle(EventValue.target.value)} placeholder="Example: MM-L1 State Championship Mock 1" className="math-input" />
+                      <input value={MockTitle} onChange={(EventValue) => SetMockTitle(EventValue.target.value)} placeholder="Example: MM-L1 Mock 1" className="math-input" />
                     </label>
                     <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                       Mock Code
@@ -758,7 +758,7 @@ function AdminCompetitionMockStudioPageContent() {
         {ActiveStudioTab === "MANAGE" && (
           <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-start">
               <div className="math-card p-5">
-                <SectionTitle icon={<Settings2 size={14} />} kicker="Manage Mocks" title="Mock Paper Library" description="View, preview, assign, archive, or delete competition mock papers from one focused control panel." />
+                <SectionTitle icon={<Settings2 size={14} />} kicker="Manage Mocks" title="Mock Paper Library" description="View, preview, assign, archive, or delete mock papers from one focused control panel." />
 
                 <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_190px_190px]">
                   <div className="relative">
@@ -854,7 +854,7 @@ function AdminCompetitionMockStudioPageContent() {
 
                   <label className="space-y-2 text-sm font-black text-slate-700 dark:text-slate-200">
                     Optional Instructions
-                    <textarea value={AssignmentInstructions} onChange={(EventValue) => SetAssignmentInstructions(EventValue.target.value)} rows={3} placeholder="Example: Complete this mock under competition timing without taking breaks." className="math-input min-h-24" />
+                    <textarea value={AssignmentInstructions} onChange={(EventValue) => SetAssignmentInstructions(EventValue.target.value)} rows={3} placeholder="Example: Complete this mock in one sitting without taking breaks." className="math-input min-h-24" />
                   </label>
 
                   <button

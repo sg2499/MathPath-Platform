@@ -348,8 +348,8 @@ def YlmCompetitionLevelConfig(LevelRecord: Level) -> dict[str, Any]:
         api_error(
             400,
             "YLM_COMPETITION_LEVEL_NOT_CONFIGURED",
-            f"No competition mock section structure has been defined yet for YLM level '{LevelCode}'. "
-            "YLM competition mocks are designed level by level — add this level's own sections and "
+            f"No mock section structure has been defined yet for YLM level '{LevelCode}'. "
+            "YLM mocks are designed level by level — add this level's own sections and "
             "concept pools to YLM_COMPETITION_LEVEL_REGISTRY before generating mocks for it.",
             {"levelCode": LevelCode, "configuredLevels": sorted(YLM_COMPETITION_LEVEL_REGISTRY.keys())},
         )

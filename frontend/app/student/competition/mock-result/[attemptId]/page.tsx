@@ -308,7 +308,7 @@ export default function StudentCompetitionMockResultPage() {
 
   if (query.isLoading) {
     return (
-      <AppShell title="Competition Mock Result">
+      <AppShell title="Mock Result">
         <LoadingState label="Loading mock result..." />
       </AppShell>
     );
@@ -316,7 +316,7 @@ export default function StudentCompetitionMockResultPage() {
 
   if (query.error) {
     return (
-      <AppShell title="Competition Mock Result">
+      <AppShell title="Mock Result">
         <ErrorState message={apiErrorMessage(query.error)} />
       </AppShell>
     );
@@ -325,7 +325,7 @@ export default function StudentCompetitionMockResultPage() {
   const result = query.data;
   if (!result) {
     return (
-      <AppShell title="Competition Mock Result">
+      <AppShell title="Mock Result">
         <LoadingState label="Preparing result summary..." />
       </AppShell>
     );
@@ -373,7 +373,7 @@ export default function StudentCompetitionMockResultPage() {
       {!showCelebration && !showRewardModal && badgeRevealIndex === null && showRankUp && rankUpTier && (
         <RankCinematicOverlay tier={rankUpTier} onComplete={() => setShowRankUp(false)} />
       )}
-      <AppShell title="Competition Mock Result">
+      <AppShell title="Mock Result">
       <section className="space-y-5">
         <div className="math-card p-6">
           <button
@@ -481,7 +481,7 @@ function CompetitionMessageBox({
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="math-block-header mb-2"><Rocket size={14} /> Competition Coach</div>
+              <div className="math-block-header mb-2"><Rocket size={14} /> Mock Coach</div>
               <span className="math-badge border-[var(--mp-role-border)] bg-[var(--mp-role-softer)] text-[var(--mp-role-readable)]">
                 {message.badge}
               </span>

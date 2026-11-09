@@ -1835,7 +1835,7 @@ function DeleteStudentModal({
               This action is permanent. It will remove the student profile,
               login access, and photo/signature records, along with every
               DPS practice attempt, section-wise assessment attempt and
-              result, competition mock exam attempt and result, assignment,
+              result, mock exam attempt and result, assignment,
               and notification linked to this student — nothing about them
               is left behind.
             </p>

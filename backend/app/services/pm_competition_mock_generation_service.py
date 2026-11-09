@@ -463,7 +463,7 @@ def _build_pm_l3_config(concept_spec: dict[str, Any], question_count: int, seed:
         allow_negative_operands=True,
         allow_negative_answer=False,
         seed=seed,
-        lesson_title="PM Competition Mock",
+        lesson_title="PM Mock",
         dps_title=str(concept_spec["title"]),
         generation_template=concept_spec.get("generationTemplate", "DIRECT"),
         revision_templates=tuple(concept_spec.get("revisionTemplates") or ()),
@@ -896,7 +896,7 @@ def _build_pm_l4_config(concept_spec: dict[str, Any], question_count: int, seed:
         allow_negative_operands=True,
         allow_negative_answer=False,
         seed=seed,
-        lesson_title="PM Competition Mock",
+        lesson_title="PM Mock",
         dps_title=str(concept_spec["title"]),
         generation_template=concept_spec.get("generationTemplate", "DIRECT"),
         revision_templates=tuple(concept_spec.get("revisionTemplates") or ()),
@@ -1151,7 +1151,7 @@ def _build_pm_l2_config(concept_spec: dict[str, Any], question_count: int, seed:
         allow_negative_operands=True,
         allow_negative_answer=False,
         seed=seed,
-        lesson_title="PM-L2 Competition Mock",
+        lesson_title="PM-L2 Mock",
         dps_title=str(concept_spec["title"]),
         generation_template=concept_spec.get("generationTemplate", "DIRECT"),
         revision_templates=tuple(concept_spec.get("revisionTemplates") or ()),
@@ -1408,8 +1408,8 @@ def PmCompetitionLevelConfig(LevelRecord: Level) -> dict[str, Any]:
         api_error(
             400,
             "PM_COMPETITION_LEVEL_NOT_CONFIGURED",
-            f"No competition mock section structure has been defined yet for PM level '{LevelCode}'. "
-            "PM competition mocks are designed level by level — add this level's own sections and "
+            f"No mock section structure has been defined yet for PM level '{LevelCode}'. "
+            "PM mocks are designed level by level — add this level's own sections and "
             "concept pools to PM_COMPETITION_LEVEL_REGISTRY before generating mocks for it.",
             {"levelCode": LevelCode, "configuredLevels": sorted(PM_COMPETITION_LEVEL_REGISTRY.keys())},
         )
@@ -1452,7 +1452,7 @@ def _build_pm_config(concept_spec: dict[str, Any], question_count: int, seed: st
         allow_negative_operands=True,
         allow_negative_answer=False,
         seed=seed,
-        lesson_title="PM Competition Mock",
+        lesson_title="PM Mock",
         dps_title=str(concept_spec["title"]),
         generation_template=concept_spec.get("generationTemplate", "DIRECT"),
         revision_templates=tuple(concept_spec.get("revisionTemplates") or ()),

@@ -559,7 +559,7 @@ def SectionWiseLevelConfig(ModuleCode: str, LevelItem: Level | None) -> dict[str
         api_error(
             400,
             "ASSESSMENT_SECTION_REGISTRY_NOT_CONFIGURED",
-            f"No competition mock section structure has been defined yet for {ModuleCode} level '{LevelCode}'.",
+            f"No mock section structure has been defined yet for {ModuleCode} level '{LevelCode}'.",
             {"moduleCode": ModuleCode, "levelCode": LevelCode},
         )
     return ApplyAssessmentSectionOverrides(ModuleCode, LevelCode, Config)

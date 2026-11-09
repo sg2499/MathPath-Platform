@@ -902,7 +902,7 @@ function AssessmentOverviewTab({ item }: { item: AssessmentBlueprint }) {
           <h3 className="mt-2 text-xl font-black text-slate-950 dark:text-white">Student Instructions</h3>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{item.instructions || "Answer all questions carefully before submitting."}</p>
           <div className="mt-4 rounded-[22px] bg-slate-50 p-4 text-sm font-bold leading-6 text-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
-            {isSectionWise ? "Questions are generated from the section-wise distribution, mirroring this level's competition mock sections." : "Questions are generated from the lesson-wise distribution and the concept rules mapped to this level."}
+            {isSectionWise ? "Questions are generated from the section-wise distribution, mirroring this level's mock sections." : "Questions are generated from the lesson-wise distribution and the concept rules mapped to this level."}
           </div>
         </div>
 

@@ -1579,6 +1579,56 @@ def ensure_mock_notifications_fixed() -> None:
     finally:
         db.close()
 
+def ensure_mock_wording_updated() -> None:
+    """One-time text fix (2026-11-09, Shailesh: "rename the normal Mock
+    flows to Mock only and remove the competition wording ... yes update
+    the existing mocks as well"). In regular mock papers only -- never an
+    Annual Competition paper -- the saved instructions' "Competition-style
+    mock practice" becomes "Mock practice", and an auto-made title
+    "<LEVEL> Competition Mock Practice <date>" becomes "<LEVEL> Mock
+    Practice <date>". Titles an admin wrote, questions, marks and results
+    are not touched. Safe to run on every start: once a phrase is gone
+    nothing matches again."""
+    import re
+    from app.database import SessionLocal
+    from app.models import CompetitionMockExam
+    from app.services.mock_paper_scope import MockPaperCondition
+
+    # Exactly the auto-made shape "<LEVEL CODE> Competition Mock Practice
+    # <dd Mon YYYY HH:MM>", so a title an admin typed is never changed.
+    AutoTitle = re.compile(r"^([A-Z]+-L\d+) Competition Mock Practice (\d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2})$")
+    db = SessionLocal()
+    try:
+        Changed = 0
+        Rows = (
+            db.query(CompetitionMockExam)
+            .filter(MockPaperCondition())
+            .filter(
+                (CompetitionMockExam.instructions.like("%Competition-style mock practice%"))
+                | (CompetitionMockExam.title.like("% Competition Mock Practice %"))
+            )
+            .all()
+        )
+        for Exam in Rows:
+            Touched = False
+            if Exam.instructions and "Competition-style mock practice" in Exam.instructions:
+                Exam.instructions = Exam.instructions.replace("Competition-style mock practice", "Mock practice")
+                Touched = True
+            Match = AutoTitle.match(Exam.title or "")
+            if Match:
+                Exam.title = f"{Match.group(1)} Mock Practice {Match.group(2)}"
+                Touched = True
+            Changed += 1 if Touched else 0
+        if Changed:
+            db.commit()
+            print(f"Updated mock wording on {Changed} mock papers.")
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating mock wording: {e}")
+    finally:
+        db.close()
+
+
 def ensure_mock_accuracy_fixed() -> None:
     """Fixes the historical mock attempt accuracy percentages directly on startup."""
     try:

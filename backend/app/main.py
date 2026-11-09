@@ -289,6 +289,8 @@ def _EnsureSchema():
     ensure_mock_notifications_fixed()
     ensure_mock_gamification_tables()
     ensure_mock_accuracy_fixed()
+    from app.services.schema_migration import ensure_mock_wording_updated
+    ensure_mock_wording_updated()
     ensure_annual_competition_tables()
     ensure_annual_competition_go_live_columns()
     ensure_annual_competition_answer_text_column()

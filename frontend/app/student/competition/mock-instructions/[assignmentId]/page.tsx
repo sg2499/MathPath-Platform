@@ -126,7 +126,7 @@ function MockInstructionPageContent() {
                     })}
                   </div>
                 ) : (
-                  "MathPath Competition Mock Exam"
+                  "MathPath Mock Exam"
                 )}
               </div>
 

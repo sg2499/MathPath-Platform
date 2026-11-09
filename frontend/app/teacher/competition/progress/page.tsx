@@ -460,9 +460,9 @@ function TeacherCompetitionProgressContent() {
         </div>
 
         {Query.isLoading ? (
-          <LoadingState label="Loading competition tracker" message="Fetching assigned mocks and student outcomes." />
+          <LoadingState label="Loading mock insights" message="Fetching assigned mocks and student outcomes." />
         ) : Query.isError ? (
-          <ErrorState title="Could not load competition tracker" message={apiErrorMessage(Query.error)} />
+          <ErrorState title="Could not load mock insights" message={apiErrorMessage(Query.error)} />
         ) : (
           <>
             <div className="grid gap-4 xl:grid-cols-5 md:grid-cols-2">
@@ -534,7 +534,7 @@ function TeacherCompetitionProgressContent() {
 
                 <div className="mt-5 space-y-4">
                   {GroupedRows.length === 0 ? (
-                    <EmptyState title="No competition mock records" message="Assigned competition mock outcomes for your students will appear here." />
+                    <EmptyState title="No mock records" message="Assigned mock outcomes for your students will appear here." />
                   ) : (
                     GroupedRows.map((StudentGroup, sIdx) => {
                       const StudentOpen = ExpandedStudents.has(StudentGroup.key);

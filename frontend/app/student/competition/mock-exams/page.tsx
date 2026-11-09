@@ -317,22 +317,22 @@ function StudentCompetitionMockExamsContent() {
 
   if (query.isLoading) {
     return (
-      <AppShell title="Competition Mock Exams">
-        <LoadingState label="Loading competition mocks..." />
+      <AppShell title="Mock Exams">
+        <LoadingState label="Loading mocks..." />
       </AppShell>
     );
   }
 
   if (query.error) {
     return (
-      <AppShell title="Competition Mock Exams">
+      <AppShell title="Mock Exams">
         <ErrorState message={apiErrorMessage(query.error)} />
       </AppShell>
     );
   }
 
   return (
-    <AppShell title="Competition Mock Exams">
+    <AppShell title="Mock Exams">
       <section className="space-y-6">
         <div className="math-card p-6 flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
           <div className="flex-1">
@@ -356,7 +356,7 @@ function StudentCompetitionMockExamsContent() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="shrink-0">
               <div className="math-block-header mb-2"><ClipboardPlus size={14} /> Assigned Mocks</div>
-              <h2 className="text-xl font-black text-slate-950 dark:text-white">Competition Mock Library</h2>
+              <h2 className="text-xl font-black text-slate-950 dark:text-white">Mock Library</h2>
             </div>
             <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-auto lg:grid-cols-[minmax(390px,1fr)_160px_160px_160px]">
               <label className="relative block">
@@ -402,11 +402,11 @@ function StudentCompetitionMockExamsContent() {
 
           {assignments.length === 0 ? (
             <div className="mt-5 rounded-[24px] border border-dashed border-orange-200 bg-orange-50/70 p-6 text-sm font-bold text-slate-700 dark:border-orange-800/60 dark:bg-orange-950/20 dark:text-slate-200">
-              No competition mocks are assigned for your current level yet.
+              No mocks are assigned for your current level yet.
             </div>
           ) : filteredAssignments.length === 0 ? (
             <div className="mt-5 rounded-[24px] border border-dashed border-orange-200 bg-orange-50/70 p-6 text-sm font-bold text-slate-700 dark:border-orange-800/60 dark:bg-orange-950/20 dark:text-slate-200">
-              No competition mocks match the selected filters.
+              No mocks match the selected filters.
             </div>
           ) : (
             <div className="mt-5 space-y-4">
