@@ -454,24 +454,24 @@ function TeacherCompetitionMockTrackerContent() {
 
 
   return (
-    <AppShell title="Competition Mock Tracker">
+    <AppShell title="Mock Tracker">
       <TeacherCompetitionDarkHoverStyles />
       <section className="teacher-competition-dark-hover-scope space-y-6">
         <div className="math-card p-6 sm:p-8">
           <p className="math-block-header">
             <ClipboardList size={14} />
-            Competition Tracker
+            Mock Tracker
           </p>
-          <h1 className="math-title">Competition Mock Tracker</h1>
+          <h1 className="math-title">Mock Tracker</h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">
             Monitor Admin-assigned mock exams, student completion, scores, accuracy, timing, strengths, and weak areas. Teachers review only; assignment remains Admin-controlled.
           </p>
         </div>
 
         {Query.isLoading ? (
-          <LoadingState label="Loading competition tracker" message="Fetching assigned mocks and student outcomes." />
+          <LoadingState label="Loading mock tracker" message="Fetching assigned mocks and student outcomes." />
         ) : Query.isError ? (
-          <ErrorState title="Could not load competition tracker" message={apiErrorMessage(Query.error)} />
+          <ErrorState title="Could not load mock tracker" message={apiErrorMessage(Query.error)} />
         ) : (
           <>
             <div className="grid gap-4 xl:grid-cols-5 md:grid-cols-2">
@@ -548,7 +548,7 @@ function TeacherCompetitionMockTrackerContent() {
 
                 <div className="mt-5 space-y-3">
                   {GroupedRows.length === 0 ? (
-                    <EmptyState title="No competition mock records" message="Assigned competition mock outcomes for your students will appear here." />
+                    <EmptyState title="No mock records" message="Assigned mock outcomes for your students will appear here." />
                   ) : (
                     GroupedRows.map((StudentGroup) => {
                       const StudentOpen = ExpandedStudents.has(StudentGroup.key);

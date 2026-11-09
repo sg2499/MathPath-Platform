@@ -326,11 +326,11 @@ export default function AdminCompetitionMockDetailPage() {
   const isArchived = String(mock?.status || "").toUpperCase() === "ARCHIVED";
 
   return (
-    <AppShell title="Competition Mock Details">
+    <AppShell title="Mock Details">
       <section className="space-y-3">
-        {mockQuery.isLoading ? <LoadingState label="Loading competition mock details..." /> : null}
+        {mockQuery.isLoading ? <LoadingState label="Loading mock details..." /> : null}
         {mockQuery.error ? <ErrorState message={apiErrorMessage(mockQuery.error)} /> : null}
-        {!mockQuery.isLoading && !mockQuery.error && !mock ? <EmptyState title="Mock not found" description="The selected competition mock could not be loaded." /> : null}
+        {!mockQuery.isLoading && !mockQuery.error && !mock ? <EmptyState title="Mock not found" description="The selected mock could not be loaded." /> : null}
 
         {mock ? (
           <>
@@ -357,7 +357,7 @@ export default function AdminCompetitionMockDetailPage() {
                       <span className="math-admin-studio-chip rounded-full px-2.5 py-0.5 text-xs font-black">{mock.moduleCode || "—"} · {mock.levelCode || "—"}</span>
                       {mock.mockCode ? <span className="math-admin-studio-chip rounded-full px-2.5 py-0.5 text-xs font-black">{mock.mockCode}</span> : null}
                     </div>
-                    <p className="math-subtitle">Full-page competition mock preview with section coverage and generated question details.</p>
+                    <p className="math-subtitle">Full-page mock preview with section coverage and generated question details.</p>
                   </div>
                   <div className="mp-headbar-act flex flex-wrap gap-2 xl:justify-end">
                     <button type="button" className="math-button-secondary" onClick={() => setShowAnswers((current) => !current)}>
@@ -375,9 +375,9 @@ export default function AdminCompetitionMockDetailPage() {
                 </div>
                 <div className="ad-hero-tiles">
                   <DetailMetric icon={<Target size={16} />} label="Questions" value={mock.totalQuestions} helper="Mock Length" />
-                  <DetailMetric icon={<ShieldCheck size={16} />} label="Total Marks" value={mock.totalMarks} helper="Competition Total" />
+                  <DetailMetric icon={<ShieldCheck size={16} />} label="Total Marks" value={mock.totalMarks} helper="Whole Paper" />
                   <DetailMetric icon={<FileText size={16} />} label="Marks Per Question" value={describeMarksPerQuestion(mock.questions || [], mock.marksPerQuestion)} helper="Configured Marking" />
-                  <DetailMetric icon={<Clock size={16} />} label="Duration" value={formatDuration(mock.durationSeconds)} helper="Competition Time" />
+                  <DetailMetric icon={<Clock size={16} />} label="Duration" value={formatDuration(mock.durationSeconds)} helper="Time Allowed" />
                 </div>
               </div>
             </section>
@@ -424,9 +424,9 @@ function MockOverviewTab({ mock }: { mock: CompetitionMockExamDetail }) {
         <div className="rounded-[26px] border border-slate-200 p-5 dark:border-slate-800">
           <p className="math-block-header"><Info size={14} />Instructions</p>
           <h3 className="mt-2 text-xl font-black text-slate-950 dark:text-white">Student Instructions</h3>
-          <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{TidyPlurals(mock.instructions || "Complete the mock under competition timing without taking breaks.")}</p>
+          <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{TidyPlurals(mock.instructions || "Complete this mock in one sitting without taking breaks.")}</p>
           <div className="mt-4 rounded-[22px] bg-slate-50 p-4 text-sm font-bold leading-6 text-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
-            Questions are generated from the selected level syllabus and split into competition sections.
+            Questions are generated from the selected level syllabus and split into sections.
           </div>
         </div>
 
@@ -553,7 +553,7 @@ function MockCoverageTab({ mock, showAnswers }: { mock: CompetitionMockExamDetai
         <div>
           <p className="math-block-header"><BadgeCheck size={14} />Coverage Check</p>
           <h2 className="text-2xl font-black text-slate-950 dark:text-white">Section And Concept Coverage</h2>
-          <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">Verify competition section coverage and generated question allocation before assigning.</p>
+          <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">Verify section coverage and generated question allocation before assigning.</p>
         </div>
         <span className="w-fit rounded-full math-admin-studio-chip px-3 py-1 text-xs font-black">Admin Metadata</span>
       </div>

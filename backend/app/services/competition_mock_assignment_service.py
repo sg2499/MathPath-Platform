@@ -73,7 +73,7 @@ def _AssignmentPayload(db: Session, AssignmentRecord: CompetitionMockAssignment,
 def _ValidatedMockExams(db: Session, MockExamIds: list[str]) -> list[CompetitionMockExam]:
     UniqueIds = [MockExamId for MockExamId in dict.fromkeys([str(Item or "").strip() for Item in MockExamIds]) if MockExamId]
     if not UniqueIds:
-        api_error(400, "NO_MOCK_EXAMS_SELECTED", "Select at least one competition mock exam.")
+        api_error(400, "NO_MOCK_EXAMS_SELECTED", "Select at least one mock exam.")
 
     Exams = (
         db.query(CompetitionMockExam)
@@ -86,7 +86,7 @@ def _ValidatedMockExams(db: Session, MockExamIds: list[str]) -> list[Competition
     ExamById = {Exam.id: Exam for Exam in Exams}
     MissingIds = [MockExamId for MockExamId in UniqueIds if MockExamId not in ExamById]
     if MissingIds:
-        api_error(404, "COMPETITION_MOCK_NOT_FOUND", "One or more selected competition mock exams were not found.", {"missingMockExamIds": MissingIds})
+        api_error(404, "COMPETITION_MOCK_NOT_FOUND", "One or more selected mock exams were not found.", {"missingMockExamIds": MissingIds})
     return [ExamById[MockExamId] for MockExamId in UniqueIds]
 
 

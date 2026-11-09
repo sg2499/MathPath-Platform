@@ -158,7 +158,7 @@ export default function StudentCompetitionMockAttemptPage() {
   const wideBoard = NeedsWideQuestionBoard(questions);
   const showSectionLabel = Boolean(sectionTitle);
   const displaySectionNumber = showSectionLabel ? (sectionNumber || 1) : null;
-  const displaySectionTitle = showSectionLabel ? sectionTitle : "Competition Question";
+  const displaySectionTitle = showSectionLabel ? sectionTitle : "Question";
 
   async function handleSelect(questionId: string, selectedOptionId: string) {
     if (!attempt || remainingSeconds <= 0) return;
@@ -185,7 +185,7 @@ export default function StudentCompetitionMockAttemptPage() {
 
   if (query.isLoading || !query.data) {
     return (
-      <AppShell title="Competition Mock Attempt">
+      <AppShell title="Mock Attempt">
         <LoadingState label="Loading mock attempt..." />
       </AppShell>
     );
@@ -193,7 +193,7 @@ export default function StudentCompetitionMockAttemptPage() {
 
   if (query.error) {
     return (
-      <AppShell title="Competition Mock Attempt">
+      <AppShell title="Mock Attempt">
         <ErrorState message={apiErrorMessage(query.error)} />
       </AppShell>
     );
@@ -201,9 +201,9 @@ export default function StudentCompetitionMockAttemptPage() {
 
   if (query.data && !("questions" in query.data)) {
     return (
-      <AppShell title="Competition Mock Attempt">
+      <AppShell title="Mock Attempt">
         <div className="math-card p-6">
-          <div className="math-block-header mb-2"><Trophy size={14} /> Competition Mock</div>
+          <div className="math-block-header mb-2"><Trophy size={14} /> Mock Exam</div>
           <h1 className="text-2xl font-black text-slate-950 dark:text-white">{query.data.message || "Mock attempt closed."}</h1>
           <button className="math-role-action-button mt-5 px-4 py-2.5 text-sm" onClick={() => router.push("/student/competition/mock-exams")}>
             Back To Mock Exams
@@ -215,7 +215,7 @@ export default function StudentCompetitionMockAttemptPage() {
 
   if (!attempt || questions.length === 0 || !currentQuestion) {
     return (
-      <AppShell title="Competition Mock Attempt">
+      <AppShell title="Mock Attempt">
         <LoadingState label="Preparing mock questions..." />
       </AppShell>
     );
@@ -224,7 +224,7 @@ export default function StudentCompetitionMockAttemptPage() {
   const mockExam = (attempt as any).mockExam || {};
 
   return (
-    <AppShell title="Competition Mock Attempt">
+    <AppShell title="Mock Attempt">
       {/* Found 2026-09-02: see the matching comment in
           student/attempt/[attemptId]/page.tsx (the DPS attempt screen this
           layout was originally copied from) -- same bug, same fix. These
@@ -249,7 +249,7 @@ export default function StudentCompetitionMockAttemptPage() {
           <div className="se-test-top relative overflow-hidden px-5 py-4 sm:px-6">
             <div className="relative z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <h1 className="se-test-title se-test-title-lg">
-                {mockExam.title || "Competition Mock"}
+                {mockExam.title || "Mock Exam"}
               </h1>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="se-chip se-chip-accent">

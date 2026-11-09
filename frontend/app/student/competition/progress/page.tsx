@@ -194,7 +194,7 @@ export default function StudentCompetitionProgressPage() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <div className="math-block-header mb-2"><BarChart3 size={14} /> Mock Insights</div>
-                <h2 className="text-xl font-black text-slate-950 dark:text-white">Competition Mock Performance</h2>
+                <h2 className="text-xl font-black text-slate-950 dark:text-white">Mock Performance</h2>
               </div>
             </div>
 

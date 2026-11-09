@@ -6528,7 +6528,7 @@ def admin_list_competition_mock_exams(levelId: str | None = None, db: Session = 
 def admin_get_competition_mock_exam(mock_exam_id: str, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     ExamRecord = db.get(CompetitionMockExam, mock_exam_id)
     if not ExamRecord or not ExamRecord.is_active:
-        api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Competition mock exam was not found.")
+        api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Mock exam was not found.")
     # Manage Mocks' View never opens an Annual Competition paper (2026-11-02).
     EnsureMockPaper(ExamRecord)
     return CompetitionMockExamPayload(db, ExamRecord, IncludeQuestions=True)
@@ -6541,7 +6541,7 @@ def admin_delete_competition_mock_exam(mock_exam_id: str, db: Session = Depends(
     # superseded annual papers.
     EnsureMockPaper(db.get(CompetitionMockExam, mock_exam_id))
     Deleted = DeleteCompetitionMockExam(db, MockExamId=mock_exam_id)
-    return {"ok": True, "message": "Competition mock exam permanently deleted.", "deleted": Deleted}
+    return {"ok": True, "message": "Mock exam permanently deleted.", "deleted": Deleted}
 
 
 @router.patch("/competition/mock-exams/{mock_exam_id}/archive")
@@ -6549,7 +6549,7 @@ def admin_archive_competition_mock_exam(mock_exam_id: str, db: Session = Depends
     # Manage Mocks never archives an Annual Competition paper (2026-11-02).
     EnsureMockPaper(db.get(CompetitionMockExam, mock_exam_id))
     Archived = ArchiveCompetitionMockExam(db, MockExamId=mock_exam_id)
-    return {"ok": True, "message": "Competition mock exam archived.", "mockExam": Archived}
+    return {"ok": True, "message": "Mock exam archived.", "mockExam": Archived}
 
 
 @router.post("/competition/mock-exams/assign")

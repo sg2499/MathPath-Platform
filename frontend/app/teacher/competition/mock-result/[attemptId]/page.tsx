@@ -306,7 +306,7 @@ export default function TeacherCompetitionMockResultPage() {
 
   if (query.isLoading) {
     return (
-      <AppShell title="Competition Mock Result">
+      <AppShell title="Mock Result">
         <LoadingState label="Loading mock result..." />
       </AppShell>
     );
@@ -314,7 +314,7 @@ export default function TeacherCompetitionMockResultPage() {
 
   if (query.error) {
     return (
-      <AppShell title="Competition Mock Result">
+      <AppShell title="Mock Result">
         <ErrorState message={apiErrorMessage(query.error)} />
       </AppShell>
     );
@@ -323,7 +323,7 @@ export default function TeacherCompetitionMockResultPage() {
   const result = query.data;
   if (!result) {
     return (
-      <AppShell title="Competition Mock Result">
+      <AppShell title="Mock Result">
         <LoadingState label="Preparing result summary..." />
       </AppShell>
     );
@@ -349,7 +349,7 @@ export default function TeacherCompetitionMockResultPage() {
   };
 
   return (
-    <AppShell title="Competition Mock Result">
+    <AppShell title="Mock Result">
       <TeacherCompetitionResultDarkHoverStyles />
       <section className="teacher-competition-dark-hover-scope space-y-5">
         <div className="te-back-row">

@@ -95,7 +95,7 @@ def level_section_registry_config(module_code: str, level: Level) -> dict[str, A
         api_error(
             400,
             "ASSESSMENT_SECTION_REGISTRY_NOT_CONFIGURED",
-            f"No competition mock section structure has been defined yet for {module_code} level '{level_code}'. "
+            f"No mock section structure has been defined yet for {module_code} level '{level_code}'. "
             "Section-wise assessments mirror that structure, so it must exist (in "
             "competition_mock_generation_service.py) before an assessment can be built for this level.",
             {"moduleCode": module_code, "levelCode": level_code},

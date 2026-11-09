@@ -444,8 +444,8 @@ def _ImCompetitionLevelConfig(LevelRecord: Level) -> dict[str, Any]:
         api_error(
             400,
             "IM_COMPETITION_LEVEL_NOT_CONFIGURED",
-            f"No competition mock section structure has been defined yet for IM level '{LevelCode}'. "
-            "IM competition mocks are designed level by level — add this level's own sections and "
+            f"No mock section structure has been defined yet for IM level '{LevelCode}'. "
+            "IM mocks are designed level by level — add this level's own sections and "
             "concept pools to IM_COMPETITION_LEVEL_REGISTRY before generating mocks for it.",
             {"levelCode": LevelCode, "configuredLevels": sorted(IM_COMPETITION_LEVEL_REGISTRY.keys())},
         )
@@ -746,7 +746,7 @@ def _MmCompetitionLevelConfig(LevelRecord: Level) -> dict[str, Any]:
         api_error(
             400,
             "MM_COMPETITION_LEVEL_NOT_CONFIGURED",
-            f"No competition mock section structure has been defined yet for MM level '{LevelCode}'. "
+            f"No mock section structure has been defined yet for MM level '{LevelCode}'. "
             "Add this level's own sections, concept pools, and challenge-lesson floors to "
             "MM_COMPETITION_LEVEL_REGISTRY before generating mocks for it.",
             {"levelCode": LevelCode, "configuredLevels": sorted(MM_COMPETITION_LEVEL_REGISTRY.keys())},
@@ -1757,7 +1757,7 @@ def _GenerateMmCompetitionConceptBatch(
         LessonNumber=int(getattr(LessonRecord, "lesson_number", 1) or 1),
         DpsNumber=SectionDefinition["number"],
         DpsTitle=ConceptTitle,
-        LessonTitle=getattr(LessonRecord, "lesson_title", "Competition Mock") or "Competition Mock",
+        LessonTitle=getattr(LessonRecord, "lesson_title", "Mock Exam") or "Mock Exam",
         QuestionCount=max(RequiredCount, 1),
         Seed=Seed,
         ConceptFamily=ConceptFamily,
@@ -1973,7 +1973,7 @@ def _GenerateImCompetitionConceptBatch(
         LessonNumber=int(getattr(LessonRecord, "lesson_number", 1) or 1),
         DpsNumber=SectionDefinition["number"],
         DpsTitle=ConceptTitle,
-        LessonTitle=getattr(LessonRecord, "lesson_title", "Competition Mock") or "Competition Mock",
+        LessonTitle=getattr(LessonRecord, "lesson_title", "Mock Exam") or "Mock Exam",
         QuestionCount=max(RequiredCount, 1),
         Seed=Seed,
         ConceptFamily=ConceptFamily,
@@ -2307,7 +2307,7 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         UniqueSections["GENERAL_COMPETITION_PRACTICE"] = {
             "sectionKey": "GENERAL_COMPETITION_PRACTICE",
             "sectionNumber": 1,
-            "sectionTitle": "Competition Practice",
+            "sectionTitle": "Mock Practice",
             "questionCount": RequestedQuestionCount,
             "locked": False,
         }
@@ -2392,9 +2392,9 @@ def _ValidatedMockSectionPlan(
         api_error(400, "MOCK_NEEDS_A_SECTION", "Keep at least one section in the mock.")
     QuestionTotal = sum(Counts.values())
     if QuestionTotal < 10:
-        api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams must contain at least 10 questions.")
+        api_error(400, "INVALID_QUESTION_COUNT", "Mock exams must contain at least 10 questions.")
     if QuestionTotal > 100:
-        api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams cannot exceed 100 questions.")
+        api_error(400, "INVALID_QUESTION_COUNT", "Mock exams cannot exceed 100 questions.")
     MarksTotal = sum(Counts[Key] * Marks[Key] for Key in Counts)
     if MarksTotal != MarksTarget:
         Gap = MarksTotal - MarksTarget
@@ -2775,7 +2775,7 @@ def _QuestionConceptKey(Question: dict[str, Any], FallbackTitle: str) -> str:
         or _NormalizeText(Metadata.get("section_title"))
         or _NormalizeText(Metadata.get("conceptFamily"))
         or _NormalizeText(FallbackTitle)
-        or "Competition Practice"
+        or "Mock Practice"
     )
 
 
@@ -2840,7 +2840,7 @@ def _ActiveSectionsByDps(db: Session, DpsRows: list[DPS]) -> dict[str, list[DPSS
 def _CompetitionInstructions(ModuleRecord: Module, LevelRecord: Level, TotalQuestions: int, DurationSeconds: int, SectionCoverage: list[dict[str, Any]] | None = None) -> str:
     Minutes = max(1, round(DurationSeconds / 60))
     Base = (
-        f"Competition-style mock practice for {ModuleRecord.module_name} / {LevelRecord.level_name}. "
+        f"Mock practice for {ModuleRecord.module_name} / {LevelRecord.level_name}. "
         f"Answer all {TotalQuestions} questions within {Minutes} minutes. "
         "Focus on speed, accuracy, time management, and calm exam temperament."
     )
@@ -3039,7 +3039,7 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, LevelRecord: L
         api_error(
             400,
             "COMPETITION_GENERATION_EMPTY",
-            "No competition mock questions could be generated for this level.",
+            "No mock questions could be generated for this level.",
             {"generationErrors": GenerationErrors},
         )
 
@@ -3062,7 +3062,7 @@ def _CollectGeneratedQuestions(db: Session, ModuleRecord: Module, LevelRecord: L
             break
 
     if not Selected:
-        api_error(400, "COMPETITION_GENERATION_EMPTY", "No competition mock questions were selected.")
+        api_error(400, "COMPETITION_GENERATION_EMPTY", "No mock questions were selected.")
 
     CoveragePayload = {
         "targetQuestionCount": TargetQuestionCount,
@@ -3322,7 +3322,7 @@ def GenerateCompetitionMockDraft(
     else:
         RequestedQuestionCount = int(TotalQuestions or sum(SectionCountsOverride.values()) or DefaultQuestionCount)
     if RequestedQuestionCount < 10:
-        api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams must contain at least 10 questions.")
+        api_error(400, "INVALID_QUESTION_COUNT", "Mock exams must contain at least 10 questions.")
     # 100, not 300: every question is worth at least 1 mark, and a mock's
     # total marks are capped at 100 (10-100, admin-chosen) whether or not
     # the level has a weighted section -- so 100 questions is the most any
@@ -3331,11 +3331,11 @@ def GenerateCompetitionMockDraft(
     # catches a flat level's raw TotalQuestions/SectionCountsOverride too,
     # which never goes through MarksTargetClamped at all.
     if RequestedQuestionCount > 100:
-        api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams cannot exceed 100 questions (100 marks) in this package.")
+        api_error(400, "INVALID_QUESTION_COUNT", "Mock exams cannot exceed 100 questions (100 marks) in this package.")
 
     RequestedDurationSeconds = int(DurationSeconds or DefaultDurationSeconds)
     if RequestedDurationSeconds < 300:
-        api_error(400, "INVALID_DURATION", "Competition mock duration must be at least 5 minutes.")
+        api_error(400, "INVALID_DURATION", "Mock duration must be at least 5 minutes.")
 
     # RequestedQuestionCount is already the right target at this point --
     # the admin's own TotalQuestions when they set one, else the sum of
@@ -3402,7 +3402,7 @@ def GenerateCompetitionMockDraft(
         QuestionMarksByPosition = _ResolveCompetitionMockQuestionMarks(SelectedQuestions)
     DisplayMockCode = _NormalizeMockCodeInput(MockCode) or _BuildMockCode(ModuleRecord.module_code, LevelRecord.level_code)
     _EnsureUniqueMockCode(db, LevelId=LevelRecord.id, MockCode=DisplayMockCode)
-    MockTitle = Title or f"{LevelRecord.level_code} Competition Mock Practice {datetime.now(timezone.utc).strftime('%d %b %Y %H:%M')}"
+    MockTitle = Title or f"{LevelRecord.level_code} Mock Practice {datetime.now(timezone.utc).strftime('%d %b %Y %H:%M')}"
 
     ExamRecord = CompetitionMockExam(
         title=MockTitle,
@@ -3500,7 +3500,7 @@ def GenerateCompetitionMockDraft(
 def DeleteCompetitionMockExam(db: Session, *, MockExamId: str) -> dict[str, Any]:
     ExamRecord = db.get(CompetitionMockExam, MockExamId)
     if not ExamRecord:
-        api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Competition mock exam was not found.")
+        api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Mock exam was not found.")
 
     # 2026-09 Annual Competition immutability guard: this exam may be a
     # level's *official, frozen* Annual Competition paper (linked via
@@ -3570,7 +3570,7 @@ def DeleteCompetitionMockExam(db: Session, *, MockExamId: str) -> dict[str, Any]
 def ArchiveCompetitionMockExam(db: Session, *, MockExamId: str) -> dict[str, Any]:
     ExamRecord = db.get(CompetitionMockExam, MockExamId)
     if not ExamRecord or not ExamRecord.is_active:
-        api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Competition mock exam was not found.")
+        api_error(404, "COMPETITION_MOCK_NOT_FOUND", "Mock exam was not found.")
 
     ExamRecord.status = "ARCHIVED"
     ExamRecord.archived_at = datetime.now(timezone.utc)

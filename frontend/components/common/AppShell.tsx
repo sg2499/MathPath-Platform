@@ -587,21 +587,21 @@ export function AppShell({
     {
       label: "Competition",
       icon: Target,
-      tooltip: "Manage competition mock practice",
+      tooltip: "Mocks and the Annual Competition",
       children: [
         {
-          label: "Competition Mock Studio",
+          label: "Mock Studio",
           shortLabel: "Mock Studio",
           href: "/admin/competition/mock-studio",
           icon: PackageOpen,
-          tooltip: "Create and publish competition mock exams",
+          tooltip: "Create and publish mock exams",
         },
         {
-          label: "Competition Mock Tracker",
+          label: "Mock Tracker",
           shortLabel: "Mock Tracker",
           href: "/admin/competition/mock-tracker",
           icon: ClipboardList,
-          tooltip: "Track competition mock performance",
+          tooltip: "Track mock performance",
         },
         {
           label: "Mock Performance Insights",
@@ -789,10 +789,10 @@ export function AppShell({
     {
       label: "Competition",
       icon: Trophy,
-      tooltip: "Track competition mock performance",
+      tooltip: "Mocks and the Annual Competition",
       children: [
         {
-          label: "Competition Mock Tracker",
+          label: "Mock Tracker",
           shortLabel: "Mock Tracker",
           href: "/teacher/competition/mock-tracker",
           icon: ClipboardList,
@@ -829,7 +829,7 @@ export function AppShell({
           label: "Mock Leaderboard",
           href: "/teacher/leaderboard/mock",
           icon: Trophy,
-          tooltip: "See how your students rank on competition mock exams",
+          tooltip: "See how your students rank on mock exams",
         },
       ],
     },
@@ -883,7 +883,7 @@ export function AppShell({
     {
       label: "Competition",
       icon: Target,
-      tooltip: "Open competition mock practice",
+      tooltip: "Mocks and the Annual Competition",
       children: [
         {
           label: "Annual Competition",
@@ -896,7 +896,7 @@ export function AppShell({
           label: "Mock Exams",
           href: "/student/competition/mock-exams",
           icon: ClipboardPlus,
-          tooltip: "Attempt assigned competition mocks",
+          tooltip: "Attempt assigned mocks",
         },
         {
           label: "Mock Performance Insights",
@@ -910,7 +910,7 @@ export function AppShell({
           shortLabel: "Leaderboard",
           href: "/student/competition/leaderboard",
           icon: Trophy,
-          tooltip: "View competition mock rankings",
+          tooltip: "View mock rankings",
         },
       ],
     },
