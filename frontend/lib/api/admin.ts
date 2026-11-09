@@ -1443,6 +1443,12 @@ export type CompetitionMockSectionPlanItem = {
   // competition_mock_generation_service.py).
   isWeighted?: boolean;
   marksPerQuestion?: number;
+  // 2026-11-09: whole marks each question in this section starts at (5 for
+  // Skill Stacker / Concept Drill, 1 otherwise) and whether the starting
+  // layout includes it (a very small Total Marks can start a 5-mark
+  // section left out).
+  defaultMarksPerQuestion?: number;
+  included?: boolean;
 };
 
 export type CompetitionMockSectionPlan = {
@@ -1470,6 +1476,9 @@ export type GenerateCompetitionMockPayload = {
   competitionScope?: string;
   difficultyBand?: string;
   sectionCounts?: Record<string, number>;
+  // 2026-11-09: every section with its questions (0 = left out) and whole
+  // marks per question; must add up exactly to totalMarks.
+  sectionPlan?: { sectionKey: string; questionCount: number; marksPerQuestion: number }[];
 };
 
 export type CompetitionMockAssignment = {

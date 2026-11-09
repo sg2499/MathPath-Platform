@@ -173,6 +173,14 @@ admin_dep = require_roles("SUPER_ADMIN", "ADMIN")
 
 
 
+class CompetitionMockSectionPlanRow(BaseModel):
+    sectionKey: str
+    # Kept loose so the service gives the admin a clear message for a
+    # fraction or a negative number instead of a generic validation error.
+    questionCount: float | int | str
+    marksPerQuestion: float | int | str
+
+
 class CompetitionMockGenerateRequest(BaseModel):
     levelId: str
     title: str | None = None
@@ -187,6 +195,10 @@ class CompetitionMockGenerateRequest(BaseModel):
     competitionScope: str | None = "GENERAL"
     difficultyBand: str | None = "COMPETITION"
     sectionCounts: dict[str, int] | None = None
+    # 2026-11-09: the Mock Studio's full section table -- every section with
+    # its questions (0 = left out) and whole marks per question. When sent,
+    # the paper must add up exactly to totalMarks.
+    sectionPlan: list[CompetitionMockSectionPlanRow] | None = None
 
 
 class CompetitionMockAssignRequest(BaseModel):
@@ -6503,6 +6515,7 @@ def admin_generate_competition_mock_draft(payload: CompetitionMockGenerateReques
         CompetitionScope=payload.competitionScope or "GENERAL",
         DifficultyBand=payload.difficultyBand or "COMPETITION",
         SectionCounts=payload.sectionCounts,
+        SectionPlan=[row.model_dump() for row in payload.sectionPlan] if payload.sectionPlan is not None else None,
     )
 
 

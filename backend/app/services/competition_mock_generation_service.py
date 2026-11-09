@@ -1415,6 +1415,68 @@ def _BalanceCompetitionMockSectionCounts(
     return Result
 
 
+def _DefaultSectionMarks(SectionDefinitions: list[dict[str, Any]], SectionConceptPools: dict[str, list[dict[str, Any]]]) -> dict[str, int]:
+    """Starting marks per question for each section (2026-11-09, Shailesh:
+    "just as we gave the freedom for section marking ... for the
+    assessment workflow lets do the same thing for the mock workflow"):
+    5 for a Skill Stacker / Concept Drill section, 1 otherwise. The admin
+    can change any of them in the Mock Studio."""
+    WeightedKeys = _CompetitionMockWeightedSectionKeys(SectionConceptPools)
+    return {
+        Section["key"]: int(_COMPETITION_CONCEPT_WEIGHTED_MARKS) if Section["key"] in WeightedKeys else int(DEFAULT_COMPETITION_MARKS_PER_QUESTION)
+        for Section in SectionDefinitions
+    }
+
+
+def _DefaultMockSectionLayout(SectionDefinitions: list[dict[str, Any]], MarksBySection: dict[str, int], MarksTarget: int) -> dict[str, int]:
+    """Starting question counts for a new mock (2026-11-09, Shailesh: "fix
+    all the problems" -- the old default gave IM-L1/L2 17 Skill Stacker
+    questions = 85 of 100 marks and PM-L2 0 questions in both Add/Less
+    sections). Now:
+      - every section is in;
+      - each section above 1 mark starts at 2 questions (1 when Total
+        Marks is under 50), so it never swallows the paper;
+      - the 1-mark sections share whatever marks are left as evenly as
+        possible (at least 1 question each);
+      - a level with only 1-mark sections shares Total Marks evenly.
+    A mock needs at least 10 questions, so when Total Marks is too small
+    to keep a higher-mark section in and still reach 10 questions (e.g. a
+    10-mark mock), those sections start left out (0) and the 1-mark
+    sections share the marks; the admin can switch them back on. If a very
+    small Total Marks still cannot hold every section, the counts stay at
+    least 1 each and the studio shows the gap to fix."""
+    Keys = [Section["key"] for Section in SectionDefinitions]
+    Target = max(0, int(MarksTarget))
+    HighKeys = [Key for Key in Keys if MarksBySection.get(Key, 1) > 1]
+    FlatKeys = [Key for Key in Keys if MarksBySection.get(Key, 1) <= 1]
+    Counts: dict[str, int] = {}
+    if not FlatKeys:
+        # Only higher-mark sections: share Total Marks across them.
+        Remaining = Target
+        for Index, Key in enumerate(HighKeys):
+            Left = len(HighKeys) - Index
+            Share = max(1, round(Remaining / Left / MarksBySection[Key]))
+            Counts[Key] = Share
+            Remaining -= Share * MarksBySection[Key]
+        return Counts
+    PerHigh = 2 if Target >= 50 else 1
+    HighMarks = sum(PerHigh * MarksBySection[Key] for Key in HighKeys)
+    if HighKeys and Target - HighMarks < len(FlatKeys) and PerHigh > 1:
+        PerHigh = 1
+        HighMarks = sum(MarksBySection[Key] for Key in HighKeys)
+    if HighKeys and (Target - HighMarks) + PerHigh * len(HighKeys) < 10:
+        PerHigh = 0
+        HighMarks = 0
+    for Key in HighKeys:
+        Counts[Key] = PerHigh
+    Left = max(0, Target - HighMarks)
+    Base = Left // len(FlatKeys)
+    Extra = Left % len(FlatKeys)
+    for Index, Key in enumerate(FlatKeys):
+        Counts[Key] = max(1, Base + (1 if Index < Extra else 0))
+    return {Key: Counts[Key] for Key in Keys}
+
+
 def _CompetitionMockSectionPlanSections(
     SectionDefinitions: list[dict[str, Any]],
     SectionConceptPools: dict[str, list[dict[str, Any]]],
@@ -1437,38 +1499,28 @@ def _CompetitionMockSectionPlanSections(
     path since RequestedQuestionCount already carries that number there.
     """
     WeightedKeys = _CompetitionMockWeightedSectionKeys(SectionConceptPools)
-    BalancedCounts = _BalanceCompetitionMockSectionCounts(SectionDefinitions, SectionConceptPools, None, DefaultTotal, MarksTarget)
-    if BalancedCounts is not None:
-        Sections = [
-            {
-                "sectionKey": Section["key"],
-                "sectionNumber": Section["number"],
-                "sectionTitle": Section["title"],
-                "questionCount": BalancedCounts.get(Section["key"], 0),
-                "locked": True,
-                "isWeighted": Section["key"] in WeightedKeys,
-                "marksPerQuestion": _COMPETITION_CONCEPT_WEIGHTED_MARKS if Section["key"] in WeightedKeys else float(DEFAULT_COMPETITION_MARKS_PER_QUESTION),
-            }
-            for Section in SectionDefinitions
-        ]
-        return Sections, sum(BalancedCounts.values())
-
-    RequestedQuestionCount = max(1, int(RequestedQuestionCount or DefaultTotal))
-    Base = RequestedQuestionCount // len(SectionDefinitions)
-    Remainder = RequestedQuestionCount % len(SectionDefinitions)
+    # 2026-11-09: the plan now carries each section's starting marks and the
+    # fixed starting layout (see _DefaultMockSectionLayout). Total Marks is
+    # the target for every level: on a level with only 1-mark sections the
+    # Mock Studio sends its Total Marks box as TotalQuestions (one mark each).
+    DefaultMarks = _DefaultSectionMarks(SectionDefinitions, SectionConceptPools)
+    LayoutTarget = MarksTarget if WeightedKeys else max(1, int(RequestedQuestionCount or DefaultTotal))
+    Layout = _DefaultMockSectionLayout(SectionDefinitions, DefaultMarks, LayoutTarget)
     Sections = [
         {
             "sectionKey": Section["key"],
             "sectionNumber": Section["number"],
             "sectionTitle": Section["title"],
-            "questionCount": Base + (1 if Index < Remainder else 0),
+            "questionCount": Layout.get(Section["key"], 0),
             "locked": True,
-            "isWeighted": False,
-            "marksPerQuestion": float(DEFAULT_COMPETITION_MARKS_PER_QUESTION),
+            "isWeighted": Section["key"] in WeightedKeys,
+            "marksPerQuestion": float(DefaultMarks[Section["key"]]),
+            "defaultMarksPerQuestion": DefaultMarks[Section["key"]],
+            "included": Layout.get(Section["key"], 0) > 0,
         }
-        for Index, Section in enumerate(SectionDefinitions)
+        for Section in SectionDefinitions
     ]
-    return Sections, RequestedQuestionCount
+    return Sections, sum(Layout.values())
 
 
 def _CompetitionMockLevelSectionConfig(ModuleRecord: Module, LevelRecord: Level) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]]] | None:
@@ -2275,6 +2327,84 @@ def CompetitionMockSectionPlan(db: Session, *, LevelId: str, TotalQuestions: int
         "structure": "LEVEL_SECTION_COMPETITION_MOCK",
         "sections": Sections,
     }
+
+
+def _TitleWithShownNumber(Title: Any, ShownNumber: Any) -> Any:
+    """'Section 3 - Add/Less' shown as section 2 -> 'Section 2 - Add/Less'."""
+    try:
+        Number = int(ShownNumber)
+    except Exception:
+        return Title
+    Match = re.match(r"^\s*Section\s+(\d+)\s*-\s*(.+)$", str(Title or ""))
+    if Match and int(Match.group(1)) != Number:
+        return f"Section {Number} - {Match.group(2).strip()}"
+    return Title
+
+
+def _WholeNumber(Raw: Any) -> int | None:
+    """3, 3.0 and "3" -> 3; fractions, booleans and text -> None."""
+    if isinstance(Raw, bool) or Raw is None:
+        return None
+    try:
+        Value = Decimal(str(Raw).strip())
+    except Exception:
+        return None
+    if not Value.is_finite() or Value != Value.to_integral_value():
+        return None
+    return int(Value)
+
+
+def _ValidatedMockSectionPlan(
+    SectionDefinitions: list[dict[str, Any]],
+    SectionPlan: list[dict[str, Any]],
+    MarksTarget: int,
+) -> tuple[dict[str, int], dict[str, int]]:
+    """The Mock Studio's section table (2026-11-09, Shailesh: per-section
+    marks for mocks, same freedom as assessments). Returns (counts, marks)
+    for every section of the level. Rules:
+      - every section of the level is listed exactly once; a section left
+        out has 0 questions;
+      - marks per question are whole numbers from 1 to 100;
+      - at least one section is in;
+      - questions x marks over the included sections equal Total Marks
+        exactly; the mock has 10-100 questions."""
+    Known = {Section["key"]: Section for Section in SectionDefinitions}
+    Counts: dict[str, int] = {}
+    Marks: dict[str, int] = {}
+    for Row in SectionPlan or []:
+        Key = _NormalizeText((Row or {}).get("sectionKey"))
+        if Key not in Known:
+            api_error(400, "UNKNOWN_MOCK_SECTION", f"Section '{Key or '?'}' is not part of this level. Reload the page and try again.")
+        if Key in Counts:
+            api_error(400, "DUPLICATE_MOCK_SECTION", f"Section '{Known[Key]['title']}' is listed twice.")
+        Count = _WholeNumber(Row.get("questionCount"))
+        if Count is None or Count < 0:
+            api_error(400, "INVALID_QUESTION_COUNT", f"Questions for '{Known[Key]['title']}' must be a whole number, 0 or more. Use 0 to leave the section out.")
+        MarksEach = _WholeNumber(Row.get("marksPerQuestion"))
+        if MarksEach is None or MarksEach < 1 or MarksEach > 100:
+            api_error(400, "INVALID_SECTION_MARKS", f"Marks for each question in '{Known[Key]['title']}' must be a whole number from 1 to 100.")
+        Counts[Key] = Count
+        Marks[Key] = MarksEach
+    Missing = [Section["title"] for Section in SectionDefinitions if Section["key"] not in Counts]
+    if Missing:
+        api_error(400, "FULL_SECTION_COVERAGE_REQUIRED", f"Every section must be listed. Missing: {', '.join(Missing)}. To leave one out, set its questions to 0.")
+    if not any(Count > 0 for Count in Counts.values()):
+        api_error(400, "MOCK_NEEDS_A_SECTION", "Keep at least one section in the mock.")
+    QuestionTotal = sum(Counts.values())
+    if QuestionTotal < 10:
+        api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams must contain at least 10 questions.")
+    if QuestionTotal > 100:
+        api_error(400, "INVALID_QUESTION_COUNT", "Competition mock exams cannot exceed 100 questions.")
+    MarksTotal = sum(Counts[Key] * Marks[Key] for Key in Counts)
+    if MarksTotal != MarksTarget:
+        Gap = MarksTotal - MarksTarget
+        api_error(
+            400,
+            "COMPETITION_MOCK_MARKS_INVALID",
+            f"The sections add up to {MarksTotal} marks, {abs(Gap)} {'over' if Gap > 0 else 'short of'} the Total Marks of {MarksTarget}. "
+            "Change a section's questions or marks each so they add up exactly.",
+        )
+    return Counts, Marks
 
 
 def _NormalizeSectionCounts(SectionCounts: dict[str, Any] | None) -> dict[str, int]:
@@ -3121,6 +3251,7 @@ def GenerateCompetitionMockDraft(
     CompetitionScope: str = "GENERAL",
     DifficultyBand: str = "COMPETITION",
     SectionCounts: dict[str, Any] | None = None,
+    SectionPlan: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     # Admin-chosen total marks, 10-100 inclusive, default 100 -- see
     # CompetitionMockSectionPlan's MarksTargetClamped for the same clamp,
@@ -3167,7 +3298,20 @@ def GenerateCompetitionMockDraft(
     # only matters on the weighted path.
     LevelSectionConfig = _CompetitionMockLevelSectionConfig(ModuleRecord, LevelRecord)
     BalancedSectionCounts = None
-    if LevelSectionConfig is not None:
+    # 2026-11-09: the Mock Studio now sends its full section table -- each
+    # section's questions (0 = left out) and whole marks per question --
+    # and the paper must add up exactly to Total Marks. When it does, that
+    # table is the whole plan: no floating sections, no rebalancing.
+    SectionMarksSetting: dict[str, int] | None = None
+    if SectionPlan is not None:
+        if LevelSectionConfig is None:
+            api_error(400, "MOCK_SECTIONS_UNAVAILABLE", "This level has no mock section design yet.")
+        if TotalMarks is None or not (10 <= int(TotalMarks) <= 100):
+            api_error(400, "INVALID_TOTAL_MARKS", "Total Marks must be a whole number from 10 to 100.")
+        MarksTargetClamped = int(TotalMarks)
+        PlanCounts, SectionMarksSetting = _ValidatedMockSectionPlan(LevelSectionConfig[0], SectionPlan, MarksTargetClamped)
+        BalancedSectionCounts = {Key: Count for Key, Count in PlanCounts.items() if Count > 0}
+    elif LevelSectionConfig is not None:
         SectionDefinitionsForBalance, SectionConceptPoolsForBalance = LevelSectionConfig
         BalancedSectionCounts = _BalanceCompetitionMockSectionCounts(
             SectionDefinitionsForBalance, SectionConceptPoolsForBalance, SectionCountsOverride, DefaultQuestionCount, MarksTargetClamped,
@@ -3226,7 +3370,36 @@ def GenerateCompetitionMockDraft(
             "allocation sent to the server doesn't match this level's real section keys — "
             "please reload the page and try again, or report this if it persists.",
         )
-    QuestionMarksByPosition = _ResolveCompetitionMockQuestionMarks(SelectedQuestions)
+    for CoverageSection in CoveragePayload.get("sections") or []:
+        if isinstance(CoverageSection, dict) and CoverageSection.get("sectionNumber") is not None:
+            CoverageSection["sectionTitle"] = _TitleWithShownNumber(CoverageSection.get("sectionTitle"), CoverageSection.get("sectionNumber"))
+    if SectionMarksSetting is not None:
+        # Each question is worth its section's marks; the paper must come
+        # out exactly as planned, section by section, or nothing is saved.
+        QuestionMarksByPosition = []
+        GeneratedBySection: dict[str, int] = {}
+        for Question in SelectedQuestions:
+            Metadata = Question.get("metadata") if isinstance(Question.get("metadata"), dict) else {}
+            Key = _NormalizeText(Metadata.get("competitionSectionKey"))
+            if Key not in SectionMarksSetting:
+                api_error(500, "MOCK_QUESTION_SECTION_UNKNOWN", "A generated question did not come from a known section. Please try again.")
+            GeneratedBySection[Key] = GeneratedBySection.get(Key, 0) + 1
+            QuestionMarksByPosition.append(float(SectionMarksSetting[Key]))
+        Short = [
+            f"{Section['title']} ({GeneratedBySection.get(Section['key'], 0)} of {BalancedSectionCounts[Section['key']]})"
+            for Section in LevelSectionConfig[0]
+            if GeneratedBySection.get(Section["key"], 0) != BalancedSectionCounts.get(Section["key"], 0)
+        ]
+        if Short:
+            api_error(
+                400,
+                "MOCK_SECTION_SHORT",
+                "Not enough different questions could be made for: " + "; ".join(Short) + ". Lower that section's questions and raise its marks or another section's.",
+            )
+        if abs(sum(QuestionMarksByPosition) - MarksTargetClamped) > 1e-9:
+            api_error(500, "COMPETITION_MOCK_MARKS_INVALID", "The generated paper did not add up to Total Marks. Please try again.")
+    else:
+        QuestionMarksByPosition = _ResolveCompetitionMockQuestionMarks(SelectedQuestions)
     DisplayMockCode = _NormalizeMockCodeInput(MockCode) or _BuildMockCode(ModuleRecord.module_code, LevelRecord.level_code)
     _EnsureUniqueMockCode(db, LevelId=LevelRecord.id, MockCode=DisplayMockCode)
     MockTitle = Title or f"{LevelRecord.level_code} Competition Mock Practice {datetime.now(timezone.utc).strftime('%d %b %Y %H:%M')}"
@@ -3240,7 +3413,9 @@ def GenerateCompetitionMockDraft(
         difficulty_band=DifficultyBand or "COMPETITION",
         total_questions=ActualQuestionCount,
         total_marks=sum(QuestionMarksByPosition),
-        marks_per_question=DEFAULT_COMPETITION_MARKS_PER_QUESTION,
+        # One value when every question is worth the same; otherwise the
+        # marks live on each question (set per section).
+        marks_per_question=QuestionMarksByPosition[0] if len(set(QuestionMarksByPosition)) == 1 else DEFAULT_COMPETITION_MARKS_PER_QUESTION,
         duration_seconds=RequestedDurationSeconds,
         status="DRAFT",
         instructions=_CompetitionInstructions(ModuleRecord, LevelRecord, ActualQuestionCount, RequestedDurationSeconds, CoveragePayload.get("sections")),
@@ -3252,6 +3427,8 @@ def GenerateCompetitionMockDraft(
             "source": "LEVEL_DPS_GENERATORS",
             "competitionStructure": CoveragePayload.get("competitionStructure", "BALANCED_CONCEPT_ROTATION"),
             "sectionCounts": SectionCountsOverride,
+            "sectionMarks": SectionMarksSetting,
+            "marksMode": "SECTION_SET" if SectionMarksSetting is not None else "CONCEPT_RULE",
             "freshnessWindowMockCount": CoveragePayload.get("freshnessWindowMockCount"),
             "recentBlockedSignatureCount": CoveragePayload.get("recentBlockedSignatureCount"),
         }),
@@ -3279,6 +3456,11 @@ def GenerateCompetitionMockDraft(
                 ConceptSectionNumbers[ConceptKey] = len(ConceptSectionNumbers) + 1
             SectionNumber = ConceptSectionNumbers[ConceptKey]
             SectionTitle = ConceptKey
+        # 2026-11-09: a title that carries its own number ("Section 3 -
+        # Add/Less") must show the number students actually see. YLM/PM/BM
+        # renumbered sections after one was left out but kept the old
+        # number in the title.
+        SectionTitle = _TitleWithShownNumber(SectionTitle, SectionNumber)
         QuestionMetadata = dict(Metadata)
         QuestionMetadata.update({
             "competitionSectionNumber": SectionNumber,

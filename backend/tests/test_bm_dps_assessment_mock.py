@@ -691,7 +691,10 @@ def test_bm_section_plan_returns_real_registry_keys_not_generic_dps_fallback(db,
         "BM_ADD_LESS_ABACUS", "BM_ADD_LESS_VISUAL", "BM_MULTIPLICATION",
         "BM_DIVISION", "BM_BODMAS", "BM_CONCEPT_DRILL",
     }
-    assert sum(row["questionCount"] for row in plan["sections"]) == 60
+    # 2026-11-09: new starting layout -- 2 Concept Drill questions (10
+    # marks), the five 1-mark sections share the other 90 (18 each).
+    assert sum(row["questionCount"] for row in plan["sections"]) == 92
+    assert sum(row["questionCount"] * row["defaultMarksPerQuestion"] for row in plan["sections"]) == 100
     for row in plan["sections"]:
         assert row["locked"] is True
 
@@ -722,11 +725,13 @@ def test_bm_generate_draft_mock_using_section_plan_keys_produces_real_questions(
         TotalQuestions=60,
         SectionCounts=section_counts,
     )
-    assert result["totalQuestions"] == 60
+    # 2026-11-09: the plan's starting layout is 92 questions / 100 marks.
+    assert result["totalQuestions"] == 92
+    assert result["totalMarks"] == 100
     persisted = db.query(CompetitionMockQuestion).filter(
         CompetitionMockQuestion.mock_exam_id == result["mockExamId"]
     ).count()
-    assert persisted == 60
+    assert persisted == 92
 
 
 def test_bm_generate_draft_mock_rejects_mismatched_section_keys_instead_of_silently_saving_empty(db, bm_l1_level):
