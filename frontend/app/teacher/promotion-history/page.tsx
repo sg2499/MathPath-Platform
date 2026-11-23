@@ -454,8 +454,13 @@ export default function TeacherPromotionHistoryPage() {
           <ErrorState message={apiErrorMessage(PromotionHistoryQuery.error)} />
         ) : FilteredPromotionItems.length ? (
           <PromotionHistoryTable Items={FilteredPromotionItems} />
-        ) : (
+        ) : PromotionItems.length ? (
           <EmptyState message="No promotion history records match the selected filters." />
+        ) : (
+          <EmptyState
+            title="No Promotions Yet"
+            message="A student appears here once the admin promotes them to the next level after they clear their level assessment."
+          />
         )}
       </section>
     </AppShell>

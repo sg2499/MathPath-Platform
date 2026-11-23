@@ -496,8 +496,13 @@ function TeacherProgressReportsPageContent() {
             DownloadingId={DownloadingId}
             OnDownload={(Item) => DownloadMutation.mutate(Item)}
           />
-        ) : (
+        ) : Items.length ? (
           <EmptyState message="No published progress reports match the selected filters." />
+        ) : (
+          <EmptyState
+            title="No Progress Reports Yet"
+            message="A student's progress report appears here once the admin publishes it to you."
+          />
         )}
       </section>
     </AppShell>

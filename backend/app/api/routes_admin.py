@@ -6003,6 +6003,18 @@ def publish_parent_report_to_teacher(delivery_id: str, db: Session = Depends(get
     if not ResolveStudentTeacher(db, StudentValue):
         api_error(400, "STUDENT_HAS_NO_TEACHER", "This student does not have an assigned teacher to publish the report to.")
 
+    # 2026-11 (Shailesh): Publish is now offered right on the Generate row as
+    # well as in the Report Log, so a second press (two tabs, a double click)
+    # must not notify the teacher twice or move the published date.
+    if ExistingLog.published_to_teacher_at:
+        return {
+            "published": True,
+            "alreadyPublished": True,
+            "deliveryId": ExistingLog.id,
+            "publishedToTeacherAt": ExistingLog.published_to_teacher_at.isoformat(),
+            "message": "This report is already published to the student's teacher.",
+        }
+
     ExistingLog.status = "PUBLISHED"
     ExistingLog.published_to_teacher_at = datetime.now(datetime_timezone.utc)
     ExistingLog.published_by_user_id = user.id
