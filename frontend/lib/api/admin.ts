@@ -331,6 +331,19 @@ export async function getAdminStudents(): Promise<AdminStudent[]> {
   return data.students;
 }
 
+export type NextStudentCodes = {
+  number: number;
+  year: number;
+  studentCode: string;
+  customId: string;
+};
+
+/** The Student Code and Custom ID the next new student gets. */
+export async function getNextStudentCodes(): Promise<NextStudentCodes> {
+  const { data } = await api.get("/admin/students/next-codes");
+  return data;
+}
+
 export async function createStudentProfile(payload: StudentProfilePayload): Promise<{
   created: boolean;
   message: string;
