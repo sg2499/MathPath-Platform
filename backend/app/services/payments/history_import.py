@@ -304,12 +304,10 @@ def MatchStudents(db: Session, Data: OldData) -> tuple[dict[str, Student], list[
 
 
 def _NextStudentNumber(db: Session) -> int:
-    Highest = 0
-    for (Code,) in db.query(Student.student_code).all():
-        Found = re.match(r"^MP-ST-(\d+)$", Code or "")
-        if Found:
-            Highest = max(Highest, int(Found.group(1)))
-    return Highest + 1
+    # One numbering rule for every new student: app/services/student_codes.py.
+    from app.services.student_codes import NextStudentNumber
+
+    return NextStudentNumber(db)
 
 
 def _Teacher(db: Session, Name: str | None) -> Teacher | None:

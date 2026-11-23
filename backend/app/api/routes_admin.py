@@ -14,6 +14,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Re
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.rounding import round_half_up
@@ -76,6 +77,7 @@ from app.services.assessment_notification_service import NotifyAssessmentReattem
 from app.services.practice_notification_service import NotifyBulkFreshPracticeAssigned, NotifyPracticeFreshPracticeAssigned
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
 from app.services.dps_chain_state_service import BuildDpsChainIndex, HealExpiredPracticeAttempts
+from app.services.student_codes import CheckChangedStudentCodes, CheckNewStudentCodes, NextStudentCodes, NextStudentNumber, StudentCodeFor, CustomIdFor, StudentCodeYear
 from app.services.demo_students import DemoStudentIds, IsDemoStudent, IsDemoStudentId, RealStudents, WithoutDemo, WithoutDemoColumn
 from app.services.request_cache import RequestCache, AttemptsForAssignment, AttemptsForAssignmentStudentInOrder, EnableRequestCache, LatestAttemptForAssignmentStudent, LevelDpsCount, OpenReattemptPermission, PinRows, PrimeAssignmentAttempts, PrimeOpenReattemptPermissions
 from app.services.assessment_feedback_service import upsert_assessment_remark, delete_assessment_remark, assessment_feedback_payload, active_assessment_remark
@@ -1352,6 +1354,13 @@ def list_students(db: Session = Depends(get_db), user: User = Depends(admin_dep)
     return {"students": [student_payload(db, student) for student in rows]}
 
 
+@router.get("/students/next-codes")
+def next_student_codes_route(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    """The Student Code and Custom ID the next new student gets (see
+    app/services/student_codes.py)."""
+    return NextStudentCodes(db)
+
+
 @router.post("/students")
 def create_student_route(payload: StudentCreateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     custom_id = required_text(payload.customId, "Custom ID")
@@ -1384,6 +1393,7 @@ def create_student_route(payload: StudentCreateRequest, db: Session = Depends(ge
         module_code=payload.moduleCode,
         level_code=payload.levelCode,
     )
+    CheckNewStudentCodes(db, student_code, custom_id)
     ensure_unique_student(db, custom_id=custom_id, student_code=student_code)
 
     student_user = User(
@@ -1400,7 +1410,18 @@ def create_student_route(payload: StudentCreateRequest, db: Session = Depends(ge
     student = Student(user_id=student_user.id, student_code=student_code, is_active=student_user.is_active)
     apply_student_fields(student, payload, module, level, db)
     db.add(student)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Another admin saved a student with the same codes a moment ago.
+        db.rollback()
+        Next = NextStudentCodes(db)
+        api_error(
+            409,
+            "STUDENT_CODE_TAKEN",
+            f"{student_code} was just taken. The next available codes are {Next['studentCode']} and {Next['customId']}.",
+            {"next": Next},
+        )
     db.refresh(student)
 
     return {
@@ -1427,10 +1448,13 @@ def update_student_route(student_id: str, payload: StudentUpdateRequest, db: Ses
         module_code=payload.moduleCode,
         level_code=payload.levelCode,
     )
+    NewCustomId = clean_text(payload.customId) if payload.customId is not None else student.custom_id
+    NewStudentCode = (clean_text(payload.studentCode) if payload.studentCode is not None else student.student_code) or ""
+    CheckChangedStudentCodes(db, student, NewStudentCode, NewCustomId)
     ensure_unique_student(
         db,
-        custom_id=clean_text(payload.customId) if payload.customId is not None else student.custom_id,
-        student_code=clean_text(payload.studentCode) if payload.studentCode is not None else student.student_code,
+        custom_id=NewCustomId,
+        student_code=NewStudentCode,
         exclude_student_id=student.id,
     )
 
@@ -1750,13 +1774,14 @@ def delete_student_route(
 
 
 @router.get("/students/template")
-def download_students_template(user: User = Depends(admin_dep)):
+def download_students_template(db: Session = Depends(get_db), user: User = Depends(admin_dep)):
     wb = Workbook()
     ws = wb.active
     ws.title = "students"
     ws.append(TEMPLATE_FIELDS)
+    NextCodes = NextStudentCodes(db)
     sample = {
-        "custom_id": "11030100225187",
+        "custom_id": NextCodes["customId"],
         "teacher": "Teacher Name",
         "teacher_code": "T-TEACHER",
         "admission_date": "2026-05-01",
@@ -1775,7 +1800,7 @@ def download_students_template(user: User = Depends(admin_dep)):
         "mother_mobile": "8888888888",
         "mother_email": "mother@example.com",
         "mother_whatsapp": "8888888888",
-        "student_code": "MP-DEMO-1001",
+        "student_code": NextCodes["studentCode"],
         "password": "Choose-A-Strong-Password-1",
         "module_code": "YLM",
         "level_code": "YLM-L1",
@@ -1941,6 +1966,10 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
         return None, None
 
     ValidRowsToInsert = []
+    # New students take the next numbers in order (app/services/student_codes.py):
+    # each accepted row must carry exactly the next Student Code and Custom ID.
+    ExpectedNumber = NextStudentNumber(db)
+    CodeYear = StudentCodeYear()
 
     for ParsedRow in ParsedRows:
         if ParsedRow["is_empty"]:
@@ -1985,6 +2014,14 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
             Password = clean_password(Row.get("password"))
             if not Password or len(Password) < 6:
                 raise ValueError("Password must be at least 6 characters.")
+
+            ExpectedCode, ExpectedCustomId = StudentCodeFor(ExpectedNumber), CustomIdFor(ExpectedNumber, CodeYear)
+            if StudentCode != ExpectedCode or CustomId != ExpectedCustomId:
+                raise ValueError(
+                    f"Codes must follow the series: this row should be student_code {ExpectedCode} and custom_id {ExpectedCustomId} "
+                    f"(got {StudentCode} and {CustomId})."
+                )
+            ExpectedNumber += 1
 
             SeenCustomIds.add(CustomId)
             SeenStudentCodes.add(StudentCode)

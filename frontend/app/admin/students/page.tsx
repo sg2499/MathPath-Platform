@@ -11,7 +11,7 @@ import { LoadingState } from "@/components/common/LoadingState";
 import { ProfileAvatar, ResolveAssetUrl } from "@/components/common/ProfileAvatar";
 import { useAuthenticatedImage } from "@/lib/hooks/useAuthenticatedImage";
 import { useProtectedPage } from "@/hooks/useProtectedPage";
-import { apiErrorMessage } from "@/lib/api";
+import { apiErrorDetail, apiErrorMessage } from "@/lib/api";
 import { CreatePersistedUiStateKey, usePersistentUiState } from "@/lib/persistedUiState";
 import { formatMathPathDateTime, formatMathPathDateTimeCompact } from "@/lib/date";
 import {
@@ -23,6 +23,7 @@ import {
   getAdminTeachers,
   getLevels,
   getModules,
+  getNextStudentCodes,
   resetStudentPassword,
   updateStudentProfile,
   updateStudentStatus,
@@ -50,9 +51,11 @@ import {
   IdCard,
   KeyRound,
   ListChecks,
+  Lock,
   MapPin,
   Pencil,
   Plus,
+  RefreshCw,
   School,
   Search,
   ShieldCheck,
@@ -146,17 +149,6 @@ function optional(value: string | null | undefined) {
 }
 
 
-function createCodeFromName(name: string) {
-  const compact = name
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 10);
-
-  const suffix = Math.floor(1000 + Math.random() * 9000);
-  return compact ? `MP-${compact}-${suffix}` : `MP-STUDENT-${suffix}`;
-}
-
 export default function AdminStudentsPage() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const queryClient = useQueryClient();
@@ -226,6 +218,25 @@ export default function AdminStudentsPage() {
     enabled: ready,
   });
 
+  // 2026-11-23 (Shailesh): a new student's Student Code and Custom ID are
+  // the next ones in the series (MP-ST-0168 / MP-2026-0168), fetched fresh
+  // every time the Add Student form opens. The server decides them and
+  // checks them again on save; see backend/app/services/student_codes.py.
+  const CreatingStudent = isFormOpen && !editingStudentId;
+  const NextCodesQuery = useQuery({
+    queryKey: ["admin-student-next-codes"],
+    queryFn: getNextStudentCodes,
+    enabled: ready && CreatingStudent,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+  });
+  const NextCodes = NextCodesQuery.data;
+  useEffect(() => {
+    if (!CreatingStudent || !NextCodes) return;
+    setForm((Previous) => ({ ...Previous, studentCode: NextCodes.studentCode, customId: NextCodes.customId }));
+  }, [CreatingStudent, NextCodes]);
+
   const levelsQuery = useQuery({
     queryKey: ["levels", form.currentModuleId],
     queryFn: () => getLevels(form.currentModuleId),
@@ -234,6 +245,13 @@ export default function AdminStudentsPage() {
 
   const createMutation = useMutation({
     mutationFn: createStudentProfile,
+    onError: (Error) => {
+      // Someone else took these codes a moment ago: show the next ones.
+      const Code = apiErrorDetail(Error)?.code;
+      if (Code === "STUDENT_CODE_TAKEN" || Code === "STUDENT_CODE_NOT_NEXT" || Code === "INVALID_CUSTOM_ID") {
+        NextCodesQuery.refetch();
+      }
+    },
     onSuccess: async (data) => {
       const student = data.student;
 
@@ -248,6 +266,7 @@ export default function AdminStudentsPage() {
       setForm(emptyForm());
       setIsFormOpen(false);
       queryClient.invalidateQueries({ queryKey: ["admin-students"] });
+      queryClient.removeQueries({ queryKey: ["admin-student-next-codes"] });
     },
   });
 
@@ -524,11 +543,15 @@ export default function AdminStudentsPage() {
     setPhotoFile(null);
     setSignatureFile(null);
     setLastLogin(null);
+    createMutation.reset();
+    updateMutation.reset();
     setForm(emptyForm());
     setIsFormOpen(true);
   }
 
   function closeForm() {
+    createMutation.reset();
+    updateMutation.reset();
     setEditingStudentId(null);
     setPhotoFile(null);
     setSignatureFile(null);
@@ -757,7 +780,7 @@ export default function AdminStudentsPage() {
               step="2"
               icon={<ListChecks size={16} />}
               title="Complete Student Details"
-              description="Add student access details, assigned teacher, module, level, and default password in the correct columns."
+              description="Add each student's details, teacher, module, level and password. The sample row has the next Student Code and Custom ID; carry the series on row by row."
             />
             <OnboardingGuideCard
               step="3"
@@ -1182,6 +1205,23 @@ export default function AdminStudentsPage() {
           centres={Centres}
           levelsLoading={levelsQuery.isLoading}
           saving={createMutation.isPending || updateMutation.isPending}
+          nextCodesState={
+            editingStudentId
+              ? "edit"
+              : NextCodesQuery.isError
+                ? "error"
+                : NextCodes && form.studentCode === NextCodes.studentCode
+                  ? "ready"
+                  : "loading"
+          }
+          onRefreshNextCodes={() => NextCodesQuery.refetch()}
+          saveError={
+            createMutation.error || updateMutation.error
+              ? StudentSaveErrorText(createMutation.error || updateMutation.error)
+              : NextCodesQuery.isError
+                ? `Could not find the next Student Code: ${apiErrorMessage(NextCodesQuery.error)}`
+                : ""
+          }
           onClose={closeForm}
           onSubmit={submitForm}
           onFieldChange={updateField}
@@ -1221,6 +1261,9 @@ function StudentFormModal({
   centres,
   levelsLoading,
   saving,
+  nextCodesState,
+  onRefreshNextCodes,
+  saveError,
   onClose,
   onSubmit,
   onFieldChange,
@@ -1238,6 +1281,9 @@ function StudentFormModal({
   centres: PaymentCentre[];
   levelsLoading: boolean;
   saving: boolean;
+  nextCodesState: "edit" | "loading" | "ready" | "error";
+  onRefreshNextCodes: () => void;
+  saveError: string;
   onClose: () => void;
   onSubmit: (event: FormEvent) => void;
   onFieldChange: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
@@ -1268,11 +1314,12 @@ function StudentFormModal({
           <div className="grid gap-7 xl:grid-cols-[1fr_320px]">
             <div className="space-y-7">
               <FormSection title="Student Info" icon={<Contact size={14} />}>
-                <Input
+                <SeriesCodeField
                   label="Custom ID"
                   value={form.customId}
+                  state={nextCodesState}
+                  example="MP-2026-0168"
                   onChange={(v) => onFieldChange("customId", v)}
-                  required
                 />
                 <div>
                   <label className="math-label">
@@ -1477,33 +1524,14 @@ function StudentFormModal({
               <div className="rounded-[28px] border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-700 dark:bg-slate-900/70">
                 <p className="math-block-header"><KeyRound size={14} />Login & Level</p>
                 <div className="mt-4 space-y-4">
-                  <div>
-                    <label className="math-label">
-                      Student Code <span className="text-red-500">*</span>
-                    </label>
-                    <div className="mt-2 flex gap-2">
-                      <input
-                        className="math-input"
-                        value={form.studentCode}
-                        onChange={(e) =>
-                          onFieldChange("studentCode", e.target.value)
-                        }
-                        required
-                      />
-                      <button
-                        type="button"
-                        className="math-button-secondary px-4"
-                        onClick={() =>
-                          onFieldChange(
-                            "studentCode",
-                            createCodeFromName(form.studentName)
-                          )
-                        }
-                      >
-                        Generate
-                      </button>
-                    </div>
-                  </div>
+                  <SeriesCodeField
+                    label="Student Code"
+                    value={form.studentCode}
+                    state={nextCodesState}
+                    example="MP-ST-0168"
+                    onChange={(v) => onFieldChange("studentCode", v)}
+                    onRefresh={onRefreshNextCodes}
+                  />
 
                   {!editingStudentId ? (
                     <Input
@@ -1571,8 +1599,22 @@ function StudentFormModal({
             </aside>
           </div>
 
-          <div className="sticky bottom-0 mt-7 flex flex-col gap-3 border-t border-slate-200 bg-white/90 pt-5 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90 sm:flex-row">
-            <button className="math-button-primary flex-1" disabled={saving}>
+          <div className="sticky bottom-0 mt-7 border-t border-slate-200 bg-white/90 pt-5 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90">
+            {saveError ? (
+              <p
+                role="alert"
+                data-student-form-error
+                className="mb-3 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200"
+              >
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                <span className="min-w-0">{saveError}</span>
+              </p>
+            ) : null}
+            <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              className="math-button-primary flex-1"
+              disabled={saving || nextCodesState === "loading" || nextCodesState === "error"}
+            >
               <Plus size={18} />{" "}
               {editingStudentId
                 ? saving
@@ -1586,6 +1628,7 @@ function StudentFormModal({
             <button type="button" className="math-button-secondary" onClick={onClose}>
               Cancel
             </button>
+            </div>
           </div>
         </form>
       </div>
@@ -1677,6 +1720,85 @@ function FormSection({
       </p>
       <div className="grid gap-4 md:grid-cols-2">{children}</div>
     </section>
+  );
+}
+
+function StudentSaveErrorText(Error: unknown): string {
+  const Detail = apiErrorDetail(Error);
+  if (!Detail) return apiErrorMessage(Error);
+  if (Detail.code === "STUDENT_CODE_TAKEN" && Detail.details?.next) {
+    return `${Detail.message} They are filled in now: press Save Student again.`;
+  }
+  return Detail.message || apiErrorMessage(Error);
+}
+
+/** Student Code / Custom ID. For a new student both are the next codes in
+ * the series, set by the server and locked; when editing a student an admin
+ * can correct them (the server checks the format and that the number is
+ * not another student's). */
+function SeriesCodeField({
+  label,
+  value,
+  state,
+  example,
+  onChange,
+  onRefresh,
+}: {
+  label: string;
+  value: string;
+  state: "edit" | "loading" | "ready" | "error";
+  example: string;
+  onChange: (value: string) => void;
+  onRefresh?: () => void;
+}) {
+  if (state === "edit") {
+    return (
+      <div>
+        <label className="math-label">
+          {label} <span className="text-red-500">*</span>
+        </label>
+        <input
+          className="math-input mt-2"
+          value={value}
+          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          required
+        />
+        <p className="mt-1 text-xs font-semibold text-slate-500">Format: {example}</p>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <label className="math-label">
+        {label} <span className="text-red-500">*</span>
+      </label>
+      <div className="mt-2 flex gap-2">
+        <div className="relative min-w-0 flex-1">
+          <input
+            className="math-input pr-10 font-bold tracking-wide"
+            value={state === "ready" ? value : ""}
+            placeholder={state === "error" ? "Not found" : "Finding next code…"}
+            readOnly
+            aria-readonly="true"
+            data-series-code={label}
+            required
+          />
+          <Lock size={14} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+        </div>
+        {onRefresh ? (
+          <button
+            type="button"
+            className="math-button-secondary px-4"
+            onClick={onRefresh}
+            title="Check The Next Available Codes Again"
+            aria-label="Check The Next Available Codes Again"
+          >
+            <RefreshCw size={16} />
+          </button>
+        ) : null}
+      </div>
+      <p className="mt-1 text-xs font-semibold text-slate-500">Next in the series, set automatically.</p>
+    </div>
   );
 }
 
