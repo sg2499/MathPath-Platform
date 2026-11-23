@@ -46,7 +46,6 @@ import {
   History,
   Layers3,
   List,
-  Mail,
   PackageCheck,
   Plus,
   Scale,
@@ -865,6 +864,14 @@ function AdminAssessmentControlPageContent() {
     usePersistentUiState<ManageStatusFilter>(CreatePersistedUiStateKey(AssessmentControlStateKey, "manage-status-filter"), "ALL");
   const [DeleteTarget, SetDeleteTarget] = useState<AnyRow | null>(null);
   const [PromoteTarget, SetPromoteTarget] = useState<AnyRow | null>(null);
+  // Set by a Generate Reports row's "Ready To Promote"; it filters Manage to
+  // that student until the admin goes back or leaves Manage.
+  const [ManageFocusStudentCode, SetManageFocusStudentCode] = useState("");
+  useEffect(() => {
+    if (ActiveTab === "MANAGE" || !ManageFocusStudentCode) return;
+    SetManageFocusStudentCode("");
+    SetManageSearchValue("");
+  }, [ActiveTab]);
   const [PromotionHistorySearchValue, SetPromotionHistorySearchValue] =
     usePersistentUiState(CreatePersistedUiStateKey(AssessmentControlStateKey, "promotion-history-search"), "");
 
@@ -1341,13 +1348,36 @@ function AdminAssessmentControlPageContent() {
       return Status.Label === "Not Generated";
     },
   ).length;
-  const ParentReportPendingCount = ParentReportEligibleRows.filter((Item) => {
-    const Status = parentReportOperationalStatus(
-      Item,
-      ParentReportDeliveryLogs,
-    );
-    return Status.Label !== "Published To Teacher";
-  }).length;
+  const ParentReportWaitingToPublishCount = ParentReportEligibleRows.filter(
+    (Item) =>
+      parentReportOperationalStatus(Item, ParentReportDeliveryLogs).Label ===
+      "Generated",
+  ).length;
+
+  // A Generate Reports row's "Ready To Promote" opens Manage on that student.
+  // Promote itself lives only in Manage.
+  const OpenStudentInManage = (Item: AnyRow) => {
+    SetManageSearchValue(assessmentRecordStudentCode(Item));
+    SetManageModuleFilter("");
+    SetManageLevelFilter("");
+    SetManageStatusFilter("ALL");
+    SetManageFocusStudentCode(assessmentRecordStudentCode(Item));
+    UpdateAssessmentRouteState("MANAGE");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const ClearManageFocus = () => {
+    SetManageFocusStudentCode("");
+    SetManageSearchValue("");
+  };
+  // The same row Manage's Promote button acts on for this student.
+  const ManageFocusRow = ManageFocusStudentCode
+    ? assessmentActionTarget(
+        Rows.filter(
+          (Row) => assessmentRecordStudentCode(Row) === ManageFocusStudentCode,
+        ),
+        true,
+      )
+    : null;
 
   if (!Ready || AssessmentQuery.isLoading)
     return <LoadingState label="Loading assessment records..." />;
@@ -1748,8 +1778,8 @@ function AdminAssessmentControlPageContent() {
                   <p className="math-block-header"><SlidersHorizontal size={14} />Assessment Management</p>
                   <h2 className="text-2xl font-black">Manage</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
-                    Archive or permanently delete assessment structures from one
-                    controlled admin workspace.
+                    Promote students who cleared their level assessment, and
+                    archive or delete assessment records.
                   </p>
                 </div>
                 <button
@@ -1834,8 +1864,33 @@ function AdminAssessmentControlPageContent() {
               </div>
             </div>
 
+            {ManageFocusStudentCode && ManageFocusRow ? (
+              <NotificationTargetBanner
+                tone="purple"
+                label="Promotion"
+                icon={<ArrowUpCircle size={18} />}
+                title={
+                  assessmentPromoted(ManageFocusRow)
+                    ? `${assessmentRecordStudentName(ManageFocusRow)} Promoted To ${promotionTargetLevelLabel(ManageFocusRow)}`
+                    : `${assessmentRecordStudentName(ManageFocusRow)} Is Ready To Promote`
+                }
+                description={
+                  assessmentPromoted(ManageFocusRow)
+                    ? "Their teacher now sees this in Promotion History. Go back to Parent Reports to generate or publish their report."
+                    : `Press Promote on their row to move them from ${rowLevelCode(ManageFocusRow)} to ${promotionTargetLevelLabel(ManageFocusRow)}.`
+                }
+                actionLabel="Back To Parent Reports"
+                onAction={() => {
+                  ClearManageFocus();
+                  UpdateAssessmentRouteState("PARENT_REPORTS", "GENERATE");
+                }}
+                onDismiss={ClearManageFocus}
+              />
+            ) : null}
+
             {FilteredManageRows.length ? (
               <AssessmentManageTable
+                FocusStudentCode={ManageFocusStudentCode}
                 Items={FilteredManageRows}
                 Busy={
                   ArchiveAssessmentMutation.isPending ||
@@ -1946,11 +2001,11 @@ function AdminAssessmentControlPageContent() {
             <div className="math-operation-panel math-admin-parent-report-panel">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <p className="math-block-header"><Mail size={14} />Parent Report Center</p>
+                  <p className="math-block-header"><FileText size={14} />Parent Report Center</p>
                   <h2 className="text-2xl font-black">Parent Reports</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
-                    Generate completed-level parent reports and publish them so
-                    the student's teacher can view them.
+                    Generate a completed-level report, then publish it so the
+                    student's teacher can view it in Progress Reports.
                   </p>
                 </div>
                 <div className="grid min-w-[320px] gap-3 sm:grid-cols-2">
@@ -1972,14 +2027,14 @@ function AdminAssessmentControlPageContent() {
                   <div className="rounded-[22px] border border-cyan-100 bg-white p-4 shadow-[0_12px_28px_rgba(6,182,212,0.10)] ring-1 ring-cyan-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-slate-800">
                     <div className="flex items-start gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-700 ring-1 ring-cyan-100 dark:bg-cyan-950/40 dark:text-cyan-200 dark:ring-cyan-900">
-                        <Mail size={16} />
+                        <Send size={16} />
                       </span>
                       <div className="min-w-0">
                         <p className="text-[0.68rem] font-black uppercase tracking-[0.22em] text-slate-700 dark:text-slate-200">
-                          Not Yet Published
+                          Waiting To Publish
                         </p>
                         <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
-                          {ParentReportPendingCount}
+                          {ParentReportWaitingToPublishCount}
                         </p>
                       </div>
                     </div>
@@ -1993,7 +2048,7 @@ function AdminAssessmentControlPageContent() {
                     icon={<FileText size={16} />}
                     kicker="Generate Reports"
                     title="Completed-Level Reports"
-                    text="Review assessment-cleared students eligible for parent progress reports."
+                    text="Generate each cleared level's report, then publish it to the teacher."
                     countLabel={`${ParentReportEligibleRows.length} Eligible`}
                     onClick={() => UpdateAssessmentRouteState("PARENT_REPORTS", "GENERATE")}
                   />
@@ -2002,7 +2057,7 @@ function AdminAssessmentControlPageContent() {
                     icon={<History size={16} />}
                     kicker="Generated Reports"
                     title="Report Log"
-                    text="Download previously generated reports and publish them to teachers."
+                    text="Every generated report: download it again, publish it, or remove it."
                     countLabel={`${ParentReportPublishedCount} Published${ParentReportGeneratedOnlyCount ? ` · ${ParentReportGeneratedOnlyCount} Not Published` : ""}`}
                     onClick={() => UpdateAssessmentRouteState("PARENT_REPORTS", "DELIVERY_HISTORY")}
                   />
@@ -2010,21 +2065,22 @@ function AdminAssessmentControlPageContent() {
               </div>
             </div>
 
-            {ParentReportTabValue === "GENERATE" ? (
-              ParentReportEligibleRows.length ? (
-                <ParentReportGenerateTable
-                  Items={ParentReportEligibleRows}
-                  DeliveryLogs={ParentReportDeliveryLogs}
-                />
-              ) : (
-                <EmptyState message="No assessment-cleared student records are ready for parent report generation yet." />
-              )
-            ) : ParentReportDeliveryQuery.isLoading ? (
-              <LoadingState label="Loading parent report delivery history..." />
+            {ParentReportDeliveryQuery.isLoading ? (
+              <LoadingState label="Loading parent reports..." />
             ) : ParentReportDeliveryQuery.isError ? (
               <ErrorState
                 message={apiErrorMessage(ParentReportDeliveryQuery.error)}
               />
+            ) : ParentReportTabValue === "GENERATE" ? (
+              ParentReportEligibleRows.length ? (
+                <ParentReportGenerateTable
+                  Items={ParentReportEligibleRows}
+                  DeliveryLogs={ParentReportDeliveryLogs}
+                  OnOpenPromotion={OpenStudentInManage}
+                />
+              ) : (
+                <EmptyState message="No assessment-cleared student records are ready for parent report generation yet." />
+              )
             ) : (
               <ParentReportDeliveryHistoryTable
                 Items={ParentReportDeliveryLogs}
@@ -3089,18 +3145,169 @@ function parentReportDeliveryLogsForRow(
   return DeliveryLogs.filter((Log) => deliveryMatchesReportRow(Item, Log));
 }
 
+// One report record per student, module and level (the server upserts it), so
+// the row's record is the published one if any, else the newest generated one.
+function parentReportLogForRow(
+  Item: AnyRow,
+  DeliveryLogs: ParentReportDeliveryLog[],
+): ParentReportDeliveryLog | null {
+  const Logs = parentReportDeliveryLogsForRow(Item, DeliveryLogs);
+  return (
+    Logs.find((Log) => Log.isPublishedToTeacher) ||
+    [...Logs].sort((First, Second) =>
+      String(Second.generatedAt || Second.createdAt || "").localeCompare(
+        String(First.generatedAt || First.createdAt || ""),
+      ),
+    )[0] ||
+    null
+  );
+}
+
 function parentReportOperationalStatus(
   Item: AnyRow,
   DeliveryLogs: ParentReportDeliveryLog[],
 ): ParentReportOperationalStatus {
-  const Logs = parentReportDeliveryLogsForRow(Item, DeliveryLogs);
-  if (Logs.some((Log) => Log.isPublishedToTeacher)) {
+  const Log = parentReportLogForRow(Item, DeliveryLogs);
+  if (Log?.isPublishedToTeacher) {
     return { Label: "Published To Teacher", Tone: "green" };
   }
-  if (Logs.length) {
+  if (Log) {
     return { Label: "Generated", Tone: "amber" };
   }
   return { Label: "Not Generated", Tone: "blue" };
+}
+
+type ParentReportPromotionState =
+  | { Kind: "PROMOTED"; ToLevel: string }
+  | { Kind: "READY"; ToLevel: string }
+  | { Kind: "SETUP_NEEDED"; Reason: string }
+  | { Kind: "NOT_AVAILABLE"; Reason: string };
+
+// What the Generate Reports row says about promotion. Promote itself lives
+// only in Manage (2026-11, Shailesh); this row shows the state and links there.
+function parentReportPromotionState(Item: AnyRow): ParentReportPromotionState {
+  if (assessmentPromoted(Item)) {
+    return { Kind: "PROMOTED", ToLevel: promotionTargetLevelLabel(Item) };
+  }
+  if (canPromoteAssessment(Item)) {
+    return promotionCanProceed(Item)
+      ? { Kind: "READY", ToLevel: promotionTargetLevelLabel(Item) }
+      : { Kind: "SETUP_NEEDED", Reason: promotionBlockReason(Item) };
+  }
+  return { Kind: "NOT_AVAILABLE", Reason: promotionBlockReason(Item) };
+}
+
+function parentReportRowKey(Item: AnyRow) {
+  return String(
+    Item.assignmentId ||
+      Item.assessmentAssignmentId ||
+      Item.attemptId ||
+      `${assessmentRecordStudentCode(Item)}-${rowModuleCode(Item)}-${rowLevelCode(Item)}`,
+  );
+}
+
+// The Report Log's status, read from the publish date so old rows (which
+// may still carry an e-mail era status) read the same as new ones.
+function parentReportLogStatus(Log: ParentReportDeliveryLog): ParentReportOperationalStatus {
+  return Log.isPublishedToTeacher
+    ? { Label: "Published To Teacher", Tone: "green" }
+    : { Label: "Generated", Tone: "amber" };
+}
+
+// Publish To Teacher, shared by Generate Reports and the Report Log so both
+// use the same confirmation and the same refresh.
+function useParentReportPublish() {
+  const QueryClient = useQueryClient();
+  const [PublishItem, SetPublishItem] = useState<ParentReportDeliveryLog | null>(null);
+  const PublishMutation = useMutation({
+    mutationFn: (Item: ParentReportDeliveryLog) =>
+      publishAdminParentReportToTeacher(Item.id),
+    onSuccess: () => {
+      SetPublishItem(null);
+      void QueryClient.invalidateQueries({
+        queryKey: ["admin-parent-report-delivery-logs"],
+      });
+    },
+  });
+  return { PublishItem, SetPublishItem, PublishMutation };
+}
+
+function ParentReportPublishDialog({
+  Item,
+  Busy,
+  Error,
+  OnCancel,
+  OnConfirm,
+}: {
+  Item: ParentReportDeliveryLog;
+  Busy: boolean;
+  Error: string | null;
+  OnCancel: () => void;
+  OnConfirm: () => void;
+}) {
+  return (
+    <div className="math-modal-overlay">
+      <div className="math-modal-shell math-modal-shell-sm">
+        <div className="math-modal-header">
+          <p className="math-block-header"><Send size={14} />Publish Parent Report</p>
+          <h3 className="text-2xl font-black text-slate-950 dark:text-white">
+            Publish This Report To The Teacher?
+          </h3>
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+            The student's teacher gets a notification and can view and
+            download this report from Progress Reports in their own login.
+          </p>
+        </div>
+        <div className="math-modal-body">
+          <div className="math-confirm-summary-grid lg:grid-cols-3">
+            {(
+              [
+                [
+                  "Student",
+                  <>
+                    {Item.studentName}{" "}
+                    <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">
+                      ({Item.studentCode})
+                    </span>
+                  </>,
+                ],
+                ["Module", Item.moduleLabel],
+                ["Report Level", Item.levelLabel],
+              ] as [string, ReactNode][]
+            ).map(([Label, Value]) => (
+              <div key={Label} className="math-confirm-summary-card">
+                <p className="math-confirm-label">{Label}</p>
+                <p className="math-confirm-value">{Value}</p>
+              </div>
+            ))}
+          </div>
+          {Error ? (
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+              {Error}
+            </div>
+          ) : null}
+        </div>
+        <div className="math-modal-footer">
+          <button
+            type="button"
+            className="math-action-button"
+            onClick={OnCancel}
+            disabled={Busy}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="math-action-button-primary"
+            onClick={OnConfirm}
+            disabled={Busy}
+          >
+            {Busy ? "Publishing" : "Publish To Teacher"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function triggerBlobDownload(BlobValue: Blob, FileName: string) {
@@ -3117,9 +3324,11 @@ function triggerBlobDownload(BlobValue: Blob, FileName: string) {
 function ParentReportGenerateTable({
   Items,
   DeliveryLogs,
+  OnOpenPromotion,
 }: {
   Items: AnyRow[];
   DeliveryLogs: ParentReportDeliveryLog[];
+  OnOpenPromotion: (Item: AnyRow) => void;
 }) {
   const ParentReportGenerateStateKey = CreatePersistedUiStateKey("admin", "assessment-control", "parent-report-generate");
   const [SearchValue, SetSearchValue] = usePersistentUiState(CreatePersistedUiStateKey(ParentReportGenerateStateKey, "search"), "");
@@ -3138,19 +3347,10 @@ function ParentReportGenerateTable({
     [SearchParams],
   );
 
-  const ReportStatusByKey = useMemo(() => {
-    const MapValue = new Map<string, ParentReportOperationalStatus>();
-    Items.forEach((Item) => {
-      const Key = String(
-        Item.assignmentId ||
-          Item.assessmentAssignmentId ||
-          Item.attemptId ||
-          `${assessmentRecordStudentCode(Item)}-${rowModuleCode(Item)}-${rowLevelCode(Item)}`,
-      );
-      MapValue.set(Key, parentReportOperationalStatus(Item, DeliveryLogs));
-    });
-    return MapValue;
-  }, [Items, DeliveryLogs]);
+  // The row just generated for the first time: it gets a note pointing at its
+  // new Publish button, so the report is not left unpublished by mistake.
+  const [JustGeneratedKey, SetJustGeneratedKey] = useState("");
+  const { PublishItem, SetPublishItem, PublishMutation } = useParentReportPublish();
 
   const DownloadMutation = useMutation({
     mutationFn: async (Item: AnyRow) => {
@@ -3162,9 +3362,12 @@ function ParentReportGenerateTable({
         FileName: parentReportDownloadFileName(Item),
       };
     },
-    onSuccess: ({ BlobValue, FileName }) => {
+    onSuccess: ({ BlobValue, FileName }, Item) => {
       triggerBlobDownload(BlobValue, FileName);
-      QueryClient.invalidateQueries({
+      if (!parentReportLogForRow(Item, DeliveryLogs)) {
+        SetJustGeneratedKey(parentReportRowKey(Item));
+      }
+      void QueryClient.invalidateQueries({
         queryKey: ["admin-parent-report-delivery-logs"],
       });
     },
@@ -3172,6 +3375,10 @@ function ParentReportGenerateTable({
       window.alert(apiErrorMessage(Error));
     },
   });
+  const DownloadingKey =
+    DownloadMutation.isPending && DownloadMutation.variables
+      ? parentReportRowKey(DownloadMutation.variables)
+      : "";
 
   const ModuleOptions = useMemo(() => uniqueModuleOptions(Items), [Items]);
   const LevelOptions = useMemo(() => {
@@ -3292,9 +3499,9 @@ function ParentReportGenerateTable({
         <NotificationTargetBanner
           tone="teal"
           label="Parent Report"
-          title="Parent Report Generated"
-          description={`${NotificationTarget.Student || "Student"}${NotificationTarget.Level ? ` · ${NotificationTarget.Level}` : ""} is ready in Generate Reports.`}
-          actionLabel="Review Report"
+          title="Report Highlighted"
+          description={`${NotificationTarget.Student || "Student"}${NotificationTarget.Level ? ` · ${NotificationTarget.Level}` : ""} is highlighted below.`}
+          actionLabel="Show Report"
           onAction={() => {
             const TargetElement = document.querySelector(
               "[data-notification-target='parent-report-generate']",
@@ -3459,113 +3666,163 @@ function ParentReportGenerateTable({
 
                           {IsModuleExpanded ? (
                             <div className="border-t border-slate-100 p-4 dark:border-slate-800">
-                              <div className="math-grid-table-header math-admin-parent-report-grid-header grid grid-cols-[.72fr_1fr_.42fr_.7fr_.54fr_240px] gap-2">
-                                <div>Completed Level</div>
-                                <div>Assessment</div>
-                                <div>Score</div>
-                                <div>Assessment Date</div>
-                                <div>Report Status</div>
-                                <div>Action</div>
-                              </div>
-                              <div className="divide-y divide-slate-100 overflow-hidden rounded-b-[18px] border border-t-0 border-slate-100 dark:divide-slate-800 dark:border-slate-800">
-                                {ModuleGroup.Levels.flatMap((LevelGroup) =>
-                                  LevelGroup.Rows.map((Item) => {
-                                    const Key = String(
-                                      Item.assignmentId ||
-                                        Item.assessmentAssignmentId ||
-                                        Item.attemptId ||
-                                        `${StudentGroup.StudentKey}-${ModuleGroup.ModuleKey}-${LevelGroup.LevelKey}-${assessmentTitle(Item)}`,
-                                    );
-                                    const IsTargetRow = parentReportRowMatchesTarget(
-                                      Item,
-                                      NotificationTarget,
-                                    );
-                                    return (
-                                      <div
-                                        key={Key}
-                                        data-notification-target={
-                                          IsTargetRow
-                                            ? "parent-report-generate"
-                                            : undefined
-                                        }
-                                        className={`math-grid-table-row math-admin-parent-report-grid-row grid grid-cols-[.72fr_1fr_.42fr_.7fr_.54fr_240px] items-center gap-2 ${IsTargetRow ? "bg-cyan-50/90 ring-1 ring-inset ring-cyan-200 dark:bg-cyan-500/10 dark:ring-cyan-500/25" : ""}`}
-                                      >
-                                        <div>
-                                          <Chip tone="blue">
-                                            {LevelGroup.LevelKey}
-                                          </Chip>
-                                          <p className="mt-1 truncate text-xs font-bold text-slate-500">
-                                            {LevelGroup.LevelLabel}
-                                          </p>
-                                        </div>
-                                        <div className="min-w-0">
-                                          <p className="truncate text-sm font-black text-slate-950 dark:text-white">
-                                            {assessmentTitle(Item)}
-                                          </p>
-                                          <p className="mt-1 text-xs font-bold text-slate-500">
-                                            {assessmentStatusLabel(Item)}
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <Chip
-                                            tone={assessmentScoreTone(Item)}
+                              <div className="overflow-x-auto">
+                                <div className="min-w-[1040px]">
+                                  <div className="math-grid-table-header math-admin-parent-report-grid-header grid grid-cols-[.58fr_.8fr_.36fr_.9fr_.7fr_.64fr_236px] gap-2">
+                                    <div>Completed Level</div>
+                                    <div>Assessment</div>
+                                    <div>Score</div>
+                                    <div>Assessment Date</div>
+                                    <div>Promotion</div>
+                                    <div>Report Status</div>
+                                    <div>Action</div>
+                                  </div>
+                                  <div className="divide-y divide-slate-100 overflow-hidden rounded-b-[18px] border border-t-0 border-slate-100 dark:divide-slate-800 dark:border-slate-800">
+                                    {ModuleGroup.Levels.flatMap((LevelGroup) =>
+                                      LevelGroup.Rows.map((Item) => {
+                                        const Key = parentReportRowKey(Item);
+                                        const IsTargetRow = parentReportRowMatchesTarget(
+                                          Item,
+                                          NotificationTarget,
+                                        );
+                                        const RowLog = parentReportLogForRow(Item, DeliveryLogs);
+                                        const RowStatus = parentReportOperationalStatus(Item, DeliveryLogs);
+                                        const Promotion = parentReportPromotionState(Item);
+                                        const IsDownloading = DownloadingKey === Key;
+                                        const ShowPublishNote =
+                                          JustGeneratedKey === Key &&
+                                          Boolean(RowLog) &&
+                                          !RowLog?.isPublishedToTeacher;
+                                        return (
+                                          <div
+                                            key={Key}
+                                            data-notification-target={
+                                              IsTargetRow
+                                                ? "parent-report-generate"
+                                                : undefined
+                                            }
+                                            data-report-status={RowStatus.Label}
+                                            className={`math-grid-table-row math-admin-parent-report-grid-row grid grid-cols-[.58fr_.8fr_.36fr_.9fr_.7fr_.64fr_236px] items-center gap-2 ${IsTargetRow ? "bg-cyan-50/90 ring-1 ring-inset ring-cyan-200 dark:bg-cyan-500/10 dark:ring-cyan-500/25" : ""}`}
                                           >
-                                            {assessmentScoreLabel(Item)}
-                                          </Chip>
-                                        </div>
-                                        <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                                          {assessmentDateTimeLabel(Item, [
-                                            "completionDate",
-                                            "submittedAt",
-                                            "completedAt",
-                                            "attemptSubmittedAt",
-                                            "updatedAt",
-                                          ])}
-                                        </div>
-                                        <div>
-                                          {(() => {
-                                            const RowStatusKey = String(
-                                              Item.assignmentId ||
-                                                Item.assessmentAssignmentId ||
-                                                Item.attemptId ||
-                                                `${assessmentRecordStudentCode(Item)}-${rowModuleCode(Item)}-${rowLevelCode(Item)}`,
-                                            );
-                                            const RowStatus =
-                                              ReportStatusByKey.get(
-                                                RowStatusKey,
-                                              ) ||
-                                              parentReportOperationalStatus(
-                                                Item,
-                                                DeliveryLogs,
-                                              );
-                                            return (
+                                            <div>
+                                              <Chip tone="blue">
+                                                {LevelGroup.LevelKey}
+                                              </Chip>
+                                              <p className="mt-1 truncate text-xs font-bold text-slate-500">
+                                                {LevelGroup.LevelLabel.replace(`${LevelGroup.LevelKey} · `, "")}
+                                              </p>
+                                            </div>
+                                            <div className="min-w-0">
+                                              <p className="truncate text-sm font-black text-slate-950 dark:text-white">
+                                                {assessmentTitle(Item)}
+                                              </p>
+                                              <p className="mt-1 text-xs font-bold text-slate-500">
+                                                {assessmentStatusLabel(Item)}
+                                              </p>
+                                            </div>
+                                            <div>
+                                              <Chip tone={assessmentScoreTone(Item)}>
+                                                {assessmentScoreLabel(Item)}
+                                              </Chip>
+                                            </div>
+                                            <div className="whitespace-nowrap text-sm font-bold text-slate-600 dark:text-slate-300">
+                                              {assessmentDateTimeLabel(Item, [
+                                                "completionDate",
+                                                "submittedAt",
+                                                "completedAt",
+                                                "attemptSubmittedAt",
+                                                "updatedAt",
+                                              ])}
+                                            </div>
+                                            <div data-promotion-state={Promotion.Kind}>
+                                              {Promotion.Kind === "PROMOTED" ? (
+                                                <>
+                                                  <Chip tone="green">Promoted</Chip>
+                                                  <p className="mt-1 truncate text-xs font-bold text-slate-500">
+                                                    To {Promotion.ToLevel}
+                                                  </p>
+                                                </>
+                                              ) : Promotion.Kind === "READY" ? (
+                                                <>
+                                                  <button
+                                                    type="button"
+                                                    className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/35 dark:text-violet-200 dark:hover:bg-violet-900/45"
+                                                    onClick={() => OnOpenPromotion(Item)}
+                                                    title={`Open this student in Manage to promote them to ${Promotion.ToLevel}`}
+                                                  >
+                                                    <ArrowUpCircle size={13} className="shrink-0" />
+                                                    Ready To Promote
+                                                  </button>
+                                                  <p className="mt-1 truncate text-xs font-bold text-slate-500">
+                                                    To {Promotion.ToLevel}
+                                                  </p>
+                                                </>
+                                              ) : Promotion.Kind === "SETUP_NEEDED" ? (
+                                                <span title={Promotion.Reason}>
+                                                  <Chip tone="amber">Next Level Needed</Chip>
+                                                </span>
+                                              ) : (
+                                                <span title={Promotion.Reason}>
+                                                  <Chip tone="slate">Not Available</Chip>
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div>
                                               <Chip tone={RowStatus.Tone}>
                                                 {RowStatus.Label}
                                               </Chip>
-                                            );
-                                          })()}
-                                        </div>
-                                        <div className="flex flex-nowrap justify-start gap-2">
-                                          <button
-                                            type="button"
-                                            className="math-action-button-primary math-role-row-primary-action"
-                                            onClick={() =>
-                                              DownloadMutation.mutate(Item)
-                                            }
-                                            disabled={
-                                              DownloadMutation.isPending
-                                            }
-                                            title="Generate and download this completed-level parent progress report. Publish it to the teacher from the Generated Reports tab once it looks right."
-                                          >
-                                            {DownloadMutation.isPending
-                                              ? "Generating"
-                                              : "Generate & Download"}
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  }),
-                                )}
+                                            </div>
+                                            <div className="flex flex-nowrap justify-start gap-2">
+                                              {RowLog ? (
+                                                <button
+                                                  type="button"
+                                                  className="math-role-action-button math-role-row-action"
+                                                  onClick={() => DownloadMutation.mutate(Item)}
+                                                  disabled={DownloadMutation.isPending}
+                                                  title="Download this report again, built from the student's current data"
+                                                >
+                                                  {IsDownloading ? "Downloading" : "Download"}
+                                                </button>
+                                              ) : (
+                                                <button
+                                                  type="button"
+                                                  className="math-action-button-primary math-role-row-primary-action"
+                                                  onClick={() => DownloadMutation.mutate(Item)}
+                                                  disabled={DownloadMutation.isPending}
+                                                  title="Generate and download this completed-level parent progress report"
+                                                >
+                                                  {IsDownloading ? "Generating" : "Generate & Download"}
+                                                </button>
+                                              )}
+                                              {RowLog && !RowLog.isPublishedToTeacher ? (
+                                                <button
+                                                  type="button"
+                                                  className="math-action-button-primary math-role-row-primary-action"
+                                                  onClick={() => {
+                                                    PublishMutation.reset();
+                                                    SetPublishItem(RowLog);
+                                                  }}
+                                                  disabled={PublishMutation.isPending}
+                                                  title="Publish this report so the student's teacher can view it"
+                                                >
+                                                  Publish
+                                                </button>
+                                              ) : null}
+                                            </div>
+                                            {ShowPublishNote ? (
+                                              <p
+                                                className="col-span-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-200"
+                                                data-publish-note
+                                              >
+                                                Report generated. The teacher can't see it yet: press Publish when it looks right.
+                                              </p>
+                                            ) : null}
+                                          </div>
+                                        );
+                                      }),
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           ) : null}
@@ -3581,6 +3838,16 @@ function ParentReportGenerateTable({
       ) : (
         <EmptyState message="No parent report records match the selected filters." />
       )}
+
+      {PublishItem ? (
+        <ParentReportPublishDialog
+          Item={PublishItem}
+          Busy={PublishMutation.isPending}
+          Error={PublishMutation.error ? apiErrorMessage(PublishMutation.error) : null}
+          OnCancel={() => SetPublishItem(null)}
+          OnConfirm={() => PublishMutation.mutate(PublishItem)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -3611,7 +3878,7 @@ function ParentReportModeButton({
       data-active={active ? "true" : "false"}
       className={`math-report-scope-tab math-role-tab-card ${active ? "math-report-scope-tab-active math-role-tab-card-active" : "math-report-scope-tab-inactive"}`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
         <span className="flex min-w-0 items-start gap-3">
           <span className="math-report-scope-tab-icon">{icon}</span>
           <span className="min-w-0">
@@ -3624,36 +3891,6 @@ function ParentReportModeButton({
       </div>
     </button>
   );
-}
-
-function ParentReportDeliveryStatusChip({ Status }: { Status: string }) {
-  const Tone = ParentReportDeliveryStatusTone(Status);
-  const Label = String(Status || "-").replace(/_/g, " ");
-  const ToneClass =
-    Tone === "green"
-      ? "border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-500/15 dark:text-emerald-200"
-      : Tone === "red"
-        ? "border-rose-300 bg-rose-100 text-rose-700 dark:border-rose-400/45 dark:bg-rose-500/18 dark:text-rose-100"
-        : Tone === "amber"
-          ? "border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-400/45 dark:bg-amber-500/18 dark:text-amber-100"
-          : "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-500/45 dark:bg-slate-700/55 dark:text-slate-100";
-
-  return (
-    <span
-      className={`math-parent-report-delivery-status-chip math-parent-report-delivery-status-chip-${Tone} inline-flex w-fit items-center justify-center rounded-full border px-3 py-1 text-xs font-black uppercase leading-none tracking-[0.04em] ${ToneClass}`}
-    >
-      {Label}
-    </span>
-  );
-}
-
-function ParentReportDeliveryStatusTone(
-  Status: string,
-): "green" | "red" | "amber" | "slate" {
-  const StatusValue = String(Status || "").toUpperCase();
-  if (StatusValue === "PUBLISHED") return "green";
-  if (StatusValue === "GENERATED") return "amber";
-  return "slate";
 }
 
 function ParentReportGeneratedDateLabel(Item: ParentReportDeliveryLog) {
@@ -3694,9 +3931,7 @@ function ParentReportDeliveryHistoryTable({
   const [DetailItem, SetDetailItem] = useState<ParentReportDeliveryLog | null>(
     null,
   );
-  const [PublishItem, SetPublishItem] = useState<ParentReportDeliveryLog | null>(
-    null,
-  );
+  const { PublishItem, SetPublishItem, PublishMutation } = useParentReportPublish();
   const [DeleteItem, SetDeleteItem] = useState<ParentReportDeliveryLog | null>(
     null,
   );
@@ -3713,61 +3948,30 @@ function ParentReportDeliveryHistoryTable({
       window.alert(apiErrorMessage(Error));
     },
   });
-  const PublishMutation = useMutation({
-    mutationFn: () => {
-      if (!PublishItem)
-        throw new Error("Please choose a report to publish.");
-      return publishAdminParentReportToTeacher(PublishItem.id);
-    },
-    onSuccess: (Response) => {
-      QueryClient.invalidateQueries({
-        queryKey: ["admin-parent-report-delivery-logs"],
-      });
-      SetPublishItem(null);
-      window.alert(
-        Response.message || "Report published to the student's teacher.",
-      );
-    },
-    onError: (Error) => {
-      window.alert(apiErrorMessage(Error));
-    },
-  });
   const DeleteMutation = useMutation({
-    mutationFn: () => {
-      if (!DeleteItem)
-        throw new Error("Please choose a delivery record to delete.");
-      return deleteAdminParentReportDelivery(DeleteItem.id);
-    },
-    onMutate: async () => {
-      if (!DeleteItem) return {};
+    mutationFn: (Item: ParentReportDeliveryLog) =>
+      deleteAdminParentReportDelivery(Item.id),
+    onMutate: async (Item: ParentReportDeliveryLog) => {
       await QueryClient.cancelQueries({ queryKey: ["admin-parent-report-delivery-logs"] });
-      const PreviousLogs = QueryClient.getQueryData<any>(["admin-parent-report-delivery-logs"]);
-      QueryClient.setQueryData<any>(["admin-parent-report-delivery-logs"], (CurrentData: any) => {
-        if (!CurrentData?.items) return CurrentData;
-        return {
-          ...CurrentData,
-          items: CurrentData.items.filter((Item: any) => Item.id !== DeleteItem.id),
-          total: Math.max(0, Number(CurrentData.total || CurrentData.items.length) - 1),
-        };
-      });
+      const PreviousLogs = QueryClient.getQueryData<{ logs: ParentReportDeliveryLog[] }>(["admin-parent-report-delivery-logs"]);
+      QueryClient.setQueryData<{ logs: ParentReportDeliveryLog[] }>(["admin-parent-report-delivery-logs"], (CurrentData) =>
+        CurrentData ? { ...CurrentData, logs: CurrentData.logs.filter((Log) => Log.id !== Item.id) } : CurrentData,
+      );
       return { PreviousLogs };
     },
-    onSuccess: (Response) => {
+    onSuccess: () => {
+      SetDeleteItem(null);
+    },
+    onError: (_Error, _Item, Context) => {
+      if (Context?.PreviousLogs) {
+        QueryClient.setQueryData(["admin-parent-report-delivery-logs"], Context.PreviousLogs);
+      }
+    },
+    onSettled: () => {
       void QueryClient.invalidateQueries({
         queryKey: ["admin-parent-report-delivery-logs"],
         refetchType: "active",
       });
-      SetDeleteItem(null);
-      window.alert(
-        Response.message ||
-          "Parent report delivery record deleted successfully.",
-      );
-    },
-    onError: (Error, _Variables, Context) => {
-      if (Context?.PreviousLogs) {
-        QueryClient.setQueryData(["admin-parent-report-delivery-logs"], Context.PreviousLogs);
-      }
-      window.alert(apiErrorMessage(Error));
     },
   });
   const ParentReportDeliveryStateKey = CreatePersistedUiStateKey("admin", "assessment-control", "parent-report-delivery");
@@ -3859,7 +4063,7 @@ function ParentReportDeliveryHistoryTable({
       const MatchesStatus =
         !StatusFilterValue ||
         StatusFilterValue === "ALL" ||
-        String(Item.status || "").toUpperCase() === StatusFilterValue;
+        (StatusFilterValue === "PUBLISHED") === Boolean(Item.isPublishedToTeacher);
       const SearchSource = [
         Item.studentName,
         Item.studentCode,
@@ -4052,7 +4256,7 @@ function ParentReportDeliveryHistoryTable({
             <DeliveryMetricCard
               label="Total Reports"
               value={FilteredItems.length}
-              icon={<Mail size={15} />}
+              icon={<FileText size={15} />}
               tone="blue"
             />
             <DeliveryMetricCard
@@ -4123,16 +4327,15 @@ function ParentReportDeliveryHistoryTable({
             className="math-input"
             value={StatusFilterValue}
             onChange={(Event) => SetStatusFilterValue(Event.target.value)}
-            title="Choose Delivery Status"
-            aria-label="Choose Delivery Status"
+            title="Choose Status"
+            aria-label="Choose Status"
           >
             <option value="" disabled>
-              Choose Delivery Status
+              Choose Status
             </option>
-            <option value="ALL">All Delivery Statuses</option>
-            <option value="SENT">Sent</option>
-            <option value="FAILED">Failed</option>
-            <option value="PENDING">Pending</option>
+            <option value="ALL">All Statuses</option>
+            <option value="GENERATED">Not Yet Published</option>
+            <option value="PUBLISHED">Published To Teacher</option>
           </select>
         </div>
       </div>
@@ -4141,9 +4344,9 @@ function ParentReportDeliveryHistoryTable({
         <NotificationTargetBanner
           tone="teal"
           label="Parent Report"
-          title="Parent Report Delivery"
-          description={`${NotificationTarget.StudentCode || "Student"}${NotificationTarget.LevelCode ? ` · ${NotificationTarget.LevelCode}` : ""} delivery record is highlighted.`}
-          actionLabel="View Delivery"
+          title="Report Highlighted"
+          description={`${NotificationTarget.StudentCode || "Student"}${NotificationTarget.LevelCode ? ` · ${NotificationTarget.LevelCode}` : ""} is highlighted below.`}
+          actionLabel="Show Report"
           onAction={() => {
             const TargetElement = document.querySelector(
               "[data-notification-target='parent-report-delivery']",
@@ -4162,10 +4365,14 @@ function ParentReportDeliveryHistoryTable({
             const StudentRows = StudentGroup.Modules.flatMap(
               (ModuleGroup) => ModuleGroup.Rows,
             );
-            const LatestDelivery =
-              StudentRows.map((Item) =>
-                ParentReportGeneratedDateLabel(Item),
-              ).filter((Value) => Value && Value !== "—")[0] || "—";
+            const LatestGeneratedRow = [...StudentRows].sort((First, Second) =>
+              String(Second.generatedAt || Second.createdAt || "").localeCompare(
+                String(First.generatedAt || First.createdAt || ""),
+              ),
+            )[0];
+            const LatestGenerated = LatestGeneratedRow
+              ? ParentReportGeneratedDateLabel(LatestGeneratedRow)
+              : "—";
             return (
               <div
                 key={StudentGroup.StudentKey}
@@ -4195,13 +4402,13 @@ function ParentReportDeliveryHistoryTable({
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <Chip tone="purple">
-                      {StudentRows.length} Deliver
-                      {StudentRows.length === 1 ? "y" : "ies"}
+                      {StudentRows.length} Report
+                      {StudentRows.length === 1 ? "" : "s"}
                     </Chip>
                     <span className="hidden text-xs font-black uppercase tracking-[0.18em] text-slate-400 md:inline">
-                      Latest Delivery&nbsp;
+                      Last Generated&nbsp;
                       <span className="normal-case tracking-normal text-slate-800 dark:text-slate-200">
-                        {LatestDelivery}
+                        {LatestGenerated}
                       </span>
                     </span>
                   </div>
@@ -4246,108 +4453,115 @@ function ParentReportDeliveryHistoryTable({
 
                           {IsModuleExpanded ? (
                             <div className="border-t border-slate-100 p-4 dark:border-slate-800">
-                              <div
-                                className="math-grid-table-header math-admin-parent-report-grid-header grid gap-2"
-                                style={{
-                                  gridTemplateColumns:
-                                    "0.36fr 0.4fr 0.4fr 0.38fr 0.56fr 420px",
-                                }}
-                              >
-                                <div>Report Level</div>
-                                <div>Status</div>
-                                <div>Generated</div>
-                                <div>Generated By</div>
-                                <div>Published To Teacher</div>
-                                <div>Action</div>
-                              </div>
-                              <div className="divide-y divide-slate-100 overflow-hidden rounded-b-[18px] border border-t-0 border-slate-100 dark:divide-slate-800 dark:border-slate-800">
-                                {ModuleGroup.Rows.map((Item) => {
-                                  const IsHighlighted =
-                                    (NotificationTarget.ReportDeliveryId &&
-                                      Item.id ===
-                                        NotificationTarget.ReportDeliveryId) ||
-                                    (NotificationTarget.HighlightId &&
-                                      Item.id ===
-                                        NotificationTarget.HighlightId);
-                                  return (
-                                    <div
-                                      key={Item.id}
-                                      data-notification-target={
-                                        IsHighlighted
-                                          ? "parent-report-delivery"
-                                          : undefined
-                                      }
-                                      className={`math-grid-table-row math-admin-parent-report-grid-row grid items-center gap-2 ${IsHighlighted ? "bg-teal-50 ring-2 ring-teal-300 ring-inset dark:bg-teal-950/30 dark:ring-teal-500/50" : ""}`}
-                                      style={{
-                                        gridTemplateColumns:
-                                          "0.36fr 0.4fr 0.4fr 0.38fr 0.56fr 420px",
-                                      }}
-                                    >
-                                      <div>
-                                        <Chip tone="blue">
-                                          {Item.levelCode}
-                                        </Chip>
-                                        <p className="mt-1 truncate text-xs font-bold text-slate-500">
-                                          {Item.levelName ||
-                                            Item.levelLabel ||
-                                            "Report Level"}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <ParentReportDeliveryStatusChip
-                                          Status={Item.status}
-                                        />
-                                      </div>
-                                      <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                                        {ParentReportGeneratedDateLabel(Item)}
-                                      </div>
-                                      <div className="truncate text-sm font-bold text-slate-600 dark:text-slate-300">
-                                        {Item.generatedBy || "MathPath Admin"}
-                                      </div>
-                                      <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                                        {ParentReportPublishedDateLabel(Item)}
-                                      </div>
-                                      <div className="math-row-action-group flex-nowrap justify-start pr-1 overflow-visible">
-                                        <button
-                                          type="button"
-                                          className="math-role-action-button math-role-row-action"
-                                          onClick={() => SetDetailItem(Item)}
-                                        >
-                                          View Details
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="math-role-action-button math-role-row-action"
-                                          onClick={() => DownloadMutation.mutate(Item)}
-                                          disabled={DownloadMutation.isPending}
-                                        >
-                                          Download
-                                        </button>
-                                        {!Item.isPublishedToTeacher ? (
+                              <div className="overflow-x-auto">
+                                <div className="min-w-[980px]">
+                                <div
+                                  className="math-grid-table-header math-admin-parent-report-grid-header grid gap-2"
+                                  style={{
+                                    gridTemplateColumns:
+                                      "0.42fr 0.5fr 0.48fr 0.42fr 0.5fr 400px",
+                                  }}
+                                >
+                                  <div>Report Level</div>
+                                  <div>Status</div>
+                                  <div>Generated</div>
+                                  <div>Generated By</div>
+                                  <div>Published To Teacher</div>
+                                  <div>Action</div>
+                                </div>
+                                <div className="divide-y divide-slate-100 overflow-hidden rounded-b-[18px] border border-t-0 border-slate-100 dark:divide-slate-800 dark:border-slate-800">
+                                  {ModuleGroup.Rows.map((Item) => {
+                                    const IsHighlighted =
+                                      (NotificationTarget.ReportDeliveryId &&
+                                        Item.id ===
+                                          NotificationTarget.ReportDeliveryId) ||
+                                      (NotificationTarget.HighlightId &&
+                                        Item.id ===
+                                          NotificationTarget.HighlightId);
+                                    return (
+                                      <div
+                                        key={Item.id}
+                                        data-notification-target={
+                                          IsHighlighted
+                                            ? "parent-report-delivery"
+                                            : undefined
+                                        }
+                                        className={`math-grid-table-row math-admin-parent-report-grid-row grid items-center gap-2 ${IsHighlighted ? "bg-teal-50 ring-2 ring-teal-300 ring-inset dark:bg-teal-950/30 dark:ring-teal-500/50" : ""}`}
+                                        style={{
+                                          gridTemplateColumns:
+                                            "0.42fr 0.5fr 0.48fr 0.42fr 0.5fr 400px",
+                                        }}
+                                      >
+                                        <div>
+                                          <Chip tone="blue">
+                                            {Item.levelCode}
+                                          </Chip>
+                                          <p className="mt-1 truncate text-xs font-bold text-slate-500">
+                                            {Item.levelName ||
+                                              Item.levelLabel ||
+                                              "Report Level"}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <Chip tone={parentReportLogStatus(Item).Tone}>
+                                            {parentReportLogStatus(Item).Label}
+                                          </Chip>
+                                        </div>
+                                        <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                                          {ParentReportGeneratedDateLabel(Item)}
+                                        </div>
+                                        <div className="truncate text-sm font-bold text-slate-600 dark:text-slate-300">
+                                          {Item.generatedBy || "MathPath Admin"}
+                                        </div>
+                                        <div className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                                          {ParentReportPublishedDateLabel(Item)}
+                                        </div>
+                                        <div className="math-row-action-group flex-nowrap justify-start pr-1 overflow-visible">
                                           <button
                                             type="button"
-                                            className="math-action-button-primary math-role-row-primary-action"
-                                            onClick={() => SetPublishItem(Item)}
-                                            disabled={PublishMutation.isPending}
-                                            title="Publish To Teacher"
+                                            className="math-role-action-button math-role-row-action"
+                                            onClick={() => SetDetailItem(Item)}
                                           >
-                                            Publish
+                                            View Details
                                           </button>
-                                        ) : null}
-                                        <button
-                                          type="button"
-                                          aria-label="Delete Report Record"
-                                          title="Delete Report Record"
-                                          className="math-icon-action-button h-9 w-9 min-h-9 min-w-9 shrink-0 overflow-visible rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-300"
-                                          onClick={() => SetDeleteItem(Item)}
-                                          disabled={DeleteMutation.isPending}
-                                        >
-                                          <XCircle size={16} />
-                                        </button>
+                                          <button
+                                            type="button"
+                                            className="math-role-action-button math-role-row-action"
+                                            onClick={() => DownloadMutation.mutate(Item)}
+                                            disabled={DownloadMutation.isPending}
+                                          >
+                                            Download
+                                          </button>
+                                          {!Item.isPublishedToTeacher ? (
+                                            <button
+                                              type="button"
+                                              className="math-action-button-primary math-role-row-primary-action"
+                                              onClick={() => {
+                                                PublishMutation.reset();
+                                                SetPublishItem(Item);
+                                              }}
+                                              disabled={PublishMutation.isPending}
+                                              title="Publish this report so the student's teacher can view it"
+                                            >
+                                              Publish
+                                            </button>
+                                          ) : null}
+                                          <button
+                                            type="button"
+                                            aria-label="Delete Report Record"
+                                            title="Delete Report Record"
+                                            className="math-icon-action-button h-9 w-9 min-h-9 min-w-9 shrink-0 overflow-visible rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-300"
+                                            onClick={() => SetDeleteItem(Item)}
+                                            disabled={DeleteMutation.isPending}
+                                          >
+                                            <XCircle size={16} />
+                                          </button>
+                                        </div>
                                       </div>
-                                    </div>
-                                  );
-                                })}
+                                    );
+                                  })}
+                                </div>
+                                </div>
                               </div>
                             </div>
                           ) : null}
@@ -4361,7 +4575,7 @@ function ParentReportDeliveryHistoryTable({
           })}
         </div>
       ) : (
-        <EmptyState message="No parent report delivery records match the selected filters." />
+        <EmptyState message="No generated reports match the selected filters." />
       )}
 
       {DetailItem ? (
@@ -4455,12 +4669,8 @@ function ParentReportDeliveryHistoryTable({
                         Status
                       </p>
                       <div className="mt-1">
-                        <Chip
-                          tone={ParentReportDeliveryStatusTone(
-                            DetailItem.status,
-                          )}
-                        >
-                          {String(DetailItem.status || "-").replace(/_/g, " ")}
+                        <Chip tone={parentReportLogStatus(DetailItem).Tone}>
+                          {parentReportLogStatus(DetailItem).Label}
                         </Chip>
                       </div>
                     </div>
@@ -4514,6 +4724,7 @@ function ParentReportDeliveryHistoryTable({
                   type="button"
                   className="math-action-button-primary"
                   onClick={() => {
+                    PublishMutation.reset();
                     SetPublishItem(DetailItem);
                     SetDetailItem(null);
                   }}
@@ -4543,9 +4754,9 @@ function ParentReportDeliveryHistoryTable({
                   Delete Parent Report Record?
                 </h3>
                 <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                  This will permanently delete this parent report generation
-                  record. It will not delete the student's assessment result,
-                  progress report data, or promotion history.
+                  This removes the report record. If it was published, the
+                  teacher will no longer see it. The student's assessment
+                  result and promotion history are not changed.
                 </p>
               </div>
             </div>
@@ -4558,10 +4769,7 @@ function ParentReportDeliveryHistoryTable({
                     <>{DeleteItem.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({DeleteItem.studentCode})</span></>,
                   ],
                   ["Report Level", DeleteItem.levelLabel],
-                  [
-                    "Status",
-                    String(DeleteItem.status || "-").replace(/_/g, " "),
-                  ],
+                  ["Status", parentReportLogStatus(DeleteItem).Label],
                 ].map((item) => {
                   const Label = item[0] as string;
                   const Value = item[1] as React.ReactNode;
@@ -4580,12 +4788,20 @@ function ParentReportDeliveryHistoryTable({
                 );
                 })}
               </div>
+              {DeleteMutation.error ? (
+                <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+                  {apiErrorMessage(DeleteMutation.error)}
+                </div>
+              ) : null}
             </div>
             <div className="math-modal-footer">
               <button
                 type="button"
                 className="math-action-button"
-                onClick={() => SetDeleteItem(null)}
+                onClick={() => {
+                  DeleteMutation.reset();
+                  SetDeleteItem(null);
+                }}
                 disabled={DeleteMutation.isPending}
               >
                 Cancel
@@ -4593,7 +4809,7 @@ function ParentReportDeliveryHistoryTable({
               <button
                 type="button"
                 className="math-action-button-danger"
-                onClick={() => DeleteMutation.mutate()}
+                onClick={() => DeleteMutation.mutate(DeleteItem)}
                 disabled={DeleteMutation.isPending}
               >
                 {DeleteMutation.isPending ? "Deleting Record" : "Delete Record"}
@@ -4604,68 +4820,13 @@ function ParentReportDeliveryHistoryTable({
       ) : null}
 
       {PublishItem ? (
-        <div className="math-modal-overlay">
-          <div className="math-modal-shell math-modal-shell-sm">
-            <div className="math-modal-header">
-              <p className="math-block-header"><Send size={14} />Publish Parent Report</p>
-              <h3 className="text-2xl font-black text-slate-950 dark:text-white">
-                Publish This Report To The Teacher?
-              </h3>
-              <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                The student's assigned teacher will be notified and will be able
-                to view and download this report from their own login.
-              </p>
-            </div>
-            <div className="math-modal-body">
-              <div className="math-confirm-summary-grid lg:grid-cols-3">
-                {[
-                  [
-                    "Student",
-                    <>{PublishItem.studentName} <span className="text-xs font-black uppercase tracking-[0.12em] text-[#2563eb] dark:text-cyan-100">({PublishItem.studentCode})</span></>,
-                  ],
-                  ["Module", PublishItem.moduleLabel],
-                  ["Report Level", PublishItem.levelLabel],
-                ].map((item) => {
-                  const Label = item[0] as string;
-                  const Value = item[1] as React.ReactNode;
-                  return (
-                    <div
-                      key={Label}
-                    className="math-confirm-summary-card"
-                  >
-                    <p className="math-confirm-label">
-                      {Label}
-                    </p>
-                    <p className="math-confirm-value">
-                      {Value}
-                    </p>
-                  </div>
-                );
-                })}
-              </div>
-            </div>
-            <div className="math-modal-footer">
-              <button
-                type="button"
-                className="math-action-button"
-                onClick={() => SetPublishItem(null)}
-                disabled={PublishMutation.isPending}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="math-action-button-primary"
-                onClick={() => PublishMutation.mutate()}
-                disabled={PublishMutation.isPending}
-              >
-                {PublishMutation.isPending
-                  ? "Publishing"
-                  : "Publish To Teacher"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ParentReportPublishDialog
+          Item={PublishItem}
+          Busy={PublishMutation.isPending}
+          Error={PublishMutation.error ? apiErrorMessage(PublishMutation.error) : null}
+          OnCancel={() => SetPublishItem(null)}
+          OnConfirm={() => PublishMutation.mutate(PublishItem)}
+        />
       ) : null}
     </div>
   );
@@ -5020,12 +5181,14 @@ function assessmentRowKey(Row: AnyRow, Prefix: string) {
 }
 
 function AssessmentManageTable({
+  FocusStudentCode = "",
   Items,
   Busy,
   OnPromote,
   OnArchive,
   OnDelete,
 }: {
+  FocusStudentCode?: string;
   Items: AnyRow[];
   Busy: boolean;
   OnPromote: (Item: AnyRow) => void;
@@ -5038,6 +5201,16 @@ function AssessmentManageTable({
   >(CreatePersistedUiStateKey(AssessmentManageTableStateKey, "open-students"), {});
   const Students = useMemo(() => buildStudents(Items), [Items]);
 
+  useEffect(() => {
+    if (!FocusStudentCode) return;
+    const TimeoutId = window.setTimeout(() => {
+      document
+        .querySelector("[data-manage-focus='true']")
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    return () => window.clearTimeout(TimeoutId);
+  }, [FocusStudentCode]);
+
   const ToggleStudent = (StudentKey: string) => {
     SetExpandedStudents((Current) => ({
       ...Current,
@@ -5049,6 +5222,8 @@ function AssessmentManageTable({
     <div className="grid gap-3">
       {Students.map((Student) => {
         const IsExpanded = Boolean(ExpandedStudents[Student.key]);
+        const IsFocused =
+          Boolean(FocusStudentCode) && Student.studentCode === FocusStudentCode;
         const ActionTarget = assessmentActionTarget(Student.rows);
         const PromotionTarget = assessmentActionTarget(Student.rows, true);
         const IsArchived = Boolean(
@@ -5059,7 +5234,8 @@ function AssessmentManageTable({
         return (
           <div
             key={Student.key}
-            className="overflow-hidden rounded-[28px] border border-slate-200 bg-white/95 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/90"
+            data-manage-focus={IsFocused ? "true" : undefined}
+            className={`overflow-hidden rounded-[28px] border bg-white/95 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-950/90 ${IsFocused ? "border-violet-300 ring-4 ring-violet-100/80 dark:border-violet-500/50 dark:ring-violet-500/15" : "border-slate-200 dark:border-slate-800"}`}
           >
             <div
               role="button"
