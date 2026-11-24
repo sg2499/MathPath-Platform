@@ -1323,6 +1323,15 @@ html .math-role-teacher .math-dashboard-quick-icon:not(#te) {
   color: var(--te-readable) !important;
 }
 
+/* 2026-11-24: on hover the card turns the teacher colour and its icon turns
+   white, so the icon's box turns see-through white with it (it stayed pale
+   and hid the white icon) */
+html .math-role-teacher .math-dashboard-quick-card:is(:hover, :focus-visible) > .math-dashboard-quick-icon:not(#te) {
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
 /* ===========================================================================
    Part 2: practice pages (Assign Practice, Practice Tracker, a student's
    practice page, a practice result)

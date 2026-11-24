@@ -423,6 +423,17 @@ export async function deleteStudent(studentId: string): Promise<{
   return data;
 }
 
+/** Move many students to one teacher in one save (all or none). */
+export async function bulkChangeStudentTeacher(payload: { studentIds: string[]; teacherId: string }): Promise<{
+  moved: number;
+  skipped: number;
+  teacher: { teacherId: string; teacherCode: string; teacherName: string };
+  message: string;
+}> {
+  const { data } = await api.post("/admin/students/bulk-teacher", payload);
+  return data;
+}
+
 export async function getAdminTeachers(): Promise<AdminTeacher[]> {
   const { data } = await api.get<{ teachers: AdminTeacher[] }>("/admin/teachers");
   return data.teachers;

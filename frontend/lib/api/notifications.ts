@@ -9,6 +9,7 @@ export type NotificationCategory =
   | "PARENT_REPORT"
   | "FAILURE"
   | "SYSTEM"
+  | "STUDENTS"
   | "ASSESSMENT_FEEDBACK";
 
 export type NotificationColorVariant =

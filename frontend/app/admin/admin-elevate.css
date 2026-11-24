@@ -1193,6 +1193,15 @@ html .math-role-admin .math-dashboard-quick-icon:not(#ad) {
   color: var(--ad-readable) !important;
 }
 
+/* 2026-11-24: on hover the card turns admin blue and its icon turns white,
+   so the icon's box turns see-through white with it (it stayed pale and
+   hid the white icon) */
+html .math-role-admin .math-dashboard-quick-card:is(:hover, :focus-visible) > .math-dashboard-quick-icon:not(#ad) {
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
 /* ===========================================================================
    Part 2: practice pages (Assign Practice, Practice Tracker, a student's
    practice page, a practice result)
@@ -4163,7 +4172,7 @@ html .math-role-admin .pr-ss-concept-top .pr-score-accuracy:not(#ad) {
 /* the open student list sits above the cards under it */
 html .math-role-admin .pr-filters:has(.pr-picker-list):not(#ad) {
   position: relative;
-  z-index: 60;
+  z-index: 40;
 }
 
 html .math-role-admin .pr-picker:has(.pr-picker-list):not(#ad) {
@@ -4172,4 +4181,151 @@ html .math-role-admin .pr-picker:has(.pr-picker-list):not(#ad) {
 
 html .math-role-admin .pr-picker-icon:not(#ad) {
   z-index: 1;
+}
+
+/* ---------- Students: status tiles, picking students, moving them ----------
+   2026-11-24 (Shailesh). The Students / Active / Inactive tiles set the
+   status filter; the picked one keeps its colours and gains the admin ring,
+   so its icon never washes out. Ticked students get a floating bar with
+   Change Teacher. */
+html .math-role-admin .ad-filter-tile:not(#ad) {
+  width: 100%;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+html .math-role-admin .ad-filter-tile:not(#ad):focus-visible {
+  outline: none;
+  box-shadow: var(--ad-ring) !important;
+}
+
+html .math-role-admin .ad-filter-tile[data-selected="true"]:not(#ad) {
+  border-color: var(--ad-primary) !important;
+  box-shadow: 0 0 0 1px var(--ad-primary) inset, 0 14px 28px -20px rgba(29, 78, 216, 0.55) !important;
+}
+
+html.dark .math-role-admin .ad-filter-tile[data-selected="true"]:not(#ad) {
+  border-color: var(--ad-readable) !important;
+  background: rgba(59, 130, 246, 0.1) !important;
+  box-shadow: 0 0 0 1px var(--ad-readable) inset !important;
+}
+
+html .math-role-admin .ad-select-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: 1rem 0 0.75rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--ad-line);
+  border-radius: 16px;
+  background: var(--ad-tint);
+}
+
+html .math-role-admin .ad-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--ad-display);
+  font-weight: 800;
+  color: var(--ad-ink);
+  cursor: pointer;
+}
+
+html .math-role-admin .ad-select-hint {
+  min-width: 0;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--ad-ink-soft);
+}
+
+html .math-role-admin .ad-select-box {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  accent-color: var(--ad-primary);
+  cursor: pointer;
+}
+
+html.dark .math-role-admin .ad-select-box {
+  accent-color: #6d8dff;
+}
+
+@media (min-width: 1024px) {
+  html .math-role-admin .math-admin-students-table tr[data-selected="true"] > td:not(#ad) {
+    background: color-mix(in srgb, var(--ad-tint) 70%, transparent) !important;
+  }
+}
+
+/* phones and tablets: the whole card is tinted and outlined, not each value */
+@media (max-width: 1023px) {
+  html .math-role-admin .math-admin-students-table table.ad-cards tbody > tr[data-selected="true"]:not(#ad):not(#ad) {
+    border-color: var(--ad-primary) !important;
+    background: var(--ad-tint);
+    box-shadow: 0 0 0 1px var(--ad-primary) inset;
+  }
+
+  html.dark .math-role-admin .math-admin-students-table table.ad-cards tbody > tr[data-selected="true"]:not(#ad):not(#ad) {
+    border-color: var(--ad-readable) !important;
+    box-shadow: 0 0 0 1px var(--ad-readable) inset;
+  }
+}
+
+html .math-role-admin .ad-selection-bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  width: min(40rem, calc(100vw - 2rem));
+  padding: 0.75rem 0.85rem 0.75rem 1.25rem;
+  border: 1px solid var(--ad-line-strong);
+  border-radius: 20px;
+  background: var(--ad-surface);
+  box-shadow: 0 24px 48px -20px rgba(11, 23, 54, 0.45);
+  transform: translateX(-50%);
+}
+
+html.dark .math-role-admin .ad-selection-bar {
+  background: #111c36;
+  box-shadow: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
+}
+
+html .math-role-admin .ad-selection-count {
+  font-family: var(--ad-display);
+  font-weight: 700;
+  color: var(--ad-ink);
+}
+
+html .math-role-admin .ad-selection-count > span {
+  font-weight: 900;
+  color: var(--ad-readable);
+}
+
+html .math-role-admin .ad-selection-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+html .math-role-admin .ad-selection-actions > :is(button, a) {
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  html .math-role-admin .ad-selection-bar {
+    padding: 0.75rem;
+  }
+
+  html .math-role-admin .ad-selection-actions {
+    width: 100%;
+  }
+
+  html .math-role-admin .ad-selection-actions > :first-child {
+    flex: 1;
+  }
 }
