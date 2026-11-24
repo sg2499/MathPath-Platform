@@ -24,6 +24,7 @@ import {
   getLevels,
   getModules,
   getNextStudentCodes,
+  bulkChangeStudentTeacher,
   resetStudentPassword,
   updateStudentProfile,
   updateStudentStatus,
@@ -41,6 +42,7 @@ import type {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  ArrowRightLeft,
   CheckCircle2,
   Contact,
   Copy,
@@ -91,6 +93,7 @@ function generateDefaultPassword(): string {
   return `Mp-${randomSegment}`;
 }
 
+type StudentStatusFilter = "ALL" | "ACTIVE" | "INACTIVE";
 type StudentSortKey = "studentCode" | "studentName" | "teacher" | "level" | "lastActiveAt" | "status";
 
 const STUDENT_SORT_FIELDS: SortFieldOption<StudentSortKey>[] = [
@@ -164,7 +167,14 @@ export default function AdminStudentsPage() {
   const [CentreFilter, SetCentreFilter] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "centre-filter"), "ALL");
   const CentresQuery = useQuery({ queryKey: ["admin", "payments", "settings"], queryFn: getPaymentSettings, enabled: ready, staleTime: 60_000 });
   const Centres = CentresQuery.data?.centres ?? [];
+  // 2026-11-24 (Shailesh): Active / Inactive filter. Filter order (Shailesh,
+  // 24 Nov): Status, Centre, Teacher, Level, Sort By.
+  const [StatusFilter, SetStatusFilter] = usePersistentUiState<StudentStatusFilter>(CreatePersistedUiStateKey(StudentDirectoryStateKey, "status-filter"), "ALL");
   const [page, setPage] = usePersistentUiState(CreatePersistedUiStateKey(StudentDirectoryStateKey, "page"), 1);
+  // 2026-11-24 (Shailesh): pick many students and move them to one teacher.
+  const [SelectedIds, SetSelectedIds] = useState<Set<string>>(() => new Set());
+  const [BulkTeacherOpen, SetBulkTeacherOpen] = useState(false);
+  const [MoveNotice, SetMoveNotice] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [lastLogin, setLastLogin] = useState<{
@@ -454,8 +464,10 @@ export default function AdminStudentsPage() {
     if (LevelFilter && LevelFilter !== "ALL") ScopeParts.push(`Level: ${LevelFilter}`);
     if (CentreFilter === "NONE") ScopeParts.push("No centre yet");
     else if (CentreFilter && CentreFilter !== "ALL") ScopeParts.push(`Centre: ${Centres.find((Centre) => Centre.centreId === CentreFilter)?.name ?? "Unknown"}`);
+    if (StatusFilter === "ACTIVE") ScopeParts.push("Active");
+    else if (StatusFilter === "INACTIVE") ScopeParts.push("Inactive");
     return ScopeParts.length ? ScopeParts.join(" · ") : "All Teachers · All Levels";
-  }, [teacherFilter, LevelFilter, CentreFilter, Centres]);
+  }, [teacherFilter, LevelFilter, CentreFilter, StatusFilter, Centres]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -491,9 +503,12 @@ export default function AdminStudentsPage() {
           .toLowerCase()
           .includes(q);
 
-      return matchesTeacher && MatchesLevel && MatchesCentre && matchesSearch;
+      const MatchesStatus =
+        StatusFilter === "ALL" || (StatusFilter === "ACTIVE" ? s.isActive : !s.isActive);
+
+      return matchesTeacher && MatchesLevel && MatchesCentre && MatchesStatus && matchesSearch;
     });
-  }, [students, search, teacherFilter, LevelFilter, CentreFilter]);
+  }, [students, search, teacherFilter, LevelFilter, CentreFilter, StatusFilter]);
 
   const {
     sortKey,
@@ -530,6 +545,52 @@ export default function AdminStudentsPage() {
     setSortState(key, direction);
     setPage(1);
   }
+
+  // Only students the filters show can stay picked, so a move never
+  // touches someone hidden from view.
+  useEffect(() => {
+    SetSelectedIds((Previous) => {
+      if (!Previous.size) return Previous;
+      const Visible = new Set(filtered.map((Student) => Student.studentId));
+      const Kept = new Set(Array.from(Previous).filter((StudentId) => Visible.has(StudentId)));
+      return Kept.size === Previous.size ? Previous : Kept;
+    });
+  }, [filtered]);
+
+  const SelectedStudents = useMemo(
+    () => filtered.filter((Student) => SelectedIds.has(Student.studentId)),
+    [filtered, SelectedIds]
+  );
+  const AllFilteredSelected = filtered.length > 0 && SelectedStudents.length === filtered.length;
+
+  function ToggleStudentSelected(StudentId: string) {
+    SetSelectedIds((Previous) => {
+      const Next = new Set(Previous);
+      if (Next.has(StudentId)) Next.delete(StudentId);
+      else Next.add(StudentId);
+      return Next;
+    });
+  }
+
+  function ToggleAllFilteredSelected() {
+    SetSelectedIds(AllFilteredSelected ? new Set() : new Set(filtered.map((Student) => Student.studentId)));
+  }
+
+  function ApplyStatusFilter(Next: StudentStatusFilter) {
+    SetStatusFilter(Next);
+    setPage(1);
+  }
+
+  const bulkTeacherMutation = useMutation({
+    mutationFn: bulkChangeStudentTeacher,
+    onSuccess: (Data) => {
+      SetMoveNotice(Data.message);
+      SetSelectedIds(new Set());
+      SetBulkTeacherOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["admin-students"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-teachers"] });
+    },
+  });
 
   if (!ready) return null;
 
@@ -702,16 +763,25 @@ export default function AdminStudentsPage() {
               label="Students"
               value={realStudents.length}
               icon={<UsersRound size={18} />}
+              selected={StatusFilter === "ALL"}
+              onClick={() => ApplyStatusFilter("ALL")}
+              actionLabel="Show all students"
             />
             <Metric
               label="Active"
               value={activeCount}
               icon={<CheckCircle2 size={18} />}
+              selected={StatusFilter === "ACTIVE"}
+              onClick={() => ApplyStatusFilter("ACTIVE")}
+              actionLabel="Show active students"
             />
             <Metric
               label="Inactive"
               value={inactiveCount}
               icon={<XCircle size={18} />}
+              selected={StatusFilter === "INACTIVE"}
+              onClick={() => ApplyStatusFilter("INACTIVE")}
+              actionLabel="Show inactive students"
             />
             {demoCount ? (
               <Metric
@@ -903,6 +973,26 @@ export default function AdminStudentsPage() {
         </div>
       ) : null}
 
+      {MoveNotice ? (
+        <div
+          role="status"
+          data-move-notice
+          className="mt-6 flex flex-col gap-3 rounded-[26px] border border-emerald-200 bg-emerald-50 p-5 text-emerald-900 shadow-sm dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-100 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="flex items-center gap-2 font-black">
+            <CheckCircle2 size={18} className="shrink-0" />
+            {MoveNotice}
+          </p>
+          <button
+            type="button"
+            className="text-sm font-black text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-200"
+            onClick={() => SetMoveNotice("")}
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
       <section className="mt-6 space-y-5">
         <div className="math-card p-5 sm:p-6">
           <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
@@ -912,7 +1002,7 @@ export default function AdminStudentsPage() {
                 Student Details
               </h2>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                Search, filter by teacher and level, view, edit, deactivate, reset passwords, or delete records.
+                Search, filter by teacher, level, centre and status, move students to another teacher, view, edit, deactivate, reset passwords, or delete records.
               </p>
 
               <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
@@ -920,8 +1010,8 @@ export default function AdminStudentsPage() {
               </p>
             </div>
 
-            <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[minmax(0,1fr)_200px_170px_170px_auto] 2xl:max-w-6xl">
-              <div className="relative sm:col-span-2 lg:col-span-4 xl:col-span-1">
+            <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-[minmax(0,1fr)_150px_160px_190px_150px_auto] 2xl:max-w-7xl">
+              <div className="relative sm:col-span-2 lg:col-span-5 xl:col-span-1">
                 <Search
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                   size={18}
@@ -936,6 +1026,35 @@ export default function AdminStudentsPage() {
                   placeholder="Search Students"
                 />
               </div>
+
+              <select
+                className="math-select"
+                value={StatusFilter}
+                aria-label="Filter by status"
+                onChange={(Event) => ApplyStatusFilter(Event.target.value as StudentStatusFilter)}
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+
+              <select
+                className="math-select"
+                value={CentreFilter}
+                aria-label="Filter by centre"
+                onChange={(Event) => {
+                  SetCentreFilter(Event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="ALL">All Centres</option>
+                {Centres.map((Centre) => (
+                  <option key={Centre.centreId} value={Centre.centreId}>
+                    {Centre.name}
+                  </option>
+                ))}
+                <option value="NONE">No Centre Yet</option>
+              </select>
 
               <select
                 className="math-select"
@@ -971,24 +1090,6 @@ export default function AdminStudentsPage() {
                 ))}
               </select>
 
-              <select
-                className="math-select"
-                value={CentreFilter}
-                aria-label="Filter by centre"
-                onChange={(Event) => {
-                  SetCentreFilter(Event.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="ALL">All Centres</option>
-                {Centres.map((Centre) => (
-                  <option key={Centre.centreId} value={Centre.centreId}>
-                    {Centre.name}
-                  </option>
-                ))}
-                <option value="NONE">No Centre Yet</option>
-              </select>
-
               <SortByDropdown
                 fields={STUDENT_SORT_FIELDS}
                 sortKey={sortKey}
@@ -1008,6 +1109,32 @@ export default function AdminStudentsPage() {
         !studentsQuery.error &&
         filtered.length === 0 ? (
           <EmptyState message="No matching students found." />
+        ) : null}
+
+        {filtered.length ? (
+          <div className="ad-select-strip" data-select-strip>
+            <label className="ad-select-all">
+              <input
+                type="checkbox"
+                className="ad-select-box"
+                checked={AllFilteredSelected}
+                ref={(Box) => {
+                  if (Box) Box.indeterminate = SelectedStudents.length > 0 && !AllFilteredSelected;
+                }}
+                onChange={ToggleAllFilteredSelected}
+                aria-label={`Select all ${filtered.length} students shown`}
+              />
+              <span>
+                {AllFilteredSelected
+                  ? `All ${Plural(filtered.length, "student")} selected`
+                  : `Select all ${Plural(filtered.length, "student")}`}
+              </span>
+            </label>
+            <span className="ad-select-hint">
+              {filtered.length > PAGE_SIZE ? "Across every page, with the filters above. " : ""}
+              Tick students to move them to another teacher.
+            </span>
+          </div>
         ) : null}
 
         {filtered.length ? (
@@ -1031,9 +1158,16 @@ export default function AdminStudentsPage() {
                   const resetPassword = resetPasswordByStudent[s.studentId] ?? "";
 
                   return (
-                    <tr key={s.studentId}>
+                    <tr key={s.studentId} data-selected={SelectedIds.has(s.studentId) ? "true" : undefined}>
                       <td className="ad-card-title">
                         <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            className="ad-select-box"
+                            checked={SelectedIds.has(s.studentId)}
+                            onChange={() => ToggleStudentSelected(s.studentId)}
+                            aria-label={`Select ${s.studentName}`}
+                          />
                           <ProfileAvatar
                             name={s.studentName}
                             imageUrl={s.photoUrl}
@@ -1227,6 +1361,50 @@ export default function AdminStudentsPage() {
           onFieldChange={updateField}
           onPhotoChange={setPhotoFile}
           onSignatureChange={setSignatureFile}
+        />
+      ) : null}
+
+      {/* room under the last row, so the floating bar never covers it */}
+      {SelectedStudents.length ? <div aria-hidden="true" className="h-28" /> : null}
+
+      {SelectedStudents.length && !BulkTeacherOpen && !isFormOpen ? (
+        <div className="ad-selection-bar" role="region" aria-label="Selected students" data-selection-bar>
+          <p className="ad-selection-count">
+            <span>{SelectedStudents.length}</span> {SelectedStudents.length === 1 ? "student" : "students"} selected
+          </p>
+          <div className="ad-selection-actions">
+            <button
+              type="button"
+              className="math-button-primary"
+              onClick={() => {
+                bulkTeacherMutation.reset();
+                SetBulkTeacherOpen(true);
+              }}
+            >
+              <ArrowRightLeft size={16} />
+              Change Teacher
+            </button>
+            <button type="button" className="math-button-secondary" onClick={() => SetSelectedIds(new Set())}>
+              Clear
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {BulkTeacherOpen && SelectedStudents.length ? (
+        <BulkTeacherModal
+          students={SelectedStudents}
+          teachers={(teachersQuery.data ?? []).filter((Teacher) => Teacher.isActive)}
+          teachersLoading={teachersQuery.isLoading}
+          saving={bulkTeacherMutation.isPending}
+          error={bulkTeacherMutation.error ? apiErrorMessage(bulkTeacherMutation.error) : ""}
+          onCancel={() => SetBulkTeacherOpen(false)}
+          onConfirm={(TeacherId) =>
+            bulkTeacherMutation.mutate({
+              studentIds: SelectedStudents.map((Student) => Student.studentId),
+              teacherId: TeacherId,
+            })
+          }
         />
       ) : null}
 
@@ -1636,15 +1814,45 @@ function StudentFormModal({
   );
 }
 
-function Metric({ label, value, icon }: { label: string; value: number; icon: ReactNode }) {
+function Metric({
+  label,
+  value,
+  icon,
+  selected,
+  onClick,
+  actionLabel,
+}: {
+  label: string;
+  value: number;
+  icon: ReactNode;
+  selected?: boolean;
+  onClick?: () => void;
+  actionLabel?: string;
+}) {
   // 2026-10 (admin revamp): the shared tile (icon, label over figure), the
-  // same as every other admin and teacher page.
-  return (
-    <div className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-4">
+  // same as every other admin and teacher page. 2026-11-24: Students /
+  // Active / Inactive also set the status filter below.
+  const Body = (
+    <>
       <div className="math-teacher-icon-chip relative z-10">{icon}</div>
       <p className="relative z-10">{label}</p>
       <p className="relative z-10">{value}</p>
-    </div>
+    </>
+  );
+  if (!onClick) {
+    return <div className="math-teacher-light-metric-card relative overflow-hidden rounded-[22px] border p-4">{Body}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={Boolean(selected)}
+      aria-label={`${actionLabel ?? label}: ${value}`}
+      data-selected={selected ? "true" : "false"}
+      className="math-teacher-light-metric-card ad-filter-tile relative overflow-hidden rounded-[22px] border p-4 text-left"
+    >
+      {Body}
+    </button>
   );
 }
 
@@ -1927,6 +2135,128 @@ function ImageInput({
 }
 
 
+function BulkTeacherModal({
+  students,
+  teachers,
+  teachersLoading,
+  saving,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  students: AdminStudent[];
+  teachers: AdminTeacher[];
+  teachersLoading: boolean;
+  saving: boolean;
+  error: string;
+  onCancel: () => void;
+  onConfirm: (teacherId: string) => void;
+}) {
+  const [TeacherId, SetTeacherId] = useState("");
+  const Chosen = teachers.find((Teacher) => Teacher.teacherId === TeacherId) ?? null;
+  const AlreadyThere = Chosen ? students.filter((Student) => Student.teacherId === Chosen.teacherId).length : 0;
+  const Moving = students.length - AlreadyThere;
+  const FromTeachers = useMemo(() => {
+    const Counts = new Map<string, number>();
+    for (const Student of students) {
+      const Name = String(Student.teacher ?? "").trim() || "No teacher";
+      Counts.set(Name, (Counts.get(Name) ?? 0) + 1);
+    }
+    return Array.from(Counts.entries()).sort((A, B) => B[1] - A[1] || A[0].localeCompare(B[0]));
+  }, [students]);
+
+  useEffect(() => {
+    function OnKey(Event: KeyboardEvent) {
+      if (Event.key === "Escape" && !saving) onCancel();
+    }
+    window.addEventListener("keydown", OnKey);
+    return () => window.removeEventListener("keydown", OnKey);
+  }, [onCancel, saving]);
+
+  return (
+    <div
+      className="math-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bulk-teacher-title"
+    >
+      <div className="math-card w-full max-w-lg p-6" data-bulk-teacher-dialog>
+        <p className="math-block-header">
+          <ArrowRightLeft size={14} />
+          Change Teacher
+        </p>
+        <h2 id="bulk-teacher-title" className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+          Move {students.length === 1 ? students[0].studentName : `${students.length} students`} to another teacher
+        </h2>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
+          <p className="font-black text-slate-950 dark:text-white">Moving from</p>
+          <ul className="mt-2 space-y-1">
+            {FromTeachers.map(([Name, Count]) => (
+              <li key={Name} className="flex justify-between gap-3">
+                <span className="min-w-0 truncate">{Name}</span>
+                <span className="shrink-0 font-black">{Plural(Count, "student")}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <label className="mt-5 block">
+          <span className="math-label">
+            New Teacher <span className="text-red-500">*</span>
+          </span>
+          <select
+            className="math-select mt-2"
+            value={TeacherId}
+            onChange={(Event) => SetTeacherId(Event.target.value)}
+            disabled={teachersLoading || saving}
+            autoFocus
+          >
+            <option value="">{teachersLoading ? "Loading teachers…" : "Choose Teacher"}</option>
+            {teachers.map((Teacher) => (
+              <option key={Teacher.teacherId} value={Teacher.teacherId}>
+                {Teacher.teacherName} ({Teacher.teacherCode})
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {Chosen ? (
+          <p className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300" data-bulk-teacher-summary>
+            {Moving
+              ? `${Plural(Moving, "student")} will move to ${Chosen.teacherName}.`
+              : `All of them already have ${Chosen.teacherName}.`}
+            {Moving && AlreadyThere ? ` ${AlreadyThere} already ${AlreadyThere === 1 ? "has" : "have"} this teacher and will stay as they are.` : ""}
+            {Moving ? " Their history, reports and promotions move with them, and the teacher gets one notification." : ""}
+          </p>
+        ) : null}
+
+        {error ? (
+          <p role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <span className="min-w-0">{error}</span>
+          </p>
+        ) : null}
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            className="math-button-primary flex-1"
+            disabled={!Chosen || !Moving || saving}
+            onClick={() => Chosen && onConfirm(Chosen.teacherId)}
+          >
+            <ArrowRightLeft size={16} />
+            {saving ? "Moving…" : Moving ? `Move ${Plural(Moving, "Student")}` : "Move Students"}
+          </button>
+          <button type="button" className="math-button-secondary flex-1" onClick={onCancel} disabled={saving}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DeleteStudentModal({
   student,
   deleting,
@@ -1939,7 +2269,7 @@ function DeleteStudentModal({
   onConfirm: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4 pt-6 backdrop-blur-sm sm:pt-8">
+    <div className="math-modal-overlay" role="dialog" aria-modal="true">
       <div className="math-card w-full max-w-lg p-6">
         <div className="flex items-start gap-4">
           <div className="rounded-2xl bg-rose-50 p-3 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">

@@ -17,6 +17,7 @@ import {
   TriangleAlert,
   Wallet,
   Trophy,
+  UsersRound,
 } from "lucide-react";
 
 // 2026-10-13: the notification look and routing rules, shared by the bell
@@ -90,6 +91,7 @@ export function IconFor(Notification: NotificationRecord) {
   const Type = String(Notification.type || "").toUpperCase();
 
   if (Category === "BIRTHDAY") return <Cake size={16} />;
+  if (Category === "STUDENTS") return <UsersRound size={16} />;
   if (Category === "REWARD") return <Gift size={16} />;
   if (Category === "ASSESSMENT_FEEDBACK") return <MessageSquareText size={16} />;
   // 2026-10-09 (Payments Phase 5): invoices raised, payments received, an
@@ -410,7 +412,8 @@ function AppendDeepLinkParams(
 function BuildRoleAwareRoute(Notification: NotificationRecord, Role: string) {
   // 2026-10-18 (Birthdays): the route is always built on the server (the
   // student's dashboard with ?birthday=1, or the staff Birthdays page).
-  if (["BIRTHDAY", "REWARD"].includes(String(Notification.category || "").toUpperCase())) {
+  // 2026-11-24: "students were moved to you" opens the teacher's My Students.
+  if (["BIRTHDAY", "REWARD", "STUDENTS"].includes(String(Notification.category || "").toUpperCase())) {
     return { Route: Notification.targetRoute || `/${Role}/dashboard`, TargetTab: "", TargetSubTab: "" };
   }
   // 2026-10-20 (rank revamp): a rank-up notification opens that rank's scene

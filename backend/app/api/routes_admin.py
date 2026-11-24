@@ -77,6 +77,7 @@ from app.services.assessment_notification_service import NotifyAssessmentReattem
 from app.services.practice_notification_service import NotifyBulkFreshPracticeAssigned, NotifyPracticeFreshPracticeAssigned
 from app.services.manual_intervention_service import BuildManualInterventionQueue, BuildManualRetryAssignment, MANUAL_INTERVENTION_STATUS
 from app.services.dps_chain_state_service import BuildDpsChainIndex, HealExpiredPracticeAttempts
+from app.services.notification_service import CreateNotification
 from app.services.student_codes import CheckChangedStudentCodes, CheckNewStudentCodes, NextStudentCodes, NextStudentNumber, StudentCodeFor, CustomIdFor, StudentCodeYear
 from app.services.demo_students import DemoStudentIds, IsDemoStudent, IsDemoStudentId, RealStudents, WithoutDemo, WithoutDemoColumn
 from app.services.request_cache import RequestCache, AttemptsForAssignment, AttemptsForAssignmentStudentInOrder, EnableRequestCache, LatestAttemptForAssignmentStudent, LevelDpsCount, OpenReattemptPermission, PinRows, PrimeAssignmentAttempts, PrimeOpenReattemptPermissions
@@ -607,6 +608,11 @@ class StudentUpdateRequest(BaseModel):
     motherOccupation: str | None = None
     # 2026-10-08 (Payments): "" clears the centre; omitted leaves it as is.
     centreId: str | None = None
+
+
+class StudentBulkTeacherRequest(BaseModel):
+    studentIds: list[str]
+    teacherId: str
 
 
 class StudentStatusRequest(BaseModel):
@@ -1468,6 +1474,88 @@ def update_student_route(student_id: str, payload: StudentUpdateRequest, db: Ses
     db.commit()
     db.refresh(student)
     return {"updated": True, "message": "Student updated successfully.", "student": student_payload(db, student)}
+
+
+@router.post("/students/bulk-teacher")
+def bulk_change_student_teacher(payload: StudentBulkTeacherRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    """Move many students to one teacher at once (2026-11-24, Shailesh).
+
+    All or nothing: every student is checked first, then all move in one
+    save. Only an existing, active teacher can be chosen (no teacher is ever
+    created here). Students who already have that teacher are skipped. The
+    new teacher gets one notification for the whole move.
+    """
+    student_ids = list(dict.fromkeys(str(StudentId).strip() for StudentId in payload.studentIds if str(StudentId).strip()))
+    if not student_ids:
+        api_error(400, "NO_STUDENTS_SELECTED", "Choose at least one student to move.")
+    teacher = db.get(Teacher, payload.teacherId)
+    teacher_user = db.get(User, teacher.user_id) if teacher else None
+    if not teacher or not teacher_user:
+        api_error(404, "TEACHER_NOT_FOUND", "That teacher was not found. Refresh the page and choose again.")
+    if not teacher.is_active or not teacher_user.is_active:
+        api_error(400, "TEACHER_INACTIVE", f"{teacher_user.full_name} is inactive. Choose an active teacher.")
+
+    students = db.query(Student).filter(Student.id.in_(student_ids)).all()
+    found = {StudentItem.id for StudentItem in students}
+    missing = [StudentId for StudentId in student_ids if StudentId not in found]
+    if missing:
+        api_error(
+            404,
+            "STUDENT_NOT_FOUND",
+            f"{len(missing)} of the selected students no longer exist. Refresh the page and select again.",
+            {"missingStudentIds": missing},
+        )
+
+    moved = []
+    skipped = 0
+    for StudentItem in students:
+        if StudentItem.teacher_id == teacher.id:
+            skipped += 1
+            continue
+        StudentItem.teacher_id = teacher.id
+        StudentItem.teacher = teacher_user.full_name
+        moved.append(StudentItem)
+
+    if moved:
+        moved_names = []
+        for StudentItem in moved[:3]:
+            student_user = db.get(User, StudentItem.user_id) if StudentItem.user_id else None
+            moved_names.append(student_user.full_name if student_user else StudentItem.student_code)
+        more = len(moved) - len(moved_names)
+        names_text = ", ".join(moved_names) + (f" and {more} more" if more > 0 else "")
+        count_text = "1 student was" if len(moved) == 1 else f"{len(moved)} students were"
+        CreateNotification(
+            db,
+            recipient_user_id=teacher_user.id,
+            recipient_role="TEACHER",
+            actor_user_id=user.id,
+            actor_role="ADMIN",
+            teacher_id=teacher.id,
+            student_id=moved[0].id if len(moved) == 1 else None,
+            type="STUDENTS_ASSIGNED_TO_TEACHER",
+            category="STUDENTS",
+            title="1 Student Assigned To You" if len(moved) == 1 else f"{len(moved)} Students Assigned To You",
+            message=f"{count_text} moved to you: {names_text}.",
+            target_route="/teacher/students",
+            target_tab="",
+            color_variant="BLUE",
+            metadata={
+                "event": "STUDENTS_ASSIGNED_TO_TEACHER",
+                "studentIds": [StudentItem.id for StudentItem in moved],
+                "studentCodes": [StudentItem.student_code for StudentItem in moved],
+                "count": len(moved),
+            },
+        )
+    db.commit()
+    return {
+        "moved": len(moved),
+        "skipped": skipped,
+        "teacher": {"teacherId": teacher.id, "teacherCode": teacher.teacher_code, "teacherName": teacher_user.full_name},
+        "message": (
+            f"{len(moved)} student{'s' if len(moved) != 1 else ''} moved to {teacher_user.full_name}."
+            + (f" {skipped} already had this teacher." if skipped else "")
+        ),
+    }
 
 
 @router.patch("/students/{student_id}/status")
