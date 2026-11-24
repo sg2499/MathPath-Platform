@@ -763,7 +763,6 @@ export default function AdminStudentsPage() {
               label="Students"
               value={realStudents.length}
               icon={<UsersRound size={18} />}
-              selected={StatusFilter === "ALL"}
               onClick={() => ApplyStatusFilter("ALL")}
               actionLabel="Show all students"
             />
@@ -995,14 +994,17 @@ export default function AdminStudentsPage() {
 
       <section className="mt-6 space-y-5">
         <div className="math-card p-5 sm:p-6">
-          <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
-            <div>
+          {/* 2026-11-24 (Shailesh): title and description use the full width,
+              the filters sit in one row under them (beside the filters the
+              description broke over three lines and the search box was cut). */}
+          <div className="flex flex-col gap-4">
+            <div className="min-w-0">
               <p className="math-block-header"><FileText size={14} />Student Records</p>
               <h2 className="text-2xl font-black text-slate-950 dark:text-white">
                 Student Details
               </h2>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                Search, filter by teacher, level, centre and status, move students to another teacher, view, edit, deactivate, reset passwords, or delete records.
+                Find and filter students, move them to another teacher, and view, edit, deactivate or delete their records.
               </p>
 
               <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
@@ -1010,7 +1012,7 @@ export default function AdminStudentsPage() {
               </p>
             </div>
 
-            <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-[minmax(0,1fr)_150px_160px_190px_150px_auto] 2xl:max-w-7xl">
+            <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-[minmax(220px,1.5fr)_repeat(4,minmax(0,1fr))_auto]">
               <div className="relative sm:col-span-2 lg:col-span-5 xl:col-span-1">
                 <Search
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
