@@ -87,6 +87,9 @@ export type StudentProfilePayload = {
   motherOccupation?: string | null;
   // "" clears the centre.
   centreId?: string | null;
+  // 2026-11-26 (billing Release 1): needed when an existing student's
+  // admission date changes (it decides the monthly fee).
+  admissionDateReason?: string;
 };
 
 export type BulkUploadResult = {

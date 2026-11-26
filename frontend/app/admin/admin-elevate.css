@@ -4282,7 +4282,7 @@ html .math-role-admin .ad-selection-bar {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem 1.25rem;
-  width: min(40rem, calc(100vw - 2rem));
+  width: min(48rem, calc(100vw - 2rem));
   padding: 0.75rem 0.85rem 0.75rem 1.25rem;
   border: 1px solid var(--ad-line-strong);
   border-radius: 20px;
@@ -4309,6 +4309,7 @@ html .math-role-admin .ad-selection-count > span {
 
 html .math-role-admin .ad-selection-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
 }
 
@@ -4325,7 +4326,9 @@ html .math-role-admin .ad-selection-actions > :is(button, a) {
     width: 100%;
   }
 
-  html .math-role-admin .ad-selection-actions > :first-child {
-    flex: 1;
+  /* 2026-11-26: Change Teacher and Change Centre share a row; Clear below. */
+  html .math-role-admin .ad-selection-actions > :is(button, a) {
+    flex: 1 1 40%;
+    min-width: 0;
   }
 }

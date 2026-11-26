@@ -144,7 +144,7 @@ function StudentPanel({ studentId, onClose }: { studentId: string | null; onClos
             ) : null}
             {billing.data ? (
               <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold">
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700 dark:bg-slate-800 dark:text-slate-200">{billing.data.billingMode === "EXEMPT" ? "No monthly fee" : `${billing.data.billingModeLabel} fee`}</span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700 dark:bg-slate-800 dark:text-slate-200">{billing.data.billingMode === "EXEMPT" ? "No monthly fee" : `${billing.data.billingModeLabel}${billing.data.rateGroup === "NEW" ? " new" : ""} fee${billing.data.fee ? ` ${billing.data.fee.display}` : ""}`}</span>
                 <Link href={`/admin/payments/invoices?tab=monthly&period=${billing.data.period}`} onClick={onClose} className={`hover:underline ${billing.data.state === "INVOICED" ? "text-emerald-700 dark:text-emerald-300" : billing.data.state === "DROPPED" || billing.data.state === "EXEMPT" ? "text-slate-500 dark:text-slate-400" : "text-amber-700 dark:text-amber-300"}`}>
                   {billing.data.state === "INVOICED"
                     ? `${billing.data.periodLabel} invoiced (${billing.data.invoiceNumber})`

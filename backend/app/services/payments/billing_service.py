@@ -20,6 +20,17 @@
 The fee is not stored on a draft: it follows the student's billing mode and
 the fee item's price at release, so a price change in Fee Setup is used by
 every draft not yet released.
+
+Billing Release 1 (2026-11-26, Shailesh): four tuition rates. Every student
+is in a rate group:
+  * EXISTING -- admitted before the cut-off (1 Dec 2026): ₹1,100 a month, or
+    ₹2,200 International, for good;
+  * NEW -- admitted on or after the cut-off: ₹1,200, or ₹2,400 International.
+The group follows the admission date. A student with no admission date
+follows the day they were added to the platform, so everyone already here on
+launch is EXISTING. An admin can set a student's group by hand, with a
+reason (kept in the payments audit). Payment Settings > Billing says which
+fee item each mode and group is charged, and the cut-off date.
 """
 from __future__ import annotations
 
@@ -50,6 +61,14 @@ from app.services.payments.audit import WritePaymentAudit
 from app.services.payments.money import FormatIndianRupees
 
 MODES = {"INDIA": "India", "INTERNATIONAL": "International", "EXEMPT": "No monthly fee"}
+GROUPS = {"EXISTING": "Existing", "NEW": "New"}
+GROUP_SOURCES = {"SET_BY_ADMIN": "Set by an admin", "ADMISSION_DATE": "Admission date", "ADDED_ON": "Added to MathPath"}
+DEFAULT_NEW_RATE_FROM = "2026-12-01"
+# (mode, existing-rate paise, new-rate name, new-rate paise)
+NEW_RATE_ITEMS = (
+    ("INDIA", 110000, "Monthly Fee New Admission", 120000),
+    ("INTERNATIONAL", 220000, "Monthly Fee International New Admission", 240000),
+)
 EXEMPT_REASON = "Not released: set to No monthly fee in Payment Settings › Billing"
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
@@ -98,6 +117,148 @@ def _Clean(Value: Any, Limit: int) -> str | None:
 
 
 # ----------------------------------------------------------------------------
+# Admission dates and rate groups (billing Release 1)
+# ----------------------------------------------------------------------------
+
+def ParseAdmissionDate(Value: Any) -> date | None:
+    """A stored or typed admission date: 2026-12-01, 01-12-2026 or
+    01/12/2026. None when blank or not a real date."""
+    Text = str(Value or "").strip()
+    if not Text:
+        return None
+    for Pattern, Order in ((r"(\d{4})-(\d{1,2})-(\d{1,2})", "YMD"), (r"(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})", "DMY")):
+        Found = re.fullmatch(Pattern, Text[:10] if Order == "YMD" else Text)
+        if Found:
+            A, B, C = (int(Part) for Part in Found.groups())
+            Year, Month, Day = (A, B, C) if Order == "YMD" else (C, B, A)
+            try:
+                return date(Year, Month, Day)
+            except ValueError:
+                return None
+    return None
+
+
+def NormaliseAdmissionDate(Value: Any) -> str | None:
+    """The admission date to store: '' or None clears it; anything else must
+    be a real date between 2000 and 60 days from today, kept as YYYY-MM-DD."""
+    if Value is None or not str(Value).strip():
+        return None
+    Parsed = ParseAdmissionDate(Value)
+    if Parsed is None:
+        api_error(422, "ADMISSION_DATE_INVALID", "The admission date must be a real date, like 2026-12-01.")
+    if Parsed < date(2000, 1, 1) or Parsed.toordinal() > _Today().toordinal() + 60:
+        api_error(422, "ADMISSION_DATE_INVALID", "The admission date looks wrong. Please check the year.")
+    return Parsed.isoformat()
+
+
+def NewRateFrom(Settings: PaymentBillingSettings | None) -> date:
+    return ParseAdmissionDate(getattr(Settings, "new_rate_from", None)) or date.fromisoformat(DEFAULT_NEW_RATE_FROM)
+
+
+def _DayLabel(Day: date) -> str:
+    return f"{Day.day} {MONTHS[Day.month - 1]} {Day.year}"
+
+
+def _AddedOn(Value: datetime | None) -> date | None:
+    if not Value:
+        return None
+    from app.services.payments.invoices_service import INDIA
+
+    return (Value if Value.tzinfo else Value.replace(tzinfo=timezone.utc)).astimezone(INDIA).date()
+
+
+def RateGroupsFor(db: Session, StudentIds: list[str] | None = None, Settings: PaymentBillingSettings | None = None) -> dict[str, dict[str, Any]]:
+    """Each student's rate group: {"group", "source", "admissionDate"}.
+
+    Set by an admin first; otherwise the admission date against the cut-off;
+    with no usable admission date, the day the student was added."""
+    if StudentIds is not None and not StudentIds:
+        return {}
+    Cutoff = NewRateFrom(Settings or EnsureBillingSettings(db))
+    Query = db.query(Student.id, Student.admission_date, User.created_at).join(User, Student.user_id == User.id)
+    Overrides = db.query(PaymentStudentBilling.student_id, PaymentStudentBilling.rate_group).filter(PaymentStudentBilling.rate_group.isnot(None))
+    if StudentIds is not None:
+        Query = Query.filter(Student.id.in_(StudentIds))
+        Overrides = Overrides.filter(PaymentStudentBilling.student_id.in_(StudentIds))
+    SetByAdmin = {StudentId: Group for StudentId, Group in Overrides.all() if Group in GROUPS}
+    Result: dict[str, dict[str, Any]] = {}
+    for StudentId, Admission, CreatedAt in Query.all():
+        Admitted = ParseAdmissionDate(Admission)
+        if StudentId in SetByAdmin:
+            Group, Source = SetByAdmin[StudentId], "SET_BY_ADMIN"
+        elif Admitted:
+            Group, Source = ("NEW" if Admitted >= Cutoff else "EXISTING"), "ADMISSION_DATE"
+        else:
+            Added = _AddedOn(CreatedAt)
+            Group, Source = ("NEW" if Added and Added >= Cutoff else "EXISTING"), "ADDED_ON"
+        Result[StudentId] = {"group": Group, "source": Source, "admissionDate": Admitted.isoformat() if Admitted else None}
+    return Result
+
+
+def _GroupPayload(Info: dict[str, Any] | None) -> dict[str, Any]:
+    Info = Info or {"group": "EXISTING", "source": "ADDED_ON", "admissionDate": None}
+    return {
+        "rateGroup": Info["group"],
+        "rateGroupLabel": GROUPS[Info["group"]],
+        "rateGroupSource": Info["source"],
+        "rateGroupSourceLabel": GROUP_SOURCES[Info["source"]],
+        "admissionDate": Info["admissionDate"],
+    }
+
+
+def SeedNewAdmissionRates(db: Session) -> int:
+    """Once, at startup: on a site that bills ₹1,100 (India) or ₹2,200
+    (International) a month, add the new-admission monthly fees (₹1,200 /
+    ₹2,400) in Fee Setup and choose them for new students in Billing. The
+    cut-off is set to 1 Dec 2026 if it is empty. Nothing is billed by this:
+    monthly drafts still wait for the India fee to be chosen."""
+    Settings = db.get(PaymentBillingSettings, "default")
+    if not Settings:
+        return 0
+    if not Settings.new_rate_from:
+        Settings.new_rate_from = DEFAULT_NEW_RATE_FROM
+    if Settings.new_rates_seeded:
+        db.flush()
+        return 0
+    from app.services.payments.setup_service import DEFAULT_GST_RATE_BPS, NameKey
+
+    Made = 0
+    Columns = {"INDIA": "india_new_fee_item_id", "INTERNATIONAL": "international_new_fee_item_id"}
+    for Mode, OldPaise, Name, NewPaise in NEW_RATE_ITEMS:
+        Monthly = db.query(FeeItem).filter(FeeItem.billing_type == "MONTHLY", FeeItem.is_active == True).all()  # noqa: E712
+        Intl = [Row for Row in Monthly if re.search(r"international|intl", Row.name, re.I)]
+        Pool = Intl if Mode == "INTERNATIONAL" else [Row for Row in Monthly if Row not in Intl]
+        Old = next((Row for Row in Pool if Row.amount_paise == OldPaise), None)
+        if not Old:
+            continue
+        Item = db.query(FeeItem).filter(FeeItem.name_key == NameKey(Name)).first()
+        if not Item:
+            LastOrder = db.query(FeeItem.display_order).order_by(FeeItem.display_order.desc()).first()
+            Item = FeeItem(
+                name=Name,
+                name_key=NameKey(Name),
+                description=None,
+                amount_paise=NewPaise,
+                gst_included=bool(Old.gst_included),
+                gst_rate_bps=Old.gst_rate_bps or DEFAULT_GST_RATE_BPS,
+                billing_type="MONTHLY",
+                display_order=(LastOrder[0] + 1) if LastOrder else 1,
+                is_active=True,
+            )
+            db.add(Item)
+            db.flush()
+            WritePaymentAudit(db, EntityType="FEE_ITEM", EntityId=Item.id, Action="CREATE", Actor=None, ActorName="MathPath",
+                              After={"name": Item.name, "amountPaise": Item.amount_paise, "billingType": "MONTHLY"},
+                              Reason=f"Monthly fee for students admitted from {_DayLabel(NewRateFrom(Settings))}")
+            Made += 1
+        if Item.billing_type == "MONTHLY" and not getattr(Settings, Columns[Mode]):
+            setattr(Settings, Columns[Mode], Item.id)
+    Settings.new_rates_seeded = True
+    db.flush()
+    return Made
+
+
+# ----------------------------------------------------------------------------
 # Settings and billing modes
 # ----------------------------------------------------------------------------
 
@@ -125,6 +286,7 @@ def EnsureBillingSettings(db: Session) -> PaymentBillingSettings:
         auto_drafts_enabled=True,
         auto_from_period=NextPeriod(PeriodOf(_Today())),
         modes_prefilled=False,
+        new_rate_from=DEFAULT_NEW_RATE_FROM,
     )
     db.add(Row)
     try:
@@ -166,12 +328,35 @@ def ModesFor(db: Session, StudentIds: list[str] | None = None) -> dict[str, str]
     return {Row.student_id: Row.billing_mode for Row in Query.all()}
 
 
-def _FeeItems(db: Session, Settings: PaymentBillingSettings) -> dict[str, FeeItem | None]:
-    return {
-        "INDIA": db.get(FeeItem, Settings.india_fee_item_id) if Settings.india_fee_item_id else None,
-        "INTERNATIONAL": db.get(FeeItem, Settings.international_fee_item_id) if Settings.international_fee_item_id else None,
-        "EXEMPT": None,
-    }
+FEE_COLUMNS = {
+    ("INDIA", "EXISTING"): "india_fee_item_id",
+    ("INDIA", "NEW"): "india_new_fee_item_id",
+    ("INTERNATIONAL", "EXISTING"): "international_fee_item_id",
+    ("INTERNATIONAL", "NEW"): "international_new_fee_item_id",
+}
+FEE_KEYS = {
+    "indiaFeeItemId": ("INDIA", "EXISTING"),
+    "indiaNewFeeItemId": ("INDIA", "NEW"),
+    "internationalFeeItemId": ("INTERNATIONAL", "EXISTING"),
+    "internationalNewFeeItemId": ("INTERNATIONAL", "NEW"),
+}
+
+
+def _FeeItems(db: Session, Settings: PaymentBillingSettings) -> dict[tuple[str, str], FeeItem | None]:
+    """The monthly fee item for each billing mode and rate group."""
+    Result: dict[tuple[str, str], FeeItem | None] = {}
+    for Key, Column in FEE_COLUMNS.items():
+        ItemId = getattr(Settings, Column, None)
+        Result[Key] = db.get(FeeItem, ItemId) if ItemId else None
+    return Result
+
+
+def _FeeFor(Fees: dict[tuple[str, str], FeeItem | None], Mode: str, Group: str) -> FeeItem | None:
+    return Fees.get((Mode, Group)) if Mode in ("INDIA", "INTERNATIONAL") else None
+
+
+def _RateLabel(Mode: str, Group: str) -> str:
+    return f"{'new ' if Group == 'NEW' else ''}{MODES[Mode]}"
 
 
 def _FeePayload(Item: FeeItem | None) -> dict[str, Any] | None:
@@ -194,17 +379,41 @@ def _ActiveStudents(db: Session) -> list[tuple[Student, User]]:
     )
 
 
-def _Problems(db: Session, Settings: PaymentBillingSettings, Fees: dict[str, FeeItem | None], InternationalCount: int) -> list[str]:
+def _Problems(db: Session, Settings: PaymentBillingSettings, Fees: dict[tuple[str, str], FeeItem | None], Counts: dict[tuple[str, str], int]) -> list[str]:
+    """What stops the month being billed. Counts: active students per
+    (mode, group). The India fee for existing students is always needed (it
+    switches the automatic drafts on); the others only when someone pays it."""
     Problems = []
-    if not Fees["INDIA"]:
-        Problems.append("Choose the monthly fee for India students.")
-    elif not Fees["INDIA"].is_active:
-        Problems.append(f"{Fees['INDIA'].name} (India) is switched off in Fee Setup.")
-    if InternationalCount and not Fees["INTERNATIONAL"]:
-        Problems.append(f"Choose the monthly fee for International students ({InternationalCount} student{'s' if InternationalCount != 1 else ''}).")
-    elif InternationalCount and not Fees["INTERNATIONAL"].is_active:
-        Problems.append(f"{Fees['INTERNATIONAL'].name} (International) is switched off in Fee Setup.")
+    Cutoff = _DayLabel(NewRateFrom(Settings))
+    for Mode, Group in FEE_COLUMNS:
+        Count = Counts.get((Mode, Group), 0)
+        Fee = Fees.get((Mode, Group))
+        Who = f"{Count} student{'s' if Count != 1 else ''}"
+        if Group == "EXISTING" and Mode == "INDIA":
+            if not Fee:
+                Problems.append("Choose the monthly fee for India students.")
+            elif not Fee.is_active:
+                Problems.append(f"{Fee.name} (India) is switched off in Fee Setup.")
+            continue
+        if not Count:
+            continue
+        Label = "International students" if Group == "EXISTING" else f"new {MODES[Mode]} students, admitted from {Cutoff}"
+        if not Fee:
+            Problems.append(f"Choose the monthly fee for {Label} ({Who}).")
+        elif not Fee.is_active:
+            Problems.append(f"{Fee.name} ({_RateLabel(Mode, Group)}) is switched off in Fee Setup.")
     return Problems
+
+
+def _ActiveCounts(db: Session, Settings: PaymentBillingSettings, ActiveIds: list[str]) -> tuple[dict[str, str], dict[str, dict[str, Any]], dict[tuple[str, str], int]]:
+    Modes = ModesFor(db, ActiveIds)
+    Groups = RateGroupsFor(db, ActiveIds, Settings)
+    Counts: dict[tuple[str, str], int] = defaultdict(int)
+    for StudentId in ActiveIds:
+        Mode = Modes.get(StudentId, "INDIA")
+        if Mode != "EXEMPT":
+            Counts[(Mode, Groups.get(StudentId, {}).get("group", "EXISTING"))] += 1
+    return Modes, Groups, Counts
 
 
 def _NextAutoPeriod(Settings: PaymentBillingSettings) -> str:
@@ -218,14 +427,20 @@ def BillingSettings(db: Session) -> dict[str, Any]:
     Settings = EnsureBillingSettings(db)
     Fees = _FeeItems(db, Settings)
     Active = _ActiveStudents(db)
-    Modes = ModesFor(db, [Row.id for Row, _ in Active])
+    Modes, _, GroupCounts = _ActiveCounts(db, Settings, [Row.id for Row, _ in Active])
     Counts = {"INDIA": 0, "INTERNATIONAL": 0, "EXEMPT": 0}
     for Row, _ in Active:
         Counts[Modes.get(Row.id, "INDIA")] += 1
     Monthly = db.query(FeeItem).filter(FeeItem.billing_type == "MONTHLY").order_by(FeeItem.display_order.asc(), FeeItem.name.asc()).all()
+    Cutoff = NewRateFrom(Settings)
     return {
-        "indiaFee": _FeePayload(Fees["INDIA"]),
-        "internationalFee": _FeePayload(Fees["INTERNATIONAL"]),
+        "indiaFee": _FeePayload(Fees[("INDIA", "EXISTING")]),
+        "internationalFee": _FeePayload(Fees[("INTERNATIONAL", "EXISTING")]),
+        "indiaNewFee": _FeePayload(Fees[("INDIA", "NEW")]),
+        "internationalNewFee": _FeePayload(Fees[("INTERNATIONAL", "NEW")]),
+        "newRateFrom": Cutoff.isoformat(),
+        "newRateFromLabel": _DayLabel(Cutoff),
+        "groupCounts": {Mode: {Group: GroupCounts.get((Mode, Group), 0) for Group in GROUPS} for Mode in ("INDIA", "INTERNATIONAL")},
         "autoDraftsEnabled": bool(Settings.auto_drafts_enabled),
         "autoFromPeriod": Settings.auto_from_period,
         "autoFromLabel": PeriodLabel(Settings.auto_from_period) if Settings.auto_from_period else None,
@@ -235,14 +450,19 @@ def BillingSettings(db: Session) -> dict[str, Any]:
         "lastAutoAt": _Iso(Settings.last_auto_at),
         "monthlyFeeItems": [_FeePayload(Row) for Row in Monthly],
         "counts": Counts,
-        "problems": _Problems(db, Settings, Fees, Counts["INTERNATIONAL"]),
+        "problems": _Problems(db, Settings, Fees, GroupCounts),
     }
 
 
 def UpdateBillingSettings(db: Session, *, Request: dict[str, Any], Actor: User | None) -> dict[str, Any]:
     Settings = db.query(PaymentBillingSettings).filter(PaymentBillingSettings.id == "default").with_for_update().first() or EnsureBillingSettings(db)
-    Before = {"indiaFeeItemId": Settings.india_fee_item_id, "internationalFeeItemId": Settings.international_fee_item_id, "autoDraftsEnabled": Settings.auto_drafts_enabled}
-    for Key, Column in (("indiaFeeItemId", "india_fee_item_id"), ("internationalFeeItemId", "international_fee_item_id")):
+
+    def _Shape() -> dict[str, Any]:
+        return {**{Key: getattr(Settings, FEE_COLUMNS[Pair]) for Key, Pair in FEE_KEYS.items()}, "newRateFrom": NewRateFrom(Settings).isoformat(), "autoDraftsEnabled": Settings.auto_drafts_enabled}
+
+    Before = _Shape()
+    for Key, Pair in FEE_KEYS.items():
+        Column = FEE_COLUMNS[Pair]
         if Key not in Request:
             continue
         Value = str(Request.get(Key) or "").strip() or None
@@ -255,8 +475,14 @@ def UpdateBillingSettings(db: Session, *, Request: dict[str, Any], Actor: User |
             if not Item.is_active:
                 api_error(422, "FEE_ITEM_INACTIVE", f"{Item.name} is switched off. Switch it on in Fee Setup first.")
         setattr(Settings, Column, Value)
-    if Settings.india_fee_item_id and Settings.india_fee_item_id == Settings.international_fee_item_id:
+    IndiaItems = {Settings.india_fee_item_id, Settings.india_new_fee_item_id} - {None}
+    if IndiaItems & ({Settings.international_fee_item_id, Settings.international_new_fee_item_id} - {None}):
         api_error(422, "SAME_FEE_FOR_BOTH", "India and International need different monthly fee items.")
+    if "newRateFrom" in Request:
+        Cutoff = ParseAdmissionDate(Request.get("newRateFrom"))
+        if Cutoff is None or not date(2020, 1, 1) <= Cutoff <= date(2100, 12, 31):
+            api_error(422, "NEW_RATE_FROM_INVALID", "Choose the first admission date that pays the new fee, like 2026-12-01.")
+        Settings.new_rate_from = Cutoff.isoformat()
     if "autoDraftsEnabled" in Request:
         Enabled = bool(Request.get("autoDraftsEnabled"))
         if Enabled and not Settings.auto_drafts_enabled:
@@ -264,8 +490,7 @@ def UpdateBillingSettings(db: Session, *, Request: dict[str, Any], Actor: User |
             Settings.auto_from_period = NextPeriod(PeriodOf(_Today()))
         Settings.auto_drafts_enabled = Enabled
     Settings.updated_by_user_id = Actor.id if Actor else None
-    WritePaymentAudit(db, EntityType="BILLING", EntityId="settings", Action="UPDATE", Actor=Actor, Before=Before,
-                      After={"indiaFeeItemId": Settings.india_fee_item_id, "internationalFeeItemId": Settings.international_fee_item_id, "autoDraftsEnabled": Settings.auto_drafts_enabled})
+    WritePaymentAudit(db, EntityType="BILLING", EntityId="settings", Action="UPDATE", Actor=Actor, Before=Before, After=_Shape())
     db.commit()
     return BillingSettings(db)
 
@@ -276,6 +501,7 @@ def ListStudentModes(db: Session) -> list[dict[str, Any]]:
 
     Rows = RealStudents(db.query(Student, User)).join(User, Student.user_id == User.id).order_by(User.full_name.asc()).all()
     Modes = ModesFor(db)
+    Groups = RateGroupsFor(db)
     Levels = {Row.id: Row.level_code for Row in db.query(Level).all()}
     Centres = {Row.id: Row.name for Row in db.query(PaymentCentre).all()}
     return [
@@ -287,6 +513,7 @@ def ListStudentModes(db: Session) -> list[dict[str, Any]]:
             "centreName": Centres.get(Row.centre_id) if Row.centre_id else None,
             "isActive": bool(Row.is_active and UserRow.is_active),
             "billingMode": Modes.get(Row.id, "INDIA"),
+            **_GroupPayload(Groups.get(Row.id)),
         }
         for Row, UserRow in Rows
     ]
@@ -321,6 +548,51 @@ def SetStudentModes(db: Session, *, StudentIds: list[str], Mode: Any, Actor: Use
     return {"studentsSelected": len(Ids), "studentsChanged": Changed, "mode": ModeText, "modeLabel": MODES[ModeText]}
 
 
+def SetStudentRateGroups(db: Session, *, StudentIds: list[str], Group: Any, Reason: Any, Actor: User | None) -> dict[str, Any]:
+    """Set the rate group by hand (EXISTING or NEW), or AUTO to follow the
+    admission date again. A reason is always needed; it goes in the payments
+    audit with the students' groups before and after."""
+    GroupText = str(Group or "").strip().upper()
+    if GroupText not in (*GROUPS, "AUTO"):
+        api_error(422, "RATE_GROUP_INVALID", "Choose Existing, New, or Follow Admission Date.")
+    ReasonText = _Clean(Reason, 300)
+    if not ReasonText:
+        api_error(422, "REASON_REQUIRED", "Say why the fee group is being changed.")
+    Ids = [Id for Id in dict.fromkeys(str(Id).strip() for Id in StudentIds or []) if Id]
+    if not Ids:
+        api_error(422, "NO_STUDENTS_SELECTED", "Choose at least one student.")
+    if len(Ids) > 2000:
+        api_error(422, "TOO_MANY_STUDENTS", "Choose at most 2,000 students at a time.")
+    Found = {Row.id for Row in db.query(Student.id).filter(Student.id.in_(Ids)).all()}
+    if len(Found) != len(Ids):
+        api_error(404, "STUDENT_NOT_FOUND", "Some of the chosen students were not found. Refresh and try again.")
+    Settings = EnsureBillingSettings(db)
+    Before = RateGroupsFor(db, Ids, Settings)
+    Existing = {Row.student_id: Row for Row in db.query(PaymentStudentBilling).filter(PaymentStudentBilling.student_id.in_(Ids)).all()}
+    Target = None if GroupText == "AUTO" else GroupText
+    for StudentId in Ids:
+        Row = Existing.get(StudentId)
+        if Row:
+            if Row.rate_group != Target:
+                Row.rate_group = Target
+                Row.updated_by_user_id = Actor.id if Actor else None
+        elif Target:
+            db.add(PaymentStudentBilling(student_id=StudentId, billing_mode="INDIA", rate_group=Target, updated_by_user_id=Actor.id if Actor else None))
+    db.flush()
+    After = RateGroupsFor(db, Ids, Settings)
+    Changed = [Id for Id in Ids if Before[Id]["group"] != After[Id]["group"]]
+    Codes = {Row.id: Row.student_code for Row in db.query(Student).filter(Student.id.in_(Changed)).all()} if Changed else {}
+    WritePaymentAudit(
+        db, EntityType="BILLING", EntityId="rate-groups", Action="SET_RATE_GROUP", Actor=Actor, Reason=ReasonText,
+        Before={"students": len(Ids)},
+        After={"group": GroupText, "students": len(Ids), "changed": len(Changed),
+               "changes": [{"studentCode": Codes.get(Id), "from": Before[Id]["group"], "to": After[Id]["group"]} for Id in Changed[:200]]},
+    )
+    db.commit()
+    Label = "Follow Admission Date" if GroupText == "AUTO" else GROUPS[GroupText]
+    return {"studentsSelected": len(Ids), "studentsChanged": len(Changed), "group": GroupText, "groupLabel": Label}
+
+
 # ----------------------------------------------------------------------------
 # A month's billing
 # ----------------------------------------------------------------------------
@@ -348,6 +620,7 @@ def MonthBilling(db: Session, PeriodValue: Any = None) -> dict[str, Any]:
     DraftIds = {Row.student_id for Row in Drafts}
     People = {Row.id: (Row, UserRow) for Row, UserRow in db.query(Student, User).join(User, Student.user_id == User.id).filter(Student.id.in_(list(DraftIds | ActiveIds))).all()} if (DraftIds or ActiveIds) else {}
     Modes = ModesFor(db, list(People))
+    Groups = RateGroupsFor(db, list(People), Settings)
     Invoiced = _LiveMonthly(db, Period, list(People))
     Levels = {Row.id: Row.level_code for Row in db.query(Level).all()}
     Centres = {Row.id: Row.name for Row in db.query(PaymentCentre).all()}
@@ -358,7 +631,8 @@ def MonthBilling(db: Session, PeriodValue: Any = None) -> dict[str, Any]:
     def _Student(StudentId: str) -> dict[str, Any]:
         Row, UserRow = People[StudentId]
         Mode = Modes.get(StudentId, "INDIA")
-        Fee = Fees[Mode]
+        Group = Groups.get(StudentId)
+        Fee = _FeeFor(Fees, Mode, (Group or {}).get("group", "EXISTING"))
         return {
             "studentId": StudentId,
             "studentName": UserRow.full_name,
@@ -368,6 +642,7 @@ def MonthBilling(db: Session, PeriodValue: Any = None) -> dict[str, Any]:
             "isActive": StudentId in ActiveIds,
             "billingMode": Mode,
             "billingModeLabel": MODES[Mode],
+            **_GroupPayload(Group),
             "fee": _FeePayload(Fee),
         }
 
@@ -385,7 +660,7 @@ def MonthBilling(db: Session, PeriodValue: Any = None) -> dict[str, Any]:
             elif Base["billingMode"] == "EXEMPT":
                 Issue = "Set to No monthly fee in Payment Settings › Billing"
             elif not Base["fee"]:
-                Issue = f"No monthly fee chosen for {Base['billingModeLabel']} students"
+                Issue = f"No monthly fee chosen for {_RateLabel(Base['billingMode'], Base['rateGroup'])} students"
         Advance = Advances.get(Draft.student_id, 0) if Draft.status == "DRAFT" else 0
         Amount = Base["fee"]["paise"] if Base["fee"] else 0
         Released = db.get(PaymentInvoice, Draft.released_invoice_id) if Draft.released_invoice_id else None
@@ -411,8 +686,11 @@ def MonthBilling(db: Session, PeriodValue: Any = None) -> dict[str, Any]:
     NotBilled = [_Student(StudentId) for StudentId in sorted(ActiveIds - DraftIds - set(Invoiced) - Exempt, key=ByName)]
     NeverBilled = [_Student(StudentId) for StudentId in sorted(Exempt - set(Invoiced) - DraftIds, key=ByName)]
     Ready = [Row for Row in Rows if Row["status"] == "DRAFT" and not Row["issue"]]
-    InternationalCount = sum(1 for Id in ActiveIds if Modes.get(Id, "INDIA") == "INTERNATIONAL")
-    Problems = _Problems(db, Settings, Fees, InternationalCount)
+    GroupCounts: dict[tuple[str, str], int] = defaultdict(int)
+    for Id in ActiveIds:
+        if Modes.get(Id, "INDIA") != "EXEMPT":
+            GroupCounts[(Modes.get(Id, "INDIA"), Groups.get(Id, {}).get("group", "EXISTING"))] += 1
+    Problems = _Problems(db, Settings, Fees, GroupCounts)
     Numbering = _InvoiceNumbering(db)
     if not Numbering["numberingReady"]:
         Problems.append("Set the starting invoice number (Payment Settings › Document Numbering) before releasing.")
@@ -425,7 +703,15 @@ def MonthBilling(db: Session, PeriodValue: Any = None) -> dict[str, Any]:
         "nextPeriod": NextPeriod(Period) if Period < NextPeriod(PeriodOf(Today)) else None,
         "invoiceDate": Today.isoformat(),
         "dueDate": date.fromordinal(Today.toordinal() + 10).isoformat(),
-        "settings": {"indiaFee": _FeePayload(Fees["INDIA"]), "internationalFee": _FeePayload(Fees["INTERNATIONAL"]), "autoDraftsEnabled": bool(Settings.auto_drafts_enabled), "autoFromLabel": PeriodLabel(Settings.auto_from_period) if Settings.auto_from_period else None},
+        "settings": {
+            "indiaFee": _FeePayload(Fees[("INDIA", "EXISTING")]),
+            "internationalFee": _FeePayload(Fees[("INTERNATIONAL", "EXISTING")]),
+            "indiaNewFee": _FeePayload(Fees[("INDIA", "NEW")]),
+            "internationalNewFee": _FeePayload(Fees[("INTERNATIONAL", "NEW")]),
+            "newRateFromLabel": _DayLabel(NewRateFrom(Settings)),
+            "autoDraftsEnabled": bool(Settings.auto_drafts_enabled),
+            "autoFromLabel": PeriodLabel(Settings.auto_from_period) if Settings.auto_from_period else None,
+        },
         "problems": Problems,
         "counts": {
             "waiting": sum(1 for Row in Rows if Row["status"] == "DRAFT"),
@@ -567,6 +853,7 @@ def ReleaseDrafts(db: Session, *, PeriodValue: Any, DraftIds: list[str], Idempot
         api_error(409, "NOTHING_TO_RELEASE", "None of the chosen drafts are waiting to be released. Refresh to see the latest.")
     Fees = _FeeItems(db, Settings)
     Modes = ModesFor(db, [Row.student_id for Row in Waiting])
+    Groups = RateGroupsFor(db, [Row.student_id for Row in Waiting], Settings)
     Now = datetime.now(timezone.utc)
     # A draft made before the student was set to No monthly fee is closed, never raised.
     ExemptDrafts = [Row for Row in Waiting if Modes.get(Row.student_id) == "EXEMPT"]
@@ -583,9 +870,10 @@ def ReleaseDrafts(db: Session, *, PeriodValue: Any, DraftIds: list[str], Idempot
     Missing: dict[str, int] = defaultdict(int)
     for Row in Waiting:
         Mode = Modes.get(Row.student_id, "INDIA")
-        Fee = Fees[Mode]
+        Group = Groups.get(Row.student_id, {}).get("group", "EXISTING")
+        Fee = _FeeFor(Fees, Mode, Group)
         if not Fee or not Fee.is_active:
-            Missing[MODES[Mode]] += 1
+            Missing[_RateLabel(Mode, Group)] += 1
             continue
         StudentFeeItems[Row.student_id] = Fee.id
     if Missing:
@@ -668,13 +956,18 @@ def HomeBilling(db: Session) -> dict[str, Any]:
 def StudentBilling(db: Session, StudentId: str) -> dict[str, Any]:
     EnsureBillingSettings(db)
     Period = PeriodOf(_Today())
+    Settings = EnsureBillingSettings(db)
     Mode = ModesFor(db, [StudentId]).get(StudentId, "INDIA")
+    Group = RateGroupsFor(db, [StudentId], Settings).get(StudentId)
+    Fee = _FeeFor(_FeeItems(db, Settings), Mode, (Group or {}).get("group", "EXISTING"))
     Invoice = _LiveMonthly(db, Period, [StudentId]).get(StudentId)
     Draft = db.query(PaymentInvoiceDraft).filter(PaymentInvoiceDraft.student_id == StudentId, PaymentInvoiceDraft.period_key == Period).first()
     State = "INVOICED" if Invoice else ("DRAFT" if Draft and Draft.status == "DRAFT" else "DROPPED" if Draft and Draft.status == "DROPPED" else "EXEMPT" if Mode == "EXEMPT" else "NOT_BILLED")
     return {
         "billingMode": Mode,
         "billingModeLabel": MODES[Mode],
+        **_GroupPayload(Group),
+        "fee": _FeePayload(Fee),
         "period": Period,
         "periodLabel": PeriodLabel(Period),
         "state": State,

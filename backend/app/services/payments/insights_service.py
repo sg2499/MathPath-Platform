@@ -68,7 +68,7 @@ ACTIVITY_TYPES = {
     "EXPENSES": ("EXPENSE", "EXPENSE_CATEGORY"),
     "SETTINGS": (
         "FEE_ITEM", "CENTRE", "BUSINESS_PROFILE", "NUMBER_SEQUENCE", "ONLINE_SETTINGS", "REMINDER_TEMPLATE",
-        "STUDENT_CENTRE", "INSIGHT_SETTINGS", "INSIGHT_REVIEW",
+        "STUDENT_CENTRE", "STUDENT", "INSIGHT_SETTINGS", "INSIGHT_REVIEW",
     ),
 }
 # Rows that are folded together when the same person does them in a run.
@@ -682,6 +682,10 @@ def _Describe(Row: PaymentAuditLog) -> dict[str, Any]:
             Text = f"Set {After.get('changed', 0)} students to {str(After.get('mode') or '').title()} billing"
         elif Action == "PREFILL":
             Text = "Marked international students from their competition slots"
+        elif Action == "SET_RATE_GROUP":
+            # 2026-11-26 (billing Release 1): the fee group set by hand.
+            Group = {"EXISTING": "the existing fee", "NEW": "the new fee", "AUTO": "the fee their admission date gives"}.get(str(After.get("group") or ""), "a fee group")
+            Text = f"Set {After.get('changed', 0)} students to {Group}"
         else:
             Icon, Text = "settings", "Changed billing settings"
     elif Kind == "INVOICE_DRAFT":
@@ -692,6 +696,12 @@ def _Describe(Row: PaymentAuditLog) -> dict[str, Any]:
     elif Kind == "STUDENT_CENTRE":
         Text = f"Moved {After.get('student') or 'a student'} to {After.get('centre') or 'no centre'}"
         Href = "/admin/payments/settings?tab=centres"
+    elif Kind == "STUDENT" and Action == "ADMISSION_DATE":
+        # 2026-11-26 (billing Release 1): admission dates decide the fee.
+        Text = f"Changed {After.get('student') or 'a student'}'s admission date to {After.get('admissionDate') or 'blank'}"
+        if Before.get("rateGroup") and After.get("rateGroup") and Before.get("rateGroup") != After.get("rateGroup"):
+            Text += f" ({Before['rateGroup']} fee to {After['rateGroup']} fee)"
+        Href = "/admin/payments/settings?tab=billing"
     elif Kind == "HISTORY_IMPORT":
         Icon = "invoice"
         Href = "/admin/payments/invoices?tab=all"

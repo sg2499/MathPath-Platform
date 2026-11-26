@@ -3,6 +3,7 @@ snapshots, cancelling, numbering, filters, PDF, Excel and admin-only access."""
 
 import io
 import json
+from datetime import datetime, timezone
 
 import pytest
 from fastapi import HTTPException
@@ -35,6 +36,9 @@ from app.services.payments import setup_service as setup
 from app.services.payments.invoice_export import BuildInvoicesWorkbook
 
 
+ADDED_BEFORE_CUTOFF = datetime(2026, 10, 1, 9, 0, tzinfo=timezone.utc)
+
+
 def _session():
     engine = create_engine("sqlite://", future=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)
@@ -64,7 +68,9 @@ def _world(db, *, numbering_set=True):
 
     students = []
     for sid, name, centre, active in [("s1", "Aarav Sen", rajarhat.id, True), ("s2", "Bina Roy", None, True), ("s3", "Chirag Das", None, False)]:
-        user = User(id=f"user-{sid}", full_name=name, email=f"{sid}@example.test", password_hash="x", role="STUDENT", is_active=active)
+        # Added in October 2026: before the 1 Dec 2026 fee cut-off, so the
+        # tests read the same whatever day they run (billing Release 1).
+        user = User(id=f"user-{sid}", full_name=name, email=f"{sid}@example.test", password_hash="x", role="STUDENT", is_active=active, created_at=ADDED_BEFORE_CUTOFF)
         db.add(user)
         db.flush()
         db.add(Student(
