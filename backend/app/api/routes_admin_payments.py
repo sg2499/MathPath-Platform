@@ -908,7 +908,19 @@ def admin_day_close_pdf(day: str, db: Session = Depends(get_db), user: User = De
 class BillingSettingsRequest(BaseModel):
     indiaFeeItemId: str | None = None
     internationalFeeItemId: str | None = None
+    # 2026-11-26 (billing Release 1): fees for students admitted from the
+    # cut-off, and the cut-off itself (YYYY-MM-DD).
+    indiaNewFeeItemId: str | None = None
+    internationalNewFeeItemId: str | None = None
+    newRateFrom: str | None = None
     autoDraftsEnabled: bool | None = None
+
+
+class BillingRateGroupsRequest(BaseModel):
+    studentIds: list[str] = Field(max_length=2000)
+    # EXISTING | NEW | AUTO (follow the admission date)
+    group: str
+    reason: str = Field(max_length=300)
 
 
 class BillingModesRequest(BaseModel):
@@ -959,6 +971,13 @@ def admin_billing_set_modes(payload: BillingModesRequest, db: Session = Depends(
     from app.services.payments.billing_service import SetStudentModes
 
     return SetStudentModes(db, StudentIds=payload.studentIds, Mode=payload.mode, Actor=user)
+
+
+@router.post("/billing/students/rate-group")
+def admin_billing_set_rate_groups(payload: BillingRateGroupsRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
+    from app.services.payments.billing_service import SetStudentRateGroups
+
+    return SetStudentRateGroups(db, StudentIds=payload.studentIds, Group=payload.group, Reason=payload.reason, Actor=user)
 
 
 @router.get("/billing/students/{student_id}")

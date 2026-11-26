@@ -8,7 +8,7 @@ from datetime import date
 from app.models import PaymentBillingSettings, PaymentInvoice, PaymentStudentBilling, Student, User
 from app.services.payments import setup_service as setup
 from app.services.payments.billing_readiness import PrepareMonthlyBilling
-from tests.test_payments_phase2_invoices import _session, _world
+from tests.test_payments_phase2_invoices import ADDED_BEFORE_CUTOFF, _session, _world
 
 
 def _invoice(db, number, student, item, period, status="PAID"):
@@ -42,12 +42,12 @@ def _setup():
     _invoice(db, "MP-INV-0003", "s2", monthly, "2026-10")
     _invoice(db, "MP-INV-0004", "s1", monthly, "2026-11")  # one month paid ahead must not change the billed month
     db.add(PaymentStudentBilling(student_id="s2", billing_mode="INTERNATIONAL"))
-    user = User(id="user-d", full_name="Demo Kid", email="d@example.test", password_hash="x", role="STUDENT", is_active=True)
+    user = User(id="user-d", full_name="Demo Kid", email="d@example.test", password_hash="x", role="STUDENT", is_active=True, created_at=ADDED_BEFORE_CUTOFF)
     db.add(user)
     db.flush()
     db.add(Student(id="d1", user_id=user.id, student_code="MP-ST-001", is_active=True, is_demo=True, current_level_id="lvl-im3", current_module_id="mod-im"))
     _invoice(db, "MP-INV-0005", "d1", international, "2026-10")
-    user4 = User(id="user-s4", full_name="Dev New", email="s4@example.test", password_hash="x", role="STUDENT", is_active=True)
+    user4 = User(id="user-s4", full_name="Dev New", email="s4@example.test", password_hash="x", role="STUDENT", is_active=True, created_at=ADDED_BEFORE_CUTOFF)
     db.add(user4)
     db.flush()
     db.add(Student(id="s4", user_id=user4.id, student_code="MP-S4", is_active=True, current_level_id="lvl-im3", current_module_id="mod-im"))

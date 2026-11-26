@@ -1083,9 +1083,26 @@ export const BILLING_MODE_LABELS: Record<BillingMode, string> = { INDIA: "India"
 
 export type BillingFee = MoneyValue & { feeItemId: string; name: string; isActive: boolean };
 
+// 2026-11-26 (billing Release 1): students admitted before the cut-off keep
+// the existing fee; students admitted from it pay the new fee.
+export type RateGroup = "EXISTING" | "NEW";
+export type RateGroupSource = "SET_BY_ADMIN" | "ADMISSION_DATE" | "ADDED_ON";
+export type RateGroupInfo = {
+  rateGroup: RateGroup;
+  rateGroupLabel: string;
+  rateGroupSource: RateGroupSource;
+  rateGroupSourceLabel: string;
+  admissionDate: string | null;
+};
+
 export type BillingSettings = {
   indiaFee: BillingFee | null;
   internationalFee: BillingFee | null;
+  indiaNewFee: BillingFee | null;
+  internationalNewFee: BillingFee | null;
+  newRateFrom: string;
+  newRateFromLabel: string;
+  groupCounts: Record<"INDIA" | "INTERNATIONAL", Record<RateGroup, number>>;
   autoDraftsEnabled: boolean;
   autoFromPeriod: string | null;
   autoFromLabel: string | null;
@@ -1106,7 +1123,7 @@ export type BillingStudent = {
   centreName: string | null;
   isActive: boolean;
   billingMode: BillingMode;
-};
+} & RateGroupInfo;
 
 export type BillingMonthStudent = Omit<BillingStudent, "billingMode"> & { billingMode: BillingMode; billingModeLabel: string; fee: BillingFee | null };
 
@@ -1135,7 +1152,15 @@ export type BillingMonth = {
   nextPeriod: string | null;
   invoiceDate: string;
   dueDate: string;
-  settings: { indiaFee: BillingFee | null; internationalFee: BillingFee | null; autoDraftsEnabled: boolean; autoFromLabel: string | null };
+  settings: {
+    indiaFee: BillingFee | null;
+    internationalFee: BillingFee | null;
+    indiaNewFee: BillingFee | null;
+    internationalNewFee: BillingFee | null;
+    newRateFromLabel: string;
+    autoDraftsEnabled: boolean;
+    autoFromLabel: string | null;
+  };
   problems: string[];
   counts: { waiting: number; ready: number; withIssue: number; released: number; dropped: number; invoiced: number; notBilled: number; exempt: number; activeStudents: number };
   readyTotal: MoneyValue;
@@ -1155,14 +1180,21 @@ export type BillingReleaseResult = {
 
 export type HomeBilling = { period: string; periodLabel: string; waiting: number; notBilled: number; feesReady: boolean; autoDraftsEnabled: boolean; autoFromLabel: string | null };
 
-export type StudentBillingState = { billingMode: BillingMode; billingModeLabel: string; period: string; periodLabel: string; state: "INVOICED" | "DRAFT" | "DROPPED" | "NOT_BILLED" | "EXEMPT"; invoiceNumber: string | null; dropReason: string | null };
+export type StudentBillingState = RateGroupInfo & { fee: BillingFee | null; billingMode: BillingMode; billingModeLabel: string; period: string; periodLabel: string; state: "INVOICED" | "DRAFT" | "DROPPED" | "NOT_BILLED" | "EXEMPT"; invoiceNumber: string | null; dropReason: string | null };
 
 export async function getBillingSettings(): Promise<BillingSettings> {
   const { data } = await api.get<BillingSettings>("/admin/payments/billing/settings");
   return data;
 }
 
-export async function updateBillingSettings(payload: { indiaFeeItemId?: string | null; internationalFeeItemId?: string | null; autoDraftsEnabled?: boolean }): Promise<BillingSettings> {
+export async function updateBillingSettings(payload: {
+  indiaFeeItemId?: string | null;
+  internationalFeeItemId?: string | null;
+  indiaNewFeeItemId?: string | null;
+  internationalNewFeeItemId?: string | null;
+  newRateFrom?: string;
+  autoDraftsEnabled?: boolean;
+}): Promise<BillingSettings> {
   const { data } = await api.put<BillingSettings>("/admin/payments/billing/settings", payload);
   return data;
 }
@@ -1174,6 +1206,11 @@ export async function listBillingStudents(): Promise<BillingStudent[]> {
 
 export async function setBillingModes(payload: { studentIds: string[]; mode: BillingMode }): Promise<{ studentsSelected: number; studentsChanged: number; mode: BillingMode; modeLabel: string }> {
   const { data } = await api.post("/admin/payments/billing/students/mode", payload);
+  return data;
+}
+
+export async function setBillingRateGroups(payload: { studentIds: string[]; group: RateGroup | "AUTO"; reason: string }): Promise<{ studentsSelected: number; studentsChanged: number; group: RateGroup | "AUTO"; groupLabel: string }> {
+  const { data } = await api.post("/admin/payments/billing/students/rate-group", payload);
   return data;
 }
 

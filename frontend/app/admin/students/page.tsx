@@ -32,7 +32,7 @@ import {
   uploadStudentSignature,
 } from "@/lib/api/admin";
 import type { LevelItem, ModuleItem } from "@/types/curriculum";
-import { getPaymentSettings, type PaymentCentre } from "@/lib/api/payments";
+import { assignStudentsToCentre, getPaymentSettings, type PaymentCentre } from "@/lib/api/payments";
 import type { AdminTeacher } from "@/types/teacher";
 import type {
   AdminStudent,
@@ -114,7 +114,8 @@ function emptyForm(): FormState {
     teacher: "",
     teacherId: "",
     teacherCode: "",
-    admissionDate: "",
+    // 2026-11-26 (billing Release 1): today in India, ready to change.
+    admissionDate: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
     studentName: "",
     dob: "",
     gender: "",
@@ -174,6 +175,8 @@ export default function AdminStudentsPage() {
   // 2026-11-24 (Shailesh): pick many students and move them to one teacher.
   const [SelectedIds, SetSelectedIds] = useState<Set<string>>(() => new Set());
   const [BulkTeacherOpen, SetBulkTeacherOpen] = useState(false);
+  // 2026-11-26 (billing Release 1): move many students to one centre.
+  const [BulkCentreOpen, SetBulkCentreOpen] = useState(false);
   const [MoveNotice, SetMoveNotice] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
@@ -581,6 +584,22 @@ export default function AdminStudentsPage() {
     setPage(1);
   }
 
+  const bulkCentreMutation = useMutation({
+    mutationFn: assignStudentsToCentre,
+    onSuccess: (Data) => {
+      const Where = Data.centreName ?? "no centre";
+      SetMoveNotice(
+        Data.studentsChanged
+          ? `${Plural(Data.studentsChanged, "student")} moved to ${Where}.` + (Data.studentsSelected - Data.studentsChanged ? ` ${Data.studentsSelected - Data.studentsChanged} already had it.` : "")
+          : `All of them already have ${Where}.`
+      );
+      SetSelectedIds(new Set());
+      SetBulkCentreOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["admin-students"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
+    },
+  });
+
   const bulkTeacherMutation = useMutation({
     mutationFn: bulkChangeStudentTeacher,
     onSuccess: (Data) => {
@@ -620,6 +639,10 @@ export default function AdminStudentsPage() {
     setIsFormOpen(false);
   }
 
+  // 2026-11-26 (billing Release 1): the admission date decides the monthly
+  // fee, so changing an existing student's date needs a reason.
+  const AdmissionDateChanged = Boolean(editingStudentId) && (form.admissionDate || "") !== (selectedStudent?.admissionDate ?? "");
+
   function buildPayload(): StudentProfilePayload {
     const selectedModule = (modulesQuery.data ?? []).find(
       (m) => m.moduleId === form.currentModuleId
@@ -634,6 +657,8 @@ export default function AdminStudentsPage() {
       customId: form.customId.trim(),
       teacher: form.teacher.trim(),
       admissionDate: form.admissionDate,
+      // Sent only when an existing student's admission date changes.
+      admissionDateReason: editingStudentId && AdmissionDateChanged ? (form.admissionDateReason ?? "").trim() : undefined,
       studentName: form.studentName.trim(),
       dob: form.dob,
       gender: form.gender,
@@ -1004,7 +1029,7 @@ export default function AdminStudentsPage() {
                 Student Details
               </h2>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                Find and filter students, move them to another teacher, and view, edit, deactivate or delete their records.
+                Find and filter students, move them to another teacher or centre, and view, edit, deactivate or delete their records.
               </p>
 
               <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
@@ -1134,7 +1159,7 @@ export default function AdminStudentsPage() {
             </label>
             <span className="ad-select-hint">
               {filtered.length > PAGE_SIZE ? "Across every page, with the filters above. " : ""}
-              Tick students to move them to another teacher.
+              Tick students to move them to another teacher or centre.
             </span>
           </div>
         ) : null}
@@ -1358,6 +1383,7 @@ export default function AdminStudentsPage() {
                 ? `Could not find the next Student Code: ${apiErrorMessage(NextCodesQuery.error)}`
                 : ""
           }
+          admissionDateChanged={AdmissionDateChanged}
           onClose={closeForm}
           onSubmit={submitForm}
           onFieldChange={updateField}
@@ -1369,7 +1395,7 @@ export default function AdminStudentsPage() {
       {/* room under the last row, so the floating bar never covers it */}
       {SelectedStudents.length ? <div aria-hidden="true" className="h-28" /> : null}
 
-      {SelectedStudents.length && !BulkTeacherOpen && !isFormOpen ? (
+      {SelectedStudents.length && !BulkTeacherOpen && !BulkCentreOpen && !isFormOpen ? (
         <div className="ad-selection-bar" role="region" aria-label="Selected students" data-selection-bar>
           <p className="ad-selection-count">
             <span>{SelectedStudents.length}</span> {SelectedStudents.length === 1 ? "student" : "students"} selected
@@ -1385,6 +1411,17 @@ export default function AdminStudentsPage() {
             >
               <ArrowRightLeft size={16} />
               Change Teacher
+            </button>
+            <button
+              type="button"
+              className="math-button-primary"
+              onClick={() => {
+                bulkCentreMutation.reset();
+                SetBulkCentreOpen(true);
+              }}
+            >
+              <MapPin size={16} />
+              Change Centre
             </button>
             <button type="button" className="math-button-secondary" onClick={() => SetSelectedIds(new Set())}>
               Clear
@@ -1405,6 +1442,23 @@ export default function AdminStudentsPage() {
             bulkTeacherMutation.mutate({
               studentIds: SelectedStudents.map((Student) => Student.studentId),
               teacherId: TeacherId,
+            })
+          }
+        />
+      ) : null}
+
+      {BulkCentreOpen && SelectedStudents.length ? (
+        <BulkCentreModal
+          students={SelectedStudents}
+          centres={Centres.filter((Centre) => Centre.isActive)}
+          centresLoading={CentresQuery.isLoading}
+          saving={bulkCentreMutation.isPending}
+          error={bulkCentreMutation.error ? apiErrorMessage(bulkCentreMutation.error) : ""}
+          onCancel={() => SetBulkCentreOpen(false)}
+          onConfirm={(CentreId) =>
+            bulkCentreMutation.mutate({
+              studentIds: SelectedStudents.map((Student) => Student.studentId),
+              centreId: CentreId,
             })
           }
         />
@@ -1444,6 +1498,7 @@ function StudentFormModal({
   nextCodesState,
   onRefreshNextCodes,
   saveError,
+  admissionDateChanged,
   onClose,
   onSubmit,
   onFieldChange,
@@ -1464,6 +1519,7 @@ function StudentFormModal({
   nextCodesState: "edit" | "loading" | "ready" | "error";
   onRefreshNextCodes: () => void;
   saveError: string;
+  admissionDateChanged: boolean;
   onClose: () => void;
   onSubmit: (event: FormEvent) => void;
   onFieldChange: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
@@ -1542,12 +1598,27 @@ function StudentFormModal({
                   </select>
                   <p className="mt-1 text-xs font-semibold text-slate-500">Printed on this student&apos;s invoices and receipts.</p>
                 </div>
-                <Input
-                  label="Admission Date"
-                  type="date"
-                  value={form.admissionDate}
-                  onChange={(v) => onFieldChange("admissionDate", v)}
-                />
+                <div>
+                  <Input
+                    label="Admission Date"
+                    type="date"
+                    value={form.admissionDate}
+                    onChange={(v) => onFieldChange("admissionDate", v)}
+                    required={!editingStudentId}
+                  />
+                  <p className="mt-1 text-xs font-semibold text-slate-500">Decides which monthly fee the student pays.</p>
+                </div>
+                {admissionDateChanged ? (
+                  <div data-admission-reason>
+                    <Input
+                      label="Reason For Changing The Admission Date"
+                      value={form.admissionDateReason ?? ""}
+                      onChange={(v) => onFieldChange("admissionDateReason", v)}
+                      required
+                    />
+                    <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">Kept in the payments history. The new date can change the student&apos;s monthly fee.</p>
+                  </div>
+                ) : null}
                 <Input
                   label="Student Name"
                   value={form.studentName}
@@ -2249,6 +2320,125 @@ function BulkTeacherModal({
           >
             <ArrowRightLeft size={16} />
             {saving ? "Moving…" : Moving ? `Move ${Plural(Moving, "Student")}` : "Move Students"}
+          </button>
+          <button type="button" className="math-button-secondary flex-1" onClick={onCancel} disabled={saving}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BulkCentreModal({
+  students,
+  centres,
+  centresLoading,
+  saving,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  students: AdminStudent[];
+  centres: PaymentCentre[];
+  centresLoading: boolean;
+  saving: boolean;
+  error: string;
+  onCancel: () => void;
+  onConfirm: (centreId: string | null) => void;
+}) {
+  // "" = not chosen yet; NONE = take the students off any centre.
+  const [CentreId, SetCentreId] = useState("");
+  const Target = CentreId === "NONE" ? null : CentreId || undefined;
+  const Chosen = centres.find((Centre) => Centre.centreId === CentreId) ?? null;
+  const AlreadyThere = Target === undefined ? 0 : students.filter((Student) => (Student.centreId ?? null) === Target).length;
+  const Moving = students.length - AlreadyThere;
+  const TargetName = CentreId === "NONE" ? "no centre" : Chosen?.name ?? "";
+  const FromCentres = useMemo(() => {
+    const Counts = new Map<string, number>();
+    for (const Student of students) {
+      const Name = String(Student.centreName ?? "").trim() || "No centre yet";
+      Counts.set(Name, (Counts.get(Name) ?? 0) + 1);
+    }
+    return Array.from(Counts.entries()).sort((A, B) => B[1] - A[1] || A[0].localeCompare(B[0]));
+  }, [students]);
+
+  useEffect(() => {
+    function OnKey(Event: KeyboardEvent) {
+      if (Event.key === "Escape" && !saving) onCancel();
+    }
+    window.addEventListener("keydown", OnKey);
+    return () => window.removeEventListener("keydown", OnKey);
+  }, [onCancel, saving]);
+
+  return (
+    <div className="math-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bulk-centre-title">
+      <div className="math-card w-full max-w-lg p-6" data-bulk-centre-dialog>
+        <p className="math-block-header">
+          <MapPin size={14} />
+          Change Centre
+        </p>
+        <h2 id="bulk-centre-title" className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+          Move {students.length === 1 ? students[0].studentName : `${students.length} students`} to another centre
+        </h2>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
+          <p className="font-black text-slate-950 dark:text-white">Moving from</p>
+          <ul className="mt-2 space-y-1">
+            {FromCentres.map(([Name, Count]) => (
+              <li key={Name} className="flex justify-between gap-3">
+                <span className="min-w-0 truncate">{Name}</span>
+                <span className="shrink-0 font-black">{Plural(Count, "student")}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <label className="mt-5 block">
+          <span className="math-label">
+            New Centre <span className="text-red-500">*</span>
+          </span>
+          <select
+            className="math-select mt-2"
+            value={CentreId}
+            onChange={(Event) => SetCentreId(Event.target.value)}
+            disabled={centresLoading || saving}
+            autoFocus
+          >
+            <option value="">{centresLoading ? "Loading centres…" : "Choose Centre"}</option>
+            {centres.map((Centre) => (
+              <option key={Centre.centreId} value={Centre.centreId}>
+                {Centre.name}
+              </option>
+            ))}
+            <option value="NONE">No centre</option>
+          </select>
+        </label>
+
+        {Target !== undefined ? (
+          <p className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300" data-bulk-centre-summary>
+            {Moving ? `${Plural(Moving, "student")} will move to ${TargetName}.` : `All of them already have ${TargetName}.`}
+            {Moving && AlreadyThere ? ` ${AlreadyThere} already ${AlreadyThere === 1 ? "has" : "have"} it and will stay as they are.` : ""}
+            {Moving ? " Their new invoices and receipts will show this centre; invoices already raised keep the centre they were raised with." : ""}
+          </p>
+        ) : null}
+
+        {error ? (
+          <p role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <span className="min-w-0">{error}</span>
+          </p>
+        ) : null}
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            className="math-button-primary flex-1"
+            disabled={Target === undefined || !Moving || saving}
+            onClick={() => Target !== undefined && onConfirm(Target)}
+          >
+            <MapPin size={16} />
+            {saving ? "Moving…" : Moving && Target !== undefined ? `Move ${Plural(Moving, "Student")}` : "Move Students"}
           </button>
           <button type="button" className="math-button-secondary flex-1" onClick={onCancel} disabled={saving}>
             Cancel

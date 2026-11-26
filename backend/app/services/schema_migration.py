@@ -1815,6 +1815,8 @@ def ensure_payments_foundation() -> None:
                 with engine.begin() as connection:
                     connection.execute(text(f"ALTER TABLE payment_day_closes ADD COLUMN {if_not_exists}{name} {ddl}"))
 
+    ensure_billing_rates_columns()
+
     from app.services.payments.setup_service import EnsurePaymentDefaults
 
     db = SessionLocal()
@@ -1825,3 +1827,65 @@ def ensure_payments_foundation() -> None:
         db.rollback()
     finally:
         db.close()
+
+    # 2026-11-26 (billing Release 1): the new-admission monthly fees, made
+    # once on a site that already bills ₹1,100 / ₹2,200 a month.
+    from app.services.payments.billing_service import SeedNewAdmissionRates
+
+    db = SessionLocal()
+    try:
+        SeedNewAdmissionRates(db)
+        db.commit()
+    except Exception:  # noqa: BLE001 -- a second worker racing the first must never stop the boot
+        db.rollback()
+    finally:
+        db.close()
+
+
+def ensure_billing_rates_columns() -> None:
+    """2026-11-26 (billing Release 1, Shailesh). Existing students keep ₹1,100
+    (International ₹2,200); students admitted from 1 Dec 2026 pay ₹1,200
+    (International ₹2,400). Adds the columns for the two new-rate fees, the
+    cut-off date and a student's rate group, and the database rule of one
+    monthly fee per student per month, whichever item it is.
+
+    The rule's index is only made when no student already has two live
+    monthly invoices for one month; otherwise the boot carries on and the
+    check in the invoice generator still applies."""
+    import logging
+
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if_not_exists = "" if engine.dialect.name == "sqlite" else "IF NOT EXISTS "
+    if "payment_billing_settings" in tables:
+        existing = {column["name"] for column in inspector.get_columns("payment_billing_settings")}
+        for name, ddl in (
+            ("india_new_fee_item_id", "VARCHAR"),
+            ("international_new_fee_item_id", "VARCHAR"),
+            ("new_rate_from", "VARCHAR(10)"),
+            ("new_rates_seeded", "BOOLEAN NOT NULL DEFAULT FALSE"),
+        ):
+            if name not in existing:
+                with engine.begin() as connection:
+                    connection.execute(text(f"ALTER TABLE payment_billing_settings ADD COLUMN {if_not_exists}{name} {ddl}"))
+    if "payment_student_billing" in tables:
+        existing = {column["name"] for column in inspector.get_columns("payment_student_billing")}
+        if "rate_group" not in existing:
+            with engine.begin() as connection:
+                connection.execute(text(f"ALTER TABLE payment_student_billing ADD COLUMN {if_not_exists}rate_group VARCHAR(20)"))
+    if "payment_invoices" in tables:
+        indexes = {index["name"] for index in inspector.get_indexes("payment_invoices")}
+        if "uq_payment_invoices_live_month" not in indexes:
+            live = "billing_type = 'MONTHLY' AND status <> 'CANCELLED' AND period_key IS NOT NULL"
+            with engine.begin() as connection:
+                clashes = connection.execute(text(
+                    f"SELECT COUNT(*) FROM (SELECT student_id, period_key FROM payment_invoices WHERE {live} GROUP BY student_id, period_key HAVING COUNT(*) > 1) AS twice"
+                )).scalar() or 0
+            if clashes:
+                logging.getLogger(__name__).warning("Not adding uq_payment_invoices_live_month: %s student-months already have two live monthly invoices.", clashes)
+            else:
+                try:
+                    with engine.begin() as connection:
+                        connection.execute(text(f"CREATE UNIQUE INDEX {if_not_exists}uq_payment_invoices_live_month ON payment_invoices (student_id, period_key) WHERE {live}"))
+                except Exception:  # noqa: BLE001 -- the second worker may have made it a moment ago
+                    logging.getLogger(__name__).info("uq_payment_invoices_live_month was not created by this worker.")

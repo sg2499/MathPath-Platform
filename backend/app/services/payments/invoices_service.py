@@ -5,8 +5,10 @@
     will skip (and why); Generate recomputes it inside one transaction, so
     the two always agree.
   * Duplicates can never be created:
-      - monthly fee: one live invoice per student, fee item and month
-        (also enforced by a partial unique index in the database);
+      - monthly fee: one live invoice per student and month, whichever
+        monthly fee item it is (2026-11-26, billing Release 1: ₹1,100 and
+        ₹1,200 are both the month's fee). Old-platform history counts. Also
+        enforced by partial unique indexes in the database;
       - one-time item: skipped if the student already has a live invoice for
         it, unless the admin ticks "allow a second one".
   * An idempotency key per Generate press: a double click or a retried
@@ -177,10 +179,10 @@ def _Plan(db: Session, Checked: dict[str, Any]) -> dict[str, Any]:
         .all()
     )
     MonthlyTaken = {(S, F, P): N for S, F, P, N in Existing if P}
-    # With a per-student fee (monthly billing), any live monthly invoice for
-    # the month counts, whichever monthly fee item it was raised on.
+    # Any live monthly invoice for the month counts, whichever monthly fee
+    # item it was raised on (billing Release 1: one monthly fee a month).
     AnyMonthlyTaken: dict[tuple[str, str], tuple[str, str]] = {}
-    if Checked.get("studentFeeItems") is not None and Checked["month"] and Checked["year"]:
+    if Checked["month"] and Checked["year"]:
         Period = f"{Checked['year']:04d}-{Checked['month']:02d}"
         for S, Name, N in (
             db.query(PaymentInvoice.student_id, PaymentInvoice.fee_name, PaymentInvoice.invoice_number)
@@ -196,6 +198,8 @@ def _Plan(db: Session, Checked: dict[str, Any]) -> dict[str, Any]:
     Ordered = sorted(Found.values(), key=lambda Pair: ((Pair[1].full_name or "").lower(), Pair[0].student_code or ""))
     Creates: list[dict[str, Any]] = []
     Skips: list[dict[str, Any]] = []
+    # Two monthly fee items chosen in one run: each student gets the first.
+    InThisRun: dict[tuple[str, str], str] = {}
     for StudentRow, UserRow in Ordered:
         Base = {"studentId": StudentRow.id, "studentName": UserRow.full_name, "studentCode": StudentRow.student_code}
         for Item in Checked["items"]:
@@ -211,9 +215,13 @@ def _Plan(db: Session, Checked: dict[str, Any]) -> dict[str, Any]:
                 Skips.append({**Line, "reason": f"Already has {Name} for {Label} ({Number})"})
             elif PeriodKey and (StudentRow.id, Item.id, PeriodKey) in MonthlyTaken:
                 Skips.append({**Line, "reason": f"Already has {Item.name} for {Label} ({MonthlyTaken[(StudentRow.id, Item.id, PeriodKey)]})"})
+            elif PeriodKey and (StudentRow.id, PeriodKey) in InThisRun:
+                Skips.append({**Line, "reason": f"Only one monthly fee a month: {InThisRun[(StudentRow.id, PeriodKey)]} for {Label} is in this run"})
             elif not PeriodKey and (StudentRow.id, Item.id) in OneTimeTaken and not Checked["allowRepeatOneTime"]:
                 Skips.append({**Line, "reason": f"Already has {Item.name} ({OneTimeTaken[(StudentRow.id, Item.id)]})"})
             else:
+                if PeriodKey:
+                    InThisRun[(StudentRow.id, PeriodKey)] = Item.name
                 Creates.append({**Line, "_student": StudentRow, "_user": UserRow, "_item": Item, "_periodKey": PeriodKey})
     return {"creates": Creates, "skips": Skips}
 

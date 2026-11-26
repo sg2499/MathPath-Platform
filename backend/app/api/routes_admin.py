@@ -608,6 +608,23 @@ class StudentUpdateRequest(BaseModel):
     motherOccupation: str | None = None
     # 2026-10-08 (Payments): "" clears the centre; omitted leaves it as is.
     centreId: str | None = None
+    # 2026-11-26 (billing Release 1): needed whenever the admission date of
+    # an existing student changes (it decides the monthly fee).
+    admissionDateReason: str | None = None
+
+
+def BulkAdmissionDate(Value: Any) -> str | None:
+    """2026-11-26 (billing Release 1): the admission date decides the monthly
+    fee, so a bulk row's date must be a real date (or blank)."""
+    from app.services.payments.billing_service import ParseAdmissionDate
+
+    Text = clean_text(Value)
+    if not Text:
+        return None
+    Parsed = ParseAdmissionDate(Text)
+    if Parsed is None:
+        raise ValueError(f"Admission date '{Text}' is not a real date. Use a date like 2026-12-01.")
+    return Parsed.isoformat()
 
 
 class StudentBulkTeacherRequest(BaseModel):
@@ -962,7 +979,6 @@ def apply_student_fields(student: Student, payload: StudentCreateRequest | Stude
     mapping = {
         "custom_id": "customId",
         "teacher": "teacher",
-        "admission_date": "admissionDate",
         "dob": "dob",
         "gender": "gender",
         "blood_group": "bloodGroup",
@@ -1415,6 +1431,8 @@ def create_student_route(payload: StudentCreateRequest, db: Session = Depends(ge
 
     student = Student(user_id=student_user.id, student_code=student_code, is_active=student_user.is_active)
     apply_student_fields(student, payload, module, level, db)
+    # 2026-11-26 (billing Release 1): a real date, kept as YYYY-MM-DD.
+    student.admission_date = NormaliseAdmissionDate(payload.admissionDate)
     db.add(student)
     try:
         db.commit()
@@ -1468,12 +1486,60 @@ def update_student_route(student_id: str, payload: StudentUpdateRequest, db: Ses
         student_user.full_name = required_text(payload.studentName, "Student name")
     if payload.status is not None:
         student_user.is_active = status_to_active(payload.status)
+    if payload.admissionDate is not None:
+        ChangeAdmissionDate(db, student, payload.admissionDate, payload.admissionDateReason, user)
     apply_student_fields(student, payload, module, level, db)
     student.is_active = student_user.is_active if payload.status is not None else student.is_active
 
     db.commit()
     db.refresh(student)
     return {"updated": True, "message": "Student updated successfully.", "student": student_payload(db, student)}
+
+
+def ChangeAdmissionDate(db: Session, student: Student, value: Any, reason: Any, actor: User) -> None:
+    """2026-11-26 (billing Release 1, Shailesh): the admission date decides
+    the monthly fee (before 1 Dec 2026: ₹1,100; from then: ₹1,200). A change
+    needs a reason and is kept in the payments audit with the fee group
+    before and after. Rewriting the same date in another format is not a
+    change."""
+    from app.services.payments.audit import WritePaymentAudit
+    from app.services.payments.billing_service import GROUPS, ParseAdmissionDate, RateGroupsFor
+
+    new_value = NormaliseAdmissionDate(value)
+    old_raw = student.admission_date
+    old_parsed = ParseAdmissionDate(old_raw)
+    old_value = old_parsed.isoformat() if old_parsed else (clean_text(old_raw) or None)
+    if new_value == old_value:
+        student.admission_date = new_value
+        return
+    reason_text = re.sub(r"\s+", " ", str(reason or "")).strip()[:300]
+    if not reason_text:
+        api_error(
+            422,
+            "ADMISSION_DATE_REASON_REQUIRED",
+            "Say why the admission date is changing. It decides the student's monthly fee.",
+        )
+    before = RateGroupsFor(db, [student.id]).get(student.id, {})
+    student.admission_date = new_value
+    db.flush()
+    after = RateGroupsFor(db, [student.id]).get(student.id, {})
+    student_user = db.get(User, student.user_id)
+    WritePaymentAudit(
+        db,
+        EntityType="STUDENT",
+        EntityId=student.id,
+        Action="ADMISSION_DATE",
+        Actor=actor,
+        Before={"student": student_user.full_name if student_user else None, "studentCode": student.student_code, "admissionDate": old_raw, "rateGroup": GROUPS.get(before.get("group", ""))},
+        After={"student": student_user.full_name if student_user else None, "studentCode": student.student_code, "admissionDate": new_value, "rateGroup": GROUPS.get(after.get("group", ""))},
+        Reason=reason_text,
+    )
+
+
+def NormaliseAdmissionDate(value: Any) -> str | None:
+    from app.services.payments.billing_service import NormaliseAdmissionDate as _Normalise
+
+    return _Normalise(value)
 
 
 @router.post("/students/bulk-teacher")
@@ -2126,7 +2192,8 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
                 "teacher_display_name": TeacherDisplayName,
                 "active": Active,
                 "password": Password,
-                "level_code": LevelCode
+                "level_code": LevelCode,
+                "admission_date": BulkAdmissionDate(Row.get("admission_date")),
             })
             
         except Exception as Exc:
@@ -2163,7 +2230,7 @@ def bulk_upload_students(file: UploadFile = File(...), db: Session = Depends(get
                     custom_id=ValidRow["custom_id"],
                     teacher=ValidRow["teacher_display_name"],
                     teacher_id=TeacherRecord.id if TeacherRecord else None,
-                    admission_date=clean_text(Row.get("admission_date")),
+                    admission_date=ValidRow["admission_date"],
                     dob=clean_text(Row.get("dob")),
                     gender=clean_text(Row.get("gender")),
                     blood_group=clean_text(Row.get("blood_group")),

@@ -10,6 +10,7 @@ Ground rules that every table here follows:
     payment_audit_log (who, when, before/after, reason).
 """
 from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import false as sa_false
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -190,6 +191,17 @@ class PaymentInvoice(Base):
             unique=True,
             postgresql_where=text("status <> 'CANCELLED' AND period_key IS NOT NULL"),
             sqlite_where=text("status <> 'CANCELLED' AND period_key IS NOT NULL"),
+        ),
+        # 2026-11-26 (billing Release 1): one monthly fee per student per
+        # month, whichever monthly fee item it is (₹1,100 or ₹1,200, India or
+        # International), old-platform history included.
+        Index(
+            "uq_payment_invoices_live_month",
+            "student_id",
+            "period_key",
+            unique=True,
+            postgresql_where=text("billing_type = 'MONTHLY' AND status <> 'CANCELLED' AND period_key IS NOT NULL"),
+            sqlite_where=text("billing_type = 'MONTHLY' AND status <> 'CANCELLED' AND period_key IS NOT NULL"),
         ),
     )
 
@@ -431,6 +443,16 @@ class PaymentBillingSettings(Base):
     id = Column(String, primary_key=True, default="default")
     india_fee_item_id = Column(String, ForeignKey("fee_items.id"), nullable=True)
     international_fee_item_id = Column(String, ForeignKey("fee_items.id"), nullable=True)
+    # 2026-11-26 (billing Release 1, Shailesh): the rate for students admitted
+    # on or after new_rate_from (India ₹1,200, International ₹2,400). Students
+    # admitted before it keep the fee above for good.
+    india_new_fee_item_id = Column(String, ForeignKey("fee_items.id"), nullable=True)
+    international_new_fee_item_id = Column(String, ForeignKey("fee_items.id"), nullable=True)
+    # "YYYY-MM-DD": the first admission date that pays the new rate.
+    new_rate_from = Column(String(10), nullable=True)
+    # The two new-rate fee items are made once, when this site already has
+    # the ₹1,100 / ₹2,200 monthly fees (never again if an admin removes them).
+    new_rates_seeded = Column(Boolean, default=False, nullable=False, server_default=sa_false())
     auto_drafts_enabled = Column(Boolean, default=False, nullable=False)
     # "YYYY-MM": the first month automatic drafts may be made for.
     auto_from_period = Column(String(7), nullable=True)
@@ -450,6 +472,10 @@ class PaymentStudentBilling(Base):
     __tablename__ = "payment_student_billing"
     student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), primary_key=True)
     billing_mode = Column(String(20), nullable=False, default="INDIA")
+    # 2026-11-26 (billing Release 1): EXISTING or NEW set by an admin (with a
+    # reason). Empty: the group follows the admission date (see
+    # billing_service.RateGroupFor).
+    rate_group = Column(String(20), nullable=True)
     updated_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

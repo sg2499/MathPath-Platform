@@ -551,11 +551,13 @@ def RunTopup(db: Session, Data: TopupData, *, ExpectedDuePaise: int, Today: date
             Item = _FeeItemFor(db, Spec, Line["amount"], Line["group"])
             Period = _PeriodFor(Spec.month, Line["date"]) if Spec.month else None
             PeriodKey = f"{Period[0]:04d}-{Period[1]:02d}" if Period else None
-            if PeriodKey and db.query(PaymentInvoice.id).filter(
-                PaymentInvoice.student_id == StudentRow.id, PaymentInvoice.fee_item_id == Item.id,
+            # One monthly fee a month, whichever item (billing Release 1).
+            Taken = db.query(PaymentInvoice.fee_name).filter(
+                PaymentInvoice.student_id == StudentRow.id, PaymentInvoice.billing_type == "MONTHLY",
                 PaymentInvoice.period_key == PeriodKey, PaymentInvoice.status != "CANCELLED",
-            ).first():
-                Notes.append(f"{Number}: {Users[StudentRow.user_id].full_name} already has a {Item.name} for {PeriodLabel(Period[1], Period[0])} here; kept, without the month link.")
+            ).first() if PeriodKey else None
+            if Taken:
+                Notes.append(f"{Number}: {Users[StudentRow.user_id].full_name} already has a {Taken[0]} for {PeriodLabel(Period[1], Period[0])} here; kept, without the month link.")
                 PeriodKey = None
             Split = SplitInclusiveGst(Line["amount"], 1800, GstIncluded=True)
             Label = PeriodLabel(Period[1], Period[0]) if PeriodKey else None

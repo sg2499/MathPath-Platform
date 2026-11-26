@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
 import { HeroSearch } from "@/components/payments/CommandPalette";
-import { ModePill } from "@/components/payments/panels/BillingSettingsPanel";
+import { ModePill, RateGroupPill } from "@/components/payments/panels/BillingSettingsPanel";
 import { ReplaceAddressKeepingTab } from "@/components/payments/PaymentsSection";
 import { InlineError, PaymentsDialog, PaymentsMetric, PaymentsLoading } from "@/components/payments/PaymentsUi";
 import { StudentLink } from "@/components/payments/StudentPanel";
@@ -213,7 +213,7 @@ function MonthBody({ data, onPeriod, onMonth }: { data: BillingMonth; onPeriod: 
                       <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{[row.studentCode, row.levelCode, row.centreName].filter(Boolean).join(" · ")}</span>
                       {row.issue ? <span className="mt-1 flex items-start gap-1 text-xs font-bold text-amber-700 dark:text-amber-300"><AlertTriangle size={12} className="mt-0.5 shrink-0" />{row.issue}</span> : null}
                     </td>
-                    <td data-label="Mode" className="py-3 pr-3"><ModePill mode={row.billingMode} /></td>
+                    <td data-label="Mode" className="py-3 pr-3"><span className="flex flex-wrap gap-1"><ModePill mode={row.billingMode} /><RateGroupPill group={row.rateGroup} source={row.rateGroupSource} /></span></td>
                     <td data-label="Fee" className="py-3 pr-3 text-right font-black tabular-nums text-slate-900 dark:text-white">{row.fee?.display ?? "—"}<span className="block text-xs font-semibold text-slate-500">{row.fee?.name}</span></td>
                     <td data-label="From Advance" className="py-3 pr-3 text-right tabular-nums text-violet-700 dark:text-violet-300">{row.advanceToApply.paise ? row.advanceToApply.display : "—"}</td>
                     <td data-label="To Pay" className="py-3 pr-3 text-right font-black tabular-nums text-slate-900 dark:text-white">{row.fee ? row.dueAfterAdvance.display : "—"}</td>
@@ -256,7 +256,7 @@ function MonthBody({ data, onPeriod, onMonth }: { data: BillingMonth; onPeriod: 
               <li key={row.studentId} className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
                 <span className="min-w-0 flex-1">
                   <StudentLink studentId={row.studentId} className="block truncate font-black text-slate-900 hover:underline dark:text-white">{row.studentName}</StudentLink>
-                  <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{row.studentCode} · {row.billingModeLabel} · {row.fee?.display ?? "No Fee Chosen"}</span>
+                  <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{row.studentCode} · {row.billingModeLabel}{row.rateGroup === "NEW" ? " (new fee)" : ""} · {row.fee?.display ?? "No Fee Chosen"}</span>
                 </span>
                 <button type="button" className="math-role-action-button h-9 shrink-0 px-3 text-xs" disabled={create.isPending} onClick={() => create.mutate([row.studentId])}><CalendarPlus size={13} />Add</button>
               </li>
@@ -364,8 +364,9 @@ function DropDialog({ row, periodLabel, onClose, onDone }: { row: BillingDraft; 
 function ReleaseDialog({ data, chosen, total, advance, onClose, onDone }: { data: BillingMonth; chosen: BillingDraft[]; total: number; advance: number; onClose: () => void; onDone: (result: BillingReleaseResult) => void }) {
   const [key] = useState(NewKey);
   const release = useMutation({ mutationFn: () => releaseBillingDrafts(data.period, { draftIds: chosen.map((row) => row.draftId), idempotencyKey: key }), onSuccess: onDone });
+  // 2026-11-26 (billing Release 1): one line per fee (mode and fee group).
   const byMode = chosen.reduce<Record<string, { count: number; fee: string }>>((acc, row) => {
-    const label = row.billingModeLabel;
+    const label = row.rateGroup === "NEW" ? `new ${row.billingModeLabel}` : row.billingModeLabel;
     acc[label] = { count: (acc[label]?.count ?? 0) + 1, fee: row.fee?.display ?? "" };
     return acc;
   }, {});
