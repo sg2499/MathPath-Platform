@@ -785,3 +785,11 @@ def test_release2_api_end_to_end_and_admin_only():
         assert client.post(f"{base}/invoices/create", json={"studentId": "yl", "lines": [], "idempotencyKey": "api-new-0002"}).status_code == 403
     finally:
         app.dependency_overrides.clear()
+
+
+def test_two_months_of_tuition_are_refused_in_the_preview_too():
+    db, admin, second, items, centres = _world()
+    lines = [{"feeItemId": items["Monthly Fee"], "billingMonth": 12, "billingYear": 2026}, {"feeItemId": items["Monthly Fee New Admission"], "billingMonth": 1, "billingYear": 2027}]
+    with pytest.raises(HTTPException) as preview:
+        builder.PreviewInvoice(db, Request={"studentId": "yl", "lines": lines})
+    assert _code(preview) == "ONE_MONTH_ONLY"

@@ -462,6 +462,8 @@ def _ParseLineSpecs(db: Session, StudentRow: Student, RawLines: list[Any], Invoi
             if not 1 <= Month <= 12 or not 2020 <= Year <= 2100:
                 api_error(422, "BILLING_PERIOD_REQUIRED", "Choose a valid month for the monthly fee.")
             PeriodKey = f"{Year:04d}-{Month:02d}"
+            if any(Other.get("periodKey") for Other in Specs):
+                api_error(422, "ONE_MONTH_ONLY", "An invoice can carry one month's tuition. Raise another month on its own invoice.")
         Specs.append({
             "item": Item,
             "quantity": Quantity,
