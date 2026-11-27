@@ -36,6 +36,7 @@ import {
   AlertCircle,
   Award,
   BarChart3,
+  Boxes,
   BookOpen,
   Cake,
   BookOpenCheck,
@@ -649,7 +650,15 @@ export function AppShell({
           label: "Invoices",
           href: "/admin/payments/invoices",
           icon: FileText,
-          tooltip: "Every invoice, and Generate Invoices",
+          tooltip: "Every invoice, New Invoice, New Admission, Monthly Billing and Generate Invoices",
+        },
+        {
+          // 2026-11-27 (billing Release 2): books and kit at each centre,
+          // and the next-level book queue.
+          label: "Inventory",
+          href: "/admin/payments/inventory",
+          icon: Boxes,
+          tooltip: "Stock at each centre, every movement, and the book queue",
         },
         {
           label: "Collections",
@@ -661,7 +670,7 @@ export function AppShell({
           label: "Reports",
           href: "/admin/payments/reports",
           icon: BarChart3,
-          tooltip: "Overview, Insights, Collections, Dues and Activity",
+          tooltip: "Overview, Insights, Collections, Dues, Ledgers and Activity",
         },
         {
           label: "Expenses",

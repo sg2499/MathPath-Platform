@@ -3428,6 +3428,15 @@ def _SubmitAssessmentAttemptCore(Db: Session, Attempt: AssessmentAttempt, Auto: 
     Db.commit()
     Db.refresh(Attempt)
 
+    # 2026-11-27 (billing Release 2): a cleared level puts the next level's
+    # book in the book queue (or invoices it, when automatic book invoices
+    # are on). Wrapped so it can never stop the result being shown.
+    if Status == "CLEARED" and not OpenAccess:
+        from app.services.payments.book_invoices import OnLevelAssessmentCleared
+
+        OnLevelAssessmentCleared(Db, Attempt, Assignment)
+        Db.refresh(Attempt)
+
     if not OpenAccess:
         _ProcessAssessmentCompletionNotification(Db, Attempt)
     # Transient (non-persisted) attribute -- same pattern as attempt_service.

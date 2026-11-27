@@ -6,6 +6,8 @@
 // can be invoiced for. Replaces the old platform's Groups, Components and
 // Group Maps screens. Nothing is deleted: items are switched off with a reason.
 import { HeroSearch } from "@/components/payments/CommandPalette";
+import { ArticleChip, ArticleDialog } from "@/components/payments/ArticleDialog";
+import type { ArticleFeeItem } from "@/lib/api/billing";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FieldError, FieldLabel, InlineError, PaymentsDialog, PaymentsHistoryList, PaymentsMetric, StatusPill, PaymentsLoading } from "@/components/payments/PaymentsUi";
@@ -72,6 +74,8 @@ export function FeeSetupPanel() {
   const [switchOff, setSwitchOff] = useState<FeeItem | null>(null);
   const [switchOffReason, setSwitchOffReason] = useState("");
   const [historyFor, setHistoryFor] = useState<FeeItem | null>(null);
+  // 2026-11-27 (billing Release 2): kind, code, stock, book level, kit, price from a date.
+  const [detailsFor, setDetailsFor] = useState<FeeItem | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const itemsQuery = useQuery({ queryKey: ["admin", "payments", "fee-items"], queryFn: listFeeItems, enabled: ready });
@@ -239,6 +243,7 @@ export function FeeSetupPanel() {
                       <div className="min-w-0">
                         <p className="font-black text-slate-900 dark:text-white">{item.name}</p>
                         {item.description ? <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{item.description}</p> : null}
+                        <div className="mt-1"><ArticleChip item={item as ArticleFeeItem} /></div>
                       </div>
                       <p className="shrink-0 text-lg font-black tabular-nums text-slate-950 dark:text-white">{item.amountDisplay}</p>
                     </div>
@@ -255,6 +260,7 @@ export function FeeSetupPanel() {
                         </>
                       ) : null}
                       <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => openEdit(item)}><Pencil size={13} />Edit</button>
+                      <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => setDetailsFor(item)}><Tag size={13} />Details</button>
                       <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => setHistoryFor(item)}><History size={13} />History</button>
                       {item.isActive ? (
                         <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => { setSwitchOff(item); setSwitchOffReason(""); activeMutation.reset(); }}><CircleSlash size={13} />Switch Off</button>
@@ -267,7 +273,7 @@ export function FeeSetupPanel() {
               })}
             </ul>
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[860px] text-left text-sm">
+              <table className="w-full min-w-[960px] text-left text-sm">
                 <thead>
                   <tr className="text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                     <th className="w-20 px-2 py-2">Order</th>
@@ -301,6 +307,7 @@ export function FeeSetupPanel() {
                         <td className="max-w-[320px] px-2 py-3">
                           <div className="font-black text-slate-900 dark:text-white">{item.name}</div>
                           {item.description ? <div className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{item.description}</div> : null}
+                          <div className="mt-1"><ArticleChip item={item as ArticleFeeItem} /></div>
                         </td>
                         <td className="px-2 py-3"><BillingChip type={item.billingType} /></td>
                         <td className="whitespace-nowrap px-2 py-3 text-right text-base font-black tabular-nums text-slate-950 dark:text-white">{item.amountDisplay}</td>
@@ -311,6 +318,7 @@ export function FeeSetupPanel() {
                         <td className="px-2 py-3">
                           <div className="flex justify-end gap-2">
                             <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => openEdit(item)}><Pencil size={13} />Edit</button>
+                            <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => setDetailsFor(item)}><Tag size={13} />Details</button>
                             <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => setHistoryFor(item)}><History size={13} />History</button>
                             {item.isActive ? (
                               <button type="button" className="math-role-action-button h-9 px-3 text-xs" onClick={() => { setSwitchOff(item); setSwitchOffReason(""); activeMutation.reset(); }}><CircleSlash size={13} />Switch Off</button>
@@ -447,6 +455,8 @@ export function FeeSetupPanel() {
         </label>
         <div className="mt-3"><InlineError error={activeMutation.error} /></div>
       </PaymentsDialog>
+
+      <ArticleDialog item={detailsFor ? ((items.find((row) => row.feeItemId === detailsFor.feeItemId) ?? detailsFor) as ArticleFeeItem) : null} onClose={() => setDetailsFor(null)} />
 
       <PaymentsDialog open={Boolean(historyFor)} kicker="Change History" title={historyFor?.name ?? ""} onClose={() => setHistoryFor(null)} wide>
         {historyFor ? <PaymentsHistoryList entityType="FEE_ITEM" entityId={historyFor.feeItemId} /> : null}

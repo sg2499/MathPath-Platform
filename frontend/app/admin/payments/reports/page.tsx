@@ -2,15 +2,17 @@
 
 // 2026-10-08 (Payments Phase 4): Reports section.
 // 2026-10-09 (revamp R6): Insights and Activity tabs.
+// 2026-11-27 (billing Release 2): the Ledgers tab.
 import { ActivityPanel } from "@/components/payments/panels/ActivityPanel";
 import { CollectionsReportPanel } from "@/components/payments/panels/CollectionsReportPanel";
 import { DuesPanel } from "@/components/payments/panels/DuesPanel";
 import { InsightsPanel } from "@/components/payments/panels/InsightsPanel";
+import { LedgersPanel } from "@/components/payments/panels/LedgersPanel";
 import { OverviewPanel } from "@/components/payments/panels/OverviewPanel";
 import { PaymentsSection, useReportsFlags } from "@/components/payments/PaymentsSection";
-import { AlertTriangle, BarChart3, HandCoins, History, Lightbulb } from "lucide-react";
+import { AlertTriangle, BarChart3, HandCoins, History, Lightbulb, NotebookTabs } from "lucide-react";
 
-type Tab = "overview" | "insights" | "collections" | "dues" | "activity";
+type Tab = "overview" | "insights" | "collections" | "dues" | "ledgers" | "activity";
 
 export default function ReportsSectionPage() {
   const flags = useReportsFlags();
@@ -24,9 +26,10 @@ export default function ReportsSectionPage() {
         { key: "insights", label: "Insights", icon: <Lightbulb size={16} />, flag: flags.unusual },
         { key: "collections", label: "Collections", icon: <HandCoins size={16} /> },
         { key: "dues", label: "Dues", icon: <AlertTriangle size={16} /> },
+        { key: "ledgers", label: "Ledgers", icon: <NotebookTabs size={16} /> },
         { key: "activity", label: "Activity", icon: <History size={16} /> },
       ]}
-      render={(tab) => (tab === "collections" ? <CollectionsReportPanel /> : tab === "dues" ? <DuesPanel /> : tab === "insights" ? <InsightsPanel /> : tab === "activity" ? <ActivityPanel /> : <OverviewPanel />)}
+      render={(tab) => (tab === "collections" ? <CollectionsReportPanel /> : tab === "dues" ? <DuesPanel /> : tab === "ledgers" ? <LedgersPanel /> : tab === "insights" ? <InsightsPanel /> : tab === "activity" ? <ActivityPanel /> : <OverviewPanel />)}
     />
   );
 }

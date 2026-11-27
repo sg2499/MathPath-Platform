@@ -143,9 +143,27 @@ def EnsurePaymentDefaults(db: Session) -> None:
 # Fee items
 # --------------------------------------------------------------------------
 
-def FeeItemPayload(Item: FeeItem) -> dict[str, Any]:
+def FeeItemPayload(Item: FeeItem, *, db: Session | None = None, Upcoming: dict[str, list[dict[str, Any]]] | None = None) -> dict[str, Any]:
+    from app.services.payments.articles_service import ARTICLE_KINDS, KindOf, UpcomingPrices
+
     Split = SplitInclusiveGst(Item.amount_paise, Item.gst_rate_bps, GstIncluded=Item.gst_included)
+    if Upcoming is None:
+        Upcoming = UpcomingPrices(db, [Item.id]) if db is not None else {}
+    Kind = KindOf(Item)
     return {
+        # 2026-11-27 (billing Release 2): the article fields and any price
+        # change waiting for its date.
+        "articleKind": Kind,
+        "articleKindLabel": ARTICLE_KINDS[Kind],
+        "sku": Item.sku,
+        "isStock": bool(Item.is_stock),
+        "levelCode": Item.level_code,
+        "unit": Item.unit,
+        "costPaise": Item.cost_paise,
+        "cost": PaiseToRupeesString(Item.cost_paise) if Item.cost_paise is not None else None,
+        "costDisplay": FormatIndianRupees(Item.cost_paise) if Item.cost_paise is not None else None,
+        "inKit": bool(Item.in_kit),
+        "upcomingPrices": Upcoming.get(Item.id, []),
         "feeItemId": Item.id,
         "name": Item.name,
         "description": Item.description,
@@ -178,11 +196,17 @@ def _AuditShape(Item: FeeItem) -> dict[str, Any]:
 
 
 def ListFeeItems(db: Session, *, IncludeInactive: bool = True) -> list[dict[str, Any]]:
+    from app.services.payments.articles_service import ApplyDuePrices, UpcomingPrices
+
+    # A price change whose date has come is brought into the item itself.
+    if ApplyDuePrices(db):
+        db.commit()
     Query = db.query(FeeItem)
     if not IncludeInactive:
         Query = Query.filter(FeeItem.is_active == True)  # noqa: E712
     Items = Query.order_by(FeeItem.is_active.desc(), FeeItem.display_order.asc(), FeeItem.name.asc()).all()
-    return [FeeItemPayload(Item) for Item in Items]
+    Upcoming = UpcomingPrices(db)
+    return [FeeItemPayload(Item, Upcoming=Upcoming) for Item in Items]
 
 
 def _ValidatedName(db: Session, Name: Any, *, ExceptId: str | None = None) -> tuple[str, str]:
@@ -206,7 +230,9 @@ def _ValidatedBillingType(Value: Any) -> str:
     return BillingType
 
 
-def CreateFeeItem(db: Session, *, Name: Any, Amount: Any, GstIncluded: bool = True, BillingType: Any = "ONE_TIME", Description: Any = None, Actor: User | None) -> dict[str, Any]:
+def CreateFeeItem(db: Session, *, Name: Any, Amount: Any, GstIncluded: bool = True, BillingType: Any = "ONE_TIME", Description: Any = None, Article: dict[str, Any] | None = None, Actor: User | None) -> dict[str, Any]:
+    from app.services.payments.articles_service import GuessArticle
+
     Clean, Key = _ValidatedName(db, Name)
     Paise = ParseRupeesToPaise(Amount, FieldLabel="Amount")
     LastOrder = db.query(FeeItem.display_order).order_by(FeeItem.display_order.desc()).first()
@@ -222,16 +248,30 @@ def CreateFeeItem(db: Session, *, Name: Any, Amount: Any, GstIncluded: bool = Tr
         is_active=True,
         created_by_user_id=Actor.id if Actor else None,
     )
+    # 2026-11-27 (billing Release 2): what kind of item it is, guessed from
+    # the name; the article fields sent with it are applied just after.
+    Guess = GuessArticle(Clean, Item.billing_type)
+    Item.article_kind = Guess["kind"]
+    Item.is_stock = Guess["isStock"]
+    Item.level_code = Guess["levelCode"]
+    Item.in_kit = Guess["inKit"]
+    Item.unit = Guess["unit"]
     db.add(Item)
     try:
         db.flush()
     except IntegrityError:
         db.rollback()
         api_error(409, "FEE_ITEM_NAME_TAKEN", f"There is already a fee item called \"{Clean}\".")
+    if Item.level_code and db.query(FeeItem).filter(FeeItem.level_code == Item.level_code, FeeItem.id != Item.id, FeeItem.is_active == True).first():  # noqa: E712
+        Item.level_code = None
     WritePaymentAudit(db, EntityType="FEE_ITEM", EntityId=Item.id, Action="CREATE", Actor=Actor, After=_AuditShape(Item))
     db.commit()
     db.refresh(Item)
-    return FeeItemPayload(Item)
+    if Article:
+        from app.services.payments.articles_service import UpdateArticle
+
+        return UpdateArticle(db, FeeItemId=Item.id, Fields=Article, Actor=Actor)
+    return FeeItemPayload(Item, db=db)
 
 
 def _GetFeeItem(db: Session, FeeItemId: str) -> FeeItem:
@@ -257,8 +297,11 @@ def UpdateFeeItem(
     Before = _AuditShape(Item)
     if Name is not None:
         Item.name, Item.name_key = _ValidatedName(db, Name, ExceptId=Item.id)
+    PriceChanged = False
     if Amount is not None:
-        Item.amount_paise = ParseRupeesToPaise(Amount, FieldLabel="Amount")
+        NewPaise = ParseRupeesToPaise(Amount, FieldLabel="Amount")
+        PriceChanged = NewPaise != Item.amount_paise
+        Item.amount_paise = NewPaise
     if GstIncluded is not None:
         Item.gst_included = bool(GstIncluded)
     if BillingType is not None:
@@ -267,22 +310,33 @@ def UpdateFeeItem(
         Item.description = _CleanMultiline(Description)
     After = _AuditShape(Item)
     if After == Before:
-        return FeeItemPayload(Item)
+        return FeeItemPayload(Item, db=db)
     try:
         db.flush()
     except IntegrityError:
         db.rollback()
         api_error(409, "FEE_ITEM_NAME_TAKEN", "Another fee item already has that name.")
+    if PriceChanged:
+        # 2026-11-27 (billing Release 2): the new price is also kept as the
+        # price from today, so an earlier dated price never overrides it.
+        from app.models import FeeItemPrice
+        from app.services.payments.invoices_service import TodayInIndia
+
+        Today = TodayInIndia()
+        db.query(FeeItemPrice).filter(FeeItemPrice.fee_item_id == Item.id, FeeItemPrice.effective_from == Today).delete(synchronize_session=False)
+        if db.query(FeeItemPrice).filter(FeeItemPrice.fee_item_id == Item.id, FeeItemPrice.effective_from < Today).count():
+            db.add(FeeItemPrice(fee_item_id=Item.id, amount_paise=Item.amount_paise, effective_from=Today, reason=_Clean(Reason), created_by_user_id=Actor.id if Actor else None))
+        db.flush()
     WritePaymentAudit(db, EntityType="FEE_ITEM", EntityId=Item.id, Action="UPDATE", Actor=Actor, Before=Before, After=After, Reason=_Clean(Reason))
     db.commit()
     db.refresh(Item)
-    return FeeItemPayload(Item)
+    return FeeItemPayload(Item, db=db)
 
 
 def SetFeeItemActive(db: Session, *, FeeItemId: str, IsActive: bool, Reason: Any = None, Actor: User | None) -> dict[str, Any]:
     Item = _GetFeeItem(db, FeeItemId)
     if bool(Item.is_active) == bool(IsActive):
-        return FeeItemPayload(Item)
+        return FeeItemPayload(Item, db=db)
     CleanReason = _Clean(Reason)
     if not IsActive and not CleanReason:
         api_error(422, "REASON_REQUIRED", "Please give a reason for deactivating this fee item.")
@@ -295,7 +349,7 @@ def SetFeeItemActive(db: Session, *, FeeItemId: str, IsActive: bool, Reason: Any
     WritePaymentAudit(db, EntityType="FEE_ITEM", EntityId=Item.id, Action="ACTIVATE" if IsActive else "DEACTIVATE", Actor=Actor, Before=Before, After=_AuditShape(Item), Reason=CleanReason)
     db.commit()
     db.refresh(Item)
-    return FeeItemPayload(Item)
+    return FeeItemPayload(Item, db=db)
 
 
 def ReorderFeeItems(db: Session, *, OrderedIds: list[str], Actor: User | None) -> list[dict[str, Any]]:

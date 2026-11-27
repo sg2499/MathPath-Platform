@@ -200,6 +200,7 @@ class InvoiceFilters(BaseModel):
     dateFrom: str | None = None
     dateTo: str | None = None
     search: str | None = None
+    invoiceType: str | None = None
 
 
 class InvoicePdfRequest(BaseModel):
@@ -401,10 +402,10 @@ def admin_list_payment_audit(entityType: str | None = None, entityId: str | None
 # --- Invoices (Phase 2) ------------------------------------------------------
 # Fixed paths are declared before /invoices/{invoice_id}.
 
-def _FilterDict(status, feeItemId, period, centreId, studentId, batchId, dateFrom, dateTo, search) -> dict[str, Any]:
+def _FilterDict(status, feeItemId, period, centreId, studentId, batchId, dateFrom, dateTo, search, invoiceType=None) -> dict[str, Any]:
     return {
         "status": status, "feeItemId": feeItemId, "period": period, "centreId": centreId, "studentId": studentId,
-        "batchId": batchId, "dateFrom": dateFrom, "dateTo": dateTo, "search": search,
+        "batchId": batchId, "dateFrom": dateFrom, "dateTo": dateTo, "search": search, "invoiceType": invoiceType,
     }
 
 
@@ -444,12 +445,13 @@ def admin_list_invoices(
     dateFrom: str | None = None,
     dateTo: str | None = None,
     search: str | None = None,
+    invoiceType: str | None = None,
     page: int = 1,
     pageSize: int = 50,
     db: Session = Depends(get_db),
     user: User = Depends(admin_dep),
 ):
-    Filters = _FilterDict(status, feeItemId, period, centreId, studentId, batchId, dateFrom, dateTo, search)
+    Filters = _FilterDict(status, feeItemId, period, centreId, studentId, batchId, dateFrom, dateTo, search, invoiceType)
     return ListInvoices(db, Filters=Filters, Page=page, PageSize=pageSize)
 
 
@@ -464,10 +466,11 @@ def admin_export_invoices(
     dateFrom: str | None = None,
     dateTo: str | None = None,
     search: str | None = None,
+    invoiceType: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(admin_dep),
 ):
-    Filters = _FilterDict(status, feeItemId, period, centreId, studentId, batchId, dateFrom, dateTo, search)
+    Filters = _FilterDict(status, feeItemId, period, centreId, studentId, batchId, dateFrom, dateTo, search, invoiceType)
     Content = BuildInvoicesWorkbook(InvoicesForExport(db, Filters=Filters))
     FileName = f"MathPath-Invoices-{TodayInIndia().isoformat()}.xlsx"
     return Response(

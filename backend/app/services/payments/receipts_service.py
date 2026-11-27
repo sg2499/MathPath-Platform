@@ -529,6 +529,26 @@ def RecordPayment(db: Session, *, StudentId: str, Request: dict[str, Any], Idemp
     if Previous:
         db.rollback()
         return {**PaymentPayload(db, Previous), "replayed": True}
+    Payment = RecordPaymentInTransaction(db, StudentRow=StudentRow, Request=Request, IdempotencyKey=Key, Actor=Actor)
+    if Payment is None:
+        Previous = db.query(PaymentReceipt).filter(PaymentReceipt.idempotency_key == Key).first()
+        if Previous:
+            return {**PaymentPayload(db, Previous), "replayed": True}
+        raise RuntimeError("Payment was not recorded")
+    from app.services.payments.online_service import NotifyPaymentReceived
+
+    NotifyPaymentReceived(db, Payment)
+    db.commit()
+    return {**PaymentPayload(db, Payment), "replayed": False}
+
+
+def RecordPaymentInTransaction(db: Session, *, StudentRow: Student, Request: dict[str, Any], IdempotencyKey: str | None, Actor: User | None) -> PaymentReceipt | None:
+    """2026-11-27 (billing Release 2): the body of RecordPayment, without the
+    commit, so an admission or a sale can raise its invoice and take its
+    payment in one transaction. The student row must already be locked.
+    Returns None when the idempotency key was used a moment ago (the caller's
+    transaction has then been rolled back)."""
+    Key = IdempotencyKey
     if not _ReceiptNumberingReady(db)["numberingReady"]:
         api_error(409, "PAYMENT_NUMBERING_NOT_SET", "The starting receipt number has not been set yet. Set it in Payments > Payment Settings > Document Numbering first.")
     Checked = _CheckedPayment(db, StudentRow, Request)
@@ -558,18 +578,11 @@ def RecordPayment(db: Session, *, StudentId: str, Request: dict[str, Any], Idemp
         db.flush()
     except IntegrityError:
         db.rollback()
-        Previous = db.query(PaymentReceipt).filter(PaymentReceipt.idempotency_key == Key).first()
-        if Previous:
-            return {**PaymentPayload(db, Previous), "replayed": True}
-        raise
+        return None
     for InvoiceId in _WriteDetails(db, Payment, Checked, Actor):
         RecomputeInvoice(db, Checked["invoices"][InvoiceId])
     WritePaymentAudit(db, EntityType="PAYMENT", EntityId=Payment.id, Action="CREATE", Actor=Actor, After=_AuditShape(db, Payment))
-    from app.services.payments.online_service import NotifyPaymentReceived
-
-    NotifyPaymentReceived(db, Payment)
-    db.commit()
-    return {**PaymentPayload(db, Payment), "replayed": False}
+    return Payment
 
 
 def _LockPayment(db: Session, PaymentId: str) -> PaymentReceipt:

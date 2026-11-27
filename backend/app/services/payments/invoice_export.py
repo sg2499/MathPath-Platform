@@ -20,6 +20,7 @@ COLUMNS: list[tuple[str, str, int]] = [
     ("Student ID", "studentCode", 13),
     ("Level", "levelCode", 10),
     ("Centre", "centreName", 14),
+    ("Type", "invoiceTypeLabel", 15),
     ("Fee", "feeName", 26),
     ("Period", "periodLabel", 15),
     ("Taxable (Rs)", "taxablePaise", 13),
