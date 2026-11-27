@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   CreditCard,
   FilePlus2,
+  GraduationCap,
   HandCoins,
   History,
   Link2,
@@ -155,6 +156,9 @@ function HomeBody({ data }: { data: PaymentsHome }) {
             ) : (
               <Link href="/admin/payments/collections?tab=student-fees" className="math-button-primary whitespace-nowrap"><HandCoins size={17} />Record Payment</Link>
             )}
+            {/* 2026-11-27 (billing Release 2). */}
+            <Link href="/admin/payments/invoices?tab=admission" className="math-button-secondary whitespace-nowrap"><GraduationCap size={17} />New Admission</Link>
+            <Link href="/admin/payments/invoices?tab=new" className="math-button-secondary whitespace-nowrap"><FilePlus2 size={17} />New Invoice</Link>
             <Link href="/admin/payments/invoices?tab=monthly" className="math-button-secondary whitespace-nowrap"><FilePlus2 size={17} />{billing.waiting ? `Bill ${billing.periodLabel.split(" ")[0]} (${billing.waiting})` : "Monthly Billing"}</Link>
             <Link href="/admin/payments/collections?tab=day-close" className="math-button-secondary whitespace-nowrap">
               {todayClosed ? <CheckCircle2 size={17} className="text-emerald-600 dark:text-emerald-400" /> : <CalendarCheck size={17} />}{todayClosed ? "Day Closed" : "Close The Day"}

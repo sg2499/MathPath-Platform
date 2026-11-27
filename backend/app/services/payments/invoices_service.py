@@ -100,6 +100,17 @@ def _CheckedRequest(db: Session, Request: dict[str, Any]) -> dict[str, Any]:
     Inactive = [Item.name for Item in Items if not Item.is_active]
     if Inactive:
         api_error(422, "FEE_ITEM_INACTIVE", f"{', '.join(Inactive)} is switched off. Switch it on in Fee Setup to invoice it.")
+    # 2026-11-27 (billing Release 2): while stock is counted, books and kit
+    # are invoiced one student at a time (New Invoice), where the stock is
+    # checked and taken; Generate cannot take stock for a whole list.
+    from app.services.payments.inventory_service import TrackingOn
+
+    if any((Item.article_kind or "") == "LATE_FEE" for Item in Items):
+        api_error(422, "LATE_FEE_FROM_INVOICE", "Add a late fee from the monthly fee's invoice (Add Late Fee), so it stays linked to that month.")
+    if TrackingOn(db):
+        Stocked = [Item.name for Item in Items if Item.is_stock]
+        if Stocked:
+            api_error(422, "STOCK_ITEM_IN_BULK", f"{', '.join(Stocked)} {'is' if len(Stocked) == 1 else 'are'} counted in stock. Invoice {'it' if len(Stocked) == 1 else 'them'} from New Invoice, one student at a time.")
     Items = sorted(Items, key=lambda Item: (Item.display_order, Item.name))
 
     HasMonthly = any(Item.billing_type == "MONTHLY" for Item in Items)
@@ -146,6 +157,12 @@ def _CheckedRequest(db: Session, Request: dict[str, Any]) -> dict[str, Any]:
         "allowRepeatOneTime": bool(Request.get("allowRepeatOneTime")),
         "studentFeeItems": StudentFeeItems,
     }
+
+
+def _TypeOf(Item: FeeItem) -> str:
+    from app.services.payments.articles_service import InvoiceTypeForKinds, KindOf
+
+    return InvoiceTypeForKinds([KindOf(Item)])
 
 
 def _PeriodKey(Item: FeeItem, Month: int | None, Year: int | None) -> str | None:
@@ -195,6 +212,22 @@ def _Plan(db: Session, Checked: dict[str, Any]) -> dict[str, Any]:
         if not P:
             OneTimeTaken.setdefault((S, F), N)
 
+    # 2026-11-27 (billing Release 2): a one-time item on a line of a
+    # several-line invoice (an admission, a sale) counts too.
+    from app.models import PaymentInvoiceLine
+
+    for S, F, N in (
+        db.query(PaymentInvoice.student_id, PaymentInvoiceLine.fee_item_id, PaymentInvoice.invoice_number)
+        .join(PaymentInvoiceLine, PaymentInvoiceLine.invoice_id == PaymentInvoice.id)
+        .filter(PaymentInvoice.student_id.in_(Checked["studentIds"]), PaymentInvoiceLine.fee_item_id.in_(ItemIds), PaymentInvoice.status != "CANCELLED", PaymentInvoiceLine.period_key.is_(None))
+        .all()
+    ):
+        OneTimeTaken.setdefault((S, F), N)
+    # The price on the invoice date (a price change can start from a date).
+    from app.services.payments.articles_service import PriceOn
+
+    Prices = {Item.id: PriceOn(db, Item, Checked["invoiceDate"]) for Item in Checked["items"]}
+
     Ordered = sorted(Found.values(), key=lambda Pair: ((Pair[1].full_name or "").lower(), Pair[0].student_code or ""))
     Creates: list[dict[str, Any]] = []
     Skips: list[dict[str, Any]] = []
@@ -207,7 +240,7 @@ def _Plan(db: Session, Checked: dict[str, Any]) -> dict[str, Any]:
                 continue
             PeriodKey = _PeriodKey(Item, Checked["month"], Checked["year"])
             Label = PeriodLabel(Checked["month"], Checked["year"]) if PeriodKey else None
-            Line = {**Base, "feeItemId": Item.id, "feeName": Item.name, "periodLabel": Label, "amountPaise": Item.amount_paise}
+            Line = {**Base, "feeItemId": Item.id, "feeName": Item.name, "periodLabel": Label, "amountPaise": Prices[Item.id]}
             if not (StudentRow.is_active and UserRow.is_active):
                 Skips.append({**Line, "reason": "Student is inactive"})
             elif PeriodKey and (StudentRow.id, PeriodKey) in AnyMonthlyTaken:
@@ -349,6 +382,9 @@ def _InvoiceAuditShape(Invoice: PaymentInvoice) -> dict[str, Any]:
         "invoiceDate": Invoice.invoice_date.isoformat(),
         "dueDate": Invoice.due_date.isoformat() if Invoice.due_date else None,
         "status": Invoice.status,
+        **({"invoiceType": Invoice.invoice_type} if Invoice.invoice_type else {}),
+        **({"lines": Invoice.line_count} if (Invoice.line_count or 1) > 1 else {}),
+        **({"invoiceDiscount": PaiseToRupeesString(Invoice.invoice_discount_paise)} if Invoice.invoice_discount_paise else {}),
     }
 
 
@@ -447,7 +483,8 @@ def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: st
     for Line in Plan["creates"]:
         StudentRow, UserRow, Item = Line["_student"], Line["_user"], Line["_item"]
         LevelRow = Levels.get(StudentRow.current_level_id)
-        Split = SplitInclusiveGst(Item.amount_paise, Item.gst_rate_bps, GstIncluded=Item.gst_included)
+        Price = Line["amountPaise"]
+        Split = SplitInclusiveGst(Price, Item.gst_rate_bps, GstIncluded=Item.gst_included)
         Snapshot = {
             "business": Business,
             "centre": _CentreSnapshot(db, StudentRow.centre_id, Centres),
@@ -469,7 +506,7 @@ def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: st
                     description=_Description(Item.name, LevelRow.level_code if LevelRow else None, Line["periodLabel"]),
                     invoice_date=Checked["invoiceDate"],
                     due_date=Checked["dueDate"],
-                    amount_paise=Item.amount_paise,
+                    amount_paise=Price,
                     taxable_paise=Split["taxablePaise"],
                     cgst_paise=Split["cgstPaise"],
                     sgst_paise=Split["sgstPaise"],
@@ -481,6 +518,9 @@ def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: st
                     centre_id=StudentRow.centre_id,
                     snapshot_json=json.dumps(Snapshot, sort_keys=True),
                     source="ADMIN",
+                    invoice_type=_TypeOf(Item),
+                    gross_paise=Price,
+                    line_count=1,
                     created_by_user_id=Actor.id if Actor else None,
                 )
                 db.add(Invoice)
@@ -492,7 +532,7 @@ def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: st
             continue
         WritePaymentAudit(db, EntityType="INVOICE", EntityId=Invoice.id, Action="CREATE", Actor=Actor, After=_InvoiceAuditShape(Invoice))
         Created += 1
-        Total += Item.amount_paise
+        Total += Price
         CreatedByStudent.setdefault(StudentRow.id, []).append(Invoice.id)
 
     if Created == 0:
@@ -526,6 +566,16 @@ def GenerateInvoices(db: Session, *, Request: dict[str, Any], IdempotencyKey: st
 
 def _IsOverdue(Invoice: PaymentInvoice, Today: date) -> bool:
     return Invoice.status in ("PENDING", "PART_PAID") and Invoice.due_date is not None and Invoice.due_date < Today
+
+
+_TYPE_LABELS = {
+    "ADMISSION": "Admission",
+    "MONTHLY_TUITION": "Monthly tuition",
+    "STUDY_MATERIAL": "Study material",
+    "SALE": "Sale",
+    "LATE_FEE": "Late fee",
+    "OTHER": "Other",
+}
 
 
 def InvoicePayload(Invoice: PaymentInvoice, *, Today: date | None = None, CreatedByName: str | None = None, CancelledByName: str | None = None) -> dict[str, Any]:
@@ -572,6 +622,19 @@ def InvoicePayload(Invoice: PaymentInvoice, *, Today: date | None = None, Create
         "cancelledAt": Invoice.cancelled_at.isoformat() if Invoice.cancelled_at else None,
         "cancelledByName": CancelledByName,
         "cancelReason": Invoice.cancel_reason,
+        # 2026-11-27 (billing Release 2).
+        "invoiceType": Invoice.invoice_type or "OTHER",
+        "invoiceTypeLabel": _TYPE_LABELS.get(Invoice.invoice_type or "OTHER", "Other"),
+        "lineCount": Invoice.line_count or 1,
+        "grossPaise": Invoice.gross_paise if Invoice.gross_paise is not None else Invoice.amount_paise,
+        "grossDisplay": FormatIndianRupees(Invoice.gross_paise if Invoice.gross_paise is not None else Invoice.amount_paise),
+        "invoiceDiscountPaise": Invoice.invoice_discount_paise or 0,
+        "invoiceDiscountDisplay": FormatIndianRupees(Invoice.invoice_discount_paise or 0),
+        "invoiceDiscountReason": Invoice.invoice_discount_reason,
+        "discountApprovedByName": Invoice.discount_approved_by_name,
+        "parentInvoiceId": Invoice.parent_invoice_id,
+        "sourceKey": Invoice.source_key,
+        "periodKey": Invoice.period_key,
     }
 
 
@@ -586,7 +649,12 @@ def _FilteredQuery(db: Session, Filters: dict[str, Any]):
     elif Status == "OVERDUE":
         Query = Query.filter(PaymentInvoice.status.in_(("PENDING", "PART_PAID")), PaymentInvoice.due_date < Today)
     if Filters.get("feeItemId"):
-        Query = Query.filter(PaymentInvoice.fee_item_id == Filters["feeItemId"])
+        from app.models import PaymentInvoiceLine
+
+        OnLine = db.query(PaymentInvoiceLine.invoice_id).filter(PaymentInvoiceLine.fee_item_id == Filters["feeItemId"])
+        Query = Query.filter(or_(PaymentInvoice.fee_item_id == Filters["feeItemId"], PaymentInvoice.id.in_(OnLine)))
+    if Filters.get("invoiceType"):
+        Query = Query.filter(PaymentInvoice.invoice_type == str(Filters["invoiceType"]).upper())
     Period = str(Filters.get("period") or "").strip()
     if re.fullmatch(r"\d{4}-\d{2}", Period):
         Query = Query.filter(PaymentInvoice.period_key == Period)
@@ -670,6 +738,10 @@ def GetInvoice(db: Session, InvoiceId: str) -> dict[str, Any]:
     Names = _UserNames(db, {Invoice.created_by_user_id, Invoice.cancelled_by_user_id})
     Payload = InvoicePayload(Invoice, CreatedByName=Names.get(Invoice.created_by_user_id), CancelledByName=Names.get(Invoice.cancelled_by_user_id))
     Payload["snapshot"] = json.loads(Invoice.snapshot_json)
+    # 2026-11-27 (billing Release 2): the lines, the late fee, the parent.
+    from app.services.payments.invoice_builder import InvoiceExtras
+
+    Payload.update(InvoiceExtras(db, Invoice))
     return Payload
 
 
@@ -698,9 +770,19 @@ def CancelInvoice(db: Session, *, InvoiceId: str, Reason: Any, Actor: User | Non
     Invoice.cancelled_by_user_id = Actor.id if Actor else None
     db.flush()
     RecomputeInvoice(db, Invoice)
+    # 2026-11-27 (billing Release 2): its books and kit go back into stock
+    # (client answer I10), and a book invoice can be raised again from the
+    # book queue.
+    from app.services.payments.book_invoices import InvoiceCancelled
+    from app.services.payments.inventory_service import ReturnForInvoice
+
+    Returned = ReturnForInvoice(db, Invoice, Actor)
+    InvoiceCancelled(db, Invoice)
     After = _InvoiceAuditShape(Invoice)
     if Moved:
         After["movedToAdvance"] = PaiseToRupeesString(Moved)
+    if Returned:
+        After["stockReturned"] = Returned
     WritePaymentAudit(db, EntityType="INVOICE", EntityId=Invoice.id, Action="CANCEL", Actor=Actor, Before=Before, After=After, Reason=CleanReason)
     db.commit()
     Result = GetInvoice(db, Invoice.id)

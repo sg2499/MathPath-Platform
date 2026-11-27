@@ -9,6 +9,8 @@ Ground rules that every table here follows:
   * Nothing is deleted: rows are deactivated, and every change is written to
     payment_audit_log (who, when, before/after, reason).
 """
+from datetime import datetime, timezone
+
 from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy import false as sa_false
 from sqlalchemy.sql import func
@@ -29,6 +31,11 @@ class PaymentCentre(Base):
     phone = Column(String(60), nullable=True)
     display_order = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    # 2026-11-27 (billing Release 2): a centre that keeps its own stock of
+    # books and kit (Rajarhat, Laketown). A centre that does not (Online)
+    # is supplied from stock_from_centre_id.
+    holds_stock = Column(Boolean, default=False, nullable=False, server_default=sa_false())
+    stock_from_centre_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -77,6 +84,17 @@ class FeeItem(Base):
     # JSON list of the old platform's group/component names this item stands
     # for (filled by the migration in Phase 6).
     legacy_names_json = Column(Text, nullable=True)
+    # 2026-11-27 (billing Release 2): the article master. What kind of thing
+    # it is (TUITION, REGISTRATION, BOOK, MERCH, LATE_FEE, OTHER), its code,
+    # whether stock is counted for it, the level a book is for, the unit,
+    # what it costs MathPath, and whether it is in the free admission kit.
+    sku = Column(String(40), nullable=True)
+    article_kind = Column(String(20), nullable=True)
+    is_stock = Column(Boolean, default=False, nullable=False, server_default=sa_false())
+    level_code = Column(String(40), nullable=True)
+    unit = Column(String(20), nullable=True)
+    cost_paise = Column(Integer, nullable=True)
+    in_kit = Column(Boolean, default=False, nullable=False, server_default=sa_false())
     created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -178,11 +196,45 @@ class PaymentInvoice(Base):
     cancelled_at = Column(DateTime(timezone=True), nullable=True)
     cancelled_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
     cancel_reason = Column(Text, nullable=True)
+    # 2026-11-27 (billing Release 2): an invoice can have several lines
+    # (payment_invoice_lines). Older invoices have none and are read as one
+    # line made from the columns above.
+    #   invoice_type: ADMISSION | MONTHLY_TUITION | STUDY_MATERIAL | SALE |
+    #                 LATE_FEE | OTHER
+    #   gross_paise: the lines' total before the invoice discount.
+    #   invoice_discount_*: a discount given when the invoice was raised
+    #     (FIXED in paise, or PERCENT in basis points), with its reason and
+    #     who approved it. discount_paise above stays the discount given
+    #     when a payment was recorded.
+    #   source_key: ADMISSION:<student>, BOOK:<student>:<level>,
+    #     LATE:<invoice> -- at most one live invoice per key.
+    #   billing_type MONTHLY with period_key: the invoice carries that
+    #     month's tuition (an admission invoice does), so the month is never
+    #     billed twice.
+    invoice_type = Column(String(20), nullable=True, index=True)
+    gross_paise = Column(Integer, nullable=True)
+    invoice_discount_paise = Column(Integer, nullable=False, default=0, server_default="0")
+    invoice_discount_type = Column(String(10), nullable=True)
+    invoice_discount_value = Column(Integer, nullable=True)
+    invoice_discount_reason = Column(Text, nullable=True)
+    discount_approved_by_user_id = Column(String, nullable=True)
+    discount_approved_by_name = Column(String(150), nullable=True)
+    source_key = Column(String(120), nullable=True)
+    parent_invoice_id = Column(String, nullable=True, index=True)
+    stock_centre_id = Column(String, nullable=True)
+    line_count = Column(Integer, nullable=False, default=1, server_default="1")
     created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
+        Index(
+            "uq_payment_invoices_live_source",
+            "source_key",
+            unique=True,
+            postgresql_where=text("status <> 'CANCELLED' AND source_key IS NOT NULL"),
+            sqlite_where=text("status <> 'CANCELLED' AND source_key IS NOT NULL"),
+        ),
         Index(
             "uq_payment_invoices_live_monthly",
             "student_id",
@@ -605,6 +657,12 @@ __all__ = [
     "PaymentReminderTemplate",
     "PaymentInsightSettings",
     "PaymentInsightReview",
+    "PaymentInvoiceLine",
+    "FeeItemPrice",
+    "InventorySettings",
+    "StockBalance",
+    "StockMovement",
+    "BookInvoiceTask",
 ]
 
 
@@ -648,4 +706,154 @@ class PaymentDayClose(Base):
     handed_over_paise = Column(Integer, nullable=False, default=0, server_default="0")
     handover_to = Column(String(200), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+
+# --------------------------------------------------------------------------
+# 2026-11-27 (billing Release 2): invoice lines, prices from a date, stock.
+# --------------------------------------------------------------------------
+
+class PaymentInvoiceLine(Base):
+    """One line of an invoice: what, how many, at what price, any discount on
+    the line, and its share of the invoice discount. final_paise is what
+    the line adds to the invoice total (GST included). A stock line keeps
+    the centre its stock was taken from and when it was handed over."""
+
+    __tablename__ = "payment_invoice_lines"
+    id = Column(String, primary_key=True, default=uuid_str)
+    invoice_id = Column(String, ForeignKey("payment_invoices.id"), nullable=False, index=True)
+    line_no = Column(Integer, nullable=False)
+    fee_item_id = Column(String, ForeignKey("fee_items.id"), nullable=True, index=True)
+    name = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
+    article_kind = Column(String(20), nullable=True)
+    quantity = Column(Integer, nullable=False, default=1)
+    unit_paise = Column(Integer, nullable=False)
+    gross_paise = Column(Integer, nullable=False)
+    discount_type = Column(String(10), nullable=True)
+    discount_value = Column(Integer, nullable=True)
+    discount_paise = Column(Integer, nullable=False, default=0)
+    net_paise = Column(Integer, nullable=False)
+    invoice_discount_share_paise = Column(Integer, nullable=False, default=0)
+    final_paise = Column(Integer, nullable=False)
+    gst_included = Column(Boolean, nullable=False, default=True)
+    gst_rate_bps = Column(Integer, nullable=False, default=1800)
+    is_stock = Column(Boolean, nullable=False, default=False)
+    is_kit = Column(Boolean, nullable=False, default=False)
+    # "2026-12" on a tuition line.
+    period_key = Column(String(7), nullable=True)
+    stock_centre_id = Column(String, nullable=True)
+    handed_over_on = Column(Date, nullable=True)
+    handed_over_by_user_id = Column(String, nullable=True)
+    handed_over_by_name = Column(String(150), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class FeeItemPrice(Base):
+    """A fee item's price from a date (client answer F6: a price change
+    applies from a chosen date). An invoice dated on or after effective_from
+    uses it; with no row on or before the date, the item's own amount."""
+
+    __tablename__ = "fee_item_prices"
+    id = Column(String, primary_key=True, default=uuid_str)
+    fee_item_id = Column(String, ForeignKey("fee_items.id"), nullable=False, index=True)
+    amount_paise = Column(Integer, nullable=False)
+    effective_from = Column(Date, nullable=False)
+    reason = Column(Text, nullable=True)
+    created_by_user_id = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class InventorySettings(Base):
+    """One row, id "default". Stock tracking stays off until an admin has
+    entered the opening stock and switches it on; while it is off, nothing
+    is counted and nothing is blocked."""
+
+    __tablename__ = "inventory_settings"
+    id = Column(String, primary_key=True, default="default")
+    stock_tracking_enabled = Column(Boolean, nullable=False, default=False, server_default=sa_false())
+    tracking_started_at = Column(DateTime(timezone=True), nullable=True)
+    low_stock_threshold = Column(Integer, nullable=False, default=5, server_default="5")
+    # Where stock comes from for a student with no centre.
+    default_stock_centre_id = Column(String, nullable=True)
+    # A cleared level assessment raises the next level's book invoice by
+    # itself only while this is on; otherwise it waits in the book queue.
+    auto_book_invoices = Column(Boolean, nullable=False, default=False, server_default=sa_false())
+    articles_seeded = Column(Boolean, nullable=False, default=False, server_default=sa_false())
+    updated_by_user_id = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class StockBalance(Base):
+    """How many of an item a centre holds. Changed only together with a
+    stock_movements row, with the row locked, so it never goes below zero
+    and two sales can never take the last one."""
+
+    __tablename__ = "stock_balances"
+    __table_args__ = (Index("ux_stock_balances_item_centre", "fee_item_id", "centre_id", unique=True),)
+    id = Column(String, primary_key=True, default=uuid_str)
+    fee_item_id = Column(String, ForeignKey("fee_items.id"), nullable=False, index=True)
+    centre_id = Column(String, nullable=False, index=True)
+    quantity = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class StockMovement(Base):
+    """Every change to stock, never edited or deleted.
+
+    OPENING, INWARD (supplier, bill number, unit cost), ISSUE (an invoice
+    line), CANCEL_RETURN (its invoice cancelled), TRANSFER_OUT / TRANSFER_IN
+    (one transfer_id), WRITE_OFF (with a reason). quantity is signed;
+    balance_after is the centre's balance once this movement is counted."""
+
+    __tablename__ = "stock_movements"
+    id = Column(String, primary_key=True, default=uuid_str)
+    fee_item_id = Column(String, ForeignKey("fee_items.id"), nullable=False, index=True)
+    centre_id = Column(String, nullable=False, index=True)
+    movement_type = Column(String(20), nullable=False, index=True)
+    quantity = Column(Integer, nullable=False)
+    balance_after = Column(Integer, nullable=False)
+    movement_date = Column(Date, nullable=False, index=True)
+    unit_cost_paise = Column(Integer, nullable=True)
+    supplier = Column(String(150), nullable=True)
+    bill_number = Column(String(80), nullable=True)
+    reason = Column(Text, nullable=True)
+    invoice_id = Column(String, nullable=True, index=True)
+    invoice_line_id = Column(String, nullable=True)
+    student_id = Column(String, nullable=True, index=True)
+    transfer_id = Column(String, nullable=True)
+    actor_user_id = Column(String, nullable=True)
+    actor_name = Column(String(150), nullable=True)
+    # Set here (not by the database), so movements made in one transaction
+    # still read back in the order they were made.
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now(), index=True)
+
+
+class BookInvoiceTask(Base):
+    """The next level's book for a student who cleared a level assessment
+    (client answers E1, E7). One per student and level.
+
+    status: PENDING (automatic book invoices are off: waiting for an admin),
+    ISSUED (invoice_id), WAITING_STOCK (none at the centre), NO_BOOK (no
+    book is set up for the level), ERROR (see last_error), SKIPPED (an admin
+    chose not to bill it), CANCELLED (its invoice was cancelled)."""
+
+    __tablename__ = "book_invoice_tasks"
+    __table_args__ = (Index("ux_book_invoice_tasks_student_level", "student_id", "target_level_id", unique=True),)
+    id = Column(String, primary_key=True, default=uuid_str)
+    student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
+    cleared_level_id = Column(String, nullable=True)
+    target_level_id = Column(String, nullable=False)
+    target_level_code = Column(String(40), nullable=True)
+    assessment_attempt_id = Column(String, nullable=True)
+    fee_item_id = Column(String, nullable=True)
+    status = Column(String(20), nullable=False, default="PENDING", index=True)
+    invoice_id = Column(String, nullable=True)
+    last_error = Column(Text, nullable=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    skip_reason = Column(Text, nullable=True)
+    resolved_by_user_id = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

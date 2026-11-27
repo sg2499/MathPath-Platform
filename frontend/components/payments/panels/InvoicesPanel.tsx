@@ -45,6 +45,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { StudentLink } from "@/components/payments/StudentPanel";
+import { InvoiceLinesBlock } from "@/components/payments/InvoiceLinesBlock";
+import { INVOICE_TYPE_LABELS } from "@/lib/api/billing";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -94,6 +96,7 @@ export function InvoicesPanel() {
   const ready = useProtectedPage(["ADMIN", "SUPER_ADMIN"]);
   const queryClient = useQueryClient();
   const [status, setStatus] = useState("ALL");
+  const [invoiceType, setInvoiceType] = useState("");
   const [feeItemId, setFeeItemId] = useState("");
   const [period, setPeriod] = useState("");
   const [centreId, setCentreId] = useState("");
@@ -123,8 +126,8 @@ export function InvoicesPanel() {
   }, [searchParams]);
 
   const filters: InvoiceFilters = useMemo(
-    () => ({ status, feeItemId, period, centreId, dateFrom, dateTo, search: debouncedSearch.trim(), batchId, studentId }),
-    [status, feeItemId, period, centreId, dateFrom, dateTo, debouncedSearch, batchId, studentId]
+    () => ({ status, feeItemId, period, centreId, dateFrom, dateTo, search: debouncedSearch.trim(), batchId, studentId, invoiceType }),
+    [status, feeItemId, period, centreId, dateFrom, dateTo, debouncedSearch, batchId, studentId, invoiceType]
   );
   useEffect(() => setPage(1), [filters]);
 
@@ -141,11 +144,12 @@ export function InvoicesPanel() {
   const invoices = data?.invoices ?? [];
   const opened = invoices.find((row) => row.invoiceId === openId) ?? null;
   const pageCount = data ? Math.max(1, Math.ceil(data.totalCount / data.pageSize)) : 1;
-  const filtersOn = Boolean(status !== "ALL" || feeItemId || period || centreId || dateFrom || dateTo || search.trim() || batchId || studentId);
+  const filtersOn = Boolean(status !== "ALL" || feeItemId || invoiceType || period || centreId || dateFrom || dateTo || search.trim() || batchId || studentId);
 
   const clearFilters = () => {
     setStatus("ALL");
     setFeeItemId("");
+    setInvoiceType("");
     setPeriod("");
     setCentreId("");
     setDateFrom("");
@@ -231,7 +235,8 @@ export function InvoicesPanel() {
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/admin/payments/invoices?tab=generate" className="math-button-primary whitespace-nowrap"><FilePlus2 size={17} />Generate Invoices</Link>
+            <Link href="/admin/payments/invoices?tab=new" className="math-button-primary whitespace-nowrap"><FilePlus2 size={17} />New Invoice</Link>
+            <Link href="/admin/payments/invoices?tab=generate" className="math-button-secondary whitespace-nowrap"><FilePlus2 size={17} />Generate Invoices</Link>
             <button type="button" className="math-button-secondary whitespace-nowrap" disabled={!data?.totalCount || excel.isPending} onClick={() => excel.mutate()}>
               {excel.isPending ? <Loader2 size={17} className="animate-spin" /> : <FileSpreadsheet size={17} />}Excel
             </button>
@@ -257,6 +262,13 @@ export function InvoicesPanel() {
             <select className="math-input" value={feeItemId} onChange={(event) => setFeeItemId(event.target.value)}>
               <option value="">All Fee Items</option>
               {fees.map((item) => <option key={item.feeItemId} value={item.feeItemId}>{item.name}{item.isActive ? "" : " (off)"}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-black text-slate-500 dark:text-slate-400">Type</span>
+            <select className="math-input" value={invoiceType} onChange={(event) => setInvoiceType(event.target.value)}>
+              <option value="">All Types</option>
+              {Object.entries(INVOICE_TYPE_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </select>
           </label>
           <label className="block">
@@ -427,6 +439,7 @@ export function InvoicesPanel() {
           <div className="grid gap-5">
             <div className="flex flex-wrap items-center gap-2">
               <InvoiceStatusChip invoice={opened} />
+              {opened.invoiceTypeLabel ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300">{opened.invoiceTypeLabel}</span> : null}
               {opened.source === "MIGRATED" ? <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-black text-violet-700 dark:bg-violet-950/40 dark:text-violet-200">From Old Platform</span> : null}
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
@@ -457,6 +470,7 @@ export function InvoicesPanel() {
                 <dt className="font-black text-slate-900 dark:text-white">Balance Due</dt><dd className="text-right font-black text-slate-900 dark:text-white">{opened.balanceDisplay}</dd>
               </dl>
             </div>
+            <InvoiceLinesBlock invoiceId={opened.invoiceId} />
             {opened.status === "CANCELLED" ? (
               <p className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300">
                 Cancelled {opened.cancelledAt ? formatMathPathDateTime(opened.cancelledAt) : ""}

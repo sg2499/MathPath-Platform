@@ -231,7 +231,7 @@ def test_rate_group_set_by_hand_needs_a_reason_and_is_audited():
     assert groups["s6"] == {"group": "EXISTING", "source": "SET_BY_ADMIN", "admissionDate": None}
     entry = db.query(PaymentAuditLog).filter_by(action="SET_RATE_GROUP").one()
     assert entry.reason == "Rejoined; old student since 2024" and '"from": "NEW"' in entry.after_json
-    assert insights._Describe(entry)["text"] == "Set 1 students to the existing fee"
+    assert insights._Describe(entry)["text"] == "Set 1 student to the existing fee"
     back = bill.SetStudentRateGroups(db, StudentIds=["s6"], Group="AUTO", Reason="Set by mistake", Actor=admin)
     assert back["studentsChanged"] == 1 and bill.RateGroupsFor(db, ["s6"])["s6"]["source"] == "ADDED_ON"
     listed = {row["studentId"]: row for row in bill.ListStudentModes(db)}

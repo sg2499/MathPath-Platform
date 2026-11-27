@@ -328,7 +328,8 @@ def _InvoiceStory(Invoice: PaymentInvoice, S: dict[str, ParagraphStyle], Content
         ("Student ID", Student.get("studentCode")),
         ("Admission No.", Student.get("customId")),
         ("Level", " ".join(Part for Part in [Student.get("levelCode"), f"({Student['levelName']})" if Student.get("levelName") else None] if Part) or None),
-        ("Fee", Invoice.fee_name),
+        ("Fee", Invoice.fee_name if not Snap.get("lines") or len(Snap["lines"]) == 1 else None),
+        ("Invoice for", {"ADMISSION": "Admission", "STUDY_MATERIAL": "Study material", "SALE": "Sale", "LATE_FEE": "Late fee"}.get(Invoice.invoice_type or "")),
         ("Period", (f"{_MonthName(Invoice.billing_month)} {Invoice.billing_year}" if Invoice.billing_month and Invoice.billing_year else None)),
     ]
     Details = [Paragraph("DETAILS", S["label"])]
@@ -365,7 +366,35 @@ def _InvoiceStory(Invoice: PaymentInvoice, S: dict[str, ParagraphStyle], Content
         Paragraph(f"<b>{Money(Invoice.amount_paise)}</b>", S["cellRight"]),
     ]
     W = ContentWidth
-    Lines = Table([Head, Line], colWidths=[W * 0.04, W * 0.39, W * 0.07, W * 0.13, W * 0.11, W * 0.11, W * 0.15], repeatRows=1)
+    # 2026-11-27 (billing Release 2): an invoice with several lines lists
+    # each with its quantity, rate and discount; GST is on the total.
+    Multi = Snap.get("lines") or []
+    if Multi:
+        Head = [
+            Paragraph("#", S["cellHead"]),
+            Paragraph("DESCRIPTION", S["cellHead"]),
+            Paragraph("QTY", S["cellHeadRight"]),
+            Paragraph("RATE", S["cellHeadRight"]),
+            Paragraph("DISCOUNT", S["cellHeadRight"]),
+            Paragraph("AMOUNT", S["cellHeadRight"]),
+        ]
+        Body = [Head]
+        for Item in Multi:
+            Name = _T(Item.get("description") or Item.get("name"))
+            if Item.get("isKit"):
+                Name += '<br/><font color="#5d6478" size="7.5">Free kit item</font>'
+            Off = Item.get("discountPaise") or 0
+            Body.append([
+                Paragraph(str(Item.get("lineNo") or ""), S["cell"]),
+                Paragraph(Name, S["cell"]),
+                Paragraph(str(Item.get("quantity") or 1), S["cellRight"]),
+                Paragraph(Money(Item.get("unitPaise") or 0), S["cellRight"]),
+                Paragraph((f"{Money(Off)}" + (f"<br/><font size='7.5'>({_T(Item['discountText'])})</font>" if Item.get("discountText") and "%" in str(Item.get("discountText")) else "")) if Off else "—", S["cellRight"]),
+                Paragraph(f"<b>{Money(Item.get('netPaise') or 0)}</b>", S["cellRight"]),
+            ])
+        Lines = Table(Body, colWidths=[W * 0.05, W * 0.45, W * 0.08, W * 0.14, W * 0.13, W * 0.15], repeatRows=1)
+    else:
+        Lines = Table([Head, Line], colWidths=[W * 0.04, W * 0.39, W * 0.07, W * 0.13, W * 0.11, W * 0.11, W * 0.15], repeatRows=1)
     Lines.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), WASH),
         ("LINEBELOW", (0, 0), (-1, 0), 0.6, RULE),
@@ -378,7 +407,14 @@ def _InvoiceStory(Invoice: PaymentInvoice, S: dict[str, ParagraphStyle], Content
     # Totals.
     Discount = Invoice.discount_paise or 0
     Balance = 0 if Status == "CANCELLED" else max(0, Invoice.amount_paise - Invoice.paid_paise - Discount)
-    TotalRows = [
+    TotalRows = []
+    if Multi:
+        TotalRows.append(("Subtotal", Money(Snap.get("subtotalPaise") or Invoice.amount_paise), False))
+        if Snap.get("invoiceDiscountPaise"):
+            Text = Snap.get("invoiceDiscountText")
+            TotalRows.append((f"Invoice discount{f' ({Text})' if Text and '%' in str(Text) else ''}", f"- {Money(Snap['invoiceDiscountPaise'])}", False))
+    TotalStart = len(TotalRows)
+    TotalRows += [
         ("Taxable amount", Money(Invoice.taxable_paise), False),
         (f"CGST {Half}", Money(Invoice.cgst_paise), False),
         (f"SGST {Half}", Money(Invoice.sgst_paise), False),
@@ -392,7 +428,7 @@ def _InvoiceStory(Invoice: PaymentInvoice, S: dict[str, ParagraphStyle], Content
     TotalsData = [[Paragraph(Label, S["rightBold"] if Bold else S["right"]), Paragraph(Value, S["rightBold"] if Bold else S["right"])] for Label, Value, Bold in TotalRows]
     Totals = Table(TotalsData, colWidths=[W * 0.22, W * 0.18])
     Totals.setStyle(TableStyle([
-        ("LINEABOVE", (0, 3), (-1, 3), 0.6, RULE),
+        ("LINEABOVE", (0, TotalStart + 3), (-1, TotalStart + 3), 0.6, RULE),
         ("LINEABOVE", (0, LastRow), (-1, LastRow), 0.6, RULE),
         ("BACKGROUND", (0, LastRow), (-1, LastRow), WASH),
         ("TOPPADDING", (0, 0), (-1, -1), 2.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),

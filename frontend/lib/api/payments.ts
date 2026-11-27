@@ -259,6 +259,19 @@ export type Invoice = {
   cancelledAt: string | null;
   cancelledByName: string | null;
   cancelReason: string | null;
+  // 2026-11-27 (billing Release 2).
+  invoiceType?: "ADMISSION" | "MONTHLY_TUITION" | "STUDY_MATERIAL" | "SALE" | "LATE_FEE" | "OTHER";
+  invoiceTypeLabel?: string;
+  lineCount?: number;
+  grossPaise?: number;
+  grossDisplay?: string;
+  invoiceDiscountPaise?: number;
+  invoiceDiscountDisplay?: string;
+  invoiceDiscountReason?: string | null;
+  discountApprovedByName?: string | null;
+  parentInvoiceId?: string | null;
+  sourceKey?: string | null;
+  periodKey?: string | null;
 };
 
 export type InvoiceFilters = {
@@ -271,6 +284,7 @@ export type InvoiceFilters = {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  invoiceType?: string;
 };
 
 export type InvoiceList = {

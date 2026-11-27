@@ -64,7 +64,9 @@ SETTING_LIMITS = {
 # Activity filters: which history rows each one shows.
 ACTIVITY_TYPES = {
     "PAYMENTS": ("PAYMENT", "DAY_CLOSE", "PAY_LINK"),
-    "INVOICES": ("INVOICE", "BILLING", "INVOICE_DRAFT", "HISTORY_IMPORT"),
+    "INVOICES": ("INVOICE", "BILLING", "INVOICE_DRAFT", "HISTORY_IMPORT", "BOOK_TASK"),
+    # 2026-11-27 (billing Release 2): stock in, transfers, write-offs.
+    "STOCK": ("STOCK", "INVENTORY_SETTINGS"),
     "EXPENSES": ("EXPENSE", "EXPENSE_CATEGORY"),
     "SETTINGS": (
         "FEE_ITEM", "CENTRE", "BUSINESS_PROFILE", "NUMBER_SEQUENCE", "ONLINE_SETTINGS", "REMINDER_TEMPLATE",
@@ -129,6 +131,14 @@ def _MonthLabel(Start: date, Short: bool = False) -> str:
 
 def _ShortDate(Day: date) -> str:
     return f"{Day.day} {calendar.month_abbr[Day.month]}"
+
+
+def _ShortDateText(Value: Any) -> str:
+    try:
+        Day = date.fromisoformat(str(Value)[:10])
+    except (TypeError, ValueError):
+        return str(Value or "")
+    return f"{Day.day} {calendar.month_abbr[Day.month]} {Day.year}"
 
 
 def _RupeesText(Value: Any) -> str:
@@ -608,6 +618,23 @@ SETTING_LABELS = {
 }
 
 
+def _Students(Count: Any) -> str:
+    """2026-11-27: "1 student", "2 students" (History said "Set 1 students")."""
+    try:
+        Number = int(Count or 0)
+    except (TypeError, ValueError):
+        Number = 0
+    return f"{Number} student{'' if Number == 1 else 's'}"
+
+
+def _Plural(Count: Any, Word: str) -> str:
+    try:
+        Number = int(Count or 0)
+    except (TypeError, ValueError):
+        Number = 0
+    return f"{Number} {Word}{'' if Number == 1 else 's'}"
+
+
 def _Describe(Row: PaymentAuditLog) -> dict[str, Any]:
     """One history row as a sentence, an icon key and a link."""
     After = _Shape(Row, "after")
@@ -641,9 +668,15 @@ def _Describe(Row: PaymentAuditLog) -> dict[str, Any]:
         if Action == "CREATE":
             Amount = _RupeesText(Shape.get("amount"))
             Text = f"Raised {Number}: {Fee}{Period} for {Shape.get('student') or ''}, {Amount}"
+            if Shape.get("invoiceDiscount") and str(Shape.get("invoiceDiscount")) not in ("0", "0.00"):
+                Text += f", discount {_RupeesText(Shape['invoiceDiscount'])}"
         elif Action == "CANCEL":
             Icon, Amount = "cancel", _RupeesText(Before.get("amount"))
             Text = f"Cancelled invoice {Number}: {Fee}{Period} for {Before.get('student') or ''}"
+            if After.get("stockReturned"):
+                Text += "; stock put back"
+        elif Action == "HANDOVER":
+            Text = f"Handed over {After.get('item') or 'an item'} on {Number} to {Shape.get('student') or 'the student'}"
     elif Kind == "EXPENSE":
         Icon = "expense"
         Number = Shape.get("expenseNumber") or "an expense"
@@ -673,19 +706,19 @@ def _Describe(Row: PaymentAuditLog) -> dict[str, Any]:
         Period = _Period(Row.entity_id) if re.match(r"^\d{4}-\d{2}$", Row.entity_id or "") else ""
         Href = f"/admin/payments/invoices?tab=monthly&period={Row.entity_id}" if Period else "/admin/payments/settings?tab=billing"
         if Action == "RELEASE":
-            Text = f"Released {Period} billing: {After.get('released', 0)} invoices"
+            Text = f"Released {Period} billing: {_Plural(After.get('released', 0), 'invoice')}"
         elif Action == "DRAFT":
-            Text = f"Added {After.get('drafts', 0)} {Period} drafts"
+            Text = f"Added {_Plural(After.get('drafts', 0), Period + ' draft')}"
         elif Action == "AUTO_DRAFT":
-            Text = f"Drafted {Period} billing automatically ({After.get('drafts', 0)} students)"
+            Text = f"Drafted {Period} billing automatically ({_Students(After.get('drafts', 0))})"
         elif Action == "SET_MODE":
-            Text = f"Set {After.get('changed', 0)} students to {str(After.get('mode') or '').title()} billing"
+            Text = f"Set {_Students(After.get('changed', 0))} to {str(After.get('mode') or '').title()} billing"
         elif Action == "PREFILL":
             Text = "Marked international students from their competition slots"
         elif Action == "SET_RATE_GROUP":
             # 2026-11-26 (billing Release 1): the fee group set by hand.
             Group = {"EXISTING": "the existing fee", "NEW": "the new fee", "AUTO": "the fee their admission date gives"}.get(str(After.get("group") or ""), "a fee group")
-            Text = f"Set {After.get('changed', 0)} students to {Group}"
+            Text = f"Set {_Students(After.get('changed', 0))} to {Group}"
         else:
             Icon, Text = "settings", "Changed billing settings"
     elif Kind == "INVOICE_DRAFT":
@@ -702,6 +735,39 @@ def _Describe(Row: PaymentAuditLog) -> dict[str, Any]:
         if Before.get("rateGroup") and After.get("rateGroup") and Before.get("rateGroup") != After.get("rateGroup"):
             Text += f" ({Before['rateGroup']} fee to {After['rateGroup']} fee)"
         Href = "/admin/payments/settings?tab=billing"
+    elif Kind == "STOCK":
+        # 2026-11-27 (billing Release 2).
+        Icon = "settings"
+        Href = "/admin/payments/inventory?tab=movements"
+        Items = After.get("items") or []
+        Count = sum(int(Item.get("quantity") or Item.get("count") or 0) for Item in Items if isinstance(Item, dict))
+        What = ", ".join(str(Item.get("item")) for Item in Items[:3] if isinstance(Item, dict)) + (" and more" if len(Items) > 3 else "")
+        if Action == "INWARD":
+            Text = f"Received {Count} items at {After.get('centre') or 'a centre'} ({What})" + (f" from {After['supplier']}" if After.get("supplier") else "")
+        elif Action == "OPENING":
+            Text = f"Entered opening stock at {After.get('centre') or 'a centre'} ({What})"
+        elif Action == "TRANSFER":
+            Text = f"Moved {Count} items from {After.get('from') or ''} to {After.get('to') or ''} ({What})"
+        elif Action == "WRITE_OFF":
+            Text = f"Wrote off {Count} items at {After.get('centre') or 'a centre'} ({What})"
+    elif Kind == "INVENTORY_SETTINGS":
+        Href = "/admin/payments/inventory?tab=setup"
+        if Before.get("stockTrackingEnabled") != After.get("stockTrackingEnabled"):
+            Text = "Switched stock tracking on" if After.get("stockTrackingEnabled") else "Switched stock tracking off"
+        elif Before.get("autoBookInvoices") != After.get("autoBookInvoices"):
+            Text = "Switched automatic book invoices on" if After.get("autoBookInvoices") else "Switched automatic book invoices off"
+        else:
+            Text = "Changed the stock settings"
+    elif Kind == "BOOK_TASK":
+        Icon = "invoice"
+        Href = "/admin/payments/inventory?tab=books"
+        Who = After.get("student") or "a student"
+        Level = After.get("level") or "the next level"
+        Text = {
+            "SKIP": f"Chose not to bill {Who} for the {Level} book",
+            "RAISE": f"Raised the {Level} book invoice for {Who}",
+            "REOPEN": f"Put {Who}'s {Level} book back in the queue",
+        }.get(Action) or f"Updated {Who}'s {Level} book"
     elif Kind == "HISTORY_IMPORT":
         Icon = "invoice"
         Href = "/admin/payments/invoices?tab=all"
@@ -719,7 +785,16 @@ def _Describe(Row: PaymentAuditLog) -> dict[str, Any]:
         Href = "/admin/payments/reports?tab=insights"
     elif Kind == "FEE_ITEM":
         Name = Shape.get("name")
-        Text = {"CREATE": f"Added fee item {Name}", "UPDATE": f"Changed fee item {Name}", "ACTIVATE": f"Switched on fee item {Name}", "DEACTIVATE": f"Switched off fee item {Name}", "REORDER": "Reordered the fee items"}.get(Action)
+        Text = {
+            "CREATE": f"Added fee item {Name}",
+            "UPDATE": f"Changed fee item {Name}",
+            "ACTIVATE": f"Switched on fee item {Name}",
+            "DEACTIVATE": f"Switched off fee item {Name}",
+            "REORDER": "Reordered the fee items",
+            "SET_PRICE": f"Set {Name} to {_RupeesText(After.get('newPrice'))} from {_ShortDateText(After.get('from'))}",
+            "CANCEL_PRICE": f"Took back a price change from {_ShortDateText(Before.get('from'))} ({_RupeesText(Before.get('newPrice'))})",
+            "UPDATE_ARTICLE": f"Changed the item details of {Name or 'a fee item'}",
+        }.get(Action)
         Href = "/admin/payments/settings?tab=fees"
     elif Kind == "CENTRE":
         Text = f"{'Added' if Action == 'CREATE' else 'Changed'} centre {Shape.get('name') or ''}".strip()
@@ -836,8 +911,17 @@ def _DescribeRun(Run: list[PaymentAuditLog]) -> dict[str, Any]:
         Verb = "Raised" if Action == "CREATE" else "Cancelled"
         return {"text": f"{Verb} {Count} invoices ({Range}), {FormatIndianRupees(Total)}", "href": "/admin/payments/invoices?tab=all", "amount": FormatIndianRupees(Total)}
     if Kind == "STUDENT_CENTRE":
-        Centres = {Shape.get("centre") or "no centre" for Shape in Shapes}
-        return {"text": f"Moved {Count} students to {', '.join(sorted(Centres))}", "href": "/admin/payments/settings?tab=centres"}
+        # 2026-11-27: "Moved 2 students to Laketown, no centre" read as one
+        # place; now each centre gets its own count.
+        PerCentre: dict[str, int] = {}
+        for Shape in Shapes:
+            Name = Shape.get("centre") or "no centre"
+            PerCentre[Name] = PerCentre.get(Name, 0) + 1
+        if len(PerCentre) == 1:
+            Text = f"Moved {_Students(Count)} to {next(iter(PerCentre))}"
+        else:
+            Text = f"Moved {_Students(Count)}: " + ", ".join(f"{Number} to {Name}" for Name, Number in sorted(PerCentre.items()))
+        return {"text": Text, "href": "/admin/payments/settings?tab=centres"}
     if Kind == "PAYMENT":
         return {"text": f"Used advance from {Count} payments against new invoices"}
     return {}

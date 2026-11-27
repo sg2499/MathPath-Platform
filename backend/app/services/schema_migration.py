@@ -1816,6 +1816,7 @@ def ensure_payments_foundation() -> None:
                     connection.execute(text(f"ALTER TABLE payment_day_closes ADD COLUMN {if_not_exists}{name} {ddl}"))
 
     ensure_billing_rates_columns()
+    ensure_billing_release2_columns()
 
     from app.services.payments.setup_service import EnsurePaymentDefaults
 
@@ -1840,6 +1841,86 @@ def ensure_payments_foundation() -> None:
         db.rollback()
     finally:
         db.close()
+
+    # 2026-11-27 (billing Release 2): the article master filled in from the
+    # fee items' names, the centres that hold stock, a Late Fee item, and
+    # each existing invoice's type. Once; stock tracking stays off.
+    from app.services.payments.articles_service import SeedArticles
+
+    db = SessionLocal()
+    try:
+        SeedArticles(db)
+        db.commit()
+    except Exception:  # noqa: BLE001 -- a second worker racing the first must never stop the boot
+        db.rollback()
+    finally:
+        db.close()
+
+
+RELEASE2_COLUMNS = {
+    "fee_items": (
+        ("sku", "VARCHAR(40)"),
+        ("article_kind", "VARCHAR(20)"),
+        ("is_stock", "BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("level_code", "VARCHAR(40)"),
+        ("unit", "VARCHAR(20)"),
+        ("cost_paise", "INTEGER"),
+        ("in_kit", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ),
+    "payment_centres": (
+        ("holds_stock", "BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("stock_from_centre_id", "VARCHAR"),
+    ),
+    "payment_invoices": (
+        ("invoice_type", "VARCHAR(20)"),
+        ("gross_paise", "INTEGER"),
+        ("invoice_discount_paise", "INTEGER NOT NULL DEFAULT 0"),
+        ("invoice_discount_type", "VARCHAR(10)"),
+        ("invoice_discount_value", "INTEGER"),
+        ("invoice_discount_reason", "TEXT"),
+        ("discount_approved_by_user_id", "VARCHAR"),
+        ("discount_approved_by_name", "VARCHAR(150)"),
+        ("source_key", "VARCHAR(120)"),
+        ("parent_invoice_id", "VARCHAR"),
+        ("stock_centre_id", "VARCHAR"),
+        ("line_count", "INTEGER NOT NULL DEFAULT 1"),
+    ),
+}
+LIVE_SOURCE = "status <> 'CANCELLED' AND source_key IS NOT NULL"
+
+
+def ensure_billing_release2_columns() -> None:
+    """2026-11-27 (billing Release 2, Shailesh): the article fields on fee
+    items, the stock fields on centres, and the new invoice fields (type,
+    invoice discount, source key, late-fee parent, stock centre). The new
+    tables (invoice lines, prices, stock, book queue) are made by
+    create_all. Plus the rule of one live invoice per source key (one
+    admission per student, one book per level, one late fee per invoice)."""
+    import logging
+
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if_not_exists = "" if engine.dialect.name == "sqlite" else "IF NOT EXISTS "
+    for table, columns in RELEASE2_COLUMNS.items():
+        if table not in tables:
+            continue
+        existing = {column["name"] for column in inspector.get_columns(table)}
+        for name, ddl in columns:
+            if name not in existing:
+                with engine.begin() as connection:
+                    connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {if_not_exists}{name} {ddl}"))
+    if "payment_invoices" in tables:
+        indexes = {index["name"] for index in inspect(engine).get_indexes("payment_invoices")}
+        try:
+            with engine.begin() as connection:
+                if "uq_payment_invoices_live_source" not in indexes:
+                    connection.execute(text(f"CREATE UNIQUE INDEX {if_not_exists}uq_payment_invoices_live_source ON payment_invoices (source_key) WHERE {LIVE_SOURCE}"))
+                if "ix_payment_invoices_invoice_type" not in indexes:
+                    connection.execute(text(f"CREATE INDEX {if_not_exists}ix_payment_invoices_invoice_type ON payment_invoices (invoice_type)"))
+                if "ix_payment_invoices_parent_invoice_id" not in indexes:
+                    connection.execute(text(f"CREATE INDEX {if_not_exists}ix_payment_invoices_parent_invoice_id ON payment_invoices (parent_invoice_id)"))
+        except Exception:  # noqa: BLE001 -- the second worker may have made them a moment ago
+            logging.getLogger(__name__).info("Release 2 invoice indexes were not created by this worker.")
 
 
 def ensure_billing_rates_columns() -> None:
