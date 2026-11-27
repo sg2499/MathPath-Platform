@@ -170,6 +170,9 @@ class AssignCentreRequest(BaseModel):
 class SequenceUpdateRequest(BaseModel):
     nextNumber: int
     reason: str | None = None
+    # 2026-11-27: a number above the next in the series leaves a gap; it is
+    # refused unless the admin ticks that the gap is wanted.
+    allowGap: bool = False
 
 
 class InvoiceRunRequest(BaseModel):
@@ -387,7 +390,7 @@ def admin_assign_students_to_centre(payload: AssignCentreRequest, db: Session = 
 
 @router.put("/numbering/{sequence_key}")
 def admin_set_starting_number(sequence_key: str, payload: SequenceUpdateRequest, db: Session = Depends(get_db), user: User = Depends(admin_dep)):
-    Result = SetStartingNumber(db, Key=sequence_key.upper(), NextNumber=payload.nextNumber, Actor=user, Reason=payload.reason)
+    Result = SetStartingNumber(db, Key=sequence_key.upper(), NextNumber=payload.nextNumber, Actor=user, Reason=payload.reason, AllowGap=payload.allowGap)
     db.commit()
     return Result
 

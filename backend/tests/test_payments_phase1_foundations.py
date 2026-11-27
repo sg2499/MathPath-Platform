@@ -146,7 +146,11 @@ def test_nothing_is_numbered_until_a_starting_number_is_set():
     with pytest.raises(HTTPException) as excinfo:
         numbering.SetStartingNumber(db, Key="INVOICE", NextNumber=1038, Actor=admin)
     assert _code(excinfo) == "PAYMENT_SEQUENCE_BACKWARDS"
-    numbering.SetStartingNumber(db, Key="INVOICE", NextNumber=2000, Actor=admin)
+    # 2026-11-27: a jump forward breaks the series, so it needs AllowGap.
+    with pytest.raises(HTTPException) as excinfo:
+        numbering.SetStartingNumber(db, Key="INVOICE", NextNumber=2000, Actor=admin)
+    assert _code(excinfo) == "PAYMENT_SEQUENCE_GAP"
+    numbering.SetStartingNumber(db, Key="INVOICE", NextNumber=2000, Actor=admin, AllowGap=True)
     assert numbering.TakeNextNumber(db, "INVOICE") == "MP-INV-002000"
 
     audit = db.query(PaymentAuditLog).filter_by(entity_type="NUMBER_SEQUENCE").all()

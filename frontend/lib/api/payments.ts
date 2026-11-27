@@ -57,6 +57,10 @@ export type NumberSequence = {
   nextFormatted: string;
   lastIssuedNumber: number | null;
   lastIssuedFormatted: string | null;
+  // 2026-11-27: the highest number any document carries, issued here or
+  // carried over from the old platform.
+  highestUsedNumber?: number | null;
+  highestUsedFormatted?: string | null;
 };
 
 export type PaymentSettings = {
@@ -149,7 +153,7 @@ export async function assignStudentsToCentre(payload: { studentIds: string[]; ce
   return data;
 }
 
-export async function setStartingNumber(sequenceKey: "INVOICE" | "RECEIPT", payload: { nextNumber: number; reason?: string | null }): Promise<NumberSequence> {
+export async function setStartingNumber(sequenceKey: "INVOICE" | "RECEIPT", payload: { nextNumber: number; reason?: string | null; allowGap?: boolean }): Promise<NumberSequence> {
   const { data } = await api.put<NumberSequence>(`/admin/payments/numbering/${sequenceKey}`, payload);
   return data;
 }

@@ -386,6 +386,30 @@ def _MethodSummary(Lines: list[PaymentMethodLine]) -> str:
     return ", ".join(f"{METHOD_LABELS.get(Line.method, Line.method)} {FormatIndianRupees(Line.amount_paise)}" for Line in Lines)
 
 
+# 2026-11-27: how a payment was made, in the family's words. A UPI or bank
+# transfer recorded at the counter was not necessarily paid at the centre.
+PAID_HOW = {
+    "CASH": "in cash",
+    "UPI": "by UPI",
+    "CHEQUE": "by cheque",
+    "NET_BANKING": "by net banking",
+    "CREDIT_CARD": "by credit card",
+    "DEBIT_CARD": "by debit card",
+    "RAZORPAY": "online",
+}
+
+
+def PaidHow(Channel: str | None, Methods: list[str]) -> str:
+    """"online", "by UPI", "in cash and by UPI", or "at the centre" when the
+    method says nothing more (Others, or no method recorded)."""
+    if Channel == "ONLINE":
+        return "online"
+    Parts = list(dict.fromkeys(PAID_HOW.get(Method) for Method in Methods))
+    if not Parts or None in Parts:
+        return "at the centre"
+    return Parts[0] if len(Parts) == 1 else ", ".join(Parts[:-1]) + " and " + Parts[-1]
+
+
 def PaymentPayload(db: Session, Payment: PaymentReceipt, *, Names: dict[str, str] | None = None, Detailed: bool = True) -> dict[str, Any]:
     Snapshot = json.loads(Payment.snapshot_json)
     Lines = db.query(PaymentMethodLine).filter(PaymentMethodLine.payment_id == Payment.id).order_by(PaymentMethodLine.line_order).all()
@@ -428,6 +452,7 @@ def PaymentPayload(db: Session, Payment: PaymentReceipt, *, Names: dict[str, str
             for Line in Lines
         ],
         "methodSummary": _MethodSummary(Lines),
+        "paidHow": "Paid " + PaidHow(Payment.channel, [Line.method for Line in Lines]),
         "invoiceNumbers": sorted({I.invoice_number for _, I in Live}),
         "source": Payment.source,
         "createdAt": Payment.created_at.isoformat() if Payment.created_at else None,
@@ -534,7 +559,8 @@ def RecordPayment(db: Session, *, StudentId: str, Request: dict[str, Any], Idemp
         Previous = db.query(PaymentReceipt).filter(PaymentReceipt.idempotency_key == Key).first()
         if Previous:
             return {**PaymentPayload(db, Previous), "replayed": True}
-        raise RuntimeError("Payment was not recorded")
+        # 2026-11-27: never a bare "Something went wrong".
+        api_error(409, "PAYMENT_NOT_SAVED", "The payment was not saved. Refresh the page and try again.")
     from app.services.payments.online_service import NotifyPaymentReceived
 
     NotifyPaymentReceived(db, Payment)

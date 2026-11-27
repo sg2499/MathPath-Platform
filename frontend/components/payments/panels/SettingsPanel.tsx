@@ -514,10 +514,15 @@ function NumberingSection({ sequences, onSaved }: { sequences: NumberSequence[];
   const [value, setValue] = useState("");
   const [reason, setReason] = useState("");
   const [confirmText, setConfirmText] = useState("");
+  const [allowGap, setAllowGap] = useState(false);
   const parsed = /^\d{1,8}$/.test(value.trim()) ? Number(value.trim()) : null;
-  const tooLow = editing && parsed !== null && editing.lastIssuedNumber !== null && parsed <= editing.lastIssuedNumber;
+  // 2026-11-27: the floor is the highest number any document carries, carried-over ones included.
+  const floor = editing ? Math.max(editing.lastIssuedNumber ?? 0, editing.highestUsedNumber ?? 0) : 0;
+  const floorFormatted = editing && floor ? `${editing.prefix}${String(floor).padStart(editing.padWidth, "0")}` : null;
+  const tooLow = Boolean(editing && parsed !== null && floor && parsed <= floor);
+  const skipped = editing && parsed !== null && floor && parsed > floor + 1 ? parsed - floor - 1 : 0;
   const mutation = useMutation({
-    mutationFn: () => setStartingNumber(editing!.key, { nextNumber: parsed!, reason: reason.trim() || null }),
+    mutationFn: () => setStartingNumber(editing!.key, { nextNumber: parsed!, reason: reason.trim() || null, allowGap: skipped > 0 && allowGap }),
     onSuccess: () => {
       setEditing(null);
       onSaved();
@@ -542,12 +547,12 @@ function NumberingSection({ sequences, onSaved }: { sequences: NumberSequence[];
             <dl className="mt-3 grid grid-cols-2 gap-y-1 text-sm">
               <dt className="font-semibold text-slate-500">Format</dt><dd className="text-right font-black tabular-nums">{sequence.prefix}{sequence.padWidth ? "0".repeat(sequence.padWidth) : "123"}</dd>
               <dt className="font-semibold text-slate-500">Next Number</dt><dd className="text-right font-black tabular-nums">{sequence.isConfigured ? sequence.nextFormatted : "—"}</dd>
-              <dt className="font-semibold text-slate-500">Last Issued Here</dt><dd className="text-right font-black tabular-nums">{sequence.lastIssuedFormatted ?? "None yet"}</dd>
+              <dt className="font-semibold text-slate-500">Last Used</dt><dd className="text-right font-black tabular-nums">{sequence.highestUsedFormatted ?? sequence.lastIssuedFormatted ?? "None yet"}</dd>
             </dl>
             {!sequence.isConfigured ? (
               <p className="mt-3 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">Set the next number with Set Next Number. No {sequence.label.toLowerCase()} can be created until it is set.</p>
             ) : null}
-            <button type="button" className="math-role-action-button mt-4 h-9 px-3 text-xs" onClick={() => { setEditing(sequence); setValue(sequence.isConfigured ? String(sequence.nextNumber) : ""); setReason(""); setConfirmText(""); mutation.reset(); }}>
+            <button type="button" className="math-role-action-button mt-4 h-9 px-3 text-xs" onClick={() => { setEditing(sequence); setValue(sequence.isConfigured ? String(sequence.nextNumber) : ""); setReason(""); setConfirmText(""); setAllowGap(false); mutation.reset(); }}>
               <Pencil size={13} />Set Next Number
             </button>
           </article>
@@ -562,7 +567,7 @@ function NumberingSection({ sequences, onSaved }: { sequences: NumberSequence[];
         footer={
           <>
             <button type="button" className="math-button-secondary" onClick={() => setEditing(null)}>Cancel</button>
-            <button type="button" className="math-button-primary" disabled={!parsed || Boolean(tooLow) || confirmText.trim().toUpperCase() !== "SET" || mutation.isPending} onClick={() => mutation.mutate()}>
+            <button type="button" className="math-button-primary" disabled={!parsed || tooLow || (skipped > 0 && !allowGap) || confirmText.trim().toUpperCase() !== "SET" || mutation.isPending} onClick={() => mutation.mutate()}>
               {mutation.isPending ? "Saving..." : "Set Number"}
             </button>
           </>
@@ -570,14 +575,20 @@ function NumberingSection({ sequences, onSaved }: { sequences: NumberSequence[];
       >
         <div className="grid gap-4">
           <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold leading-5 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-            Normally the migration sets this. Only set it by hand if you are sure: it must be higher than the last number the old platform issued, or two documents would share a number.
+            Normally the carry-over from the old platform sets this. Only set it by hand if you are sure: it must follow straight on from the last number used{floorFormatted ? ` (${floorFormatted})` : ""}, so no number is used twice and the series never breaks.
           </p>
           <label className="block">
             <FieldLabel>Next Number</FieldLabel>
             <input className="math-input tabular-nums" inputMode="numeric" value={value} onChange={(event) => setValue(event.target.value.replace(/[^0-9]/g, ""))} placeholder="e.g. 1037" />
-            <FieldError message={value && !parsed ? "Enter a whole number from 1 to 99,999,999." : tooLow ? `${editing?.lastIssuedFormatted} has already been issued. Enter a higher number.` : null} />
+            <FieldError message={value && !parsed ? "Enter a whole number from 1 to 99,999,999." : tooLow ? `${floorFormatted} has already been used. Enter ${floor + 1} or higher.` : null} />
             {preview && !tooLow ? <p className="mt-1.5 text-xs font-bold text-slate-600 dark:text-slate-300">The next {editing?.label.toLowerCase()} will be <span className="font-black tabular-nums">{preview}</span>.</p> : null}
           </label>
+          {skipped > 0 && !tooLow ? (
+            <label className="flex items-start gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold leading-5 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
+              <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-rose-600" checked={allowGap} onChange={(event) => setAllowGap(event.target.checked)} />
+              <span>This skips {skipped} number{skipped === 1 ? "" : "s"} after {floorFormatted} and breaks the series. The series continues at {floor + 1}. Tick only if the gap is wanted.</span>
+            </label>
+          ) : null}
           <label className="block">
             <FieldLabel hint="kept in the history">Reason</FieldLabel>
             <input className="math-input" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="e.g. continue after the old platform's last number" />
