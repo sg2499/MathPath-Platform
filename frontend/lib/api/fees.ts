@@ -36,6 +36,8 @@ export type FeePayment = {
   advancePaise: number;
   advanceDisplay: string;
   methodSummary: string;
+  // 2026-11-27: "Paid online", "Paid by UPI", "Paid in cash", ...
+  paidHow?: string;
   channel: "COUNTER" | "ONLINE";
   invoiceNumbers: string[];
 };

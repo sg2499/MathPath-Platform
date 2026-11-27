@@ -240,7 +240,10 @@ def NotifyInvoicesRaised(db: Session, InvoiceIdsByStudent: dict[str, list[str]])
 
 def NotifyPaymentReceived(db: Session, Payment: PaymentReceipt) -> None:
     StudentRow = db.get(Student, Payment.student_id)
-    How = "online" if Payment.channel == "ONLINE" else "at the centre"
+    from app.services.payments.receipts_service import PaidHow
+
+    Methods = [Row.method for Row in db.query(PaymentMethodLine.method).filter(PaymentMethodLine.payment_id == Payment.id).order_by(PaymentMethodLine.line_order).all()]
+    How = PaidHow(Payment.channel, Methods)
     NotifyStudent(
         db, StudentRow, Type="FEES_PAYMENT_RECEIVED", Tone="GREEN",
         Title="Payment received",
@@ -1011,7 +1014,7 @@ def _StudentPayment(db: Session, Payment: PaymentReceipt) -> dict[str, Any]:
     from app.services.payments.receipts_service import PaymentPayload
 
     Full = PaymentPayload(db, Payment, Names={}, Detailed=False)
-    Keys = ("paymentId", "receiptNumber", "paymentDate", "amountPaise", "amountDisplay", "discountDisplay", "discountPaise", "advancePaise", "advanceDisplay", "methodSummary", "channel", "invoiceNumbers")
+    Keys = ("paymentId", "receiptNumber", "paymentDate", "amountPaise", "amountDisplay", "discountDisplay", "discountPaise", "advancePaise", "advanceDisplay", "methodSummary", "paidHow", "channel", "invoiceNumbers")
     return {Key: Full[Key] for Key in Keys}
 
 

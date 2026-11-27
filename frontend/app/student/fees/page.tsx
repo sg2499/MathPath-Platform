@@ -237,7 +237,7 @@ function StudentFeesPageContent() {
                       <span className="font-bold text-slate-500 dark:text-slate-400"> · {FormatDate(Row.paymentDate)}</span>
                     </p>
                     <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {Row.channel === "ONLINE" ? "Paid online" : "Paid at the centre"}
+                      {Row.paidHow ?? (Row.channel === "ONLINE" ? "Paid online" : "Paid at the centre")}
                       {Row.invoiceNumbers.length ? ` · for ${Row.invoiceNumbers.join(", ")}` : ""}
                       {Row.advancePaise ? ` · ${Row.advanceDisplay} kept as advance` : ""}
                     </p>
