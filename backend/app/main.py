@@ -317,6 +317,16 @@ def _EnsureSchema():
         SeedRewardItems(_Db)
     finally:
         _Db.close()
+    # 2026-11-28 (several phones on one admin login): each account's existing
+    # authenticator becomes its first phone, once, under the startup lock.
+    from app.services.two_factor_devices import BackfillFirstDevices
+    _Db = SessionLocal()
+    try:
+        BackfillFirstDevices(_Db)
+    except Exception:  # noqa: BLE001 -- never stop the boot; it is also done on first use
+        _Db.rollback()
+    finally:
+        _Db.close()
 
 
 @app.on_event("startup")
