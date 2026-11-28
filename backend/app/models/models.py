@@ -48,6 +48,28 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+
+class UserTotpDevice(Base):
+    """2026-11-28 (Shailesh): several authenticator apps on one login.
+
+    The admins share one admin login. Each person adds their own phone here
+    once (named, e.g. "Riya's phone"); a code from any active phone completes
+    the 2FA step. A phone is only kept once a code from it has been entered
+    (confirmed_at), and removing one keeps the row (removed_at) for history.
+    The account's first authenticator (users.totp_secret) is copied in as
+    the first row the first time it is needed."""
+
+    __tablename__ = "user_totp_devices"
+    id = Column(String, primary_key=True, default=uuid_str)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    label = Column(String(80), nullable=False)
+    secret = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    removed_at = Column(DateTime(timezone=True), nullable=True)
+
+
 class Student(Base):
     __tablename__ = "students"
     id = Column(String, primary_key=True, default=uuid_str)

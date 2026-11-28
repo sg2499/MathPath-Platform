@@ -6,6 +6,7 @@ import { useAuthenticatedImage } from "@/lib/hooks/useAuthenticatedImage";
 import { NotificationsBell } from "@/components/common/NotificationsBell";
 import { DemoSwitchButton } from "@/components/common/DemoAccounts";
 import { BuildInfoBadge } from "@/components/common/BuildInfoBadge";
+import { TwoFactorPhones } from "@/components/common/TwoFactorPhones";
 import { apiErrorMessage } from "@/lib/api";
 import { getStudentFeesSummary } from "@/lib/api/fees";
 import { useQuery } from "@tanstack/react-query";
@@ -2520,6 +2521,7 @@ function TwoFactorModal({
   const [Error, SetError] = useState<string | null>(null);
   const [SetupData, SetSetupData] = useState<{ secret: string; qrCodeDataUrl: string } | null>(null);
   const [Code, SetCode] = useState("");
+  const [PhonesBusy, SetPhonesBusy] = useState(false);
   const [BackupCodes, SetBackupCodes] = useState<string[]>([]);
   const [DisablePassword, SetDisablePassword] = useState("");
 
@@ -2603,15 +2605,18 @@ function TwoFactorModal({
       {Step === "status" && user.twoFactorEnabled ? (
         <div className="grid gap-4">
           <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-            Two-factor authentication is currently <strong>enabled</strong> on this account.
+            Two-factor authentication is currently <strong>enabled</strong> on this account. A code from any phone below completes the login.
           </p>
-          <button
-            className="math-button-secondary px-4 py-3 text-rose-600 dark:text-rose-300"
-            onClick={() => SetStep("disable")}
-            disabled={Loading}
-          >
-            Disable Two-Factor Authentication
-          </button>
+          <TwoFactorPhones onBusyChange={SetPhonesBusy} />
+          {PhonesBusy ? null : (
+            <button
+              className="math-button-secondary px-4 py-3 text-rose-600 dark:text-rose-300"
+              onClick={() => SetStep("disable")}
+              disabled={Loading}
+            >
+              Disable Two-Factor Authentication
+            </button>
+          )}
         </div>
       ) : null}
 

@@ -28,6 +28,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_roles
 from app.models import Student, Teacher, User
 from app.services.auth_service import login, user_payload, force_logout_user
+from app.services import two_factor_devices as totp_devices
 from app.core.rate_limit import limiter
 from app.core.cookies import (
     set_session_cookie,
@@ -66,6 +67,23 @@ class TwoFactorDisableRequest(BaseModel):
 class TwoFactorVerifyLoginRequest(BaseModel):
     challengeToken: str
     code: str
+
+
+class TwoFactorAddDeviceRequest(BaseModel):
+    label: str
+    password: str
+
+
+class TwoFactorConfirmDeviceRequest(BaseModel):
+    code: str
+
+
+class TwoFactorRenameDeviceRequest(BaseModel):
+    label: str
+
+
+class TwoFactorRemoveDeviceRequest(BaseModel):
+    password: str
 
 
 @router.post("/login")
@@ -277,6 +295,10 @@ def two_factor_setup(user: User = Depends(require_roles("ADMIN", "SUPER_ADMIN"))
     POST /2fa/enable -- this prevents a user from locking themselves into a
     broken 2FA setup (e.g. mis-scanned QR code) with no way back in.
     """
+    if user.totp_enabled:
+        # 2026-11-28: starting setup again used to replace the authenticator
+        # every admin relies on. Another phone is added from the list instead.
+        api_error(409, "TWO_FACTOR_ALREADY_ON", "Two-factor authentication is already on. Add another phone from the list instead.")
     Secret = generate_totp_secret()
     user.totp_pending_secret = Secret
     db.commit()
@@ -305,6 +327,7 @@ def two_factor_enable(
     user.totp_pending_secret = None
     user.totp_enabled = True
     user.totp_backup_codes_json = json.dumps([hash_password(code) for code in BackupCodes])
+    totp_devices.OnTwoFactorEnabled(db, user)
     db.commit()
     return {
         "updated": True,
@@ -331,8 +354,46 @@ def two_factor_disable(
     user.totp_pending_secret = None
     user.totp_enabled = False
     user.totp_backup_codes_json = None
+    totp_devices.OnTwoFactorDisabled(db, user)
     db.commit()
     return {"updated": True, "message": "Two-factor authentication has been disabled."}
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-28 (Shailesh): several phones on one admin login. Each person adds
+# their own authenticator app once; a code from any of them logs in. Adding
+# and removing need the account password (see two_factor_devices.py).
+# ---------------------------------------------------------------------------
+
+_two_factor_admin = require_roles("ADMIN", "SUPER_ADMIN")
+
+
+@router.get("/2fa/devices")
+def two_factor_devices(user: User = Depends(_two_factor_admin), db: Session = Depends(get_db)):
+    return totp_devices.ListDevices(db, user)
+
+
+@router.post("/2fa/devices")
+@limiter.limit("10/minute")
+def two_factor_add_device(request: Request, payload: TwoFactorAddDeviceRequest, user: User = Depends(_two_factor_admin), db: Session = Depends(get_db)):
+    return totp_devices.StartAddDevice(db, user, Label=payload.label, Password=payload.password)
+
+
+@router.post("/2fa/devices/{device_id}/confirm")
+@limiter.limit("10/minute")
+def two_factor_confirm_device(request: Request, device_id: str, payload: TwoFactorConfirmDeviceRequest, user: User = Depends(_two_factor_admin), db: Session = Depends(get_db)):
+    return totp_devices.ConfirmAddDevice(db, user, DeviceId=device_id, Code=payload.code)
+
+
+@router.patch("/2fa/devices/{device_id}")
+def two_factor_rename_device(device_id: str, payload: TwoFactorRenameDeviceRequest, user: User = Depends(_two_factor_admin), db: Session = Depends(get_db)):
+    return totp_devices.RenameDevice(db, user, DeviceId=device_id, Label=payload.label)
+
+
+@router.post("/2fa/devices/{device_id}/remove")
+@limiter.limit("10/minute")
+def two_factor_remove_device(request: Request, device_id: str, payload: TwoFactorRemoveDeviceRequest, user: User = Depends(_two_factor_admin), db: Session = Depends(get_db)):
+    return totp_devices.RemoveDevice(db, user, DeviceId=device_id, Password=payload.password)
 
 
 @router.post("/2fa/verify-login")
@@ -356,7 +417,9 @@ def two_factor_verify_login(request: Request, response: Response, payload: TwoFa
         set_csrf_cookie(response)
         return {"tokenType": "Bearer", "user": user_payload(db, user)}
 
-    if verify_totp_code(user.totp_secret, Code):
+    # 2026-11-28: a code from any phone added to this login is accepted.
+    if totp_devices.VerifyLoginCode(db, user, Code):
+        db.commit()
         return _issue_session()
 
     # Fall back to a one-time backup code -- consumed on use, same as any

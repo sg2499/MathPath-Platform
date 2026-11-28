@@ -253,3 +253,34 @@ export async function disableTwoFactor(password: string): Promise<{ updated: boo
   const { data } = await api.post<{ updated: boolean; message: string }>("/auth/2fa/disable", { password });
   return data;
 }
+
+// 2026-11-28 (Shailesh): several phones on one admin login. Each person adds
+// their own authenticator app once; a code from any of them logs in.
+export type TwoFactorDevice = { deviceId: string; label: string; addedAt: string | null; lastUsedAt: string | null };
+export type TwoFactorDeviceList = { enabled: boolean; devices: TwoFactorDevice[] };
+export type TwoFactorDeviceSetup = { deviceId: string; label: string; secret: string; qrCodeDataUrl: string; otpauthUri: string };
+
+export async function listTwoFactorDevices(): Promise<TwoFactorDeviceList> {
+  const { data } = await api.get<TwoFactorDeviceList>("/auth/2fa/devices");
+  return data;
+}
+
+export async function startAddTwoFactorDevice(label: string, password: string): Promise<TwoFactorDeviceSetup> {
+  const { data } = await api.post<TwoFactorDeviceSetup>("/auth/2fa/devices", { label, password });
+  return data;
+}
+
+export async function confirmTwoFactorDevice(deviceId: string, code: string): Promise<TwoFactorDeviceList> {
+  const { data } = await api.post<TwoFactorDeviceList>(`/auth/2fa/devices/${encodeURIComponent(deviceId)}/confirm`, { code });
+  return data;
+}
+
+export async function renameTwoFactorDevice(deviceId: string, label: string): Promise<TwoFactorDeviceList> {
+  const { data } = await api.patch<TwoFactorDeviceList>(`/auth/2fa/devices/${encodeURIComponent(deviceId)}`, { label });
+  return data;
+}
+
+export async function removeTwoFactorDevice(deviceId: string, password: string): Promise<TwoFactorDeviceList> {
+  const { data } = await api.post<TwoFactorDeviceList>(`/auth/2fa/devices/${encodeURIComponent(deviceId)}/remove`, { password });
+  return data;
+}
